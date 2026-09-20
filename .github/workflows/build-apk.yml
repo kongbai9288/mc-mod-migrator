@@ -18,13 +18,31 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept licenses and install SDK packages
+      - name: Install Android SDK command line tools
         run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" > /dev/null
+          set -e
+          mkdir -p "$HOME/android-sdk/cmdline-tools"
+          cd "$HOME/android-sdk/cmdline-tools"
+          curl -sSL -o cmdline.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q cmdline.zip
+          mv cmdline-tools latest 2>/dev/null || true
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+
+      - name: Accept licenses
+        run: |
+          set -e
+          mkdir -p "$ANDROID_HOME/licenses"
+          printf '\n24333f8a63b6825ea9c5514f83c2829b004d1fee\n' > "$ANDROID_HOME/licenses/android-sdk-license"
+          printf '\n84831b9409646a918e30573bab4c9c91346d8abd\n' > "$ANDROID_HOME/licenses/android-sdk-preview-license"
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+
+      - name: Install SDK packages
+        run: |
+          set -e
+          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" > /dev/null
+          sdkmanager --list_installed | head -20
 
       - name: Install Gradle 8.2
         run: |
@@ -33,16 +51,18 @@ jobs:
           echo "/opt/gradle-8.2/bin" >> $GITHUB_PATH
 
       - name: Build debug APK
-        id: build
         continue-on-error: true
         run: gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
 
-      - name: Collect log
+      - name: Collect outputs
         if: always()
         run: |
           mkdir -p out
-          if [ -f app/build/outputs/apk/debug/*.apk ]; then cp app/build/outputs/apk/debug/*.apk out/ 2>/dev/null || true; fi
-          if [ -f build.log ]; then cp build.log out/ ; fi
+          echo "=== 构建产物 ===" > out/status.txt
+          find app/build/outputs -name '*.apk' 2>/dev/null >> out/status.txt || true
+          cp build.log out/ 2>/dev/null || echo "no build.log" > out/build.log
+          cp out/status.txt out/ 2>/dev/null || true
+          ls -la out/
 
       - name: Upload artifacts
         if: always()
