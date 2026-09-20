@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,52 +24,123 @@ jobs:
         run: |
           set -e
           mkdir -p "$HOME/android-sdk/cmdline-tools"
-          cd "$HOME/android-sdk/cmdline-tools"
-          curl -sSL -o cmdline.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -q cmdline.zip
-          mv cmdline-tools latest 2>/dev/null || true
+          cd /tmp
+          curl -sSL --retry 3 -o cmdline.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q -o cmdline.zip -d "$HOME/android-sdk/cmdline-tools"
+          if [ -d "$HOME/android-sdk/cmdline-tools/cmdline-tools" ]; then
+            rm -rf "$HOME/android-sdk/cmdline-tools/latest"
+            mv "$HOME/android-sdk/cmdline-tools/cmdline-tools" "$HOME/android-sdk/cmdline-tools/latest"
+          fi
           echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
 
       - name: Accept licenses
         run: |
-          set -e
-          mkdir -p "$ANDROID_HOME/licenses"
-          printf '\n24333f8a63b6825ea9c5514f83c2829b004d1fee\n' > "$ANDROID_HOME/licenses/android-sdk-license"
-          printf '\n84831b9409646a918e30573bab4c9c91346d8abd\n' > "$ANDROID_HOME/licenses/android-sdk-preview-license"
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
 
       - name: Install SDK packages
         run: |
           set -e
-          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" > /dev/null
-          sdkmanager --list_installed | head -20
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Install Gradle 8.2
         run: |
-          wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip -O /tmp/gradle.zip
-          sudo unzip -q /tmp/gradle.zip -d /opt
+          set -e
+          curl -sSL --retry 3 -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.2-bin.zip
+          sudo unzip -q -o /tmp/gradle.zip -d /opt
           echo "/opt/gradle-8.2/bin" >> $GITHUB_PATH
 
       - name: Build debug APK
-        continue-on-error: true
-        run: gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
-
-      - name: Collect outputs
-        if: always()
+        id: build
         run: |
-          mkdir -p out
-          echo "=== 构建产物 ===" > out/status.txt
-          find app/build/outputs -name '*.apk' 2>/dev/null >> out/status.txt || true
-          cp build.log out/ 2>/dev/null || echo "no build.log" > out/build.log
-          cp out/status.txt out/ 2>/dev/null || true
-          ls -la out/
+          gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
+          echo "GRADLE_EXIT=${PIPESTATUS[0]}" >> $GITHUB_ENV
+          echo "===== APK 产物 ====="
+          ls -la app/build/outputs/apk/debug/ || true
+          find app/build/outputs -name "*.apk" -exec ls -la {} \; || true
 
-      - name: Upload artifacts
-        if: always()
+      - name: Upload APK artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ModMigrator-out
-          path: out/
+          name: ModMigrator-debug
+          path: app/build/outputs/apk/debug/*.apk
           retention-days: 30
+
+      - name: Publish APK to Release
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, glob, urllib.request, urllib.error
+
+          token = os.environ['GH_TOKEN']
+          repo = os.environ['REPO']
+          api = 'https://api.github.com'
+          up = 'https://uploads.github.com'
+
+
+          def req(method, url, payload=None, raw=False):
+              data = json.dumps(payload).encode('utf-8') if payload is not None else None
+              r = urllib.request.Request(url, data=data, method=method)
+              r.add_header('Authorization', 'Bearer ' + token)
+              r.add_header('Accept', 'application/vnd.github+json')
+              r.add_header('User-Agent', 'ci')
+              if data and not raw:
+                  r.add_header('Content-Type', 'application/json')
+              if data and raw:
+                  r.add_header('Content-Type', 'application/vnd.android.package-archive')
+              try:
+                  with urllib.request.urlopen(r, timeout=180) as resp:
+                      return json.loads(resp.read().decode('utf-8'))
+              except urllib.error.HTTPError as e:
+                  return {'__error__': e.code, 'body': e.read().decode('utf-8', 'ignore')[:300]}
+              except Exception as e:
+                  return {'__error__': 0, 'body': str(e)[:200]}
+
+
+          apks = glob.glob('app/build/outputs/apk/debug/*.apk')
+          print('found apks:', apks)
+          if not apks:
+              print('NO APK, skip release')
+              raise SystemExit(0)
+
+          apk = apks[0]
+          size = os.path.getsize(apk)
+          print('apk size', size)
+
+          # 删掉旧的同名 release
+          cur = req('GET', '%s/repos/%s/releases/tags/nightly' % (api, repo))
+          if '__error__' not in cur and cur.get('id'):
+              req('DELETE', '%s/repos/%s/releases/%s' % (api, repo, cur['id']))
+          req('DELETE', '%s/repos/%s/git/refs/tags/nightly' % (api, repo))
+
+          rel = req('POST', '%s/repos/%s/releases' % (api, repo), {
+              'tag_name': 'nightly',
+              'name': 'ModMigrator debug 构建',
+              'body': 'CI 自动构建的 debug APK。安装后需在设置里填写自己的 GitHub Token 与私有仓库。',
+              'draft': False,
+              'prerelease': True,
+          })
+          if '__error__' in rel:
+              print('RELEASE FAIL', rel)
+              raise SystemExit(0)
+          print('release ok', rel.get('id'))
+
+          with open(apk, 'rb') as f:
+              data = f.read()
+          url = '%s/repos/%s/releases/%s/assets?name=%s' % (up, repo, rel['id'], 'ModMigrator-debug.apk')
+          r = urllib.request.Request(url, data=data, method='POST')
+          r.add_header('Authorization', 'Bearer ' + token)
+          r.add_header('Content-Type', 'application/vnd.android.package-archive')
+          r.add_header('Accept', 'application/vnd.github+json')
+          r.add_header('User-Agent', 'ci')
+          try:
+              with urllib.request.urlopen(r, timeout=300) as resp:
+                  a = json.loads(resp.read().decode('utf-8'))
+                  print('ASSET OK', a.get('name'), a.get('size'), a.get('browser_download_url'))
+          except urllib.error.HTTPError as e:
+              print('ASSET FAIL', e.code, e.read().decode('utf-8', 'ignore')[:300])
+          PYEOF
