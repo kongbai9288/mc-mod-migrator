@@ -1,0 +1,383 @@
+package com.kongbai.modmigrator
+
+import android.app.Activity
+import android.content.Intent
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Button
+import android.widget.CheckBox
+import android.widget.EditText
+import android.widget.ProgressBar
+import android.widget.Spinner
+import android.widget.TextView
+import android.widget.Toast
+import androidx.documentfile.provider.DocumentFile
+import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import java.util.concurrent.Executors
+
+class MigrationFragment : Fragment() {
+
+    private lateinit var tvSource: TextView
+    private lateinit var tvTarget: TextView
+    private lateinit var etVersion: EditText
+    private lateinit var spLoader: Spinner
+    private lateinit var cbConfig: CheckBox
+    private lateinit var cbScripts: CheckBox
+    private lateinit var cbOptions: CheckBox
+    private lateinit var cbPacks: CheckBox
+    private lateinit var cbSaves: CheckBox
+    private lateinit var pb: ProgressBar
+    private lateinit var rvMods: RecyclerView
+    private lateinit var tvLog: TextView
+
+    private val mods = mutableListOf<ModEntry>()
+    private lateinit var adapter: ModAdapter
+    private val sb = StringBuilder()
+    private val exec = Executors.newSingleThreadExecutor()
+    private val handler = Handler(Looper.getMainLooper())
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        val v = inflater.inflate(R.layout.fragment_migration, container, false)
+        tvSource = v.findViewById(R.id.tvSource)
+        tvTarget = v.findViewById(R.id.tvTarget)
+        etVersion = v.findViewById(R.id.etTargetVersion)
+        spLoader = v.findViewById(R.id.spLoader)
+        cbConfig = v.findViewById(R.id.cbConfig)
+        cbScripts = v.findViewById(R.id.cbScripts)
+        cbOptions = v.findViewById(R.id.cbOptions)
+        cbPacks = v.findViewById(R.id.cbPacks)
+        cbSaves = v.findViewById(R.id.cbSaves)
+        pb = v.findViewById(R.id.pb)
+        rvMods = v.findViewById(R.id.rvMods)
+        tvLog = v.findViewById(R.id.tvLog)
+
+        adapter = ModAdapter(mods) { m -> downloadOne(m) }
+        rvMods.layoutManager = LinearLayoutManager(requireContext())
+        rvMods.adapter = adapter
+        rvMods.isNestedScrollingEnabled = false
+
+        v.findViewById<Button>(R.id.btnPickSource).setOnClickListener { pickDir(11) }
+        v.findViewById<Button>(R.id.btnPickTarget).setOnClickListener { pickDir(12) }
+        v.findViewById<Button>(R.id.btnScan).setOnClickListener { scan() }
+        v.findViewById<Button>(R.id.btnRun).setOnClickListener { runMigration() }
+
+        val p = Prefs.get(requireContext())
+        etVersion.setText(p.getString(K.DEF_VERSION, "") ?: "")
+        selectLoader(p.getString(K.DEF_LOADER, "") ?: "auto")
+        refreshPaths()
+        return v
+    }
+
+    private fun refreshPaths() {
+        val p = Prefs.get(requireContext())
+        tvSource.text = p.getString(K.SRC_URI, null) ?: getString(R.string.empty_hint)
+        tvTarget.text = p.getString(K.DST_URI, null) ?: getString(R.string.empty_hint)
+    }
+
+    private fun selectLoader(name: String) {
+        val arr = resources.getStringArray(R.array.loaders)
+        val i = arr.indexOf(name)
+        if (i >= 0) spLoader.setSelection(i)
+    }
+
+    private fun pickDir(code: Int) {
+        val i = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+        startActivityForResult(i, code)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode != Activity.RESULT_OK) return
+        val uri = data?.data ?: return
+        val ctx = requireContext()
+        try {
+            ctx.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+        } catch (t: Throwable) {
+            log("授权持久化失败：${t.message}")
+        }
+        val p = Prefs.get(ctx)
+        when (requestCode) {
+            11 -> {
+                p.edit().putString(K.SRC_URI, uri.toString()).apply()
+                refreshPaths()
+                val root = Fs.tree(ctx, uri.toString())
+                if (root != null) {
+                    log("源目录已选择，正在识别版本…")
+                    bg { detectSource(root) }
+                }
+            }
+            12 -> {
+                p.edit().putString(K.DST_URI, uri.toString()).apply()
+                refreshPaths()
+                log("目标目录已选择")
+            }
+        }
+    }
+
+    private fun log(s: String) {
+        handler.post {
+            sb.append(s).append('\n')
+            tvLog.text = sb.toString()
+        }
+    }
+
+    private fun toast(s: String) {
+        handler.post { Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show() }
+    }
+
+    private fun bg(block: () -> Unit) {
+        exec.execute {
+            try {
+                block()
+            } catch (t: Throwable) {
+                log("错误：${t.message}")
+            }
+        }
+    }
+
+    private fun detectSource(root: DocumentFile) {
+        val ctx = requireContext()
+        val mmc = Fs.find(root, "mmc-pack.json")
+        if (mmc != null) {
+            val o = Json.obj(Fs.readText(ctx, mmc))
+            val comps = Json.a(o, "components")
+            var mc = ""
+            var loader = "auto"
+            if (comps != null) {
+                for (c in comps) {
+                    val uid = Json.s(c, "uid")
+                    val ver = Json.s(c, "version")
+                    when {
+                        uid == "net.minecraft" -> mc = ver
+                        uid.startsWith("net.fabricmc") || uid.startsWith("org.quiltmc") ->
+                            if (uid.contains("quilt")) loader = "quilt" else loader = "fabric"
+                        uid.startsWith("net.minecraftforge") -> loader = "forge"
+                        uid.startsWith("net.neoforged") -> loader = "neoforge"
+                    }
+                }
+            }
+            if (mc.isNotBlank()) {
+                handler.post {
+                    etVersion.setText(mc)
+                    selectLoader(loader)
+                }
+                log("识别到 MC $mc / $loader（MultiMC/Prism 实例）")
+                return
+            }
+        }
+        val man = Fs.find(root, "manifest.json")
+        if (man != null) {
+            val o = Json.obj(Fs.readText(ctx, man))
+            val mcObj = o?.asJsonObject?.get("minecraft")
+            val mc = Json.s(mcObj, "version")
+            var loader = "auto"
+            val ls = Json.a(mcObj, "modLoaders")
+            if (ls != null && ls.size() > 0) {
+                val idv = Json.s(ls[0], "id")
+                loader = when {
+                    idv.startsWith("forge") -> "forge"
+                    idv.startsWith("neoforge") -> "neoforge"
+                    idv.startsWith("fabric") -> "fabric"
+                    idv.startsWith("quilt") -> "quilt"
+                    else -> "auto"
+                }
+            }
+            if (mc.isNotBlank()) {
+                handler.post {
+                    etVersion.setText(mc)
+                    selectLoader(loader)
+                }
+                log("识别到 MC $mc / $loader（CurseForge 清单）")
+                return
+            }
+        }
+        val vj = Fs.find(root, "version.json")
+        if (vj != null) {
+            val o = Json.obj(Fs.readText(ctx, vj))
+            val id = Json.s(o, "id")
+            if (id.isNotBlank()) {
+                handler.post { etVersion.setText(id) }
+                log("识别到 MC $id（version.json）")
+                return
+            }
+        }
+        log("未能自动识别版本，请手动填写目标 MC 版本")
+    }
+
+    private fun scan() {
+        val ctx = requireContext()
+        val p = Prefs.get(ctx)
+        val srcUri = p.getString(K.SRC_URI, null)
+        if (srcUri == null) {
+            toast(getString(R.string.no_source))
+            return
+        }
+        val mc = etVersion.text.toString().trim()
+        val loader = spLoader.selectedItem?.toString() ?: "auto"
+        if (mc.isBlank()) {
+            toast("请填写目标 MC 版本")
+            return
+        }
+        p.edit().putString(K.DEF_VERSION, mc).putString(K.DEF_LOADER, loader).apply()
+        pb.visibility = View.VISIBLE
+        mods.clear()
+        adapter.notifyDataSetChanged()
+        log("开始扫描…目标 MC $mc / $loader")
+
+        bg {
+            val root = Fs.tree(ctx, srcUri)
+            if (root == null) {
+                log("源目录不可访问")
+                handler.post { pb.visibility = View.GONE }
+                return@bg
+            }
+            val dir = Fs.find(root, "mods")
+            if (dir == null) {
+                log("源目录里没有找到 mods 文件夹")
+                handler.post { pb.visibility = View.GONE }
+                return@bg
+            }
+            val files = Fs.children(dir).filter { it.isFile && (it.name ?: "").endsWith(".jar", true) }
+            log("发现 ${files.size} 个 jar")
+            for (f in files) {
+                val e = ModEntry(fileName = f.name ?: "mod.jar", uri = f.uri.toString())
+                e.sha1 = Fs.sha1(ctx, f)
+                val info = ModrinthApi.lookupHash(e.sha1)
+                if (info == null) {
+                    e.status = "Modrinth 未识别（可去市场手动标记链接）"
+                } else {
+                    e.projectId = info.first
+                    e.currentVersion = info.second
+                    e.slug = info.third
+                    e.name = ModrinthApi.title(info.first).ifBlank { e.fileName }
+                    val vers = ModrinthApi.versions(info.first, mc, loader)
+                    val v0 = vers.firstOrNull()
+                    if (v0 == null) {
+                        e.status = "目标版本无可用文件"
+                    } else {
+                        e.targetVersion = v0.version
+                        e.targetUrl = v0.url
+                        e.targetFileName = v0.fileName
+                        e.status = "可迁移"
+                    }
+                }
+                handler.post {
+                    mods.add(e)
+                    adapter.notifyItemInserted(mods.size - 1)
+                }
+            }
+            log("扫描完成")
+            handler.post {
+                pb.visibility = View.GONE
+                val ok = mods.count { it.targetUrl.isNotBlank() }
+                toast("可迁移 $ok / ${mods.size}")
+            }
+        }
+    }
+
+    private fun downloadOne(m: ModEntry) {
+        val ctx = requireContext()
+        bg {
+            val dir = Targets.modsDir(ctx)
+            if (dir == null) {
+                toast("目标目录不可用")
+                return@bg
+            }
+            handler.post {
+                m.status = "下载中"
+                adapter.notifyDataSetChanged()
+            }
+            val name = m.targetFileName.ifBlank { Downloader.guessName(m.targetUrl) }
+            val f = Downloader.download(ctx, m.targetUrl, dir, name)
+            handler.post {
+                m.status = if (f == null) "下载失败" else "已安装"
+                adapter.notifyDataSetChanged()
+            }
+            Notifier.show(ctx, "模组迁移", m.name)
+        }
+    }
+
+    private fun runMigration() {
+        val ctx = requireContext()
+        val p = Prefs.get(ctx)
+        val srcUri = p.getString(K.SRC_URI, null)
+        val dstUri = p.getString(K.DST_URI, null)
+        if (srcUri == null) {
+            toast(getString(R.string.no_source))
+            return
+        }
+        if (dstUri == null) {
+            toast(getString(R.string.no_target))
+            return
+        }
+        if (mods.isEmpty()) {
+            toast("请先扫描生成迁移方案")
+            return
+        }
+        val wantConfig = cbConfig.isChecked
+        val wantScripts = cbScripts.isChecked
+        val wantOptions = cbOptions.isChecked
+        val wantPacks = cbPacks.isChecked
+        val wantSaves = cbSaves.isChecked
+        pb.visibility = View.VISIBLE
+        log("开始迁移…")
+
+        bg {
+            val src = Fs.tree(ctx, srcUri)
+            val dst = Fs.tree(ctx, dstUri)
+            if (src == null || dst == null) {
+                log("目录不可访问，请重新选择并授权")
+                handler.post { pb.visibility = View.GONE }
+                return@bg
+            }
+            if (wantConfig) Fs.find(src, "config")?.let { Fs.copyInto(ctx, it, dst) { s -> log(s) } }
+            if (wantScripts) Fs.find(src, "scripts")?.let { Fs.copyInto(ctx, it, dst) { s -> log(s) } }
+            if (wantOptions) Fs.find(src, "options.txt")?.let { Fs.copyInto(ctx, it, dst) { s -> log(s) } }
+            if (wantPacks) {
+                Fs.find(src, "resourcepacks")?.let { Fs.copyInto(ctx, it, dst) { s -> log(s) } }
+                Fs.find(src, "shaderpacks")?.let { Fs.copyInto(ctx, it, dst) { s -> log(s) } }
+            }
+            if (wantSaves) Fs.find(src, "saves")?.let { Fs.copyInto(ctx, it, dst) { s -> log(s) } }
+            log("配置文件复制阶段结束")
+
+            val dir = Fs.ensureDir(dst, "mods")
+            var ok = 0
+            var total = 0
+            for (m in mods) {
+                if (m.targetUrl.isBlank()) continue
+                total++
+                val name = m.targetFileName.ifBlank { Downloader.guessName(m.targetUrl) }
+                val f = Downloader.download(ctx, m.targetUrl, dir, name)
+                if (f != null) ok++
+                log("${if (f == null) "失败" else "已安装"}：${m.name} ${m.targetVersion}")
+                handler.post {
+                    m.status = if (f == null) "下载失败" else "已安装"
+                    adapter.notifyDataSetChanged()
+                }
+            }
+            log("迁移完成：模组 $ok/$total")
+            handler.post { pb.visibility = View.GONE }
+            Notifier.show(ctx, "迁移完成", "模组 $ok/$total")
+            if (p.getBoolean(K.AUTO_LAUNCH, false)) {
+                val pkg = p.getString(K.LAUNCHER, "") ?: ""
+                if (pkg.isNotBlank()) {
+                    val launched = LauncherHelper.launch(ctx, pkg)
+                    log(if (launched) "已启动 $pkg" else "启动失败 $pkg")
+                }
+            }
+        }
+    }
+}
