@@ -51,34 +51,30 @@ jobs:
           echo "/opt/gradle-8.2/bin" >> $GITHUB_PATH
 
       - name: Build debug APK
-        run: gradle assembleDebug --no-daemon -x lint 2>&1 | tail -100
-
-      - name: Diagnose outputs
-        if: always()
         run: |
-          echo "PWD: $(pwd)" > /tmp/diag.txt
-          echo "--- gradle version ---" >> /tmp/diag.txt
-          gradle --version >> /tmp/diag.txt 2>&1
-          echo "--- find apk ---" >> /tmp/diag.txt
-          find . -name "*.apk" -type f >> /tmp/diag.txt 2>&1
-          echo "--- ls outputs ---" >> /tmp/diag.txt
-          ls -laR app/build/outputs >> /tmp/diag.txt 2>&1
-          echo "--- ls build ---" >> /tmp/diag.txt
-          ls -la app/build >> /tmp/diag.txt 2>&1
-          echo "--- env ---" >> /tmp/diag.txt
-          echo "ANDROID_HOME=$ANDROID_HOME" >> /tmp/diag.txt
-          tail -60 /tmp/diag.txt
+          gradle assembleDebug --no-daemon > /tmp/build.log 2>&1
+          echo "GRADLE_EXIT=$?" >> $GITHUB_ENV
+          echo "===== last 120 lines ====="
+          tail -120 /tmp/build.log
+          echo "===== apk find ====="
+          find . -name "*.apk" -type f -exec ls -la {} \;
 
-      - name: Upload diag to repo
+      - name: Upload APK artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ModMigrator-debug
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 30
+
+      - name: Publish build log to repo
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set +e
-          B64=$(base64 -w0 /tmp/diag.txt)
-          printf '{"message":"ci: diag","content":"%s","branch":"main"}' "$B64" > /tmp/payload.json
-          curl -s -X PUT \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            -d @/tmp/payload.json \
-            https://api.github.com/repos/${{ github.repository }}/contents/ci/diag.txt | head -c 300
+          B64=$(base64 -w0 /tmp/build.log)
+          printf '{"message":"ci: build log","content":"%s","branch":"main"}' "$B64" > /tmp/p.json
+          curl -s -X PUT -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" -d @/tmp/p.json \
+            https://api.github.com/repos/${{ github.repository }}/contents/ci/build.log | head -c 200
