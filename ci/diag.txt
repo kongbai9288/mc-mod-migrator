@@ -1,0 +1,40 @@
+PWD: /home/runner/work/mc-mod-migrator/mc-mod-migrator
+--- gradle version ---
+
+------------------------------------------------------------
+Gradle 8.2
+------------------------------------------------------------
+
+Build time:   2023-06-30 18:02:30 UTC
+Revision:     5f4a070a62a31a17438ac998c2b849f4f6892877
+
+Kotlin:       1.8.20
+Groovy:       3.0.17
+Ant:          Apache Ant(TM) version 1.10.13 compiled on January 4 2023
+JVM:          17.0.20.1 (Eclipse Adoptium 17.0.20.1+1)
+OS:           Linux 6.17.0-1022-azure amd64
+
+--- find apk ---
+--- ls outputs ---
+app/build/outputs:
+total 12
+drwxr-xr-x 3 runner runner 4096 Sep 20 06:04 .
+drwxr-xr-x 7 runner runner 4096 Sep 20 06:04 ..
+drwxr-xr-x 2 runner runner 4096 Sep 20 06:04 logs
+
+app/build/outputs/logs:
+total 96
+drwxr-xr-x 2 runner runner  4096 Sep 20 06:04 .
+drwxr-xr-x 3 runner runner  4096 Sep 20 06:04 ..
+-rw-r--r-- 1 runner runner 87906 Sep 20 06:04 manifest-merger-debug-report.txt
+--- ls build ---
+total 28
+drwxr-xr-x  7 runner runner 4096 Sep 20 06:04 .
+drwxr-xr-x  4 runner runner 4096 Sep 20 06:04 ..
+drwxr-xr-x  3 runner runner 4096 Sep 20 06:04 generated
+drwxr-xr-x 29 runner runner 4096 Sep 20 06:05 intermediates
+drwxr-xr-x  3 runner runner 4096 Sep 20 06:04 kotlin
+drwxr-xr-x  3 runner runner 4096 Sep 20 06:04 outputs
+drwxr-xr-x  3 runner runner 4096 Sep 20 06:04 tmp
+--- env ---
+ANDROID_HOME=/home/runner/android-sdk
