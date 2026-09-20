@@ -53,11 +53,11 @@ jobs:
       - name: Build debug APK
         run: |
           gradle assembleDebug --no-daemon > /tmp/build.log 2>&1
-          echo "GRADLE_EXIT=$?" >> $GITHUB_ENV
-          echo "===== last 120 lines ====="
-          tail -120 /tmp/build.log
+          echo "EXIT=$?"
           echo "===== apk find ====="
           find . -name "*.apk" -type f -exec ls -la {} \;
+          echo "===== last 60 lines ====="
+          tail -60 /tmp/build.log
 
       - name: Upload APK artifact
         if: success()
@@ -71,10 +71,42 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
-          set +e
-          B64=$(base64 -w0 /tmp/build.log)
-          printf '{"message":"ci: build log","content":"%s","branch":"main"}' "$B64" > /tmp/p.json
-          curl -s -X PUT -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" -d @/tmp/p.json \
-            https://api.github.com/repos/${{ github.repository }}/contents/ci/build.log | head -c 200
+          python3 - <<'PYEOF'
+          import json, base64, urllib.request, urllib.error, os
+
+          token = os.environ['GH_TOKEN']
+          repo = os.environ['REPO']
+          api = 'https://api.github.com'
+          path = 'ci/build.log'
+
+
+          def req(method, url, payload=None):
+              data = json.dumps(payload).encode('utf-8') if payload is not None else None
+              r = urllib.request.Request(url, data=data, method=method)
+              r.add_header('Authorization', 'Bearer ' + token)
+              r.add_header('Accept', 'application/vnd.github+json')
+              r.add_header('User-Agent', 'ci')
+              if data:
+                  r.add_header('Content-Type', 'application/json')
+              try:
+                  with urllib.request.urlopen(r, timeout=120) as resp:
+                      return json.loads(resp.read().decode('utf-8'))
+              except urllib.error.HTTPError as e:
+                  return {'__error__': e.code, 'body': e.read().decode('utf-8', 'ignore')[:200]}
+              except Exception as e:
+                  return {'__error__': 0, 'body': str(e)[:150]}
+
+
+          content = open('/tmp/build.log', 'rb').read()
+          if len(content) > 900000:
+              content = content[-900000:]
+          cur = req('GET', '%s/repos/%s/contents/%s?ref=main' % (api, repo, path))
+          print('GET', str(cur)[:120])
+          payload = {'message': 'ci: build log', 'content': base64.b64encode(content).decode(), 'branch': 'main'}
+          if isinstance(cur, dict) and cur.get('sha'):
+              payload['sha'] = cur['sha']
+          res = req('PUT', '%s/repos/%s/contents/%s' % (api, repo, path), payload)
+          print('PUT', str(res)[:200])
+          PYEOF
