@@ -18,58 +18,36 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Install Android SDK command line tools
-        run: |
-          set -e
-          mkdir -p "$HOME/android-sdk/cmdline-tools"
-          cd /tmp
-          curl -sSL --retry 3 -o cmdline.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -q -o cmdline.zip -d "$HOME/android-sdk/cmdline-tools"
-          if [ -d "$HOME/android-sdk/cmdline-tools/cmdline-tools" ]; then
-            rm -rf "$HOME/android-sdk/cmdline-tools/latest"
-            mv "$HOME/android-sdk/cmdline-tools/cmdline-tools" "$HOME/android-sdk/cmdline-tools/latest"
-          fi
-          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Accept licenses
+      - name: Accept licenses and install SDK packages
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
-
-      - name: Install SDK packages
-        run: |
-          set -e
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-          ls "$ANDROID_HOME"
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" > /dev/null
 
       - name: Install Gradle 8.2
         run: |
-          set -e
-          curl -sSL --retry 3 -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.2-bin.zip
-          sudo unzip -q -o /tmp/gradle.zip -d /opt
+          wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip -O /tmp/gradle.zip
+          sudo unzip -q /tmp/gradle.zip -d /opt
           echo "/opt/gradle-8.2/bin" >> $GITHUB_PATH
 
       - name: Build debug APK
         id: build
         continue-on-error: true
-        run: |
-          set -o pipefail
-          gradle --version | head -3 | tee build.log
-          gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee -a build.log
-          echo "EXIT=${PIPESTATUS[0]}" >> $GITHUB_ENV
+        run: gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
 
-      - name: Upload build log
+      - name: Collect log
+        if: always()
+        run: |
+          mkdir -p out
+          if [ -f app/build/outputs/apk/debug/*.apk ]; then cp app/build/outputs/apk/debug/*.apk out/ 2>/dev/null || true; fi
+          if [ -f build.log ]; then cp build.log out/ ; fi
+
+      - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build-log
-          path: build.log
-          retention-days: 7
-
-      - name: Upload APK
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ModMigrator-debug
-          path: app/build/outputs/apk/debug/*.apk
+          name: ModMigrator-out
+          path: out/
           retention-days: 30
