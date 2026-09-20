@@ -181,11 +181,11 @@ jobs:
               except Exception as e:
                   return {'__error__': 0, 'body': str(e)[:150]}
 
-          cur = req('GET', '%%s/repos/%%s/contents/%%s' %% (api, repo, path))
+          cur = req('GET', '%s/repos/%s/contents/%s' % (api, repo, path))
           print('GET cur', str(cur)[:150])
           payload = {'message': 'ci: build log', 'content': base64.b64encode(content).decode(), 'branch': 'main'}
           if isinstance(cur, dict) and cur.get('sha'):
               payload['sha'] = cur['sha']
-          res = req('PUT', '%%s/repos/%%s/contents/%%s' %% (api, repo, path), payload)
+          res = req('PUT', '%s/repos/%s/contents/%s' % (api, repo, path), payload)
           print('PUT', str(res)[:200])
           PYEOF
