@@ -2,7 +2,10 @@ package com.kongbai.modmigrator
 
 object ModrinthApi {
 
-    private const val BASE = "https://api.modrinth.com/v2"
+    private const val OFFICIAL = "https://api.modrinth.com/v2"
+    private const val MIRROR = "https://mod.mcimirror.top/modrinth/v2"
+
+    private fun base(): String = if (Prefs.mirror()) MIRROR else OFFICIAL
     private val titles = HashMap<String, String>()
     private val slugs = HashMap<String, String>()
 
@@ -12,7 +15,7 @@ object ModrinthApi {
         if (mc.isNotBlank()) facets.add("[\"versions:$mc\"]")
         if (loader.isNotBlank() && loader != "auto") facets.add("[\"categories:$loader\"]")
         val f = facets.joinToString(",", "[", "]")
-        val url = "$BASE/search?query=${Http.enc(query)}&limit=$limit&index=downloads&facets=${Http.enc(f)}"
+        val url = "${base()}/search?query=${Http.enc(query)}&limit=$limit&index=downloads&facets=${Http.enc(f)}"
         val root = Json.obj(Http.get(url)) ?: return emptyList()
         val hits = Json.a(root, "hits") ?: return emptyList()
         val out = mutableListOf<MarketMod>()
@@ -36,8 +39,11 @@ object ModrinthApi {
         return out
     }
 
+    private fun mirrorUrl(u: String): String =
+        if (Prefs.mirror()) u.replace("cdn.modrinth.com", "mod.mcimirror.top") else u
+
     fun versions(projectId: String, mc: String, loader: String): List<ModFile> {
-        var url = "$BASE/project/${Http.enc(projectId)}/version"
+        var url = "${base()}/project/${Http.enc(projectId)}/version"
         val q = ArrayList<String>()
         if (mc.isNotBlank()) q.add("game_versions=${Http.enc("[\"$mc\"]")}")
         if (loader.isNotBlank() && loader != "auto") q.add("loaders=${Http.enc("[\"$loader\"]")}")
@@ -55,7 +61,7 @@ object ModrinthApi {
                 ModFile(
                     name = Json.s(v, "name").ifBlank { Json.s(v, "version_number") },
                     version = Json.s(v, "version_number"),
-                    url = Json.s(chosen, "url"),
+                    url = mirrorUrl(Json.s(chosen, "url")),
                     fileName = Json.s(chosen, "filename")
                 )
             )
@@ -66,7 +72,7 @@ object ModrinthApi {
     fun lookupHash(sha1: String): Triple<String, String, String>? {
         if (sha1.isBlank()) return null
         return try {
-            val o = Json.obj(Http.get("$BASE/version_file/$sha1?algorithm=sha1")) ?: return null
+            val o = Json.obj(Http.get("${base()}/version_file/$sha1?algorithm=sha1")) ?: return null
             val pid = Json.s(o, "project_id")
             if (pid.isBlank()) return null
             refresh(pid)
@@ -79,7 +85,7 @@ object ModrinthApi {
     fun refresh(pid: String) {
         if (titles.containsKey(pid)) return
         try {
-            val o = Json.obj(Http.get("$BASE/project/${Http.enc(pid)}"))
+            val o = Json.obj(Http.get("${base()}/project/${Http.enc(pid)}"))
             if (o != null) {
                 titles[pid] = Json.s(o, "title")
                 slugs[pid] = Json.s(o, "slug")

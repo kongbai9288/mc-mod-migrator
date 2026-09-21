@@ -135,7 +135,9 @@ class MarketFragment : Fragment() {
         toast("准备下载…")
         bg {
             var name = ""
+            var headers: Map<String, String> = emptyMap()
             val url = if (mod.source == "curseforge") {
+                headers = CurseForgeApi.authHeaders()
                 CurseForgeApi.downloadUrl(mod)
             } else {
                 val files = ModrinthApi.versions(mod.id, mc, ld)
@@ -149,7 +151,7 @@ class MarketFragment : Fragment() {
             }
             if (name.isBlank()) name = Downloader.guessName(url)
             val dir = Targets.modsDir(ctx)
-            val f = if (dir == null) null else Downloader.download(ctx, url, dir, name)
+            val f = if (dir == null) null else Downloader.download(ctx, url, dir, name, headers)
             toast(if (f == null) "下载失败" else "已安装：${f.name}")
             Notifier.show(ctx, getString(R.string.downloading), mod.name)
         }

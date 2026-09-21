@@ -80,6 +80,26 @@ app/src/main/java/com/kongbai/modmigrator/
   MainActivity.kt + 4 个 Fragment + ModPageActivity/InfoActivity
 ```
 
+## 数据源与镜像（免 CurseForge Key 也能用）
+
+| 源 | 是否需要 Key | 说明 |
+|---|---|---|
+| Modrinth | 否 | 默认源，接口完全开放 |
+| CurseForge 官方 | 是 | 需在 console.curseforge.com 免费申请 |
+| 国内镜像 MCIM | 否 | 设置里开关，默认开启 |
+
+镜像 `mod.mcimirror.top` 兼容官方 API 结构，直接替换域名即可：
+
+- `api.curseforge.com` → `mod.mcimirror.top/curseforge`
+- `edge.forgecdn.net` → `mod.mcimirror.top`（**文件下载也走镜像**）
+- `cdn.modrinth.com` → `mod.mcimirror.top`
+
+**没填 CurseForge Key 时会自动改用镜像**，所以不申请 Key 也能搜索并下载 CurseForge 的模组。
+填了 Key 之后按设置里的开关决定走官方还是镜像；走官方时会在请求头带上 `x-api-key`
+（CurseForge 官方 CDN 自 2024 年 7 月起强制 Key 认证，无 Key 直链会返回 401）。
+
+镜像是第三方公益服务，可能限速或临时关停；出问题把开关关掉、填上自己的 Key 即可回退官方。
+
 ## 注意
 
 - Android 8.0（API 26）以上，受分区存储限制，目录访问走系统文件选择器。

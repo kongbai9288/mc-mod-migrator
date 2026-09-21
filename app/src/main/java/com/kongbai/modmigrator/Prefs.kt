@@ -8,10 +8,16 @@ import androidx.security.crypto.MasterKey
 object Prefs {
 
     private var prefs: SharedPreferences? = null
+    private lateinit var app: Context
 
     fun init(ctx: Context) {
+        app = ctx.applicationContext
         get(ctx)
     }
+
+    fun appCtx(): Context = app
+
+    fun mirror(): Boolean = get(app).getBoolean(K.USE_MIRROR, true)
 
     fun get(ctx: Context): SharedPreferences {
         if (prefs == null) {
@@ -55,4 +61,5 @@ object K {
     const val PANEL_KEY = "panel_key"
     const val PANEL_DIR = "panel_dir"
     const val SCAN_ROOT = "scan_root"
+    const val USE_MIRROR = "use_mirror"
 }

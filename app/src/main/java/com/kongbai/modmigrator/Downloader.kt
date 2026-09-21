@@ -19,9 +19,15 @@ object Downloader {
         return name
     }
 
-    fun download(ctx: Context, url: String, dir: DocumentFile, name: String): DocumentFile? {
+    fun download(
+        ctx: Context,
+        url: String,
+        dir: DocumentFile,
+        name: String,
+        headers: Map<String, String> = emptyMap()
+    ): DocumentFile? {
         return try {
-            val resp = Http.call(url)
+            val resp = Http.call(url, headers)
             if (!resp.isSuccessful) {
                 resp.close()
                 return null

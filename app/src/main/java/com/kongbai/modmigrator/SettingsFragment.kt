@@ -30,6 +30,7 @@ class SettingsFragment : Fragment() {
     private lateinit var etDefVersion: EditText
     private lateinit var spSource: Spinner
     private lateinit var spDefLoader: Spinner
+    private lateinit var swMirror: MaterialSwitch
     private lateinit var swAutoInstall: MaterialSwitch
     private lateinit var swAutoLaunch: MaterialSwitch
     private lateinit var swAutoSync: MaterialSwitch
@@ -54,6 +55,7 @@ class SettingsFragment : Fragment() {
         etDefVersion = v.findViewById(R.id.etDefVersion)
         spSource = v.findViewById(R.id.spSource)
         spDefLoader = v.findViewById(R.id.spDefLoader)
+        swMirror = v.findViewById(R.id.swMirror)
         swAutoInstall = v.findViewById(R.id.swAutoInstall)
         swAutoLaunch = v.findViewById(R.id.swAutoLaunch)
         swAutoSync = v.findViewById(R.id.swAutoSync)
@@ -69,6 +71,7 @@ class SettingsFragment : Fragment() {
         etDefVersion.setText(p.getString(K.DEF_VERSION, "") ?: "")
         select(spSource, resources.getStringArray(R.array.sources), p.getString(K.SOURCE, "Modrinth") ?: "Modrinth")
         select(spDefLoader, resources.getStringArray(R.array.loaders), p.getString(K.DEF_LOADER, "auto") ?: "auto")
+        swMirror.isChecked = p.getBoolean(K.USE_MIRROR, true)
         swAutoInstall.isChecked = p.getBoolean(K.AUTO_INSTALL, true)
         swAutoLaunch.isChecked = p.getBoolean(K.AUTO_LAUNCH, false)
         swAutoSync.isChecked = p.getBoolean(K.AUTO_SYNC, false)
@@ -94,6 +97,11 @@ class SettingsFragment : Fragment() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
+        swMirror.setOnCheckedChangeListener { _, c ->
+            if (!loading) {
+                Prefs.get(requireContext()).edit().putBoolean(K.USE_MIRROR, c).apply()
+            }
+        }
         swAutoInstall.setOnCheckedChangeListener { _, c ->
             if (!loading) {
                 Prefs.get(requireContext()).edit().putBoolean(K.AUTO_INSTALL, c).apply()

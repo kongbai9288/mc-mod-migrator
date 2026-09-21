@@ -74,6 +74,21 @@
             android:layout_height="wrap_content"
             android:entries="@array/sources" />
 
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/swMirror"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="@string/cfg_use_mirror" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="8dp"
+            android:text="@string/cfg_mirror_hint"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
+
         <EditText
             android:id="@+id/etCfKey"
             android:layout_width="match_parent"

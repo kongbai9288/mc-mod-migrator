@@ -55,6 +55,8 @@
     <string name="cfg_market">模组市场</string>
     <string name="cfg_prefer_source">首选数据源</string>
     <string name="cfg_cf_key">CurseForge API Key（可选）</string>
+    <string name="cfg_use_mirror">使用国内镜像源（免 CurseForge Key）</string>
+    <string name="cfg_mirror_hint">镜像 mod.mcimirror.top，接口兼容官方。CurseForge 官方 CDN 已强制要求 Key，未填 Key 时会自动改用镜像搜索与下载。</string>
     <string name="cfg_migration">迁移默认值</string>
     <string name="cfg_default_version">默认 MC 版本</string>
     <string name="cfg_default_loader">默认加载器</string>
