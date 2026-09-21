@@ -19,7 +19,7 @@ class SyncFragment : Fragment() {
 
     private lateinit var tvDeviceId: TextView
     private lateinit var tvLog: TextView
-    private lateinit var swAutoSync: MaterialSwitch
+    private lateinit var swAutoSync: SwitchMaterial
     private lateinit var rvDevices: RecyclerView
 
     private val devices = mutableListOf<RemoteDevice>()
