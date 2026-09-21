@@ -67,6 +67,79 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 30
 
+      - name: Publish APK to Release
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, glob, urllib.request, urllib.error
+
+          token = os.environ['GH_TOKEN']
+          repo = os.environ['REPO']
+          api = 'https://api.github.com'
+          up = 'https://uploads.github.com'
+
+
+          def req(method, url, payload=None):
+              data = json.dumps(payload).encode('utf-8') if payload is not None else None
+              r = urllib.request.Request(url, data=data, method=method)
+              r.add_header('Authorization', 'Bearer ' + token)
+              r.add_header('Accept', 'application/vnd.github+json')
+              r.add_header('User-Agent', 'ci')
+              if data:
+                  r.add_header('Content-Type', 'application/json')
+              try:
+                  with urllib.request.urlopen(r, timeout=120) as resp:
+                      return json.loads(resp.read().decode('utf-8'))
+              except urllib.error.HTTPError as e:
+                  return {'__error__': e.code, 'body': e.read().decode('utf-8', 'ignore')[:300]}
+              except Exception as e:
+                  return {'__error__': 0, 'body': str(e)[:200]}
+
+
+          apks = glob.glob('app/build/outputs/apk/debug/*.apk')
+          print('found apks:', apks)
+          if not apks:
+              print('NO APK')
+              raise SystemExit(0)
+
+          apk = apks[0]
+          print('apk', apk, os.path.getsize(apk))
+
+          cur = req('GET', '%s/repos/%s/releases/tags/nightly' % (api, repo))
+          if isinstance(cur, dict) and cur.get('id'):
+              req('DELETE', '%s/repos/%s/releases/%s' % (api, repo, cur['id']))
+          req('DELETE', '%s/repos/%s/git/refs/tags/nightly' % (api, repo))
+
+          rel = req('POST', '%s/repos/%s/releases' % (api, repo), {
+              'tag_name': 'nightly',
+              'name': 'ModMigrator debug 构建',
+              'body': 'CI 自动构建的 debug APK。安装后需在设置里填写自己的 GitHub Token、私有仓库；服务器页需填面板地址与 Client API Key。',
+              'draft': False, 'prerelease': True,
+          })
+          if '__error__' in rel:
+              print('RELEASE FAIL', rel)
+              raise SystemExit(0)
+          print('release', rel.get('id'))
+
+          data = open(apk, 'rb').read()
+          r = urllib.request.Request(
+              '%s/repos/%s/releases/%s/assets?name=ModMigrator-debug.apk' % (up, repo, rel['id']),
+              data=data, method='POST')
+          r.add_header('Authorization', 'Bearer ' + token)
+          r.add_header('Content-Type', 'application/vnd.android.package-archive')
+          r.add_header('Accept', 'application/vnd.github+json')
+          r.add_header('User-Agent', 'ci')
+          try:
+              with urllib.request.urlopen(r, timeout=300) as resp:
+                  a = json.loads(resp.read().decode('utf-8'))
+                  print('ASSET OK', a.get('name'), a.get('size'), a.get('browser_download_url'))
+          except urllib.error.HTTPError as e:
+              print('ASSET FAIL', e.code, e.read().decode('utf-8', 'ignore')[:300])
+          PYEOF
+
       - name: Publish build log to repo
         if: always()
         env:
