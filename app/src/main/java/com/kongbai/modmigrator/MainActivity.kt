@@ -39,6 +39,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun switchTo(id: Int) {
         val f: Fragment = when (id) {
+            R.id.nav_server -> ServerFragment()
             R.id.nav_market -> MarketFragment()
             R.id.nav_sync -> SyncFragment()
             R.id.nav_settings -> SettingsFragment()

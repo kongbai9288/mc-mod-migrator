@@ -6,6 +6,11 @@
 
     <string name="tab_migration">迁移</string>
     <string name="tab_market">市场</string>
+    <string name="tab_server">服务器</string>
+    <string name="btn_scan_local">扫描本机实例</string>
+    <string name="pick_instance">从实例列表选择</string>
+    <string name="same_device_hint">同设备迁移：源与目标都在本机，选好两边目录即可</string>
+
     <string name="tab_sync">同步</string>
     <string name="tab_settings">设置</string>
 

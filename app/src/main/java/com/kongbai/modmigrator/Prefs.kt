@@ -51,4 +51,8 @@ object K {
     const val AUTO_LAUNCH = "auto_launch"
     const val AUTO_SYNC = "auto_sync"
     const val LAUNCHER = "launcher_pkg"
+    const val PANEL_BASE = "panel_base"
+    const val PANEL_KEY = "panel_key"
+    const val PANEL_DIR = "panel_dir"
+    const val SCAN_ROOT = "scan_root"
 }

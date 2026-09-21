@@ -35,6 +35,13 @@
                     android:textColor="@color/textSecondary" />
 
                 <Button
+                    android:id="@+id/btnScanLocal"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/btn_scan_local" />
+
+                <Button
                     android:id="@+id/btnPickSource"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_width="match_parent"

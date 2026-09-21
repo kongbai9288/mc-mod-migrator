@@ -35,6 +35,7 @@ class MigrationFragment : Fragment() {
     private lateinit var pb: ProgressBar
     private lateinit var rvMods: RecyclerView
     private lateinit var tvLog: TextView
+    private val instances = mutableListOf<InstanceInfo>()
 
     private val mods = mutableListOf<ModEntry>()
     private lateinit var adapter: ModAdapter
@@ -66,6 +67,7 @@ class MigrationFragment : Fragment() {
         rvMods.adapter = adapter
         rvMods.isNestedScrollingEnabled = false
 
+        v.findViewById<Button>(R.id.btnScanLocal)?.setOnClickListener { scanLocal() }
         v.findViewById<Button>(R.id.btnPickSource).setOnClickListener { pickDir(11) }
         v.findViewById<Button>(R.id.btnPickTarget).setOnClickListener { pickDir(12) }
         v.findViewById<Button>(R.id.btnScan).setOnClickListener { scan() }
@@ -124,7 +126,65 @@ class MigrationFragment : Fragment() {
                 refreshPaths()
                 log("目标目录已选择")
             }
+            13 -> {
+                p.edit().putString(K.SCAN_ROOT, uri.toString()).apply()
+                log("扫描根目录已选择，可点「扫描本机实例」")
+            }
         }
+    }
+
+    private fun scanLocal() {
+        val ctx = requireContext()
+        val p = Prefs.get(ctx)
+        val root = p.getString(K.SCAN_ROOT, null)
+        if (root == null) {
+            toast("请先选择一个根目录（包含各启动器/instances 的目录）")
+            val i = android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT_TREE)
+            startActivityForResult(i, 13)
+            return
+        }
+        toast("扫描中…")
+        bg {
+            val list = InstanceScanner.scan(ctx, root) { log(it) }
+            handler.post {
+                instances.clear()
+                instances.addAll(list)
+                toast(if (list.isEmpty()) "没找到实例" else "找到 ${list.size} 个实例")
+                if (list.isNotEmpty()) showInstancePicker()
+            }
+        }
+    }
+
+    private fun showInstancePicker() {
+        val labels = instances.map { "${it.name} · MC ${it.mcVersion.ifBlank { "?" }} · ${it.modCount} 模组" }.toTypedArray()
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.pick_instance)
+            .setItems(labels) { _, w ->
+                val inst = instances[w]
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("把 ${inst.name} 设为？")
+                    .setPositiveButton("源实例") { _, _ -> setAs(inst, true) }
+                    .setNegativeButton("目标实例") { _, _ -> setAs(inst, false) }
+                    .show()
+            }
+            .show()
+    }
+
+    private fun setAs(inst: InstanceInfo, asSource: Boolean) {
+        val p = Prefs.get(requireContext())
+        if (asSource) {
+            p.edit().putString(K.SRC_URI, inst.uri).apply()
+            log("源实例：${inst.name}（同设备）")
+        } else {
+            p.edit().putString(K.DST_URI, inst.uri).apply()
+            log("目标实例：${inst.name}（同设备）")
+        }
+        if (inst.mcVersion.isNotBlank() && !asSource) {
+            etVersion.setText(inst.mcVersion)
+            selectLoader(inst.loader)
+        }
+        refreshPaths()
+        if (asSource) bg { val root = Fs.tree(requireContext(), inst.uri); if (root != null) detectSource(root) }
     }
 
     private fun log(s: String) {

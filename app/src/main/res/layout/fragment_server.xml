@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="面板连接（Pterodactyl Client API）"
+        android:textStyle="bold" />
+
+    <EditText
+        android:id="@+id/etPanelBase"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="面板地址，如 https://panel.example.com"
+        android:inputType="textUri"
+        android:singleLine="true" />
+
+    <EditText
+        android:id="@+id/etPanelKey"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Client API Key（ptlc_...）"
+        android:inputType="textPassword"
+        android:singleLine="true" />
+
+    <Button
+        android:id="@+id/btnConnect"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="连接并选择服务器" />
+
+    <TextView
+        android:id="@+id/tvServer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="未选择服务器"
+        android:textColor="@color/textSecondary"
+        android:textSize="12sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal">
+
+        <EditText
+            android:id="@+id/etPanelDir"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="/mods 或 /plugins"
+            android:inputType="text"
+            android:singleLine="true" />
+
+        <Button
+            android:id="@+id/btnScanFiles"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="扫描" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <EditText
+            android:id="@+id/etVersion"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="服务器 MC 版本"
+            android:inputType="text"
+            android:singleLine="true" />
+
+        <Spinner
+            android:id="@+id/spLoader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:entries="@array/loaders" />
+
+        <Button
+            android:id="@+id/btnCheckUpdates"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="检测更新" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btnDownloadAll"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="一键下载全部更新（不自动上传）" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="更新列表"
+        android:textStyle="bold" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvUpdates"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <TextView
+        android:id="@+id/tvLog"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxHeight="120dp"
+        android:textColor="@color/textSecondary"
+        android:textSize="12sp" />
+</LinearLayout>

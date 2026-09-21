@@ -133,3 +133,33 @@ class DeviceAdapter(
         h.restore.setOnClickListener { onRestore(d) }
     }
 }
+
+class UpdateAdapter(
+    private val items: MutableList<PanelFile>,
+    private val onDownload: (PanelFile) -> Unit
+) : RecyclerView.Adapter<UpdateAdapter.VH>() {
+
+    class VH(v: View) : RecyclerView.ViewHolder(v) {
+        val name: TextView = v.findViewById(R.id.tvName)
+        val meta: TextView = v.findViewById(R.id.tvMeta)
+        val status: TextView = v.findViewById(R.id.tvStatus)
+        val action: Button = v.findViewById(R.id.btnAction)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+        val v = LayoutInflater.from(parent.context).inflate(R.layout.item_mod, parent, false)
+        return VH(v)
+    }
+
+    override fun getItemCount(): Int = items.size
+
+    override fun onBindViewHolder(h: VH, pos: Int) {
+        val f = items[pos]
+        h.name.text = f.name
+        h.meta.text = "${f.kind} · ${f.size / 1024}KB · ${f.path}"
+        h.status.text = f.status
+        h.action.text = if (f.latestUrl.isBlank()) "无更新" else "下载"
+        h.action.isEnabled = f.latestUrl.isNotBlank()
+        h.action.setOnClickListener { onDownload(f) }
+    }
+}
