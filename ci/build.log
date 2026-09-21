@@ -28,9 +28,9 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:packageDebugResources
 > Task :app:createDebugCompatibleScreenManifests
 > Task :app:extractDeepLinksDebug
-> Task :app:mergeDebugResources
 > Task :app:parseDebugLocalResources
 > Task :app:processDebugMainManifest
+> Task :app:mergeDebugResources
 > Task :app:processDebugManifest
 > Task :app:javaPreCompileDebug
 > Task :app:mergeDebugShaders
@@ -44,8 +44,8 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mergeDebugNativeLibs NO-SOURCE
 > Task :app:processDebugManifestForPackage
 > Task :app:mergeExtDexDebug
-> Task :app:stripDebugDebugSymbols NO-SOURCE
 > Task :app:mergeLibDexDebug
+> Task :app:stripDebugDebugSymbols NO-SOURCE
 > Task :app:processDebugResources
 > Task :app:validateSigningDebug
 > Task :app:writeDebugAppMetadata
@@ -71,5 +71,5 @@ Execution failed for task ':app:compileDebugKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 1m 43s
+BUILD FAILED in 1m 36s
 26 actionable tasks: 26 executed
