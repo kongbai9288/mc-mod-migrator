@@ -23,6 +23,7 @@ data class MarketMod(
     var pageUrl: String = "",
     var downloads: Long = 0,
     var fileId: String = "",
+    var fileName: String = "",
     var source: String = "modrinth"
 )
 
