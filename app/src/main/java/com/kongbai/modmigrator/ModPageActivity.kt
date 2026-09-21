@@ -45,6 +45,7 @@ class ModPageActivity : AppCompatActivity() {
         web.setOnLongClickListener { onLongPress() }
 
         findViewById<View>(R.id.btnMarkPage).setOnClickListener { markPage() }
+        findViewById<View>(R.id.btnTrans).setOnClickListener { translateDialog() }
         findViewById<View>(R.id.btnDownloadMarked).setOnClickListener { downloadMarked() }
         updateMarked()
     }
@@ -77,6 +78,26 @@ class ModPageActivity : AppCompatActivity() {
             return true
         }
         return false
+    }
+
+    private fun translateDialog() {
+        val opts = arrayOf("微软翻译（国内可达）", "谷歌翻译（需梯子）", "恢复原文")
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.trans_page_title)
+            .setItems(opts) { _, w ->
+                when (w) {
+                    0 -> loadTranslated("bing")
+                    1 -> loadTranslated("google")
+                    else -> web.loadUrl(url)
+                }
+            }
+            .show()
+    }
+
+    private fun loadTranslated(engine: String) {
+        if (url.isBlank()) return
+        toast("正在加载翻译页…")
+        web.loadUrl(Translator.pageProxy(engine, url))
     }
 
     private fun markPage() {

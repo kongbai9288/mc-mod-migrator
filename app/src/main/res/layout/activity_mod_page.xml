@@ -29,6 +29,13 @@
             android:textSize="12sp" />
 
         <Button
+            android:id="@+id/btnTrans"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/trans_page" />
+
+        <Button
             android:id="@+id/btnMarkPage"
             style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="wrap_content"

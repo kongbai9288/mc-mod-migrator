@@ -74,7 +74,7 @@
             android:layout_height="wrap_content"
             android:entries="@array/sources" />
 
-        <com.google.android.material.materialswitch.MaterialSwitch
+        <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/swMirror"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -86,6 +86,21 @@
             android:layout_height="wrap_content"
             android:paddingBottom="8dp"
             android:text="@string/cfg_mirror_hint"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/swAutoTrans"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="@string/cfg_auto_trans" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="8dp"
+            android:text="@string/cfg_trans_hint"
             android:textColor="@color/textSecondary"
             android:textSize="12sp" />
 
@@ -118,20 +133,20 @@
             android:layout_height="wrap_content"
             android:entries="@array/loaders" />
 
-        <com.google.android.material.materialswitch.MaterialSwitch
+        <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/swAutoInstall"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:checked="true"
             android:text="@string/cfg_auto_install" />
 
-        <com.google.android.material.materialswitch.MaterialSwitch
+        <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/swAutoLaunch"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/cfg_auto_launch" />
 
-        <com.google.android.material.materialswitch.MaterialSwitch
+        <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/swAutoSync"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -171,6 +186,13 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/cfg_licenses" />
+
+        <Button
+            android:id="@+id/btnCrash"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/cfg_crash_log" />
 
         <Button
             android:id="@+id/btnClear"

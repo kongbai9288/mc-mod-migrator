@@ -45,7 +45,7 @@ class MarketFragment : Fragment() {
         rvMods = v.findViewById(R.id.rvMods)
         rvLinks = v.findViewById(R.id.rvLinks)
 
-        resAdapter = MarketAdapter(results, { m -> install(m) }, { m -> openPage(m.pageUrl) })
+        resAdapter = MarketAdapter(results, { m -> install(m) }, { m -> openPage(m.pageUrl) }, { m -> translate(m) })
         linkAdapter = LinkAdapter(links, { l -> downloadLink(l) }, { l ->
             Store.removeLink(requireContext(), l.url)
             reloadLinks()
@@ -113,7 +113,7 @@ class MarketFragment : Fragment() {
         val key = p.getString(K.CF_KEY, "") ?: ""
         toast("搜索中…")
         bg {
-            val list = if (src == "CurseForge" && key.isNotBlank()) {
+            val list = if (src == "CurseForge") {
                 val r = CurseForgeApi.search(q, mc, ld, key)
                 if (r.isEmpty()) ModrinthApi.search(q, mc, ld) else r
             } else {
@@ -124,7 +124,39 @@ class MarketFragment : Fragment() {
                 results.addAll(list)
                 resAdapter.notifyDataSetChanged()
                 toast("找到 ${list.size} 个")
+                autoTranslate(list)
             }
+        }
+    }
+
+    private fun translate(mod: MarketMod) {
+        if (mod.summaryZh.isNotBlank()) return
+        bg {
+            val zh = Translator.toZh(mod.summary)
+            if (zh == null) {
+                toast("翻译失败，可能是网络或额度限制")
+                return@bg
+            }
+            mod.summaryZh = zh
+            handler.post {
+                val i = results.indexOf(mod)
+                if (i >= 0) resAdapter.notifyItemChanged(i)
+            }
+        }
+    }
+
+    private fun autoTranslate(list: List<MarketMod>) {
+        if (!Prefs.get(requireContext()).getBoolean(K.AUTO_TRANS, true)) return
+        bg {
+            var n = 0
+            for (m in list.take(10)) {
+                val zh = Translator.toZh(m.summary)
+                if (zh != null) {
+                    m.summaryZh = zh
+                    n++
+                }
+            }
+            if (n > 0) handler.post { resAdapter.notifyDataSetChanged() }
         }
     }
 

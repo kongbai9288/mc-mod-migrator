@@ -17,7 +17,10 @@ object Prefs {
 
     fun appCtx(): Context = app
 
-    fun mirror(): Boolean = get(app).getBoolean(K.USE_MIRROR, true)
+    fun mirror(): Boolean {
+        if (!::app.isInitialized) return true
+        return get(app).getBoolean(K.USE_MIRROR, true)
+    }
 
     fun get(ctx: Context): SharedPreferences {
         if (prefs == null) {
@@ -62,4 +65,5 @@ object K {
     const val PANEL_DIR = "panel_dir"
     const val SCAN_ROOT = "scan_root"
     const val USE_MIRROR = "use_mirror"
+    const val AUTO_TRANS = "auto_trans"
 }

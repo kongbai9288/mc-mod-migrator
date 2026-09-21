@@ -67,6 +67,11 @@
     <string name="cfg_auto_sync">自动同步（约 15 分钟一次）</string>
     <string name="cfg_privacy">隐私说明</string>
     <string name="cfg_licenses">第三方开源许可</string>
+    <string name="cfg_auto_trans">自动翻译模组简介（前 10 条）</string>
+    <string name="cfg_trans_hint">调用 MyMemory 免费翻译接口（en→zh-CN），匿名约 5000 词/天。简介下方「译」按钮可单条翻译或切回原文。</string>
+    <string name="trans_page">翻译</string>
+    <string name="trans_page_title">翻译本页</string>
+    <string name="cfg_crash_log">查看崩溃日志</string>
     <string name="cfg_clear">清除本机标记与缓存</string>
     <string name="privacy_title">隐私说明</string>
     <string name="license_title">第三方开源许可</string>

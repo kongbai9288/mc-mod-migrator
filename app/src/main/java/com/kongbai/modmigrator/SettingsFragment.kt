@@ -17,7 +17,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.materialswitch.MaterialSwitch
+import com.google.android.material.switchmaterial.SwitchMaterial
 import java.util.concurrent.Executors
 
 class SettingsFragment : Fragment() {
@@ -30,10 +30,11 @@ class SettingsFragment : Fragment() {
     private lateinit var etDefVersion: EditText
     private lateinit var spSource: Spinner
     private lateinit var spDefLoader: Spinner
-    private lateinit var swMirror: MaterialSwitch
-    private lateinit var swAutoInstall: MaterialSwitch
-    private lateinit var swAutoLaunch: MaterialSwitch
-    private lateinit var swAutoSync: MaterialSwitch
+    private lateinit var swAutoTrans: SwitchMaterial
+    private lateinit var swMirror: SwitchMaterial
+    private lateinit var swAutoInstall: SwitchMaterial
+    private lateinit var swAutoLaunch: SwitchMaterial
+    private lateinit var swAutoSync: SwitchMaterial
     private lateinit var tvConn: TextView
     private lateinit var tvLauncher: TextView
 
@@ -55,6 +56,7 @@ class SettingsFragment : Fragment() {
         etDefVersion = v.findViewById(R.id.etDefVersion)
         spSource = v.findViewById(R.id.spSource)
         spDefLoader = v.findViewById(R.id.spDefLoader)
+        swAutoTrans = v.findViewById(R.id.swAutoTrans)
         swMirror = v.findViewById(R.id.swMirror)
         swAutoInstall = v.findViewById(R.id.swAutoInstall)
         swAutoLaunch = v.findViewById(R.id.swAutoLaunch)
@@ -71,6 +73,7 @@ class SettingsFragment : Fragment() {
         etDefVersion.setText(p.getString(K.DEF_VERSION, "") ?: "")
         select(spSource, resources.getStringArray(R.array.sources), p.getString(K.SOURCE, "Modrinth") ?: "Modrinth")
         select(spDefLoader, resources.getStringArray(R.array.loaders), p.getString(K.DEF_LOADER, "auto") ?: "auto")
+        swAutoTrans.isChecked = p.getBoolean(K.AUTO_TRANS, true)
         swMirror.isChecked = p.getBoolean(K.USE_MIRROR, true)
         swAutoInstall.isChecked = p.getBoolean(K.AUTO_INSTALL, true)
         swAutoLaunch.isChecked = p.getBoolean(K.AUTO_LAUNCH, false)
@@ -97,6 +100,11 @@ class SettingsFragment : Fragment() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
+        swAutoTrans.setOnCheckedChangeListener { _, c ->
+            if (!loading) {
+                Prefs.get(requireContext()).edit().putBoolean(K.AUTO_TRANS, c).apply()
+            }
+        }
         swMirror.setOnCheckedChangeListener { _, c ->
             if (!loading) {
                 Prefs.get(requireContext()).edit().putBoolean(K.USE_MIRROR, c).apply()
@@ -123,6 +131,7 @@ class SettingsFragment : Fragment() {
         v.findViewById<Button>(R.id.btnPickLauncher).setOnClickListener { pickLauncher() }
         v.findViewById<Button>(R.id.btnPrivacy).setOnClickListener { openInfo("privacy.txt", getString(R.string.privacy_title)) }
         v.findViewById<Button>(R.id.btnLicenses).setOnClickListener { openInfo("licenses.txt", getString(R.string.license_title)) }
+        v.findViewById<Button>(R.id.btnCrash).setOnClickListener { showCrash() }
         v.findViewById<Button>(R.id.btnClear).setOnClickListener { clearData() }
 
         loading = false
@@ -204,6 +213,18 @@ class SettingsFragment : Fragment() {
         i.putExtra("file", file)
         i.putExtra("title", title)
         startActivity(i)
+    }
+
+    private fun showCrash() {
+        val ctx = requireContext()
+        val f = java.io.File(ctx.filesDir, "crash.log")
+        val txt = if (f.exists()) f.readText().take(6000) else "暂无崩溃记录"
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle(R.string.cfg_crash_log)
+            .setMessage(txt)
+            .setPositiveButton(R.string.ok, null)
+            .setNeutralButton("清空") { _, _ -> f.delete(); toast("已清空") }
+            .show()
     }
 
     private fun clearData() {

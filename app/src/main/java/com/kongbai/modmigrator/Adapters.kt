@@ -43,7 +43,8 @@ class ModAdapter(
 class MarketAdapter(
     private val items: MutableList<MarketMod>,
     private val onInstall: (MarketMod) -> Unit,
-    private val onOpen: (MarketMod) -> Unit
+    private val onOpen: (MarketMod) -> Unit,
+    private val onTranslate: (MarketMod) -> Unit
 ) : RecyclerView.Adapter<MarketAdapter.VH>() {
 
     class VH(v: View) : RecyclerView.ViewHolder(v) {
@@ -52,6 +53,7 @@ class MarketAdapter(
         val meta: TextView = v.findViewById(R.id.tvMeta)
         val status: TextView = v.findViewById(R.id.tvStatus)
         val action: Button = v.findViewById(R.id.btnAction)
+        val trans: Button = v.findViewById(R.id.btnTrans)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -65,7 +67,22 @@ class MarketAdapter(
         val m = items[pos]
         h.name.text = m.name
         h.meta.text = "${m.source} · 下载量 ${m.downloads}"
-        h.status.text = m.summary
+        if (m.summaryZh.isNotBlank()) {
+            h.status.text = m.summaryZh
+            h.trans.text = "原文"
+        } else {
+            h.status.text = m.summary
+            h.trans.text = "译"
+        }
+        h.trans.visibility = View.VISIBLE
+        h.trans.setOnClickListener {
+            if (m.summaryZh.isNotBlank()) {
+                m.summaryZh = ""
+                notifyItemChanged(pos)
+            } else {
+                onTranslate(m)
+            }
+        }
         if (m.iconUrl.isNotBlank()) {
             h.icon.load(m.iconUrl) {
                 crossfade(true)
@@ -159,6 +176,9 @@ class UpdateAdapter(
         h.meta.text = "${f.kind} · ${f.size / 1024}KB · ${f.path}"
         h.status.text = f.status
         h.action.text = if (f.latestUrl.isBlank()) "无更新" else "下载"
+        if (h.itemView.findViewById<View>(R.id.btnTrans) != null) {
+            h.itemView.findViewById<View>(R.id.btnTrans).visibility = View.GONE
+        }
         h.action.isEnabled = f.latestUrl.isNotBlank()
         h.action.setOnClickListener { onDownload(f) }
     }

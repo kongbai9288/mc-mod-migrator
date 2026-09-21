@@ -12,7 +12,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.materialswitch.MaterialSwitch
+import com.google.android.material.switchmaterial.SwitchMaterial
 import java.util.concurrent.Executors
 
 class SyncFragment : Fragment() {

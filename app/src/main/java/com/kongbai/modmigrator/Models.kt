@@ -24,6 +24,7 @@ data class MarketMod(
     var downloads: Long = 0,
     var fileId: String = "",
     var fileName: String = "",
+    var summaryZh: String = "",
     var source: String = "modrinth"
 )
 
