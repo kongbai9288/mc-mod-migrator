@@ -11,6 +11,8 @@ import com.google.android.material.switchmaterial.SwitchMaterial
 class SettingsSearchFragment : Fragment() {
 
     private lateinit var spSource: Spinner
+    private lateinit var swBackend: SwitchMaterial
+    private lateinit var etCfKey: EditText
     private lateinit var swAgg: SwitchMaterial
     private lateinit var swRec: SwitchMaterial
     private lateinit var swAutoTrans: SwitchMaterial
@@ -22,6 +24,8 @@ class SettingsSearchFragment : Fragment() {
     ): View {
         val v = inflater.inflate(R.layout.fragment_settings_search, container, false)
         spSource = v.findViewById(R.id.spSource)
+        swBackend = v.findViewById(R.id.swBackend)
+        etCfKey = v.findViewById(R.id.etCfKey)
         swAgg = v.findViewById(R.id.swAgg)
         swRec = v.findViewById(R.id.swRec)
         swAutoTrans = v.findViewById(R.id.swAutoTrans)
@@ -33,6 +37,14 @@ class SettingsSearchFragment : Fragment() {
         val i = arr.indexOf(cur)
         if (i >= 0) spSource.setSelection(i)
 
+        swBackend.isChecked = p.getBoolean(K.USE_BACKEND, true)
+        etCfKey.setText(p.getString(K.CF_KEY, "") ?: "")
+        etCfKey.addTextWatcherSafe {
+            Prefs.get(requireContext()).edit().putString(K.CF_KEY, etCfKey.text.toString().trim()).apply()
+        }
+        swBackend.setOnCheckedChangeListener { _, c ->
+            if (!loading) Prefs.get(requireContext()).edit().putBoolean(K.USE_BACKEND, c).apply()
+        }
         swAgg.isChecked = p.getBoolean(K.AGG_SEARCH, true)
         swRec.isChecked = p.getBoolean(K.RECOMMEND, true)
         swAutoTrans.isChecked = p.getBoolean(K.AUTO_TRANS, true)

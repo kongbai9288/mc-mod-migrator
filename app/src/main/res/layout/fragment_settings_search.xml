@@ -9,6 +9,37 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/swBackend"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="@string/cfg_use_backend" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="8dp"
+            android:text="@string/cfg_use_backend_hint"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
+
+        <EditText
+            android:id="@+id/etCfKey"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/cfg_cf_key"
+            android:inputType="textPassword"
+            android:singleLine="true" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="8dp"
+            android:text="@string/cfg_cf_key_hint"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
+
         <Spinner
             android:id="@+id/spSource"
             android:layout_width="match_parent"
