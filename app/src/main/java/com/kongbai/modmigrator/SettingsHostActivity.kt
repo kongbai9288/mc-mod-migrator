@@ -15,6 +15,8 @@ class SettingsHostActivity : AppCompatActivity() {
             "search" -> SettingsSearchFragment()
             "migrate" -> SettingsMigrateFragment()
             "storage" -> SettingsStorageFragment()
+            "plugin" -> PluginFragment()
+            "devs" -> DevsFragment()
             "about" -> SettingsAboutFragment()
             else -> SettingsMainFragment()
         }
@@ -26,6 +28,8 @@ class SettingsHostActivity : AppCompatActivity() {
             "search" -> getString(R.string.menu_search)
             "migrate" -> getString(R.string.menu_migrate)
             "storage" -> getString(R.string.menu_storage)
+            "plugin" -> getString(R.string.menu_plugin)
+            "devs" -> getString(R.string.menu_devs)
             "about" -> getString(R.string.menu_about)
             else -> getString(R.string.tab_settings)
         }

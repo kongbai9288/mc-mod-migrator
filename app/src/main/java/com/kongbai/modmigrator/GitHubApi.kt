@@ -13,6 +13,12 @@ object GitHubApi {
         "Accept" to "application/vnd.github+json"
     )
 
+    fun latestRelease(owner: String, repo: String, token: String): String {
+        val url = "https://api.github.com/repos/${Http.enc(owner)}/${Http.enc(repo)}/releases/latest"
+        val h = if (token.isBlank()) emptyMap() else mapOf("Authorization" to "Bearer $token")
+        return Http.get(url, h)
+    }
+
     fun listDir(owner: String, repo: String, path: String, branch: String, token: String): List<String> {
         val u = "${url(owner, repo, path)}?ref=${Http.enc(branch)}"
         val arr = Json.arr(Http.get(u, auth(token))) ?: return emptyList()

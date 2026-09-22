@@ -183,3 +183,33 @@ class UpdateAdapter(
         h.action.setOnClickListener { onDownload(f) }
     }
 }
+
+class PluginAdapter(
+    private val items: MutableList<PluginApi.Plugin>,
+    private val onRun: (PluginApi.Plugin) -> Unit
+) : RecyclerView.Adapter<PluginAdapter.VH>() {
+
+    class VH(v: View) : RecyclerView.ViewHolder(v) {
+        val name: TextView = v.findViewById(R.id.tvName)
+        val meta: TextView = v.findViewById(R.id.tvMeta)
+        val status: TextView = v.findViewById(R.id.tvStatus)
+        val action: Button = v.findViewById(R.id.btnAction)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+        val v = LayoutInflater.from(parent.context).inflate(R.layout.item_mod, parent, false)
+        return VH(v)
+    }
+
+    override fun getItemCount(): Int = items.size
+
+    override fun onBindViewHolder(h: VH, pos: Int) {
+        val p = items[pos]
+        h.name.text = p.label
+        h.meta.text = p.pkg
+        h.status.text = p.desc.ifBlank { "点右侧按钮触发动作" }
+        h.itemView.findViewById<View>(R.id.btnTrans)?.visibility = View.GONE
+        h.action.text = "运行"
+        h.action.setOnClickListener { onRun(p) }
+    }
+}

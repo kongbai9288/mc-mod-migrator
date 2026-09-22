@@ -72,4 +72,6 @@ object K {
     const val WORKDIR_URI = "workdir_uri"
     const val AGG_SEARCH = "agg_search"
     const val RECOMMEND = "recommend"
+    const val UPDATE_CHECK = "update_check"
+    const val LAST_UPDATE_TIP = "last_update_tip"
 }

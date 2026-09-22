@@ -97,6 +97,16 @@
     <string name="pick_src_before">选择「迁移前」的实例/目录</string>
     <string name="pick_src_after">选择「迁移后」的实例/目录</string>
     <string name="editor_title">配置编辑器</string>
+    <string name="plugin_title">插件</string>
+    <string name="plugin_hint">插件是独立安装的 APK，声明响应约定广播即可被本应用识别并调用，宿主不需要预先认识插件的任何类。</string>
+    <string name="plugin_scan">扫描已安装插件</string>
+    <string name="devs_title">开发者名单</string>
+    <string name="tab_plugin">插件</string>
+    <string name="menu_plugin">插件</string>
+    <string name="menu_devs">开发者名单</string>
+    <string name="cfg_update">自动检查更新</string>
+    <string name="cfg_update_hint">每天检查一次仓库 Release，有新版本发通知。下载会依次尝试多个镜像源，都失败才用官方直链。</string>
+    <string name="update_found">发现新版本</string>
     <string name="cfg_clear">清除本机标记与缓存</string>
     <string name="privacy_title">隐私说明</string>
     <string name="license_title">第三方开源许可</string>
