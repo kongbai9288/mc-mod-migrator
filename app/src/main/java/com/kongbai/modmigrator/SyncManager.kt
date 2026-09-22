@@ -180,6 +180,7 @@ object SyncManager {
 
     fun schedule(ctx: Context) {
         try {
+            // WorkManager 没初始化好时直接跳过，不能拖垮调用方
             val on = Prefs.get(ctx).getBoolean(K.AUTO_SYNC, false)
             val wm = WorkManager.getInstance(ctx)
             if (!on) {

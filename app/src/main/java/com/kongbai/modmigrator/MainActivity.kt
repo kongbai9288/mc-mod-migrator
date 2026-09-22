@@ -34,7 +34,13 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        SyncManager.schedule(this)
+        try {
+            SyncManager.schedule(this)
+        } catch (t: Throwable) {
+            // WorkManager 初始化失败也不能让主界面打不开
+        }
+
+        CrashReport.showIfAny(this)
     }
 
     private fun switchTo(id: Int) {
@@ -43,15 +49,23 @@ class MainActivity : AppCompatActivity() {
             startActivity(android.content.Intent(this, SettingsHostActivity::class.java))
             return
         }
-        val f: Fragment = when (id) {
-            R.id.nav_server -> ServerFragment()
-            R.id.nav_market -> MarketFragment()
-            R.id.nav_sync -> SyncFragment()
-            R.id.nav_plugin -> PluginFragment()
-            else -> MigrationFragment()
+        val f: Fragment = try {
+            when (id) {
+                R.id.nav_server -> ServerFragment()
+                R.id.nav_market -> MarketFragment()
+                R.id.nav_sync -> SyncFragment()
+                R.id.nav_plugin -> PluginFragment()
+                else -> MigrationFragment()
+            }
+        } catch (t: Throwable) {
+            // 某个页面构造失败时退回默认页，至少应用能用
+            MigrationFragment()
         }
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, f)
-            .commit()
+        try {
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, f)
+                .commit()
+        } catch (t: Throwable) {
+        }
     }
 }
