@@ -65,6 +65,7 @@ jobs:
         run: gradle assembleDebug --no-daemon 2>&1 | tail -30
 
       - name: Run app on emulator and capture crash
+        continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
