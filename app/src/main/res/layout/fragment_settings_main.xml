@@ -103,6 +103,22 @@
             android:text="@string/menu_about" />
 
         <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/swUpdate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:checked="true"
+            android:text="@string/cfg_update" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="8dp"
+            android:text="@string/cfg_update_hint"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/swOffline"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
