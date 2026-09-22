@@ -9,6 +9,12 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/cfg_cf_route_title"
+            android:textStyle="bold" />
+
         <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/swBackend"
             android:layout_width="match_parent"
@@ -16,11 +22,18 @@
             android:checked="true"
             android:text="@string/cfg_use_backend" />
 
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/swOfficialCf"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="false"
+            android:text="@string/cfg_use_official_cf" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:paddingBottom="8dp"
-            android:text="@string/cfg_use_backend_hint"
+            android:text="@string/cfg_cf_route_hint"
             android:textColor="@color/textSecondary"
             android:textSize="12sp" />
 

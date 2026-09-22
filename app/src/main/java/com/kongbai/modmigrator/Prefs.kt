@@ -70,6 +70,7 @@ object K {
     const val BACKEND_BACKUP = "backend_backup"
     const val OFFLINE = "offline_mode"
     const val USE_BACKEND = "use_backend"
+    const val USE_OFFICIAL_CF = "use_official_cf"
     const val WORKDIR_URI = "workdir_uri"
     const val AGG_SEARCH = "agg_search"
     const val RECOMMEND = "recommend"

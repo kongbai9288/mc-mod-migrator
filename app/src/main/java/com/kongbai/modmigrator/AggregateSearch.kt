@@ -30,13 +30,17 @@ object AggregateSearch {
             }
         }
 
-        // 后端里已经带了 CurseForge Key，开着就不用用户自己申请；
-        // 关掉则表示"不想依赖后端"，此时必须自己填 Key 才能走 CurseForge。
+        // CurseForge 有两条路：后端代理（内置 Key）与官方直连（自己填 Key）。
+        // 单源模式下二者互斥——开一个另一个自动关（UI 层联动）。
+        // 但「聚合」模式不受互斥影响：两条路都问，结果合并去重，谁都搜得到。
         val useBackend = p.getBoolean(K.USE_BACKEND, true)
+        val useOfficial = p.getBoolean(K.USE_OFFICIAL_CF, false)
+        val aggregate = mode == "聚合"
 
-        val wantModrinth = mode == "聚合" || mode == "Modrinth" || (agg && mode != "后端")
-        val wantCf = mode == "CurseForge" || mode == "聚合"
-        val wantBackend = useBackend && (mode == "聚合" || mode == "后端")
+        val wantModrinth = aggregate || mode == "Modrinth"
+        val wantBackend = aggregate && useBackend || mode == "后端" && useBackend
+        val wantCf = (aggregate && useOfficial) ||
+            (mode == "CurseForge" && (useOfficial || !useBackend))
 
         if (wantModrinth) {
             runCatching { merge(ModrinthApi.search(q, mc, loader, 20)) }

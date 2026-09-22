@@ -13,6 +13,7 @@ class SettingsSearchFragment : Fragment() {
 
     private lateinit var spSource: Spinner
     private lateinit var swBackend: SwitchMaterial
+    private lateinit var swOfficialCf: SwitchMaterial
     private lateinit var etCfKey: EditText
     private lateinit var swAgg: SwitchMaterial
     private lateinit var swRec: SwitchMaterial
@@ -26,6 +27,7 @@ class SettingsSearchFragment : Fragment() {
         val v = inflater.inflate(R.layout.fragment_settings_search, container, false)
         spSource = v.findViewById(R.id.spSource)
         swBackend = v.findViewById(R.id.swBackend)
+        swOfficialCf = v.findViewById(R.id.swOfficialCf)
         etCfKey = v.findViewById(R.id.etCfKey)
         swAgg = v.findViewById(R.id.swAgg)
         swRec = v.findViewById(R.id.swRec)
@@ -39,12 +41,31 @@ class SettingsSearchFragment : Fragment() {
         if (i >= 0) spSource.setSelection(i)
 
         swBackend.isChecked = p.getBoolean(K.USE_BACKEND, true)
+        swOfficialCf.isChecked = p.getBoolean(K.USE_OFFICIAL_CF, false)
         etCfKey.setText(p.getString(K.CF_KEY, "") ?: "")
         etCfKey.addTextWatcherSafe {
             Prefs.get(requireContext()).edit().putString(K.CF_KEY, etCfKey.text.toString().trim()).apply()
         }
+        // 互斥：开一个自动关另一个
         swBackend.setOnCheckedChangeListener { _, c ->
-            if (!loading) Prefs.get(requireContext()).edit().putBoolean(K.USE_BACKEND, c).apply()
+            if (loading) return@setOnCheckedChangeListener
+            Prefs.get(requireContext()).edit().putBoolean(K.USE_BACKEND, c).apply()
+            if (c && swOfficialCf.isChecked) {
+                loading = true
+                swOfficialCf.isChecked = false
+                loading = false
+                Prefs.get(requireContext()).edit().putBoolean(K.USE_OFFICIAL_CF, false).apply()
+            }
+        }
+        swOfficialCf.setOnCheckedChangeListener { _, c ->
+            if (loading) return@setOnCheckedChangeListener
+            Prefs.get(requireContext()).edit().putBoolean(K.USE_OFFICIAL_CF, c).apply()
+            if (c && swBackend.isChecked) {
+                loading = true
+                swBackend.isChecked = false
+                loading = false
+                Prefs.get(requireContext()).edit().putBoolean(K.USE_BACKEND, false).apply()
+            }
         }
         swAgg.isChecked = p.getBoolean(K.AGG_SEARCH, true)
         swRec.isChecked = p.getBoolean(K.RECOMMEND, true)

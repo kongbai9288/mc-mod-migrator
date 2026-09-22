@@ -52,6 +52,13 @@ class AppPickerActivity : AppCompatActivity() {
         load()
     }
 
+    private fun safePostA(h: android.os.Handler, block: () -> Unit) {
+        h.post {
+            if (isFinishing || isDestroyed) return@post
+            try { block() } catch (t: Throwable) { }
+        }
+    }
+
     private fun load() {
         val ctx = this
         exec.execute {

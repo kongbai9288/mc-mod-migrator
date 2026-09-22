@@ -112,6 +112,9 @@
     <string name="cfg_use_backend">使用后端（内置 CurseForge Key，自己不用申请）</string>
     <string name="cfg_use_backend_hint">后端由本项目提供，里面已经配好了 CurseForge Key，所以开着时你什么都不用填。关掉表示不想依赖后端，此时请自己在下面填 Key，否则只能搜 Modrinth。</string>
     <string name="cfg_cf_key_hint">不想用后端时在这里填自己的 Key（console.curseforge.com 免费申请）。留空且关了后端，就只走 Modrinth 与国内镜像。</string>
+    <string name="cfg_cf_route_title">CurseForge 走哪条路</string>
+    <string name="cfg_use_official_cf">官方直连（需自己填 Key）</string>
+    <string name="cfg_cf_route_hint">这两条路互斥：开一个另一个会自动关上。「聚合」模式不受影响——两条都问，结果合并去重。</string>
     <string name="cfg_clear">清除本机标记与缓存</string>
     <string name="privacy_title">隐私说明</string>
     <string name="license_title">第三方开源许可</string>
