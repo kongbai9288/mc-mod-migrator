@@ -44,8 +44,15 @@ jobs:
 
       - name: Install SDK packages
         run: |
+          set +e
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" 2>&1 | tail -5
+          echo "--- emulator pkg ---"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "emulator" 2>&1 | tail -5
+          echo "--- system image ---"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "system-images;android-34;google_apis;x86_64" 2>&1 | tail -10
+          echo "--- installed ---"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --list_installed 2>&1 | tail -20
           set -e
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" "emulator" "system-images;android-34;aosp-atd;x86_64"
 
       - name: Install Gradle 8.2
         run: |
@@ -61,7 +68,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
-          target: aosp-atd
+          target: google_apis
           arch: x86_64
           avd-name: smoke
           disable-animations: true
