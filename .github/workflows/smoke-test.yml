@@ -74,20 +74,22 @@ jobs:
           disable-spellchecker: true
           profile: pixel_2
           script: |
+            set +e
             adb logcat -c
-            adb install -r app/build/outputs/apk/debug/app-debug.apk
-            echo "=== START ==="
-            adb shell am start -n com.kongbai.modmigrator/.MainActivity
-            sleep 20
-            echo "=== TAP THROUGH TABS ==="
-            for i in 1 2 3 4 5; do
-              adb shell input tap 200 1800 || true
-              sleep 3
+            adb install -r app/build/outputs/apk/debug/app-debug.apk > /tmp/install.txt 2>&1 || adb install -r app/build/outputs/apk/debug/app-debug.apk > /tmp/install.txt 2>&1
+            cat /tmp/install.txt > /tmp/logcat.txt
+            echo "=== START ===" >> /tmp/logcat.txt
+            adb shell am start -n com.kongbai.modmigrator/.MainActivity >> /tmp/logcat.txt 2>&1
+            sleep 25
+            for i in 1 2 3 4 5 6; do
+              adb shell input tap 200 1800
+              sleep 4
             done
-            adb logcat -d -v time > /tmp/logcat.txt
-            echo "=== FATAL EXCEPTIONS ==="
-            grep -n -E "FATAL EXCEPTION|AndroidRuntime|java.lang.RuntimeException|Unable to start activity|Unable to resume|Error inflating|Caused by" /tmp/logcat.txt | head -60
-            echo "=== END ==="
+            adb logcat -d -v time >> /tmp/logcat.txt 2>&1
+            echo "=== PULL TO REPO ===" >> /tmp/logcat.txt
+            mkdir -p out
+            grep -E "FATAL EXCEPTION|AndroidRuntime|Unable to start|Unable to resume|Error inflating|NullPointerException|IllegalStateException|ClassNotFound|NoSuchMethod|Caused by|Process: com.kongbai" /tmp/logcat.txt | head -120 > out/smoke.txt || true
+            wc -l out/smoke.txt
 
       - name: Publish smoke result to repo
         if: always()
@@ -121,7 +123,7 @@ jobs:
 
           txt = ''
           try:
-              txt = open('/tmp/logcat.txt', encoding='utf-8', errors='ignore').read()
+              txt = open('out/smoke.txt', encoding='utf-8', errors='ignore').read()
           except Exception:
               txt = '(no logcat)'
 
