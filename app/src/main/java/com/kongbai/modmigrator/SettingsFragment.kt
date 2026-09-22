@@ -192,20 +192,8 @@ class SettingsFragment : Fragment() {
     }
 
     private fun pickLauncher() {
-        val ctx = requireContext()
-        val list = LauncherHelper.installed(ctx)
-        if (list.isEmpty()) {
-            toast("没找到已知启动器（Pojav / Zalith / MCinaBox 等）")
-            return
-        }
-        val names = list.map { "${it.second}  ${it.first}" }.toTypedArray()
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle(R.string.cfg_pick_launcher)
-            .setItems(names) { _, which ->
-                Prefs.get(ctx).edit().putString(K.LAUNCHER, list[which].first).apply()
-                tvLauncher.text = "启动器：${list[which].first}"
-            }
-            .show()
+        // 不再猜包名：把系统应用列表列出来让用户自己认领
+        startActivity(android.content.Intent(requireContext(), AppPickerActivity::class.java))
     }
 
     private fun openInfo(file: String, title: String) {

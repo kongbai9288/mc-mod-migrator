@@ -42,6 +42,13 @@
                     android:text="@string/btn_scan_local" />
 
                 <Button
+                    android:id="@+id/btnPickLauncher"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cfg_pick_launcher" />
+
+                <Button
                     android:id="@+id/btnPickSource"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_width="match_parent"

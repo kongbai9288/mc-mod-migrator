@@ -68,6 +68,7 @@ class MigrationFragment : Fragment() {
         rvMods.isNestedScrollingEnabled = false
 
         v.findViewById<Button>(R.id.btnScanLocal)?.setOnClickListener { scanLocal() }
+        v.findViewById<Button>(R.id.btnPickLauncher)?.setOnClickListener { pickLauncher() }
         v.findViewById<Button>(R.id.btnPickSource).setOnClickListener { pickDir(11) }
         v.findViewById<Button>(R.id.btnPickTarget).setOnClickListener { pickDir(12) }
         v.findViewById<Button>(R.id.btnScan).setOnClickListener { scan() }
@@ -126,9 +127,45 @@ class MigrationFragment : Fragment() {
                 refreshPaths()
                 log("目标目录已选择")
             }
+            31 -> {
+                val pkg = Prefs.get(requireContext()).getString(K.LAUNCHER, "") ?: ""
+                if (pkg.isNotBlank()) {
+                    log("已选启动器：$pkg")
+                    scanLauncherData(pkg)
+                }
+            }
             13 -> {
                 p.edit().putString(K.SCAN_ROOT, uri.toString()).apply()
                 log("扫描根目录已选择，可点「扫描本机实例」")
+            }
+        }
+    }
+
+    /** 选好启动器后，按它的包名去拉数据目录并自动扫描 */
+    private fun pickLauncher() {
+        val i = android.content.Intent(requireContext(), AppPickerActivity::class.java)
+        startActivityForResult(i, 31)
+    }
+
+    private fun scanLauncherData(pkg: String) {
+        val ctx = requireContext()
+        val dirs = LauncherHelper.dataDirs(ctx, pkg)
+        if (dirs.isEmpty()) {
+            toast("没找到 ${pkg} 的数据目录，可手动指定目录")
+            return
+        }
+        toast("按 ${pkg} 去找实例…")
+        bg {
+            for (d in dirs) {
+                val f = java.io.File(d)
+                if (!f.exists()) continue
+                log("检查数据目录：$d")
+            }
+            handler.post {
+                // SAF 只能授权目录树，这里把第一个可读目录交给用户授权
+                toast("请在下一屏选择：${dirs.first()} 或其中的实例目录")
+                val i = android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT_TREE)
+                startActivityForResult(i, 13)
             }
         }
     }

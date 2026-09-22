@@ -107,6 +107,8 @@
     <string name="cfg_update">自动检查更新</string>
     <string name="cfg_update_hint">每天检查一次仓库 Release，有新版本发通知。下载会依次尝试多个镜像源，都失败才用官方直链。</string>
     <string name="update_found">发现新版本</string>
+    <string name="pick_launcher_hint">这里列出系统里所有可启动应用。你不说，本应用就不知道哪个是 Minecraft 启动器——请自己认领，之后会按它的包名去拉数据目录。带「疑似启动器」标记的只是猜测，以你自己的判断为准。</string>
+    <string name="pick_launcher_search">按名称或包名搜索</string>
     <string name="cfg_clear">清除本机标记与缓存</string>
     <string name="privacy_title">隐私说明</string>
     <string name="license_title">第三方开源许可</string>
