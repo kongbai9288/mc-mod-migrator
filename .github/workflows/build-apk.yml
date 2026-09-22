@@ -111,7 +111,11 @@ jobs:
                   return {'__error__': 0, 'body': str(e)[:200]}
 
 
-          apks = glob.glob('app/build/outputs/apk/release/*.apk') or glob.glob('app/build/outputs/apk/debug/*.apk')
+          rel = glob.glob('app/build/outputs/apk/release/*.apk')
+          dbg = glob.glob('app/build/outputs/apk/debug/*.apk')
+          apks = rel or dbg
+          ASSET_NAME = 'ModMigrator-release.apk' if rel else 'ModMigrator-debug.apk'
+          print('release:', rel, '| debug:', dbg)
           print('found apks:', apks)
           if not apks:
               print('NO APK')
@@ -138,7 +142,7 @@ jobs:
 
           data = open(apk, 'rb').read()
           r = urllib.request.Request(
-              '%s/repos/%s/releases/%s/assets?name=ModMigrator-debug.apk' % (up, repo, rel['id']),
+              '%s/repos/%s/releases/%s/assets?name=' % (up, repo, rel['id']) + ASSET_NAME,
               data=data, method='POST')
           r.add_header('Authorization', 'Bearer ' + token)
           r.add_header('Content-Type', 'application/vnd.android.package-archive')
