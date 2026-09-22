@@ -88,17 +88,58 @@ jobs:
             grep -n -E "FATAL EXCEPTION|AndroidRuntime|java.lang.RuntimeException|Unable to start activity|Unable to resume|Error inflating|Caused by" /tmp/logcat.txt | head -60
             echo "=== END ==="
 
-      - name: Upload logcat
+      - name: Publish smoke result to repo
         if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
-          mkdir -p out
-          cp /tmp/logcat.txt out/ 2>/dev/null || echo "no logcat" > out/logcat.txt
-          ls -la out/
+          set +e
+          python3 - <<'PYEOF'
+          import json, base64, os, urllib.request, urllib.error
 
-      - name: Upload artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: smoke-logcat
-          path: out/
-          retention-days: 7
+          token = os.environ['GH_TOKEN']
+          repo = os.environ['REPO']
+          api = 'https://api.github.com'
+
+          def req(m, u, payload=None):
+              data = json.dumps(payload).encode() if payload is not None else None
+              r = urllib.request.Request(u, data=data, method=m)
+              r.add_header('Authorization', 'Bearer ' + token)
+              r.add_header('Accept', 'application/vnd.github+json')
+              r.add_header('User-Agent', 'ci')
+              if data:
+                  r.add_header('Content-Type', 'application/json')
+              try:
+                  with urllib.request.urlopen(r, timeout=90) as x:
+                      return json.loads(x.read().decode())
+              except urllib.error.HTTPError as e:
+                  return {'__e': e.code}
+              except Exception as e:
+                  return {'__e': str(e)[:100]}
+
+          txt = ''
+          try:
+              txt = open('/tmp/logcat.txt', encoding='utf-8', errors='ignore').read()
+          except Exception:
+              txt = '(no logcat)'
+
+          keep = []
+          for line in txt.split('\n'):
+              if any(k in line for k in [
+                  'FATAL EXCEPTION', 'AndroidRuntime', 'Unable to start activity',
+                  'Unable to resume', 'Error inflating', 'Caused by',
+                  'java.lang.', 'android.view.', 'Process: com.kongbai',
+                  'Force finishing', 'D/AndroidRuntime', 'E/AndroidRuntime',
+                  'NullPointerException', 'IllegalStateException',
+                  'ClassNotFoundException', 'NoSuchMethodError'
+              ]):
+                  keep.append(line.strip()[:300])
+          out = '\n'.join(keep[:300]) or '(no crash keywords found)'
+
+          cur = req('GET', '%s/repos/%s/contents/ci/smoke.txt?ref=main' % (api, repo))
+          payload = {'message': 'ci: smoke', 'content': base64.b64encode(out.encode()).decode(), 'branch': 'main'}
+          if isinstance(cur, dict) and cur.get('sha'):
+              payload['sha'] = cur['sha']
+          print('PUT', req('PUT', '%s/repos/%s/contents/ci/smoke.txt' % (api, repo), payload))
+          PYEOF
