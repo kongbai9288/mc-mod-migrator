@@ -1,0 +1,97 @@
+name: Smoke Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo chmod 666 /dev/kvm || true
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK
+        run: |
+          set -e
+          mkdir -p "$HOME/android-sdk/cmdline-tools"
+          cd /tmp
+          curl -sSL --retry 3 -o cmdline.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q -o cmdline.zip -d "$HOME/android-sdk/cmdline-tools"
+          if [ -d "$HOME/android-sdk/cmdline-tools/cmdline-tools" ]; then
+            rm -rf "$HOME/android-sdk/cmdline-tools/latest"
+            mv "$HOME/android-sdk/cmdline-tools/cmdline-tools" "$HOME/android-sdk/cmdline-tools/latest"
+          fi
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+
+      - name: Accept licenses
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+
+      - name: Install SDK packages
+        run: |
+          set -e
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" "emulator" "system-images;android-34;aosp-atd;x86_64"
+
+      - name: Install Gradle 8.2
+        run: |
+          set -e
+          curl -sSL --retry 3 -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.2-bin.zip
+          sudo unzip -q -o /tmp/gradle.zip -d /opt
+          echo "/opt/gradle-8.2/bin" >> $GITHUB_PATH
+
+      - name: Build debug APK
+        run: gradle assembleDebug --no-daemon 2>&1 | tail -30
+
+      - name: Run app on emulator and capture crash
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: aosp-atd
+          arch: x86_64
+          avd-name: smoke
+          disable-animations: true
+          script: |
+            adb logcat -c
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            echo "=== START ==="
+            adb shell am start -n com.kongbai.modmigrator/.MainActivity
+            sleep 20
+            echo "=== TAP THROUGH TABS ==="
+            for i in 1 2 3 4 5; do
+              adb shell input tap 200 1800 || true
+              sleep 3
+            done
+            adb logcat -d -v time > /tmp/logcat.txt
+            echo "=== FATAL EXCEPTIONS ==="
+            grep -n -E "FATAL EXCEPTION|AndroidRuntime|java.lang.RuntimeException|Unable to start activity|Unable to resume|Error inflating|Caused by" /tmp/logcat.txt | head -60
+            echo "=== END ==="
+
+      - name: Upload logcat
+        if: always()
+        run: |
+          mkdir -p out
+          cp /tmp/logcat.txt out/ 2>/dev/null || echo "no logcat" > out/logcat.txt
+          ls -la out/
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-logcat
+          path: out/
+          retention-days: 7
