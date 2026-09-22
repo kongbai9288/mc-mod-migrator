@@ -168,7 +168,7 @@ class SettingsFragment : Fragment() {
     }
 
     private fun toast(s: String) {
-        handler.post { Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show() }
+        safePost(handler) { Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show() }
     }
 
     private fun test() {
@@ -187,7 +187,7 @@ class SettingsFragment : Fragment() {
             } catch (t: Throwable) {
                 "连接失败：${t.message}"
             }
-            handler.post { tvConn.text = result }
+            safePost(handler) { tvConn.text = result }
         }
     }
 

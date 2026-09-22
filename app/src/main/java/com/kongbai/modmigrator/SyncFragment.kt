@@ -58,11 +58,11 @@ class SyncFragment : Fragment() {
     }
 
     private fun log(s: String) {
-        handler.post { tvLog.append("$s\n") }
+        safePost(handler) { tvLog.append("$s\n") }
     }
 
     private fun toast(s: String) {
-        handler.post { Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show() }
+        safePost(handler) { Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show() }
     }
 
     private fun bg(block: () -> Unit) {
@@ -90,7 +90,7 @@ class SyncFragment : Fragment() {
         toast("正在读取仓库…")
         bg {
             val list = SyncManager.devices(ctx)
-            handler.post {
+            safePost(handler) {
                 devices.clear()
                 devices.addAll(list)
                 adapter.notifyDataSetChanged()

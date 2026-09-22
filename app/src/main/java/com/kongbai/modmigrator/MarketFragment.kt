@@ -79,7 +79,7 @@ class MarketFragment : Fragment() {
     }
 
     private fun toast(s: String) {
-        handler.post { Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show() }
+        safePost(handler) { Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show() }
     }
 
     private fun bg(block: () -> Unit) {
@@ -119,7 +119,7 @@ class MarketFragment : Fragment() {
             } else {
                 ModrinthApi.search(q, mc, ld)
             }
-            handler.post {
+            safePost(handler) {
                 results.clear()
                 results.addAll(list)
                 resAdapter.notifyDataSetChanged()
@@ -138,7 +138,7 @@ class MarketFragment : Fragment() {
                 return@bg
             }
             mod.summaryZh = zh
-            handler.post {
+            safePost(handler) {
                 val i = results.indexOf(mod)
                 if (i >= 0) resAdapter.notifyItemChanged(i)
             }
@@ -156,7 +156,7 @@ class MarketFragment : Fragment() {
                     n++
                 }
             }
-            if (n > 0) handler.post { resAdapter.notifyDataSetChanged() }
+            if (n > 0) safePost(handler) { resAdapter.notifyDataSetChanged() }
         }
     }
 

@@ -27,22 +27,27 @@ class DevsFragment : Fragment() {
         val ctx = requireContext()
         tv.text = "正在读取名单…"
         exec.execute {
-            val list = DevTeam.load(ctx)
-            handler.post {
-                box.removeAllViews()
-                for (d in list) {
-                    val row = TextView(ctx)
-                    row.text = "${d.name} · ${d.role}"
-                    row.textSize = 14f
-                    row.setPadding(0, 10, 0, 10)
-                    if (d.url.isNotBlank()) {
-                        row.setOnClickListener {
-                            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(d.url)))
+            try {
+                val list = DevTeam.load(ctx)
+                safePost(handler) {
+                    box.removeAllViews()
+                    for (d in list) {
+                        val row = TextView(ctx)
+                        row.text = "${d.name} · ${d.role}"
+                        row.textSize = 14f
+                        row.setPadding(0, 10, 0, 10)
+                        if (d.url.isNotBlank()) {
+                            row.setOnClickListener {
+                                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(d.url)))
+                            }
                         }
+                        box.addView(row)
                     }
-                    box.addView(row)
+                    tv.text = "共 ${list.size} 位（点击可打开主页）"
                 }
-                tv.text = "共 ${list.size} 位（点击可打开主页）"
+
+            } catch (t: Throwable) {
+                // 后台异常不崩进程
             }
         }
         return v

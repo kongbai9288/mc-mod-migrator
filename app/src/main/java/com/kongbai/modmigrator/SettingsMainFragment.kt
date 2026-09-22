@@ -71,34 +71,39 @@ class SettingsMainFragment : Fragment() {
     }
 
     private fun toast(s: String) {
-        handler.post { Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show() }
+        safePost(handler) { Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show() }
     }
 
     private fun refreshAccount() {
         val ctx = requireContext()
         exec.execute {
-            val user = BackendApi.me(ctx)
-            val probe = BackendApi.probe(ctx)
-            handler.post {
-                if (user != null) {
-                    tvAccount.text = user.name.ifBlank { user.login }
-                    tvConnState.text = probe.second
-                    btnAccount.text = getString(R.string.account_logout)
-                    btnAccount.setOnClickListener { logout() }
-                    if (user.avatarUrl.isNotBlank()) {
-                        ivAvatar.load(user.avatarUrl) { crossfade(true) }
-                    }
-                } else {
-                    tvAccount.text = getString(R.string.account_not_login)
-                    // 连接不上时给安抚文案，而不是干巴巴的"失败"
-                    tvConnState.text = if (probe.first) {
-                        getString(R.string.account_hint_logged_out)
+            try {
+                val user = BackendApi.me(ctx)
+                val probe = BackendApi.probe(ctx)
+                safePost(handler) {
+                    if (user != null) {
+                        tvAccount.text = user.name.ifBlank { user.login }
+                        tvConnState.text = probe.second
+                        btnAccount.text = getString(R.string.account_logout)
+                        btnAccount.setOnClickListener { logout() }
+                        if (user.avatarUrl.isNotBlank()) {
+                            ivAvatar.load(user.avatarUrl) { crossfade(true) }
+                        }
                     } else {
-                        getString(R.string.conn_blocked_hint) + "（" + probe.second + "）"
+                        tvAccount.text = getString(R.string.account_not_login)
+                        // 连接不上时给安抚文案，而不是干巴巴的"失败"
+                        tvConnState.text = if (probe.first) {
+                            getString(R.string.account_hint_logged_out)
+                        } else {
+                            getString(R.string.conn_blocked_hint) + "（" + probe.second + "）"
+                        }
+                        btnAccount.text = getString(R.string.account_login)
+                        btnAccount.setOnClickListener { login() }
                     }
-                    btnAccount.text = getString(R.string.account_login)
-                    btnAccount.setOnClickListener { login() }
                 }
+
+            } catch (t: Throwable) {
+                // 后台异常不崩进程
             }
         }
     }
@@ -107,15 +112,20 @@ class SettingsMainFragment : Fragment() {
         val ctx = requireContext()
         toast("正在唤起 GitHub 授权…")
         exec.execute {
-            val url = BackendApi.loginUrl(ctx)
-            handler.post {
-                if (url.isBlank()) {
-                    val p = BackendApi.probe(ctx)
-                    tvConnState.text = if (p.first) "后端没返回授权地址，稍后再试" else p.second
-                    toast("连不上后端，已切换到离线可用功能")
-                } else {
-                    startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+            try {
+                val url = BackendApi.loginUrl(ctx)
+                safePost(handler) {
+                    if (url.isBlank()) {
+                        val p = BackendApi.probe(ctx)
+                        tvConnState.text = if (p.first) "后端没返回授权地址，稍后再试" else p.second
+                        toast("连不上后端，已切换到离线可用功能")
+                    } else {
+                        startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+                    }
                 }
+
+            } catch (t: Throwable) {
+                // 后台异常不崩进程
             }
         }
     }

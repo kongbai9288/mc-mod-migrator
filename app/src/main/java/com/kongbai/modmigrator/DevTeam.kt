@@ -1,5 +1,7 @@
 package com.kongbai.modmigrator
 
+import android.content.Context
+
 /**
  * 开发者名单。
  *
@@ -34,7 +36,7 @@ object DevTeam {
                 null
             }
             if (!text.isNullOrBlank()) {
-                val arr = Json.a(text, "devs") ?: Json.arr(text)
+                val arr = Json.obj(text)?.let { Json.a(it, "devs") } ?: Json.arr(text)
                 if (arr != null) {
                     val out = ArrayList<Dev>()
                     for (d in arr) {

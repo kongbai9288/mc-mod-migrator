@@ -59,10 +59,15 @@ class SettingsBackendFragment : Fragment() {
         tv.text = "正在检测…"
         val ctx = requireContext()
         exec.execute {
-            val r = BackendApi.probe(ctx)
-            handler.post {
-                tv.text = r.second
-                Toast.makeText(ctx, if (r.first) "后端可用" else "后端不可用", Toast.LENGTH_SHORT).show()
+            try {
+                val r = BackendApi.probe(ctx)
+                safePost(handler) {
+                    tv.text = r.second
+                    Toast.makeText(ctx, if (r.first) "后端可用" else "后端不可用", Toast.LENGTH_SHORT).show()
+                }
+
+            } catch (t: Throwable) {
+                // 后台异常不崩进程
             }
         }
     }

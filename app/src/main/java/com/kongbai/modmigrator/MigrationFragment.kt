@@ -161,7 +161,7 @@ class MigrationFragment : Fragment() {
                 if (!f.exists()) continue
                 log("检查数据目录：$d")
             }
-            handler.post {
+            safePost(handler) {
                 // SAF 只能授权目录树，这里把第一个可读目录交给用户授权
                 toast("请在下一屏选择：${dirs.first()} 或其中的实例目录")
                 val i = android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT_TREE)
@@ -182,8 +182,8 @@ class MigrationFragment : Fragment() {
         }
         toast("扫描中…")
         bg {
-            val list = InstanceScanner.scan(ctx, root) { log(it) }
-            handler.post {
+            val list = InstanceScanner.scan(ctx, root, { m -> log(m) }, true)
+            safePost(handler) {
                 instances.clear()
                 instances.addAll(list)
                 toast(if (list.isEmpty()) "没找到实例" else "找到 ${list.size} 个实例")
@@ -225,14 +225,14 @@ class MigrationFragment : Fragment() {
     }
 
     private fun log(s: String) {
-        handler.post {
+        safePost(handler) {
             sb.append(s).append('\n')
             tvLog.text = sb.toString()
         }
     }
 
     private fun toast(s: String) {
-        handler.post { Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show() }
+        safePost(handler) { Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show() }
     }
 
     private fun bg(block: () -> Unit) {
@@ -267,7 +267,7 @@ class MigrationFragment : Fragment() {
                 }
             }
             if (mc.isNotBlank()) {
-                handler.post {
+                safePost(handler) {
                     etVersion.setText(mc)
                     selectLoader(loader)
                 }
@@ -293,7 +293,7 @@ class MigrationFragment : Fragment() {
                 }
             }
             if (mc.isNotBlank()) {
-                handler.post {
+                safePost(handler) {
                     etVersion.setText(mc)
                     selectLoader(loader)
                 }
@@ -306,7 +306,7 @@ class MigrationFragment : Fragment() {
             val o = Json.obj(Fs.readText(ctx, vj))
             val id = Json.s(o, "id")
             if (id.isNotBlank()) {
-                handler.post { etVersion.setText(id) }
+                safePost(handler) { etVersion.setText(id) }
                 log("识别到 MC $id（version.json）")
                 return
             }
@@ -338,13 +338,13 @@ class MigrationFragment : Fragment() {
             val root = Fs.tree(ctx, srcUri)
             if (root == null) {
                 log("源目录不可访问")
-                handler.post { pb.visibility = View.GONE }
+                safePost(handler) { pb.visibility = View.GONE }
                 return@bg
             }
             val dir = Fs.find(root, "mods")
             if (dir == null) {
                 log("源目录里没有找到 mods 文件夹")
-                handler.post { pb.visibility = View.GONE }
+                safePost(handler) { pb.visibility = View.GONE }
                 return@bg
             }
             val files = Fs.children(dir).filter { it.isFile && (it.name ?: "").endsWith(".jar", true) }
@@ -371,13 +371,13 @@ class MigrationFragment : Fragment() {
                         e.status = "可迁移"
                     }
                 }
-                handler.post {
+                safePost(handler) {
                     mods.add(e)
                     adapter.notifyItemInserted(mods.size - 1)
                 }
             }
             log("扫描完成")
-            handler.post {
+            safePost(handler) {
                 pb.visibility = View.GONE
                 val ok = mods.count { it.targetUrl.isNotBlank() }
                 toast("可迁移 $ok / ${mods.size}")
@@ -393,13 +393,13 @@ class MigrationFragment : Fragment() {
                 toast("目标目录不可用")
                 return@bg
             }
-            handler.post {
+            safePost(handler) {
                 m.status = "下载中"
                 adapter.notifyDataSetChanged()
             }
             val name = m.targetFileName.ifBlank { Downloader.guessName(m.targetUrl) }
             val f = Downloader.download(ctx, m.targetUrl, dir, name)
-            handler.post {
+            safePost(handler) {
                 m.status = if (f == null) "下载失败" else "已安装"
                 adapter.notifyDataSetChanged()
             }
@@ -437,7 +437,7 @@ class MigrationFragment : Fragment() {
             val dst = Fs.tree(ctx, dstUri)
             if (src == null || dst == null) {
                 log("目录不可访问，请重新选择并授权")
-                handler.post { pb.visibility = View.GONE }
+                safePost(handler) { pb.visibility = View.GONE }
                 return@bg
             }
             if (wantConfig) Fs.find(src, "config")?.let { Fs.copyInto(ctx, it, dst) { s -> log(s) } }
@@ -460,13 +460,13 @@ class MigrationFragment : Fragment() {
                 val f = Downloader.download(ctx, m.targetUrl, dir, name)
                 if (f != null) ok++
                 log("${if (f == null) "失败" else "已安装"}：${m.name} ${m.targetVersion}")
-                handler.post {
+                safePost(handler) {
                     m.status = if (f == null) "下载失败" else "已安装"
                     adapter.notifyDataSetChanged()
                 }
             }
             log("迁移完成：模组 $ok/$total")
-            handler.post { pb.visibility = View.GONE }
+            safePost(handler) { pb.visibility = View.GONE }
             Notifier.show(ctx, "迁移完成", "模组 $ok/$total")
             if (p.getBoolean(K.AUTO_LAUNCH, false)) {
                 val pkg = p.getString(K.LAUNCHER, "") ?: ""

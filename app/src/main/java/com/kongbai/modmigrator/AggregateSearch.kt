@@ -30,12 +30,12 @@ object AggregateSearch {
             }
         }
 
-        val wantModrinth = mode == "聚合" || mode == "Modrinth" || (agg && mode != "后端")
-        val wantCf = mode == "CurseForge" ||
-            (mode == "聚合" && (!useBackend || true))
         // 后端里已经带了 CurseForge Key，开着就不用用户自己申请；
         // 关掉则表示"不想依赖后端"，此时必须自己填 Key 才能走 CurseForge。
         val useBackend = p.getBoolean(K.USE_BACKEND, true)
+
+        val wantModrinth = mode == "聚合" || mode == "Modrinth" || (agg && mode != "后端")
+        val wantCf = mode == "CurseForge" || mode == "聚合"
         val wantBackend = useBackend && (mode == "聚合" || mode == "后端")
 
         if (wantModrinth) {

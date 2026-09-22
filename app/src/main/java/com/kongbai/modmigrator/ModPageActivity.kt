@@ -50,8 +50,15 @@ class ModPageActivity : AppCompatActivity() {
         updateMarked()
     }
 
+    private fun safePostA(h: android.os.Handler, block: () -> Unit) {
+        h.post {
+            if (isFinishing || isDestroyed) return@post
+            try { block() } catch (t: Throwable) { }
+        }
+    }
+
     private fun toast(s: String) {
-        handler.post { Toast.makeText(this, s, Toast.LENGTH_SHORT).show() }
+        safePostA(handler) { Toast.makeText(this, s, Toast.LENGTH_SHORT).show() }
     }
 
     private fun updateMarked() {
@@ -110,11 +117,11 @@ class ModPageActivity : AppCompatActivity() {
                 emptyList<MarkedLink>()
             }
             if (list.isEmpty()) {
-                handler.post { toast("页面上没找到像下载直链的链接，可长按链接手动标记") }
+                safePostA(handler) { toast("页面上没找到像下载直链的链接，可长按链接手动标记") }
                 return@execute
             }
             // 弹窗让用户挑，而不是无脑全加
-            handler.post {
+            safePostA(handler) {
                 val labels = list.map { it.title.ifBlank { it.url }.take(60) }.toTypedArray()
                 MaterialAlertDialogBuilder(this)
                     .setTitle("选择要标记的下载链接（${list.size} 个候选）")
@@ -142,16 +149,21 @@ class ModPageActivity : AppCompatActivity() {
         }
         toast("开始下载 ${list.size} 个…")
         exec.execute {
-            val dir = Targets.modsDir(this)
-            var ok = 0
-            for (l in list) {
-                val f = if (dir == null) null else Downloader.download(this, l.url, dir, Downloader.guessName(l.url))
-                if (f != null) ok++
-            }
-            toast("下载完成 $ok/${list.size}")
-            if (Prefs.get(this).getBoolean(K.AUTO_LAUNCH, false)) {
-                val pkg = Prefs.get(this).getString(K.LAUNCHER, "") ?: ""
-                if (pkg.isNotBlank()) LauncherHelper.launch(this, pkg)
+            try {
+                val dir = Targets.modsDir(this)
+                var ok = 0
+                for (l in list) {
+                    val f = if (dir == null) null else Downloader.download(this, l.url, dir, Downloader.guessName(l.url))
+                    if (f != null) ok++
+                }
+                toast("下载完成 $ok/${list.size}")
+                if (Prefs.get(this).getBoolean(K.AUTO_LAUNCH, false)) {
+                    val pkg = Prefs.get(this).getString(K.LAUNCHER, "") ?: ""
+                    if (pkg.isNotBlank()) LauncherHelper.launch(this, pkg)
+                }
+
+            } catch (t: Throwable) {
+                // 后台异常不崩进程
             }
         }
     }

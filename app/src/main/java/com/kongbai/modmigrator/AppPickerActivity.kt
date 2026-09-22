@@ -55,12 +55,17 @@ class AppPickerActivity : AppCompatActivity() {
     private fun load() {
         val ctx = this
         exec.execute {
-            val list = LauncherHelper.listApps(ctx)
-            handler.post {
-                all.clear()
-                all.addAll(list)
-                filter(etFilter.text.toString())
-                Toast.makeText(ctx, "共 ${list.size} 个应用，像启动器的已排在前面", Toast.LENGTH_SHORT).show()
+            try {
+                val list = LauncherHelper.listApps(ctx)
+                safePostA(handler) {
+                    all.clear()
+                    all.addAll(list)
+                    filter(etFilter.text.toString())
+                    Toast.makeText(ctx, "共 ${list.size} 个应用，像启动器的已排在前面", Toast.LENGTH_SHORT).show()
+                }
+
+            } catch (t: Throwable) {
+                // 后台异常不崩进程
             }
         }
     }

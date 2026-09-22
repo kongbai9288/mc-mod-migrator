@@ -1,5 +1,7 @@
 package com.kongbai.modmigrator
 
+import android.content.Context
+
 /**
  * 插件接口。
  *
@@ -47,9 +49,8 @@ object PluginApi {
         i.putExtra(EXTRA_ARGS, args)
         return try {
             ctx.sendOrderedBroadcast(i, null, object : android.content.BroadcastReceiver() {
-                var got: String? = null
                 override fun onReceive(c: android.content.Context?, intent: android.content.Intent?) {
-                    got = resultData ?: getResultExtra(true)?.getString(EXTRA_ARGS)
+                    // 插件通过 setResultData 回传，宿主这里只接收不阻塞
                 }
             }, null, android.app.Activity.RESULT_OK, null, null)
             null

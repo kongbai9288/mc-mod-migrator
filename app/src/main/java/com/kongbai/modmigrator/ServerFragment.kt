@@ -69,11 +69,11 @@ class ServerFragment : Fragment() {
     }
 
     private fun log(s: String) {
-        handler.post { tvLog.append("$s\n") }
+        safePost(handler) { tvLog.append("$s\n") }
     }
 
     private fun toast(s: String) {
-        handler.post { Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show() }
+        safePost(handler) { Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show() }
     }
 
     private fun bg(block: () -> Unit) {
@@ -111,7 +111,7 @@ class ServerFragment : Fragment() {
                 log("连接失败：${t.message}")
                 emptyList<PanelServer>()
             }
-            handler.post {
+            safePost(handler) {
                 servers.clear()
                 servers.addAll(list)
                 if (list.isEmpty()) {
@@ -151,7 +151,7 @@ class ServerFragment : Fragment() {
                 emptyList<PanelFile>()
             }
             for (f in list) f.kind = ServerPanelApi.guessKind(f.path)
-            handler.post {
+            safePost(handler) {
                 files.clear()
                 files.addAll(list)
                 adapter.notifyDataSetChanged()
@@ -209,7 +209,7 @@ class ServerFragment : Fragment() {
                     }
                 }
             }
-            handler.post {
+            safePost(handler) {
                 adapter.notifyDataSetChanged()
                 toast("可更新 $found / ${files.size}")
             }
@@ -229,12 +229,12 @@ class ServerFragment : Fragment() {
             return
         }
         bg {
-            handler.post {
+            safePost(handler) {
                 f.status = "下载中"
                 adapter.notifyDataSetChanged()
             }
             val out = Downloader.download(ctx, f.latestUrl, dir, f.latestName)
-            handler.post {
+            safePost(handler) {
                 f.status = if (out == null) "下载失败" else "已下载，请自行上传到服务器"
                 adapter.notifyDataSetChanged()
             }
@@ -261,7 +261,7 @@ class ServerFragment : Fragment() {
             for (f in pend) {
                 val out = Downloader.download(ctx, f.latestUrl, dir, f.latestName)
                 if (out != null) ok++
-                handler.post {
+                safePost(handler) {
                     f.status = if (out == null) "下载失败" else "已下载，请自行上传"
                     adapter.notifyDataSetChanged()
                 }
