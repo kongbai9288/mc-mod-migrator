@@ -53,6 +53,18 @@
             android:screenOrientation="portrait" />
 
         <activity
+            android:name=".SettingsHostActivity"
+            android:exported="false"
+            android:label="@string/tab_settings"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".EditorActivity"
+            android:exported="false"
+            android:label="@string/editor_title"
+            android:screenOrientation="portrait" />
+
+        <activity
             android:name=".InfoActivity"
             android:exported="false"
             android:label="@string/title_info"

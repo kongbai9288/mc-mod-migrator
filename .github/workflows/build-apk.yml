@@ -50,9 +50,21 @@ jobs:
           sudo unzip -q -o /tmp/gradle.zip -d /opt
           echo "/opt/gradle-8.2/bin" >> $GITHUB_PATH
 
-      - name: Build debug APK
+      - name: Decode keystore
         run: |
-          gradle assembleDebug --no-daemon > /tmp/build.log 2>&1
+          set -e
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/release.jks
+          ls -la app/release.jks
+
+      - name: Build APK
+        env:
+          KEYSTORE_FILE: app/release.jks
+          KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.KEY_PASS }}
+        run: |
+          gradle assembleRelease --no-daemon > /tmp/build.log 2>&1
+          gradle assembleDebug --no-daemon >> /tmp/build.log 2>&1
           echo "EXIT=$?"
           echo "===== apk find ====="
           find . -name "*.apk" -type f -exec ls -la {} \;
@@ -64,7 +76,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ModMigrator-debug
-          path: app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/*/*.apk
           retention-days: 30
 
       - name: Publish APK to Release
@@ -99,7 +111,7 @@ jobs:
                   return {'__error__': 0, 'body': str(e)[:200]}
 
 
-          apks = glob.glob('app/build/outputs/apk/debug/*.apk')
+          apks = glob.glob('app/build/outputs/apk/release/*.apk') or glob.glob('app/build/outputs/apk/debug/*.apk')
           print('found apks:', apks)
           if not apks:
               print('NO APK')

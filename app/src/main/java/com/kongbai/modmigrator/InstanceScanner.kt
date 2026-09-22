@@ -21,6 +21,16 @@ object InstanceScanner {
         "HMCL", "PCL", "mcinaBox", "MCinaBox"
     )
 
+    /** 扫描时直接跳过的目录名：这些目录体积大且不可能含实例 */
+    private val SKIP = setOf(
+        "android", "Android", "dcim", "DCIM", "pictures", "Pictures",
+        "movies", "Movies", "download", "Download", "music", "Music",
+        "documents", "Documents", "tencent", "Tencent", "qq", "QQ",
+        "weixin", "WeChat", "alipay", "cache", ".cache", "thumbnails",
+        "screenshots", "recordings", "podcasts", "alarms", "ringtones",
+        "notifications", "audiobooks", "system", "lost.dir"
+    )
+
     private val LAUNCHER_DIRS = listOf(
         "pojav", "PojavLauncher", "zalithlauncher", "ZalithLauncher",
         "instances", "versions", "hmcl", "HMCL"
@@ -37,11 +47,51 @@ object InstanceScanner {
         return hasMods || hasConfig || hasVersion || hasPack || hasJar
     }
 
-    fun scan(ctx: Context, rootUri: String, log: (String) -> Unit): List<InstanceInfo> {
+    /**
+     * 扫描实例。quick = true 时只进入「名字像启动器」的目录，
+     * 跳过其余子树，速度能快一个量级；扫不到再用完整模式。
+     */
+    fun scan(
+        ctx: Context,
+        rootUri: String,
+        log: (String) -> Unit,
+        quick: Boolean = true
+    ): List<InstanceInfo> {
         val root = Fs.tree(ctx, rootUri) ?: return emptyList()
         val out = mutableListOf<InstanceInfo>()
-        collect(ctx, root, 0, out, log)
+        if (quick) collectQuick(ctx, root, 0, out, log) else collect(ctx, root, 0, out, log)
+        if (out.isEmpty() && quick) {
+            log("快速扫描没找到，再完整扫一遍…")
+            out.clear()
+            collect(ctx, root, 0, out, log)
+        }
         return out.sortedBy { it.name.lowercase(Locale.ROOT) }
+    }
+
+    private fun collectQuick(
+        ctx: Context,
+        dir: DocumentFile,
+        depth: Int,
+        out: MutableList<InstanceInfo>,
+        log: (String) -> Unit
+    ) {
+        if (depth > 4) return
+        if (depth > 0 && looksLikeInstance(dir)) {
+            val info = readInfo(ctx, dir)
+            if (info != null) {
+                out.add(info)
+                log("发现实例：${info.name}")
+                return
+            }
+        }
+        for (c in Fs.children(dir)) {
+            if (!c.isDirectory) continue
+            val n = c.name ?: ""
+            if (n in SKIP || n.startsWith(".")) continue
+            // 快速模式：只进「像启动器」的目录，其余跳过
+            if (depth == 0 && !LauncherHelper.isKnownDir(n) && n.lowercase(Locale.ROOT) != "games") continue
+            collectQuick(ctx, c, depth + 1, out, log)
+        }
     }
 
     private fun collect(
@@ -57,10 +107,14 @@ object InstanceScanner {
             if (info != null) {
                 out.add(info)
                 log("发现实例：${info.name}（MC ${info.mcVersion.ifBlank { "?" }} / ${info.loader}）")
+                return
             }
         }
         for (c in Fs.children(dir)) {
-            if (c.isDirectory) collect(ctx, c, depth + 1, out, log)
+            if (!c.isDirectory) continue
+            val n = c.name ?: ""
+            if (n in SKIP || n.startsWith(".")) continue
+            collect(ctx, c, depth + 1, out, log)
         }
     }
 

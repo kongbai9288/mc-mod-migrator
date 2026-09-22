@@ -30,6 +30,28 @@ object Json {
         return if (v.isJsonPrimitive) v.asString else def
     }
 
+    fun i(e: JsonElement?, key: String, def: Int = 0): Int {
+        if (e == null || !e.isJsonObject) return def
+        val v = e.asJsonObject.get(key) ?: return def
+        return if (v.isJsonPrimitive)
+            try {
+                v.asInt
+            } catch (t: Throwable) {
+                def
+            } else def
+    }
+
+    fun b(e: JsonElement?, key: String, def: Boolean = false): Boolean {
+        if (e == null || !e.isJsonObject) return def
+        val v = e.asJsonObject.get(key) ?: return def
+        return if (v.isJsonPrimitive)
+            try {
+                v.asBoolean
+            } catch (t: Throwable) {
+                def
+            } else def
+    }
+
     fun l(e: JsonElement?, key: String, def: Long = 0L): Long {
         if (e == null || !e.isJsonObject) return def
         val v = e.asJsonObject.get(key) ?: return def

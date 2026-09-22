@@ -105,17 +105,31 @@ class ModPageActivity : AppCompatActivity() {
         toast("正在分析页面…")
         exec.execute {
             val list = try {
-                PageParser.candidates(url)
+                PageParser.candidates(url, 8)
             } catch (t: Throwable) {
                 emptyList<MarkedLink>()
             }
-            var added = 0
-            for (l in list.take(5)) {
-                if (Store.addLink(this, l)) added++
+            if (list.isEmpty()) {
+                handler.post { toast("页面上没找到像下载直链的链接，可长按链接手动标记") }
+                return@execute
             }
+            // 弹窗让用户挑，而不是无脑全加
             handler.post {
-                updateMarked()
-                toast("从页面识别出 ${list.size} 个候选，已添加 $added 个")
+                val labels = list.map { it.title.ifBlank { it.url }.take(60) }.toTypedArray()
+                MaterialAlertDialogBuilder(this)
+                    .setTitle("选择要标记的下载链接（${list.size} 个候选）")
+                    .setMultiChoiceItems(labels, null) { _, _, _ -> }
+                    .setNegativeButton(R.string.cancel, null)
+                    .setPositiveButton(R.string.ok) { dlg, _ ->
+                        val lv = (dlg as android.app.AlertDialog).listView
+                        var added = 0
+                        for (i in list.indices) {
+                            if (lv.isItemChecked(i) && Store.addLink(this, list[i])) added++
+                        }
+                        updateMarked()
+                        toast("已标记 $added 个")
+                    }
+                    .show()
             }
         }
     }

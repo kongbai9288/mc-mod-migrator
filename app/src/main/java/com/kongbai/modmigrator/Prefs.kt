@@ -66,4 +66,10 @@ object K {
     const val SCAN_ROOT = "scan_root"
     const val USE_MIRROR = "use_mirror"
     const val AUTO_TRANS = "auto_trans"
+    const val BACKEND_BASE = "backend_base"
+    const val BACKEND_BACKUP = "backend_backup"
+    const val OFFLINE = "offline_mode"
+    const val WORKDIR_URI = "workdir_uri"
+    const val AGG_SEARCH = "agg_search"
+    const val RECOMMEND = "recommend"
 }

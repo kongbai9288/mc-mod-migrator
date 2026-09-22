@@ -38,11 +38,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun switchTo(id: Int) {
+        // 设置走独立的二级菜单页面，不再塞进底部导航
+        if (id == R.id.nav_settings) {
+            startActivity(android.content.Intent(this, SettingsHostActivity::class.java))
+            return
+        }
         val f: Fragment = when (id) {
             R.id.nav_server -> ServerFragment()
             R.id.nav_market -> MarketFragment()
             R.id.nav_sync -> SyncFragment()
-            R.id.nav_settings -> SettingsFragment()
             else -> MigrationFragment()
         }
         supportFragmentManager.beginTransaction()
