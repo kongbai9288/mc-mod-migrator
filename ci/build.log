@@ -26,22 +26,22 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mapReleaseSourceSetPaths
 > Task :app:generateReleaseResources
 > Task :app:packageReleaseResources
-> Task :app:mergeReleaseResources
 > Task :app:createReleaseCompatibleScreenManifests
 > Task :app:extractDeepLinksRelease
 > Task :app:parseReleaseLocalResources
+> Task :app:mergeReleaseResources
 > Task :app:processReleaseMainManifest
 > Task :app:processReleaseManifest
-> Task :app:extractProguardFiles
 > Task :app:javaPreCompileRelease
+> Task :app:extractProguardFiles
 > Task :app:mergeReleaseJniLibFolders
 > Task :app:mergeReleaseNativeLibs NO-SOURCE
 > Task :app:stripReleaseDebugSymbols NO-SOURCE
 > Task :app:extractReleaseNativeSymbolTables NO-SOURCE
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :app:processReleaseManifestForPackage
 > Task :app:desugarReleaseFileDependencies
 > Task :app:checkReleaseDuplicateClasses
-> Task :app:processReleaseManifestForPackage
 > Task :app:mergeReleaseArtProfile
 > Task :app:processReleaseResources
 > Task :app:mergeExtDexRelease
@@ -95,7 +95,7 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 > Task :app:lintVitalRelease
 > Task :app:assembleRelease
 
-BUILD SUCCESSFUL in 2m 25s
+BUILD SUCCESSFUL in 2m 1s
 42 actionable tasks: 42 executed
 To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
 Daemon will be stopped at the end of the build 
@@ -111,8 +111,8 @@ Daemon will be stopped at the end of the build
 > Task :app:createDebugCompatibleScreenManifests
 > Task :app:extractDeepLinksDebug
 > Task :app:parseDebugLocalResources
-> Task :app:mergeDebugResources
 > Task :app:processDebugMainManifest
+> Task :app:mergeDebugResources
 > Task :app:processDebugManifest
 > Task :app:javaPreCompileDebug
 > Task :app:mergeDebugShaders
@@ -128,10 +128,10 @@ Daemon will be stopped at the end of the build
 > Task :app:mergeDebugNativeLibs NO-SOURCE
 > Task :app:stripDebugDebugSymbols NO-SOURCE
 > Task :app:mergeLibDexDebug
-> Task :app:mergeExtDexDebug
 > Task :app:validateSigningDebug
 > Task :app:writeDebugAppMetadata
 > Task :app:writeDebugSigningConfigVersions
+> Task :app:mergeExtDexDebug
 
 > Task :app:compileDebugKotlin
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:27:13 Variable 'agg' is never used
@@ -167,5 +167,5 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 > Task :app:createDebugApkListingFileRedirect
 > Task :app:assembleDebug
 
-BUILD SUCCESSFUL in 1m 9s
+BUILD SUCCESSFUL in 54s
 33 actionable tasks: 33 executed
