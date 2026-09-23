@@ -58,46 +58,58 @@ object LangPack {
     fun has(key: String): Boolean = map.containsKey(key)
 
     /**
-     * 用语言包包一层 Context，让 getString(Int) 走我们的译文。
-     * 语言包没覆盖的键会退回系统资源，不会崩也不会空。
+     * 用语言包包一层 Context。
+     *
+     * ContextWrapper.getString 是 final 不能覆盖，所以这里覆盖 getResources，
+     * 返回一个改写过 getString 的 Resources。语言包没覆盖的键会退回系统资源。
      */
     fun wrap(base: Context): Context {
         if (map.isEmpty()) return base
+        val res = LangResources(base.resources)
         return object : ContextWrapper(base) {
-            override fun getString(resId: Int): String {
-                val k = keyOf(resId)
-                val v = if (k != null) map[k] else null
-                return if (!v.isNullOrBlank()) v else try {
-                    super.getString(resId)
-                } catch (t: Throwable) {
-                    ""
-                }
-            }
-
-            override fun getString(resId: Int, vararg args: Any?): String {
-                val k = keyOf(resId)
-                val v = if (k != null) map[k] else null
-                return if (!v.isNullOrBlank()) {
-                    try {
-                        String.format(Locale.getDefault(), v, *args)
-                    } catch (t: Throwable) {
-                        v
-                    }
-                } else try {
-                    super.getString(resId, *args)
-                } catch (t: Throwable) {
-                    ""
-                }
-            }
+            override fun getResources(): android.content.res.Resources = res
         }
     }
 
-    private fun keyOf(resId: Int): String? {
-        return try {
-            val n = resources.getResourceName(resId)
-            n.substring(n.indexOf('/') + 1)
-        } catch (t: Throwable) {
-            null
+    /** 只改写 getString，其余全部走系统实现 */
+    private class LangResources(private val base: android.content.res.Resources) :
+        android.content.res.Resources(
+            base.assets, base.displayMetrics, base.configuration
+        ) {
+
+        override fun getString(id: Int): String {
+            val k = keyOf(id)
+            val v = if (k != null) map[k] else null
+            return if (!v.isNullOrBlank()) v else try {
+                base.getString(id)
+            } catch (t: Throwable) {
+                ""
+            }
+        }
+
+        override fun getString(id: Int, vararg args: Any?): String {
+            val k = keyOf(id)
+            val v = if (k != null) map[k] else null
+            return if (!v.isNullOrBlank()) {
+                try {
+                    String.format(Locale.getDefault(), v, *args)
+                } catch (t: Throwable) {
+                    v
+                }
+            } else try {
+                base.getString(id, *args)
+            } catch (t: Throwable) {
+                ""
+            }
+        }
+
+        private fun keyOf(id: Int): String? {
+            return try {
+                val n = base.getResourceName(id)
+                n.substring(n.indexOf('/') + 1)
+            } catch (t: Throwable) {
+                null
+            }
         }
     }
 

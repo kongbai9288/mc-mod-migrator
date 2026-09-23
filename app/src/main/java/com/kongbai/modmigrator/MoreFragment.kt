@@ -39,8 +39,8 @@ class MoreFragment : Fragment() {
         box.addView(hint)
 
         val ctx0 = ctx
-        val inNav = NavConfig.keys(ctx0)
-        val pages = NavConfig.morePages(ctx0)
+        val inNav = NavConfig.bottom(ctx0)
+        val pages = NavConfig.more(ctx0)
 
         for (p in pages) {
             val row = LinearLayout(ctx0)
@@ -49,7 +49,7 @@ class MoreFragment : Fragment() {
             row.setPadding(0, (10 * resources.displayMetrics.density).toInt(), 0, 0)
 
             val title = TextView(ctx0)
-            title.text = getString(p.titleRes)
+            title.text = getString(p.title)
             title.textSize = 15f
             title.layoutParams = LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
@@ -59,16 +59,14 @@ class MoreFragment : Fragment() {
             val btnMove = Button(ctx0)
             btnMove.text = getString(R.string.nav_move_to_bar)
             btnMove.setOnClickListener {
-                val cur = NavConfig.keys(ctx0).toMutableList()
-                if (cur.size >= NavConfig.MAX_CUSTOM) {
+                if (!NavConfig.moveToBottom(ctx0, p.key)) {
                     MaterialAlertDialogBuilder(ctx0)
                         .setMessage(R.string.nav_limit)
                         .setPositiveButton(R.string.ok, null)
                         .show()
                     return@setOnClickListener
                 }
-                cur.add(p.key)
-                NavConfig.save(ctx0, cur)
+                (activity as? MainActivity)?.rebuildNav()
                 // 设置页是 Activity，需要重建主界面才能刷新导航栏
                 try {
                     activity?.recreate()
@@ -93,7 +91,7 @@ class MoreFragment : Fragment() {
         return scroll
     }
 
-    private fun openPage(p: NavConfig.Page) {
+    private fun openPage(p: NavConfig.Item) {
         try {
             val f = p.make()
             parentFragmentManager.beginTransaction()

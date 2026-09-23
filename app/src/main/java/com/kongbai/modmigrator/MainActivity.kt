@@ -72,6 +72,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** 供设置页改动导航栏后调用重建 */
+    fun rebuildNav() {
+        try {
+            buildNav()
+        } catch (t: Throwable) {
+        }
+    }
+
     private fun buildNav() {
         val n = nav ?: return
         val menu = n.menu
@@ -79,8 +87,8 @@ class MainActivity : AppCompatActivity() {
         val pages = NavConfig.navPages(this)
         // Material 硬性上限 5 项，这里自定义最多 4 项 + 固定的「更多」
         for ((i, p) in pages.withIndex()) {
-            menu.add(0, NavConfig.idOf(p.key), i, getString(p.titleRes))
-                .setIcon(p.iconRes)
+            menu.add(0, NavConfig.idOf(p.key), i, getString(p.title))
+                .setIcon(p.icon)
         }
         menu.add(0, ID_MORE, pages.size, getString(R.string.tab_more))
             .setIcon(R.drawable.ic_filter_list)
