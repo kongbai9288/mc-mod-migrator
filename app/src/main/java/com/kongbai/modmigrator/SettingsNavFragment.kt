@@ -77,13 +77,13 @@ class SettingsNavFragment : Fragment() {
 
         boxBottom.removeAllViews()
         for ((i, key) in bottom.withIndex()) {
-            val it = NavConfig.item(key) ?: continue
+            val nav = NavConfig.item(key) ?: continue
             val row = LinearLayout(ctx).apply {
                 orientation = LinearLayout.HORIZONTAL
                 setPadding(0, 4, 0, 4)
             }
             val label = TextView(ctx).apply {
-                text = getString(it.title)
+                text = getString(nav.title)
                 textSize = 14f
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
@@ -117,13 +117,14 @@ class SettingsNavFragment : Fragment() {
         }
 
         boxMore.removeAllViews()
-        for (it in more) {
+        // 变量名不能用 it：setOnClickListener 的 lambda 隐式参数也叫 it，会遮蔽外层
+        for (page in more) {
             val row = LinearLayout(ctx).apply {
                 orientation = LinearLayout.HORIZONTAL
                 setPadding(0, 4, 0, 4)
             }
             val label = TextView(ctx).apply {
-                text = getString(it.title)
+                text = getString(page.title)
                 textSize = 14f
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
@@ -131,7 +132,7 @@ class SettingsNavFragment : Fragment() {
             val add = MaterialButton(ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
             add.text = "移到底部"
             add.setOnClickListener {
-                if (!NavConfig.moveToBottom(ctx, it.key)) {
+                if (!NavConfig.moveToBottom(ctx, page.key)) {
                     toast("底部最多 5 个，先从上面移一个出来")
                 } else {
                     toast("已移到底部导航栏")
