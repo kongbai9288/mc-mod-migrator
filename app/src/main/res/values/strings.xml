@@ -173,6 +173,15 @@
     <string name="tool_doctor_btn">模组体检</string>
     <string name="tool_diff_btn">配置对比</string>
     <string name="menu_nav">底部导航栏</string>
+    <string name="about_check_update">检查更新</string>
+    <string name="about_changelog">更新内容</string>
+    <string name="about_perms">授权状态</string>
+    <string name="cfg_parallel">同时下载几个模组</string>
+    <string name="cfg_parallel_hint">数量越大越快，但占内存和带宽更多。手机性能一般或网络不稳时选 1～2 更稳。</string>
+    <string name="anim_title">界面动画</string>
+    <string name="anim_follow">跟随设备（低端机自动关）</string>
+    <string name="anim_on">总是开启</string>
+    <string name="anim_off">总是关闭</string>
     <string name="empty_hint">这里还没有内容</string>
     <string name="token_auto_ok">已自动获取 GitHub Token，同步无需手填</string>
     <string name="token_manual_hint">已授权，但后端未开放 Token 下发接口，请在下面的 Token 框手动填写</string>

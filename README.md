@@ -1,118 +1,154 @@
-# 模组迁移助手 ModMigrator
+# ModMigrator
 
-给 Minecraft Java 版启动器玩家的 Android 工具：**自动跨版本迁移 + 模组市场 + 跨设备同步**。
-私有仓库，自用性质。应用内不含任何 Minecraft 游戏素材，图标来自第三方 Material Symbols（Apache-2.0）。
+Minecraft Java 版 **模组与配置迁移工具**（Android）。
 
-## 导语
-- 是的，ModMigrator是一款安卓mod迁移工具，安卓不是错，而是没有工具，在此本项目的前端开发yuan bao与审核、后端开发kongbai9288诚邀你开启高效版本之旅，更快的路，更好用的体验
+把一台设备上某个游戏版本的模组、配置、脚本、存档、光影等，
+整体搬到另一个版本（或另一台设备 / 服务器）上——
+自动识别已装的模组、自动去 Modrinth / CurseForge 找对应新版本的下载地址，
+再批量下载到目标目录。
 
-## 能做什么
+> 适用：安卓上的 FCL、Zalith、Pojav、Amethyst、HMCL-PE、澪-Ultimate 等启动器。
+> 不适用：基岩版（Bedrock）。
 
-### 1. 版本迁移（自动）
-- 选择源实例目录（SAF 授权），自动识别 MC 版本与加载器：
-  MultiMC / Prism 的 `mmc-pack.json`、CurseForge 的 `manifest.json`、原版 `version.json`。
-- 填写目标 MC 版本 + 加载器（auto / fabric / forge / neoforge / quilt），点「扫描并生成迁移方案」：
-  逐个 jar 计算 SHA-1 → 调 Modrinth 按哈希反查项目 → 找到目标版本对应的文件。
-- 点「执行迁移」：按勾选复制 `config/`、`scripts/`、`options.txt`、资源包/光影包、存档，
-  并把解析到的模组 jar 直接下载进目标 `mods/` 目录。
-- 可选「迁移完成后自动打开启动器」（Pojav / Zalith / MCinaBox 等）。
+---
 
-### 2. 模组市场（应用市场式）
-- Modrinth 搜索（默认）；填了 CurseForge API Key 后可用 CurseForge。
-- 卡片式列表、图标、下载量、一句话说明，点卡片进详情页，点「安装」自动下载到目标 `mods/`。
-- **手动标记下载链接**：市场页可手动粘贴链接；在「模组页面」长按任意链接即可标为下载链接，
-  也可以点「标记本页」用 jsoup 解析页面上的下载地址候选。
-- 已标记的链接统一在市场页顶部列出，可一键下载或直接下载全部。
+## 快速开始
 
-### 3. 跨设备迁移
-- 设置里填 GitHub Token + 私有仓库（默认 `kongbai9288/mc-mod-migrator`）+ 分支。
-- 「同步」页把自己这台设备（ID + 机型）的清单与配置包推到私有仓库：
-  `modmigrator/devices/<设备ID>/manifest.json` 与 `config.zip`。
-- 另一台设备用同一个 Token/仓库，点「刷新远程设备」即可看到其它设备，
-  点「恢复」把配置解包到目标目录，并按清单把模组重新下载回来。
-- 可开自动同步（WorkManager，约 15 分钟一次）。
+1. 装 APK（见下方「下载」）
+2. 打开 **设置 → 存储**，选一个**工作目录**（导出包、下载缓存、备份都放这里）
+3. 回到**迁移**页：
+   - 选「**迁移前的版本**」目录（含 `mods` 的那个）
+   - 选「**迁移后的版本**」目录
+   - 填目标 MC 版本、加载器
+   - 点**扫描** → 生成迁移方案
+4. 勾选要迁移的内容，点**开始迁移**
 
-### 5. 同设备版本迁移
-- 迁移页「扫描本机实例」：授权一次根目录（如 `/storage/emulated/0/games`），
-  自动向下最多 3 层扫描，识别出含 `mods`/`config`/`version.json`/`mmc-pack.json` 的实例。
-- 从列表里选一个实例，弹窗问它是「源实例」还是「目标实例」，两边都在本机即可直接迁移。
-- 会自动读出实例的 MC 版本与加载器（MultiMC/Prism、CurseForge、原版），填进目标栏。
+> 扫不到实例？安卓 11+ 把启动器数据放在 `Android/data` 下，
+> 需要授予「所有文件访问」权限。App 会在扫不到时提示你去授权。
 
-### 6. 服务器面板（只读 + 手动上传）
-- 服务器页填写面板地址与 **Pterodactyl Client API Key**（`ptlc_...`），
-  点「连接」列出该账号下的服务器，选一台。
-- 填目录（`/mods` 或 `/plugins`）点「扫描」，列出该目录下所有 jar。
-- 填服务器 MC 版本 + 加载器点「检测更新」：按 jar 文件名去 Modrinth 匹配项目并取对应版本。
-- 列表里每条都可单独下载，也可「一键下载全部更新」。
-- **不会自动上传**：下载下来的文件放在目标目录的 `mods/`，由你自己通过面板/SFTP 上传。
+---
 
-### 7. 模组翻译
-- **市场列表**：搜索结果自动翻译前 10 条简介（设置里可关）；每条右侧「译」按钮可单条翻译，再点一次切回原文。
-- **模组叙述页**：顶部「翻译」按钮，可选微软翻译（国内可达）或谷歌翻译整页代理，也可恢复原文。
-- 简介翻译走 MyMemory 免费接口（en→zh-CN），匿名约 5000 词/天/IP，超出会失败并提示；结果有内存缓存。
+## 功能
 
-### 8. 崩溃日志
-设置页「查看崩溃日志」可看到最近一次崩溃的堆栈，便于定位问题。
+### 迁移
+| 功能 | 说明 |
+|---|---|
+| 实例扫描 | 自动定位各启动器的 `.minecraft`，识别 MC 版本与加载器 |
+| 迁移方案 | 扫描源目录的模组，逐个解析出目标版本的下载地址 |
+| 配置迁移 | `config` / `defaultconfigs` / `kubejs` / `scripts` / `options.txt` / 资源包 / 光影 / 存档，可勾选 |
+| 并发下载 | 默认 3 个同时下，设置里可调 1～6 |
+| 进度详情 | 当前阶段、第几个/共几个、已用时间、预计剩余、速度 |
+| 导出/导入包 | 生成 `.mcmig` 包，可跨设备还原 |
+| 文本编辑器 | 直接改模组配置文件，再选择性迁移 |
 
-### 4. 设置与隐私
-- 设置页：GitHub 仓库配置与连接测试、数据源偏好、CurseForge Key、默认版本/加载器、
-  自动安装、自动打开启动器、自动同步、隐私说明、第三方许可、清除本机数据。
-- Token 等敏感项用 `EncryptedSharedPreferences`（AES-256）加密保存。
-- 完整隐私说明见 [PRIVACY.md](PRIVACY.md)，应用内「设置 → 隐私说明」同样可看。
+### 模组市场
+- 搜索 Modrinth / CurseForge，**聚合模式**同时查两边并去重
+- 一键安装到目标 `mods` 目录
+- 简介翻译（本地词典优先，离线可用；也有在线翻译）
+- 收藏、推荐
+
+### 整合包
+- 算本地 jar 的 SHA-1 → 反查 Modrinth 项目 → 找当前版本下的最新版
+- 列出可更新项，单个或批量下载
+- **不会自动替换**原文件，下载到目标目录，你自己决定要不要换
+
+### 服务器面板
+- 填面板地址，支持**账号密码**登录或 Client API Key
+- 自动探测 `/mods`、`/plugins` 等目录（不用手填路径）
+- 列出 jar → 检测更新 → 逐个或批量下载
+- **不会自动上传**，下载完你自己通过面板/SFTP 传上去
+
+### 工具箱
+- **模组体检**：重复模组、可疑文件名（中文/空格）、超大文件
+- **配置对比**：迁移前后差异，会覆盖哪些、会缺失哪些
+- **清理缓存**、**存储用量**
+
+### 跨设备
+- 导出/导入 `.mcmig` 包
+- GitHub 私仓上传与拉取还原
+- 局域网直传
+
+### 外观与个性化
+- **主题色**：多套配色可选
+- **底部导航栏**：任意功能可移到底部栏或移回「更多」，还可上下调序
+- **界面动画**：跟随设备（低端机自动关）/ 总是开 / 总是关
+- **语言**：简体中文 / English，支持**语言拓展包**（放到目录里自动读取）
+- **插件**：允许外部扩展功能
+
+---
+
+## 设置页结构
+
+```
+设置
+├── 后端（ModMarket 后端地址、OAuth 回调诊断）
+├── 搜索（模组源、CurseForge Key、聚合）
+├── 迁移（默认版本、加载器、并发数、自动启动）
+├── 存储（工作目录）
+├── 界面动画
+├── 底部导航栏
+├── 主题
+├── 语言
+├── 插件
+├── 开发者名单
+├── 日志
+└── 关于（版本号、检查更新、更新内容、授权状态、隐私政策、开源许可）
+```
+
+返回键逐层退回，栈空才退出设置。
+
+---
+
+## 模组源说明
+
+| 来源 | 需要 Key | 说明 |
+|---|---|---|
+| Modrinth | 不需要 | 官方 API，直接可用 |
+| CurseForge（后端代理） | 不需要 | 走 ModMarket 后端，内置 Key |
+| CurseForge（官方直连） | **需要** | 自己在设置里填 Key |
+| CurseForge（国内镜像） | 不需要 | 无 Key 时自动走镜像 |
+
+**单源模式下后端与官方直连互斥**（开一个另一个自动关）。
+**聚合模式不受影响**——两条都查，按名字去重、保留下载量高的。
+
+---
+
+## 隐私
+
+- 代码里**不含任何凭据**（GitHub Token、CurseForge Key、面板密码都不写死）
+- Token / Key / 密码由用户自己填写，存在 `EncryptedSharedPreferences`（AES-256）
+- GitHub 登录走 OAuth，在浏览器完成，**App 不接触也不保存密码**
+- 后端地址默认为 `modmarket.3566500461.workers.dev`
+- 完整的隐私政策见 App 内「设置 → 关于 → 隐私说明」
+
+---
+
+## 下载
+
+Release 里提供已签名的 `ModMigrator-release.apk`。
 
 ## 构建
 
-仓库自带 GitHub Actions：推送到 `main` 会自动编译 debug APK 并作为 artifact 上传。
-本地构建：
-
 ```bash
-./gradlew assembleDebug   # 需要 JDK 17 + Android SDK 34
+# 需要 JDK 17
+./gradlew assembleRelease
 ```
 
-CI 里没有 gradle wrapper 二进制，workflow 会直接下载 Gradle 8.2 再执行 `gradle assembleDebug`。
-
-## 目录结构
+签名信息通过环境变量注入，不入库：
 
 ```
-app/src/main/java/com/kongbai/modmigrator/
-  App.kt                应用入口，通知渠道
-  Prefs.kt              加密偏好设置与键名
-  Models.kt Store.kt    数据模型与本地存储
-  Http.kt Json.kt       OkHttp 封装与 JSON 辅助
-  ModrinthApi.kt        Modrinth v2：搜索/版本/哈希反查
-  CurseForgeApi.kt      CurseForge 搜索与下载地址拼装
-  PageParser.kt         jsoup 解析模组页面上的下载链接
-  GitHubApi.kt          contents API 读写（base64）
-  Fs.kt Downloader.kt   SAF 文件扫描/复制/哈希与下载
-  BundleManager.kt      配置包 zip 打包与解包
-  SyncManager.kt SyncWorker.kt  跨设备同步与周期任务
-  Targets.kt LauncherHelper.kt  目标目录与启动器调起
-  Adapters.kt           列表适配器
-  MainActivity.kt + 4 个 Fragment + ModPageActivity/InfoActivity
+KEYSTORE_FILE / KEYSTORE_PASS / KEY_ALIAS / KEY_PASS
 ```
 
-## 数据源与镜像（免 CurseForge Key 也能用）
+CI（GitHub Actions）会在每次推送后自动构建并发布 Release。
 
-| 源 | 是否需要 Key | 说明 |
-|---|---|---|
-| Modrinth | 否 | 默认源，接口完全开放 |
-| CurseForge 官方 | 是 | 需在 console.curseforge.com 免费申请 |
-| 国内镜像 MCIM | 否 | 设置里开关，默认开启 |
+---
 
-镜像 `mod.mcimirror.top` 兼容官方 API 结构，直接替换域名即可：
+## 技术栈
 
-- `api.curseforge.com` → `mod.mcimirror.top/curseforge`
-- `edge.forgecdn.net` → `mod.mcimirror.top`（**文件下载也走镜像**）
-- `cdn.modrinth.com` → `mod.mcimirror.top`
+Kotlin · Android SDK 34（minSdk 26）· Material Components 2 · OkHttp · Gson · Jsoup · Coil · WorkManager · AndroidX Security
 
-**没填 CurseForge Key 时会自动改用镜像**，所以不申请 Key 也能搜索并下载 CurseForge 的模组。
-填了 Key 之后按设置里的开关决定走官方还是镜像；走官方时会在请求头带上 `x-api-key`
-（CurseForge 官方 CDN 自 2024 年 7 月起强制 Key 认证，无 Key 直链会返回 401）。
+## 许可
 
-镜像是第三方公益服务，可能限速或临时关停；出问题把开关关掉、填上自己的 Key 即可回退官方。
-
-## 注意
-
-- Android 8.0（API 26）以上，受分区存储限制，目录访问走系统文件选择器。
-- 单个文件超过 100MB 时 GitHub contents API 会拒绝，配置包太大请在设置里减少勾选项。
-- Modrinth 请求需要 User-Agent，已内置；请勿滥用 API。
+代码开源自用。第三方库许可见 App 内「设置 → 关于 → 第三方开源许可」。
+图标使用 Material Icons（Apache 2.0）。

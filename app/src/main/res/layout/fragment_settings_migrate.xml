@@ -41,5 +41,24 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/cfg_auto_sync" />
-    </LinearLayout>
+        <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="8dp"
+        android:text="@string/cfg_parallel"
+        android:textSize="14sp" />
+
+    <Spinner
+        android:id="@+id/spParallel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/cfg_parallel_hint"
+        android:textColor="@color/textSecondary"
+        android:textSize="12sp" />
+
+</LinearLayout>
 </ScrollView>

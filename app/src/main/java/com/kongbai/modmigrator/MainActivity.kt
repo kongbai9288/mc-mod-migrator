@@ -119,9 +119,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun replace(f: Fragment) {
         try {
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.fragment_container, f)
-                .commit()
+            val tx = supportFragmentManager.beginTransaction()
+            // 开启动画时用系统过渡，关闭时直接替换
+            if (AnimPrefs.enabled(this)) {
+                tx.setCustomAnimations(
+                    android.R.anim.fade_in, android.R.anim.fade_out
+                )
+            }
+            tx.replace(R.id.fragment_container, f)
+            tx.commit()
         } catch (t: Throwable) {
         }
     }

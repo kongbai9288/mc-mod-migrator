@@ -54,8 +54,12 @@ class MigrationFragment : Fragment() {
             pb.visibility = if (st.running) View.VISIBLE else View.GONE
             pb.isIndeterminate = st.total <= 0
             if (st.total > 0) pb.progress = st.percent
-            tvProgress.text = st.text
-            tvProgress.visibility = if (st.running && st.text.isNotBlank()) View.VISIBLE else View.GONE
+            // 主行：正在做什么（第几个/共几个）
+            // 副行：百分比 + 已用 + 预计剩余 + 速度
+            val main = st.text
+            val det = st.detail
+            tvProgress.text = if (det.isBlank()) main else "$main\n$det"
+            tvProgress.visibility = if (st.running && main.isNotBlank()) View.VISIBLE else View.GONE
         }
     }
 
@@ -239,14 +243,8 @@ class MigrationFragment : Fragment() {
         if (resultCode != Activity.RESULT_OK) return
         val uri = data?.data ?: return
         val ctx = requireContext()
-        try {
-            ctx.contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            )
-        } catch (t: Throwable) {
-            log("授权持久化失败：${t.message}")
-        }
+        val ok = Perms.take(ctx, uri)
+        if (!ok) log("授权持久化失败，可到设置 → 存储里重新选择目录")
         val p = Prefs.get(ctx)
         when (requestCode) {
             11 -> {
@@ -427,7 +425,14 @@ class MigrationFragment : Fragment() {
 
 
     private fun toast(s: String) {
-        safePost(handler) { Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show() }
+        handler.post {
+            if (!isAdded) return@post
+            try {
+                context?.let { android.widget.Toast.makeText(it, s, android.widget.Toast.LENGTH_SHORT).show() }
+            } catch (t: Throwable) {
+                // 界面已销毁，不弹
+            }
+        }
     }
 
     private fun bg(block: () -> Unit) {
@@ -622,6 +627,15 @@ class MigrationFragment : Fragment() {
         }
     }
 
+    /**
+     * 执行迁移。
+     *
+     * 两个关键改动：
+     * 1. 模组下载改成并发（默认 3 个同时下），之前是串行一个一个下，
+     *    几十个模组要等很久，这是「迁移非常慢」的主因。
+     * 2. 全程汇报进度：阶段名 + 第几个/共几个 + 已用时间 + 预计剩余，
+     *    之前只有个转圈，用户不知道进行到哪、还要多久。
+     */
     private fun runMigration() {
         val ctx = requireContext()
         val p = Prefs.get(ctx)
@@ -652,34 +666,87 @@ class MigrationFragment : Fragment() {
             val dst = Fs.tree(ctx, dstUri)
             if (src == null || dst == null) {
                 log("目录不可访问，请重新选择并授权")
+                Progress.done("目录不可访问")
                 safePost(handler) { pb.visibility = View.GONE }
                 return@bg
             }
-            if (wantConfig) Fs.find(src, "config")?.let { Fs.copyInto(ctx, it, dst) { s -> log(s) } }
-            if (wantScripts) Fs.find(src, "scripts")?.let { Fs.copyInto(ctx, it, dst) { s -> log(s) } }
-            if (wantOptions) Fs.find(src, "options.txt")?.let { Fs.copyInto(ctx, it, dst) { s -> log(s) } }
-            if (wantPacks) {
-                Fs.find(src, "resourcepacks")?.let { Fs.copyInto(ctx, it, dst) { s -> log(s) } }
-                Fs.find(src, "shaderpacks")?.let { Fs.copyInto(ctx, it, dst) { s -> log(s) } }
-            }
-            if (wantSaves) Fs.find(src, "saves")?.let { Fs.copyInto(ctx, it, dst) { s -> log(s) } }
-            log("配置文件复制阶段结束")
 
-            val dir = Fs.ensureDir(dst, "mods")
-            var ok = 0
-            var total = 0
-            for (m in mods) {
-                if (m.targetUrl.isBlank()) continue
-                total++
-                val name = m.targetFileName.ifBlank { Downloader.guessName(m.targetUrl) }
-                val f = Downloader.download(ctx, m.targetUrl, dir, name)
-                if (f != null) ok++
-                log("${if (f == null) "失败" else "已安装"}：${m.name} ${m.targetVersion}")
-                safePost(handler) {
-                    m.status = if (f == null) "下载失败" else "已安装"
-                    adapter.notifyDataSetChanged()
+            // ---- 阶段一：复制配置文件 ----
+            val steps = ArrayList<Pair<String, String>>()
+            if (wantConfig) steps.add(Pair("config", "配置文件"))
+            if (wantScripts) steps.add(Pair("scripts", "脚本"))
+            if (wantOptions) steps.add(Pair("options.txt", "游戏设置"))
+            if (wantPacks) {
+                steps.add(Pair("resourcepacks", "资源包"))
+                steps.add(Pair("shaderpacks", "光影包"))
+            }
+            if (wantSaves) steps.add(Pair("saves", "存档"))
+
+            for ((idx, step) in steps.withIndex()) {
+                Progress.update("复制${step.second}", idx, steps.size)
+                log("复制${step.second}…")
+                Fs.find(src, step.first)?.let {
+                    Fs.copyInto(ctx, it, dst) { m -> log(m) }
                 }
             }
+            if (steps.isNotEmpty()) {
+                Progress.done("配置复制完成（${steps.size} 项）")
+                log("配置文件复制阶段结束")
+            }
+
+            // ---- 阶段二：并发下载模组 ----
+            val todo = mods.filter { it.targetUrl.isNotBlank() }
+            if (todo.isEmpty()) {
+                Progress.done("没有需要下载的模组")
+                safePost(handler) { pb.visibility = View.GONE }
+                log("没有需要下载的模组")
+                return@bg
+            }
+
+            val dir = Fs.ensureDir(dst, "mods")
+            if (dir == null) {
+                Progress.done("目标 mods 目录创建失败")
+                safePost(handler) { pb.visibility = View.GONE }
+                log("目标 mods 目录创建失败")
+                return@bg
+            }
+
+            // 并发数：设置里可调，默认 3。性能差的设备可以调成 1（等于串行）
+            val parallel = Prefs.get(ctx).getInt(K.DOWNLOAD_PARALLEL, 3).coerceIn(1, 8)
+            val doneCnt = java.util.concurrent.atomic.AtomicInteger(0)
+            val okCnt = java.util.concurrent.atomic.AtomicInteger(0)
+            val pool = java.util.concurrent.Executors.newFixedThreadPool(parallel)
+
+            Progress.start("下载模组", todo.size)
+            log("开始下载 ${todo.size} 个模组（并发 $parallel）")
+
+            for (m in todo) {
+                pool.submit {
+                    val name = m.targetFileName.ifBlank { Downloader.guessName(m.targetUrl) }
+                    val f = try {
+                        Downloader.download(ctx, m.targetUrl, dir, name)
+                    } catch (t: Throwable) {
+                        null
+                    }
+                    val n = doneCnt.incrementAndGet()
+                    if (f != null) okCnt.incrementAndGet()
+                    log("${if (f == null) "失败" else "已安装"}：${m.name} ${m.targetVersion}")
+                    Progress.update("下载模组", n, todo.size)
+                    safePost(handler) {
+                        m.status = if (f == null) "下载失败" else "已安装"
+                        adapter.notifyDataSetChanged()
+                    }
+                }
+            }
+            pool.shutdown()
+            try {
+                pool.awaitTermination(30, java.util.concurrent.TimeUnit.MINUTES)
+            } catch (t: Throwable) {
+            }
+
+            val ok = okCnt.get()
+            val total = todo.size
+            Progress.done("迁移完成：模组 $ok/$total")
             log("迁移完成：模组 $ok/$total")
             safePost(handler) { pb.visibility = View.GONE }
             Notifier.show(ctx, "迁移完成", "模组 $ok/$total")

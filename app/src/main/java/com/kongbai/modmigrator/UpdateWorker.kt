@@ -19,8 +19,13 @@ class UpdateWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params)
         if (Prefs.get(ctx).getBoolean(K.OFFLINE, false)) return Result.success()
         if (!Prefs.get(ctx).getBoolean(K.UPDATE_CHECK, true)) return Result.success()
         return try {
-            val rel = UpdateChecker.latest(ctx) ?: return Result.success()
+            val rel = UpdateChecker.latest(ctx)
+            if (rel == null) {
+                saveState(ctx, "", "没能取到版本信息（可能网络不通或仓库不可访问）")
+                return Result.success()
+            }
             val cur = currentVersion(ctx)
+            saveState(ctx, rel.tag, rel.notes)
             if (UpdateChecker.isNewer(rel.tag, cur)) {
                 notify(ctx, rel)
             }
@@ -28,6 +33,15 @@ class UpdateWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params)
         } catch (t: Throwable) {
             Result.retry()
         }
+    }
+
+    /** 把最近一次检查结果写下来，设置页可以立刻展示，不用等下次定时 */
+    private fun saveState(ctx: Context, tag: String, notes: String) {
+        Prefs.get(ctx).edit()
+            .putString(K.LAST_UPDATE_TAG, tag)
+            .putString(K.LAST_UPDATE_NOTES, notes)
+            .putLong(K.LAST_UPDATE_AT, System.currentTimeMillis())
+            .apply()
     }
 
     private fun currentVersion(ctx: Context): String {

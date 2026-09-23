@@ -124,16 +124,35 @@ jobs:
           apk = apks[0]
           print('apk', apk, os.path.getsize(apk))
 
-          cur = req('GET', '%s/repos/%s/releases/tags/nightly' % (api, repo))
+          # 版本号从 build.gradle 里读，保证 tag、APK versionName 一致。
+          # 之前固定用 nightly 标签，导致应用内的「检查更新」永远判断不出新版本。
+          import re as _re
+          gradle = open('app/build.gradle').read()
+          vname = _re.search(r'versionName\s+"([^"]+)"', gradle)
+          vcode = _re.search(r'versionCode\s+(\d+)', gradle)
+          APP_VER = 'v' + (vname.group(1) if vname else '0.0.0')
+          APP_CODE = vcode.group(1) if vcode else '0'
+          print('app version:', APP_VER, 'code:', APP_CODE)
+
+          NOTES = (
+              '## ModMigrator %s（构建 %s）\n\n'
+              'CI 自动构建的 release APK，已签名。\n\n'
+              '安装后需在设置里填写自己的 GitHub Token 与仓库；'
+              '服务器页需填面板地址与 Client API Key。\n\n'
+              '更新内容以本条 release 的说明为准。'
+          ) % (APP_VER, APP_CODE)
+
+          # 同版本重复构建时覆盖旧的 release
+          cur = req('GET', '%s/repos/%s/releases/tags/%s' % (api, repo, APP_VER))
           if isinstance(cur, dict) and cur.get('id'):
               req('DELETE', '%s/repos/%s/releases/%s' % (api, repo, cur['id']))
-          req('DELETE', '%s/repos/%s/git/refs/tags/nightly' % (api, repo))
+              req('DELETE', '%s/repos/%s/git/refs/tags/%s' % (api, repo, APP_VER))
 
           rel = req('POST', '%s/repos/%s/releases' % (api, repo), {
-              'tag_name': 'nightly',
-              'name': 'ModMigrator debug 构建',
-              'body': 'CI 自动构建的 debug APK。安装后需在设置里填写自己的 GitHub Token、私有仓库；服务器页需填面板地址与 Client API Key。',
-              'draft': False, 'prerelease': True,
+              'tag_name': APP_VER,
+              'name': 'ModMigrator %s' % APP_VER,
+              'body': NOTES,
+              'draft': False, 'prerelease': False,
           })
           if '__error__' in rel:
               print('RELEASE FAIL', rel)

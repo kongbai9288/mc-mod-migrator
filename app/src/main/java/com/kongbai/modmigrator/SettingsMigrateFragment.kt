@@ -64,6 +64,29 @@ class SettingsMigrateFragment : Fragment() {
             }
         }
         loading = false
+        // 并发下载数
+        val sp = v.findViewById<android.widget.Spinner>(R.id.spParallel)
+        if (sp != null) {
+            val labels = resources.getStringArray(R.array.parallel_labels)
+            sp.adapter = android.widget.ArrayAdapter(
+                requireContext(), android.R.layout.simple_spinner_dropdown_item, labels
+            )
+            val cur = Prefs.get(requireContext()).getInt(K.DOWNLOAD_PARALLEL, 3)
+            val vals = resources.getStringArray(R.array.parallel_values)
+            val idx = vals.indexOf(cur.toString())
+            sp.setSelection(if (idx >= 0) idx else 2)
+            sp.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(
+                    parent: android.widget.AdapterView<*>?, view2: android.view.View?,
+                    pos: Int, id: Long
+                ) {
+                    val n = vals.getOrNull(pos)?.toIntOrNull() ?: 3
+                    Prefs.get(requireContext()).edit().putInt(K.DOWNLOAD_PARALLEL, n).apply()
+                }
+                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+            }
+        }
+
         return v
     }
 }

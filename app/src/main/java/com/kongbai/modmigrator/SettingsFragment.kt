@@ -168,7 +168,14 @@ class SettingsFragment : Fragment() {
     }
 
     private fun toast(s: String) {
-        safePost(handler) { Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show() }
+        handler.post {
+            if (!isAdded) return@post
+            try {
+                context?.let { android.widget.Toast.makeText(it, s, android.widget.Toast.LENGTH_SHORT).show() }
+            } catch (t: Throwable) {
+                // 界面已销毁，不弹
+            }
+        }
     }
 
     private fun test() {

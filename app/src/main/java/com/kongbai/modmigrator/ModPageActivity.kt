@@ -58,7 +58,14 @@ class ModPageActivity : AppCompatActivity() {
     }
 
     private fun toast(s: String) {
-        safePostA(handler) { Toast.makeText(this, s, Toast.LENGTH_SHORT).show() }
+        handler.post {
+            if (isFinishing || isDestroyed) return@post
+            try {
+                android.widget.Toast.makeText(this, s, android.widget.Toast.LENGTH_SHORT).show()
+            } catch (t: Throwable) {
+                // 界面已销毁，不弹
+            }
+        }
     }
 
     private fun updateMarked() {

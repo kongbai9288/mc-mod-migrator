@@ -109,12 +109,17 @@ object UpdateChecker {
         return urls.last()
     }
 
-    /** 版本号比较：支持 v1.2.3 / 1.2.3 */
+    /**
+     * 版本号比较：支持 v1.2.3 / 1.2.3。
+     *
+     * 之前直接用 toIntOrNull() ?: 0，遇到 "nightly" 这种非数字 tag
+     * 会被解析成 [0]，跟本地 1.0.0 一比就是 0 < 1 → 永远判定「无更新」。
+     * 这正是「从没见过更新提示」的根因。
+     * 现在：远端不是语义化版本时，认为没有可用的版本更新（但依然可以提示有新构建）。
+     */
     fun isNewer(remote: String, local: String): Boolean {
-        fun parts(s: String): List<Int> =
-            s.trim().removePrefix("v").split(".").map { it.toIntOrNull() ?: 0 }
-        val a = parts(remote)
-        val b = parts(local)
+        val a = parts(remote) ?: return false
+        val b = parts(local) ?: return false
         val n = maxOf(a.size, b.size)
         for (i in 0 until n) {
             val x = a.getOrNull(i) ?: 0
@@ -123,4 +128,28 @@ object UpdateChecker {
         }
         return false
     }
+
+    /**
+     * 解析语义化版本号。返回 null 表示这不是一个可比较的版本号
+     * （比如 nightly、latest 这类固定标签）。
+     */
+    private fun parts(s: String): List<Int>? {
+        val t = s.trim().removePrefix("v").removePrefix("V")
+        if (t.isBlank()) return null
+        val seg = t.split(".")
+        // 至少第一段必须是数字，否则视为非版本号标签
+        val first = seg.firstOrNull()?.toIntOrNull() ?: return null
+        return listOf(first) + seg.drop(1).map { it.toIntOrNull() ?: 0 }
+    }
+
+    /** 远端 tag 是不是一个可比较的语义化版本号 */
+    fun isVersionTag(tag: String): Boolean = parts(tag) != null
+
+    /** 本地版本号 */
+    fun local(ctx: Context): String =
+        try {
+            ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: "0.0.0"
+        } catch (t: Throwable) {
+            "0.0.0"
+        }
 }

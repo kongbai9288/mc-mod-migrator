@@ -9,6 +9,35 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
+        <TextView
+            android:id="@+id/tvVersion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="12dp"
+            android:textColor="@color/textSecondary"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/btnCheckUpdate"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/about_check_update" />
+
+        <Button
+            android:id="@+id/btnChangelog"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/about_changelog" />
+
+        <Button
+            android:id="@+id/btnPerms"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/about_perms" />
+
         <Button
             android:id="@+id/btnPrivacy"
             style="@style/Widget.MaterialComponents.Button.TextButton"

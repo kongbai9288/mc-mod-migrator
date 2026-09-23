@@ -17,4 +17,20 @@
         <item>CurseForge</item>
         <item>后端</item>
     </string-array>
+    <string-array name="parallel_labels">
+        <item>1 个（最稳，等于一个一个下）</item>
+        <item>2 个</item>
+        <item>3 个（推荐）</item>
+        <item>4 个</item>
+        <item>6 个（需要好网络）</item>
+    </string-array>
+
+    <string-array name="parallel_values">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>6</item>
+    </string-array>
+
 </resources>

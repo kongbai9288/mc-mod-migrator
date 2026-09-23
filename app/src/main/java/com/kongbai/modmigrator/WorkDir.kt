@@ -45,12 +45,10 @@ object WorkDir {
         return mods(ctx) ?: Targets.modsDir(ctx)
     }
 
-    fun persist(ctx: Context, treeUri: Uri) {
-        ctx.contentResolver.takePersistableUriPermission(
-            treeUri,
-            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-        )
+    fun persist(ctx: Context, treeUri: Uri): Boolean {
+        // 统一走 Perms：复用已有授权、自动回收配额，避免越用越卡
+        val ok = Perms.take(ctx, treeUri)
         Prefs.get(ctx).edit().putString(K.WORKDIR_URI, treeUri.toString()).apply()
+        return ok
     }
 }

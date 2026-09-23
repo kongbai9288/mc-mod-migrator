@@ -13,17 +13,60 @@ object Favorites {
 
     private const val FILE = "favorites.json"
 
-    private fun file(ctx: Context) = WorkDir.data(ctx)?.findFile(FILE)
+    /**
+     * 读：优先读工作目录（换设备能带走），读不到再读应用私有目录。
+     * 之前只认工作目录，用户没设工作目录时 list() 直接返回空、
+     * add() 静默失败——表现就是「收藏点了没反应」。
+     */
+    private fun readText(ctx: Context): String? {
+        WorkDir.data(ctx)?.findFile(FILE)?.let { f ->
+            try {
+                ctx.contentResolver.openInputStream(f.uri)?.use {
+                    return it.readBytes().toString(Charsets.UTF_8)
+                }
+            } catch (t: Throwable) {
+            }
+        }
+        return try {
+            val f = java.io.File(ctx.filesDir, FILE)
+            if (f.exists()) f.readText() else null
+        } catch (t: Throwable) {
+            null
+        }
+    }
 
-    private fun ensure(ctx: Context) =
-        file(ctx) ?: WorkDir.data(ctx)?.createFile("application/json", FILE)
+    /**
+     * 写：能写工作目录就两个地方都写；写不了就至少保证本地可用。
+     */
+    private fun writeText(ctx: Context, txt: String) {
+        var wrote = false
+        try {
+            val dir = WorkDir.data(ctx)
+            if (dir != null) {
+                val f = dir.findFile(FILE)
+                    ?: dir.createFile("application/json", FILE)
+                if (f != null) {
+                    ctx.contentResolver.openOutputStream(f.uri, "wt")?.use {
+                        it.write(txt.toByteArray())
+                    }
+                    wrote = true
+                }
+            }
+        } catch (t: Throwable) {
+        }
+        try {
+            java.io.File(ctx.filesDir, FILE).writeText(txt)
+            wrote = true
+        } catch (t: Throwable) {
+        }
+        if (!wrote) {
+            android.widget.Toast.makeText(ctx, "收藏保存失败", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
 
     fun list(ctx: Context): List<MarketMod> {
         return try {
-            val f = file(ctx) ?: return emptyList()
-            val txt = ctx.contentResolver.openInputStream(f.uri)?.use {
-                it.readBytes().toString(Charsets.UTF_8)
-            } ?: return emptyList()
+            val txt = readText(ctx) ?: return emptyList()
             val arr = Json.arr(txt) ?: return emptyList()
             val out = mutableListOf<MarketMod>()
             for (e in arr) {
@@ -48,7 +91,6 @@ object Favorites {
 
     private fun save(ctx: Context, items: List<MarketMod>) {
         try {
-            val f = ensure(ctx) ?: return
             val sb = StringBuilder("[")
             items.forEachIndexed { i, m ->
                 if (i > 0) sb.append(",")
@@ -64,9 +106,7 @@ object Favorites {
                     .append("}")
             }
             sb.append("]")
-            ctx.contentResolver.openOutputStream(f.uri, "wt")?.use {
-                it.write(sb.toString().toByteArray())
-            }
+            writeText(ctx, sb.toString())
         } catch (t: Throwable) {
             // 存不进去也不该崩
         }
