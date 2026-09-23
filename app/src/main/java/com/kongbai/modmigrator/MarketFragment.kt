@@ -115,6 +115,7 @@ class MarketFragment : Fragment() {
         bg {
             // 走统一入口：按设置决定 Modrinth / CurseForge(官方或后端) / 聚合
             val list = AggregateSearch.search(ctx, q, mc, ld)
+            val routes = AggregateSearch.lastRoutes
             if (list.isEmpty() && Prefs.get(ctx).getBoolean(K.OFFLINE, false)) {
                 toast("离线模式下无法搜索")
                 return@bg
@@ -123,7 +124,10 @@ class MarketFragment : Fragment() {
                 results.clear()
                 results.addAll(list)
                 resAdapter.notifyDataSetChanged()
-                toast("找到 ${list.size} 个")
+                toast(
+                    if (list.isEmpty()) "没有结果${if (routes.isNotBlank()) "（$routes）" else ""}"
+                    else "找到 ${list.size} 个${if (routes.isNotBlank()) " · $routes" else ""}"
+                )
                 autoTranslate(list)
             }
         }

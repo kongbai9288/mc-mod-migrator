@@ -12,6 +12,15 @@ import java.util.Locale
  */
 object AggregateSearch {
 
+    /** 最近一次搜索走了哪几条路，给界面提示用 */
+    @Volatile
+    var lastRoutes: String = ""
+        private set
+
+    private fun logCf(s: String) {
+        lastRoutes = if (lastRoutes.isBlank()) s else "$lastRoutes；$s"
+    }
+
     fun search(ctx: Context, q: String, mc: String, loader: String): List<MarketMod> {
         val p = Prefs.get(ctx)
         val mode = p.getString(K.SOURCE, "聚合") ?: "聚合"
@@ -19,6 +28,7 @@ object AggregateSearch {
         val offline = p.getBoolean(K.OFFLINE, false)
         if (offline) return emptyList()
 
+        lastRoutes = ""
         val out = LinkedHashMap<String, MarketMod>()
 
         fun merge(list: List<MarketMod>) {
@@ -30,27 +40,46 @@ object AggregateSearch {
             }
         }
 
-        // CurseForge 有两条路：后端代理（内置 Key）与官方直连（自己填 Key）。
-        // 单源模式下二者互斥——开一个另一个自动关（UI 层联动）。
-        // 但「聚合」模式不受互斥影响：两条路都问，结果合并去重，谁都搜得到。
+        // CurseForge 有三条可达路径：
+        //   1. 后端代理 —— 内置 Key，需要后端在线
+        //   2. 官方直连 —— 需要自己填 Key
+        //   3. 国内镜像 —— 不需要 Key，无 Key 时是唯一可行路径
+        // 「聚合」模式：Modrinth + CurseForge 都要问；CurseForge 优先后端，
+        //   后端不可用就退到镜像（没 Key）或官方（有 Key 且开了官方直连）。
         val useBackend = p.getBoolean(K.USE_BACKEND, true)
         val useOfficial = p.getBoolean(K.USE_OFFICIAL_CF, false)
+        val key = p.getString(K.CF_KEY, "") ?: ""
         val aggregate = mode == "聚合"
 
-        val wantModrinth = aggregate || mode == "Modrinth"
-        val wantBackend = aggregate && useBackend || mode == "后端" && useBackend
-        val wantCf = (aggregate && useOfficial) ||
-            (mode == "CurseForge" && (useOfficial || !useBackend))
+        var gotCf = false
 
-        if (wantModrinth) {
+        // Modrinth
+        if (aggregate || mode == "Modrinth") {
             runCatching { merge(ModrinthApi.search(q, mc, loader, 20)) }
         }
-        if (wantCf) {
-            val key = p.getString(K.CF_KEY, "") ?: ""
-            runCatching { merge(CurseForgeApi.search(q, mc, loader, key, 20)) }
+
+        // CurseForge：后端优先
+        if ((aggregate && useBackend) || (mode == "后端" && useBackend)) {
+            val r = runCatching { BackendApi.search(ctx, q, mc, loader, 0, 20) }.getOrNull()
+            if (!r.isNullOrEmpty()) {
+                merge(r)
+                gotCf = true
+            } else {
+                logCf("后端没有返回 CurseForge 结果，改用其他路径")
+            }
         }
-        if (wantBackend) {
-            runCatching { merge(BackendApi.search(ctx, q, mc, loader, 0, 20)) }
+
+        // CurseForge：后端没结果就走镜像或官方
+        if (!gotCf && (aggregate || mode == "CurseForge" || mode == "后端")) {
+            val canOfficial = useOfficial && key.isNotBlank()
+            val r = runCatching {
+                CurseForgeApi.search(q, mc, loader, if (canOfficial) key else "", 20)
+            }.getOrNull()
+            if (!r.isNullOrEmpty()) {
+                merge(r)
+                gotCf = true
+                logCf(if (key.isNotBlank() && useOfficial) "CurseForge 走了官方直连" else "CurseForge 走了国内镜像")
+            }
         }
 
         return out.values.sortedByDescending { it.downloads }
@@ -65,6 +94,7 @@ object AggregateSearch {
         if (!Prefs.get(ctx).getBoolean(K.RECOMMEND, true)) return emptyList()
         if (mc.isBlank()) return emptyList()
 
+        lastRoutes = ""
         val out = LinkedHashMap<String, MarketMod>()
         fun merge(list: List<MarketMod>) {
             for (m in list) {
