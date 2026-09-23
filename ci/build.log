@@ -73,5 +73,5 @@ Execution failed for task ':app:compileReleaseKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 1m 55s
+BUILD FAILED in 2m 8s
 31 actionable tasks: 31 executed
