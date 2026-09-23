@@ -16,6 +16,18 @@ object BackendApi {
 
     const val DEFAULT_BASE = "https://api.kongbaisever.cc.cd"
 
+    /**
+     * 后端同时开了两个入口（wrangler.toml 里 workers_dev + 自定义域）：
+     *   自定义域 https://api.kongbaisever.cc.cd
+     *   workers  https://modmarket.3566500461.workers.dev
+     * 后端用 ${url.origin} 拼 redirect_uri，所以走哪个域名访问，
+     * 回调地址就是哪个域名——GitHub 白名单里必须登记你实际走的那个。
+     */
+    const val WORKERS_BASE = "https://modmarket.3566500461.workers.dev"
+
+    /** 后端所有已知入口，供设置页展示与切换 */
+    fun knownBases(): List<String> = listOf(DEFAULT_BASE, WORKERS_BASE)
+
     fun candidates(ctx: Context): List<String> {
         val out = ArrayList<String>()
         val main = Prefs.get(ctx).getString(K.BACKEND_BASE, "")?.trim()?.trimEnd('/') ?: ""
@@ -23,6 +35,7 @@ object BackendApi {
         val backup = Prefs.get(ctx).getString(K.BACKEND_BACKUP, "")?.trim()?.trimEnd('/') ?: ""
         if (backup.isNotBlank() && !out.contains(backup)) out.add(backup)
         if (!out.contains(DEFAULT_BASE)) out.add(DEFAULT_BASE)
+        if (!out.contains(WORKERS_BASE)) out.add(WORKERS_BASE)
         return out
     }
 
@@ -78,12 +91,19 @@ object BackendApi {
         return Json.s(o, "url")
     }
 
-    /** 后端实际使用的回调地址（GitHub OAuth App 里必须配上这个，否则报 redirect_uri 不匹配） */
+    /**
+     * 后端实际使用的回调地址。
+     * 后端按访问域名动态拼接，所以这里返回「当前连通的那个 base」对应的地址。
+     */
     fun callbackUrl(ctx: Context): String {
         val r = getAnyWithBase(ctx, "/api/config")
         val b = r?.first ?: base(ctx)
         return "$b/api/auth/callback"
     }
+
+    /** 后端每个入口各自对应的回调地址，都要在 GitHub OAuth App 里登记 */
+    fun allCallbackUrls(): List<String> =
+        knownBases().map { "$it/api/auth/callback" }
 
     fun me(ctx: Context): User? {
         val o = Json.obj(getAny(ctx, "/api/auth/me") ?: return null) ?: return null

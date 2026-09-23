@@ -60,11 +60,25 @@ class SettingsBackendFragment : Fragment() {
         return v
     }
 
+    /**
+     * 显示「后端入口 → 回调地址」的对应关系。
+     * 后端按访问域名动态拼 redirect_uri，所以走哪个域名就得在 GitHub 登记哪条。
+     * 报 redirect_uri 不匹配时，八成是走的域名没登记。
+     */
     private fun showCallback() {
         val ctx = requireContext()
         exec.execute {
             val cb = BackendApi.callbackUrl(ctx)
-            handler.post { tvCb.text = "回调地址：$cb\n（GitHub OAuth App 里必须填这一条）" }
+            val all = BackendApi.allCallbackUrls()
+            handler.post {
+                val sb = StringBuilder()
+                sb.append("当前连通的后端：").append(BackendApi.base(ctx)).append('\n')
+                sb.append("实际回调地址：").append(cb).append("\n\n")
+                sb.append("后端每个入口对应一条回调地址，都要登记：\n")
+                for (u in all) sb.append("  · ").append(u).append('\n')
+                sb.append("\nGitHub 白名单里缺当前这条，就会报 redirect_uri 不匹配。")
+                tvCb.text = sb.toString()
+            }
         }
     }
 

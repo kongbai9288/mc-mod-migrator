@@ -117,15 +117,13 @@
     <string name="cfg_cf_route_hint">这两条路互斥：开一个另一个会自动关上。「聚合」模式不受影响——两条都问，结果合并去重。</string>
     <string name="cfg_copy_callback">复制回调地址</string>
     <string name="cfg_gh_oauth">打开 GitHub 开发者设置</string>
-    <string name="cfg_callback_hint">GitHub 报「redirect_uri 不匹配 / Be careful」= 这个 OAuth App 的回调白名单里没登记上面这条地址。
+    <string name="cfg_callback_hint">后端按「访问域名」动态拼回调地址，走哪个域名就得在 GitHub 登记哪条。报 redirect_uri 不匹配 = 当前走的域名没登记。
 
-怎么修：打开 GitHub → Settings → Developer settings → OAuth Apps → 找到后端用的那个应用 → 把上面的回调地址一字不差填进 Authorization callback URL → Save。GitHub 允许同时登记多条回调地址，本地和生产可以各填一条。
+修法：GitHub → Settings → Developer settings → OAuth Apps → 你的应用 → 把上面列出的回调地址逐条加进 Authorization callback URL → Save。GitHub 最多允许 10 条，多个域名可都登记。
 
-注意必须完全相同：协议(http/https)、域名、端口、路径、大小写、末尾斜杠都不能差。
+必须完全相同：协议、域名、端口、路径、大小写、末尾斜杠都不能差。
 
-如果后端用的是别人注册的 OAuth App，你自己改不了白名单，只能联系后端作者添加，或者自己注册一个 OAuth App 并把地址换成你自己的后端。
-
-授权在浏览器里完成，本应用不接触也不保存你的 GitHub 密码。</string>
+授权在浏览器完成，本应用不接触也不保存你的 GitHub 密码。</string>
     <string name="scan_launcher_dir_hint">主流启动器会把各个版本收进一个总文件夹（通常是 instances、versions 这类目录）。选择这个总文件夹即可，会自动钻进去找出里面每个版本。</string>
     <string name="btn_scan_local2">扫描本机版本</string>
     <string name="panel_mode_login">账号密码</string>
