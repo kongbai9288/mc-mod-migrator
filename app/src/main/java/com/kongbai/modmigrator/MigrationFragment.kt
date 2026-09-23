@@ -44,15 +44,24 @@ class MigrationFragment : Fragment() {
     private val exec = Executors.newSingleThreadExecutor()
     private val handler = Handler(Looper.getMainLooper())
 
+    /**
+     * 进度回调。
+     * 注意：这个 lambda 在 onResume 注册后可能立刻被回调一次，
+     * 所以里面用到的 lateinit 字段必须先判断有没有初始化，否则会崩。
+     */
     private val progressHook: (Progress.State) -> Unit = { st ->
-        pb.visibility = if (st.running) View.VISIBLE else View.GONE
-        pb.isIndeterminate = st.total <= 0
-        if (st.total > 0) pb.progress = st.percent
-        tvProgress.text = st.text
-        tvProgress.visibility = if (st.running && st.text.isNotBlank()) View.VISIBLE else View.GONE
+        if (::pb.isInitialized && ::tvProgress.isInitialized) {
+            pb.visibility = if (st.running) View.VISIBLE else View.GONE
+            pb.isIndeterminate = st.total <= 0
+            if (st.total > 0) pb.progress = st.percent
+            tvProgress.text = st.text
+            tvProgress.visibility = if (st.running && st.text.isNotBlank()) View.VISIBLE else View.GONE
+        }
     }
 
-    private val logHook: (List<LogCenter.LogLine>) -> Unit = { refreshLogSummary() }
+    private val logHook: (List<LogCenter.LogLine>) -> Unit = {
+        if (::tvLogSummary.isInitialized) refreshLogSummary()
+    }
 
     private val errorHook: (LogCenter.LogLine) -> Unit = { line ->
         val ctx = context
@@ -115,6 +124,7 @@ class MigrationFragment : Fragment() {
         tvLog = v.findViewById(R.id.tvLog)
 
         tvLogSummary = v.findViewById(R.id.tvLogSummary)
+        tvProgress = v.findViewById(R.id.tvProgress)
         adapter = ModAdapter(mods, { m -> downloadOne(m) }, { m -> openModDetail(m) })
         // 顶部摘要可点开看完整日志
         tvLogSummary.setOnClickListener { showAllLogs() }
@@ -128,6 +138,8 @@ class MigrationFragment : Fragment() {
         v.findViewById<Button>(R.id.btnPickTarget).setOnClickListener { pickDir(12) }
         v.findViewById<Button>(R.id.btnScan).setOnClickListener { scan() }
         v.findViewById<Button>(R.id.btnRun).setOnClickListener { runMigration() }
+        v.findViewById<Button>(R.id.btnDoctor).setOnClickListener { runDoctor() }
+        v.findViewById<Button>(R.id.btnDiff).setOnClickListener { runDiff() }
 
         val p = Prefs.get(requireContext())
         etVersion.setText(p.getString(K.DEF_VERSION, "") ?: "")
@@ -149,6 +161,60 @@ class MigrationFragment : Fragment() {
         val i = Intent(ctx, ModPageActivity::class.java)
         i.putExtra("url", url)
         startActivity(i)
+    }
+
+    /** 模组体检：迁移前先看有没有重复、可疑文件名 */
+    private fun runDoctor() {
+        val ctx = requireContext()
+        val src = Prefs.get(ctx).getString(K.SRC_URI, null)
+        if (src.isNullOrBlank()) {
+            toast("请先选择「迁移前」的版本目录")
+            return
+        }
+        toast("体检中…")
+        bg {
+            val rep = ModTools.doctor(ctx, src)
+            safePost(handler) { showReport(rep) }
+        }
+    }
+
+    /** 配置对比：看看迁移后会覆盖/缺失哪些配置 */
+    private fun runDiff() {
+        val ctx = requireContext()
+        val p = Prefs.get(ctx)
+        val src = p.getString(K.SRC_URI, null)
+        val dst = p.getString(K.DST_URI, null)
+        if (src.isNullOrBlank() || dst.isNullOrBlank()) {
+            toast("请同时选择「迁移前」与「迁移后」的目录")
+            return
+        }
+        toast("对比中…")
+        bg {
+            val rep = ModTools.diffConfig(ctx, src, dst)
+            safePost(handler) { showReport(rep) }
+        }
+    }
+
+    /** 把体检/对比结果放进可滚动的对话框里展示 */
+    private fun showReport(rep: ModTools.Report) {
+        val ctx = context ?: return
+        val sv = android.widget.ScrollView(ctx)
+        val tv = android.widget.TextView(ctx)
+        tv.text = rep.text
+        tv.textSize = 13f
+        tv.setPadding(24, 16, 24, 16)
+        tv.setTextIsSelectable(true)
+        sv.addView(tv)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+            .setTitle(rep.title)
+            .setView(sv)
+            .setPositiveButton(R.string.ok, null)
+            .setNeutralButton("复制结果") { _, _ ->
+                val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                cm?.setPrimaryClip(android.content.ClipData.newPlainText(rep.title, rep.text))
+                toast("已复制")
+            }
+            .show()
     }
 
     private fun refreshPaths() {
