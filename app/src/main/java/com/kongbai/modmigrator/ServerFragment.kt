@@ -225,7 +225,7 @@ class ServerFragment : Fragment() {
         val ctx = requireContext()
         val dir = Targets.modsDir(ctx)
         if (dir == null) {
-            toast("目标目录不可用，请先在迁移页选择目标目录")
+            toast("「迁移后」的目录不可用，请先在迁移页选择")
             return
         }
         bg {
@@ -252,7 +252,7 @@ class ServerFragment : Fragment() {
         val ctx = requireContext()
         val dir = Targets.modsDir(ctx)
         if (dir == null) {
-            toast("目标目录不可用")
+            toast("「迁移后」的目录不可用")
             return
         }
         toast("开始下载 ${pend.size} 个…")

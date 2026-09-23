@@ -118,14 +118,14 @@ class MigrationFragment : Fragment() {
                 refreshPaths()
                 val root = Fs.tree(ctx, uri.toString())
                 if (root != null) {
-                    log("源目录已选择，正在识别版本…")
+                    log("「迁移前」的版本已选择，正在识别版本…")
                     bg { detectSource(root) }
                 }
             }
             12 -> {
                 p.edit().putString(K.DST_URI, uri.toString()).apply()
                 refreshPaths()
-                log("目标目录已选择")
+                log("「迁移后」的版本已选择")
             }
             31 -> {
                 val pkg = Prefs.get(requireContext()).getString(K.LAUNCHER, "") ?: ""
@@ -136,7 +136,8 @@ class MigrationFragment : Fragment() {
             }
             13 -> {
                 p.edit().putString(K.SCAN_ROOT, uri.toString()).apply()
-                log("扫描根目录已选择，可点「扫描本机实例」")
+                log("已选择目录，正在里面找各个版本…")
+                scanLocal()
             }
         }
     }
@@ -154,18 +155,22 @@ class MigrationFragment : Fragment() {
             toast("没找到 ${pkg} 的数据目录，可手动指定目录")
             return
         }
-        toast("按 ${pkg} 去找实例…")
+        toast("按 ${pkg} 去找各个版本…")
         bg {
+            val found = mutableListOf<InstanceInfo>()
             for (d in dirs) {
-                val f = java.io.File(d)
-                if (!f.exists()) continue
                 log("检查数据目录：$d")
+                found.addAll(InstanceScanner.scanFilesFrom(d) { m -> log(m) })
             }
             safePost(handler) {
-                // SAF 只能授权目录树，这里把第一个可读目录交给用户授权
-                toast("请在下一屏选择：${dirs.first()} 或其中的实例目录")
-                val i = android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT_TREE)
-                startActivityForResult(i, 13)
+                instances.clear()
+                instances.addAll(found)
+                if (found.isEmpty()) {
+                    toast("该目录下没找到版本，可手动选择目录")
+                } else {
+                    toast("找到 ${found.size} 个版本")
+                    showInstancePicker()
+                }
             }
         }
     }
@@ -204,7 +209,8 @@ class MigrationFragment : Fragment() {
             if (list.isEmpty()) {
                 val root = Prefs.get(ctx).getString(K.SCAN_ROOT, null)
                 if (!root.isNullOrBlank()) {
-                    list.addAll(InstanceScanner.scan(ctx, root, { m -> log(m) }, true))
+                    // 以选中的目录为根（多数启动器把各版本收在这一个文件夹里）
+                    list.addAll(InstanceScanner.scanFrom(ctx, root) { m -> log(m) })
                 }
             }
             val finalList = list
@@ -240,8 +246,8 @@ class MigrationFragment : Fragment() {
                 val inst = instances[w]
                 com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
                     .setTitle("把 ${inst.name} 设为？")
-                    .setPositiveButton("源实例") { _, _ -> setAs(inst, true) }
-                    .setNegativeButton("目标实例") { _, _ -> setAs(inst, false) }
+                    .setPositiveButton("迁移前的版本") { _, _ -> setAs(inst, true) }
+                    .setNegativeButton("迁移后的版本") { _, _ -> setAs(inst, false) }
                     .show()
             }
             .show()
@@ -251,10 +257,10 @@ class MigrationFragment : Fragment() {
         val p = Prefs.get(requireContext())
         if (asSource) {
             p.edit().putString(K.SRC_URI, inst.uri).apply()
-            log("源实例：${inst.name}（同设备）")
+            log("迁移前的版本：${inst.name}（同设备）")
         } else {
             p.edit().putString(K.DST_URI, inst.uri).apply()
-            log("目标实例：${inst.name}（同设备）")
+            log("迁移后的版本：${inst.name}（同设备）")
         }
         if (inst.mcVersion.isNotBlank() && !asSource) {
             etVersion.setText(inst.mcVersion)
@@ -377,13 +383,13 @@ class MigrationFragment : Fragment() {
         bg {
             val root = Fs.tree(ctx, srcUri)
             if (root == null) {
-                log("源目录不可访问")
+                log("「迁移前」的目录不可访问")
                 safePost(handler) { pb.visibility = View.GONE }
                 return@bg
             }
             val dir = Fs.find(root, "mods")
             if (dir == null) {
-                log("源目录里没有找到 mods 文件夹")
+                log("「迁移前」的目录里没有找到 mods 文件夹")
                 safePost(handler) { pb.visibility = View.GONE }
                 return@bg
             }
@@ -403,7 +409,7 @@ class MigrationFragment : Fragment() {
                     val vers = ModrinthApi.versions(info.first, mc, loader)
                     val v0 = vers.firstOrNull()
                     if (v0 == null) {
-                        e.status = "目标版本无可用文件"
+                        e.status = "「迁移后」的版本无可用文件"
                     } else {
                         e.targetVersion = v0.version
                         e.targetUrl = v0.url
@@ -430,7 +436,7 @@ class MigrationFragment : Fragment() {
         bg {
             val dir = Targets.modsDir(ctx)
             if (dir == null) {
-                toast("目标目录不可用")
+                toast("「迁移后」的目录不可用")
                 return@bg
             }
             safePost(handler) {

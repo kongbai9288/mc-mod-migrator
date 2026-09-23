@@ -95,7 +95,7 @@ object SyncManager {
                 msg += "；无可打包的配置"
             }
         } else {
-            msg += "；未设置源目录，只上传清单"
+            msg += "；未设置「迁移前」的目录，只上传清单"
         }
         return msg
     }
@@ -134,7 +134,7 @@ object SyncManager {
 
     fun restore(ctx: Context, d: RemoteDevice, includeMods: Boolean, log: (String) -> Unit) {
         val c = creds(ctx) ?: throw RuntimeException("未配置 Token 或仓库名")
-        val dst = Targets.root(ctx) ?: throw RuntimeException("目标目录不可用")
+        val dst = Targets.root(ctx) ?: throw RuntimeException("「迁移后」的目录不可用")
         val bytes = GitHubApi.getBytes(c.owner, c.repo, "$ROOT/${d.id}/config.zip", c.branch, c.token)
         if (bytes != null) {
             val f = File(ctx.cacheDir, "restore_${d.id}.zip")

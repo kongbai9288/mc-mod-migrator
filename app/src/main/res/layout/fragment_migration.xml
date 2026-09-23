@@ -48,6 +48,14 @@
                     android:layout_height="wrap_content"
                     android:text="@string/cfg_pick_launcher" />
 
+                <TextView
+                    android:id="@+id/tvScanHint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/scan_launcher_dir_hint"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="12sp" />
+
                 <Button
                     android:id="@+id/btnPickSource"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"

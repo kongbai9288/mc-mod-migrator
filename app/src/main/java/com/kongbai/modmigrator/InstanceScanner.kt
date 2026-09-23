@@ -328,4 +328,168 @@ object InstanceScanner {
         } catch (t: Throwable) {
             ""
         }
+
+    // ============ 以「启动器给的文件夹」为根扫描 ============
+    // 现在主流启动器都把各个版本收进一个总目录里，而不是散在根目录：
+    //   HMCL/.minecraft/versions/<版本>/
+    //   PojavLauncher/instances/<实例>/
+    //   FCL/instances/<实例>/
+    //   Zalith/instances/<实例>/
+    // 所以选中这个总目录后，要能往下钻到真正的版本目录。
+
+    /** 中间容器层：这些目录本身不是实例，但它们里面就是各个版本 */
+    private val CONTAINERS = setOf(
+        "instances", "versions", "version", "minecraft", ".minecraft",
+        "instance", "profiles", "modpacks", "packs", "game", "games"
+    )
+
+    /** SAF：以用户选中的目录为根扫描（可能是启动器总目录） */
+    fun scanFrom(ctx: Context, rootUri: String, log: (String) -> Unit): List<InstanceInfo> {
+        val root = Fs.tree(ctx, rootUri) ?: return emptyList()
+        val out = LinkedHashMap<String, InstanceInfo>()
+        log("扫描目录：${root.name ?: rootUri}")
+
+        // 根自己就是一个版本目录的情况
+        if (looksLikeInstance(root)) {
+            val info = readInfo(ctx, root)
+            if (info != null) {
+                out[info.uri] = info
+                log("发现实例：${info.name}（MC ${info.mcVersion.ifBlank { "?" }} / ${info.loader}）")
+                return out.values.toList()
+            }
+        }
+
+        dig(ctx, root, 0, out, log)
+        if (out.isEmpty()) {
+            log("一级子目录没找到，再往下钻一层…")
+            digDeep(ctx, root, 0, out, log)
+        }
+        return out.values.sortedBy { it.name.lowercase(Locale.ROOT) }
+    }
+
+    /** 优先路径：子目录要么是版本本身，要么是容器（钻进去找版本） */
+    private fun dig(
+        ctx: Context, dir: DocumentFile, depth: Int,
+        out: MutableMap<String, InstanceInfo>, log: (String) -> Unit
+    ) {
+        if (depth > 3) return
+        for (c in Fs.children(dir)) {
+            if (!c.isDirectory) continue
+            val n = (c.name ?: "").lowercase(Locale.ROOT)
+            if (n in SKIP || n.startsWith(".")) continue
+            if (looksLikeInstance(c)) {
+                val info = readInfo(ctx, c)
+                if (info != null && !out.containsKey(info.uri)) {
+                    out[info.uri] = info
+                    log("发现实例：${info.name}（MC ${info.mcVersion.ifBlank { "?" }} / ${info.loader}）")
+                    continue
+                }
+            }
+            // 容器层：钻进去，里面的每个子目录都当作版本候选
+            if (n in CONTAINERS) {
+                for (g in Fs.children(c)) {
+                    if (!g.isDirectory) continue
+                    val info = readInfo(ctx, g)
+                    if (info != null && !out.containsKey(info.uri)) {
+                        out[info.uri] = info
+                        log("发现实例：${info.name}（MC ${info.mcVersion.ifBlank { "?" }} / ${info.loader}）")
+                    }
+                }
+            }
+        }
+    }
+
+    /** 兜底：再深一层（有些启动器是 启动器/xxx/instances/版本） */
+    private fun digDeep(
+        ctx: Context, dir: DocumentFile, depth: Int,
+        out: MutableMap<String, InstanceInfo>, log: (String) -> Unit
+    ) {
+        if (depth > 4) return
+        for (c in Fs.children(dir)) {
+            if (!c.isDirectory) continue
+            val n = (c.name ?: "").lowercase(Locale.ROOT)
+            if (n in SKIP || n.startsWith(".")) continue
+            val info = readInfo(ctx, c)
+            if (info != null && !out.containsKey(info.uri)) {
+                out[info.uri] = info
+                log("发现实例：${info.name}（MC ${info.mcVersion.ifBlank { "?" }} / ${info.loader}）")
+                continue
+            }
+            dig(ctx, c, depth + 1, out, log)
+        }
+    }
+
+    /** File 版：以启动器总目录为根扫描 */
+    fun scanFilesFrom(rootPath: String, log: (String) -> Unit): List<InstanceInfo> {
+        val root = java.io.File(rootPath)
+        if (!root.exists() || !root.isDirectory) {
+            log("目录不存在：$rootPath")
+            return emptyList()
+        }
+        val out = LinkedHashMap<String, InstanceInfo>()
+        log("扫描目录：${root.name}")
+        if (looksLikeInstanceFile(root)) {
+            val info = readFromFile(root)
+            if (info != null) {
+                out[info.uri] = info
+                log("发现实例：${info.name}（MC ${info.mcVersion.ifBlank { "?" }} / ${info.loader}）")
+                return out.values.toList()
+            }
+        }
+        digFiles(root, 0, out, log)
+        if (out.isEmpty()) digFilesDeep(root, 0, out, log)
+        return out.values.sortedBy { it.name.lowercase(Locale.ROOT) }
+    }
+
+    private fun digFiles(
+        dir: java.io.File, depth: Int,
+        out: MutableMap<String, InstanceInfo>, log: (String) -> Unit
+    ) {
+        if (depth > 3) return
+        val kids = dir.listFiles() ?: return
+        for (c in kids) {
+            if (!c.isDirectory) continue
+            val n = c.name.lowercase(Locale.ROOT)
+            if (n in SKIP || n.startsWith(".")) continue
+            if (looksLikeInstanceFile(c)) {
+                val info = readFromFile(c)
+                if (info != null && !out.containsKey(info.uri)) {
+                    out[info.uri] = info
+                    log("发现实例：${info.name}（MC ${info.mcVersion.ifBlank { "?" }} / ${info.loader}）")
+                    continue
+                }
+            }
+            if (n in CONTAINERS) {
+                val gs = c.listFiles() ?: continue
+                for (g in gs) {
+                    if (!g.isDirectory) continue
+                    val info = readFromFile(g)
+                    if (info != null && !out.containsKey(info.uri)) {
+                        out[info.uri] = info
+                        log("发现实例：${info.name}（MC ${info.mcVersion.ifBlank { "?" }} / ${info.loader}）")
+                    }
+                }
+            }
+        }
+    }
+
+    private fun digFilesDeep(
+        dir: java.io.File, depth: Int,
+        out: MutableMap<String, InstanceInfo>, log: (String) -> Unit
+    ) {
+        if (depth > 4) return
+        val kids = dir.listFiles() ?: return
+        for (c in kids) {
+            if (!c.isDirectory) continue
+            val n = c.name.lowercase(Locale.ROOT)
+            if (n in SKIP || n.startsWith(".")) continue
+            val info = readFromFile(c)
+            if (info != null && !out.containsKey(info.uri)) {
+                out[info.uri] = info
+                log("发现实例：${info.name}（MC ${info.mcVersion.ifBlank { "?" }} / ${info.loader}）")
+                continue
+            }
+            digFiles(c, depth + 1, out, log)
+        }
+    }
 }
