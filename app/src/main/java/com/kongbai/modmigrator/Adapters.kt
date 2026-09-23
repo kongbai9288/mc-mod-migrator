@@ -40,7 +40,7 @@ class ModAdapter(
         h.action.setOnClickListener { onAction(m) }
         // 整行点击 = 打开模组详情页（有地址才跳）
         h.itemView.setOnClickListener {
-            if (onDetail != null) onDetail(m)
+            onDetail?.invoke(m)
         }
     }
 }

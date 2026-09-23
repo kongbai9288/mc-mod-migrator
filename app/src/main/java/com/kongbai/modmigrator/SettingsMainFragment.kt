@@ -59,4 +59,103 @@ class SettingsMainFragment : Fragment() {
         v.findViewById<Button>(R.id.btnGoPlugin)?.setOnClickListener { go("plugin") }
         v.findViewById<Button>(R.id.btnGoDevs)?.setOnClickListener { go("devs") }
         v.findViewById<Button>(R.id.btnGoLog)?.setOnClickListener { go("log") }
-        v.findViewById<Button>(R.id.btnGoAbout).setOnClickListener { go("about")
+        v.findViewById<Button>(R.id.btnGoAbout).setOnClickListener { go("about") }
+
+        refreshAccount()
+        return v
+    }
+
+    private fun go(page: String) {
+        // 已在设置容器里就直接切页，避免新开 Activity 造成返回栈错乱
+        val host = activity as? SettingsHostActivity
+        if (host != null) {
+            host.show(page, true)
+            return
+        }
+        val i = Intent(requireContext(), SettingsHostActivity::class.java)
+        i.putExtra("page", page)
+        startActivity(i)
+    }
+
+    private fun toast(s: String) {
+        handler.post {
+            if (!isAdded) return@post
+            context?.let { Toast.makeText(it, s, Toast.LENGTH_SHORT).show() }
+        }
+    }
+
+    /** 刷新登录态：已登录显示头像与昵称，未登录显示登录按钮 */
+    private fun refreshAccount() {
+        val ctx = requireContext()
+        exec.execute {
+            val u = try {
+                BackendApi.me(ctx)
+            } catch (t: Throwable) {
+                null
+            }
+            handler.post {
+                if (!isAdded) return@post
+                if (u != null) {
+                    tvAccount.text = "${u.name.ifBlank { u.login }}（已登录）"
+                    btnAccount.text = "退出登录"
+                    btnAccount.setOnClickListener { doLogout() }
+                    if (u.avatarUrl.isNotBlank()) {
+                        try {
+                            ivAvatar.load(u.avatarUrl) { crossfade(true) }
+                        } catch (t: Throwable) {
+                            // 头像加载失败不影响其他内容
+                        }
+                    }
+                    tvConnState.text = "已连接后端"
+                } else {
+                    tvAccount.text = getString(R.string.account_not_login)
+                    btnAccount.text = getString(R.string.account_login)
+                    btnAccount.setOnClickListener { login() }
+                    tvConnState.text = getString(R.string.account_hint_logged_out)
+                }
+            }
+        }
+    }
+
+    private fun login() {
+        val ctx = requireContext()
+        toast("正在打开授权页…")
+        exec.execute {
+            val url = try {
+                BackendApi.loginUrl(ctx)
+            } catch (t: Throwable) {
+                ""
+            }
+            handler.post {
+                if (!isAdded) return@post
+                if (url.isBlank()) {
+                    tvConnState.text = getString(R.string.conn_blocked_hint)
+                    toast("连不上后端，可先离线使用")
+                    return@post
+                }
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+                    toast("在浏览器里完成授权后，回来点「登录 GitHub」刷新")
+                } catch (t: Throwable) {
+                    toast("打不开浏览器")
+                }
+            }
+        }
+    }
+
+    private fun doLogout() {
+        val ctx = requireContext()
+        exec.execute {
+            try {
+                BackendApi.logout(ctx)
+            } catch (t: Throwable) {
+                // 登出失败也按未登录处理
+            }
+            handler.post {
+                if (!isAdded) return@post
+                refreshAccount()
+                toast("已退出")
+            }
+        }
+    }
+}

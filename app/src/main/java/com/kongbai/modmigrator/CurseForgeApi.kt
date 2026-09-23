@@ -76,14 +76,16 @@ object CurseForgeApi {
 
     /** 官方 CDN 现在强制要求 Key 认证，所以走官方时要用 header 带上 */
     fun authHeaders(): Map<String, String> {
-        val key = Prefs.get(Prefs.appCtx()).getString(K.CF_KEY, "") ?: ""
+        val ctx = Prefs.appCtx() ?: return emptyMap()
+        val key = Prefs.get(ctx).getString(K.CF_KEY, "") ?: ""
         val mirror = mirrorOn(key)
         if (mirror || key.isBlank()) return emptyMap()
         return mapOf("x-api-key" to key)
     }
 
     fun downloadUrl(mod: MarketMod): String {
-        val key = Prefs.get(Prefs.appCtx()).getString(K.CF_KEY, "") ?: ""
+        val ctx = Prefs.appCtx()
+        val key = if (ctx == null) "" else Prefs.get(ctx).getString(K.CF_KEY, "") ?: ""
         val p = cdnPath(mod.fileId, mod.fileName)
         if (p.isNotBlank()) {
             return if (mirrorOn(key)) "$FILE_MIRROR/$p" else "$FILE_OFFICIAL/$p"

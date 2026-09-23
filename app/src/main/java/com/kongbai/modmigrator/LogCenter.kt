@@ -14,9 +14,11 @@ import java.util.Locale
  */
 object LogCenter {
 
+    /** 内存里最多保留多少条（用于顶部展示） */
+    private const val MAX_MEM = 300
+
     /** 内存里的日志（最新的在前，最多保留 N 条用于顶部展示） */
     private val lines = ArrayList<LogLine>(MAX_MEM)
-    private const val MAX_MEM = 300
 
     /** 监听器：页面用来刷新顶部条数与预览 */
     private val listeners = ArrayList<(List<LogLine>) -> Unit>()
@@ -118,14 +120,16 @@ object LogCenter {
     }
 
     /** 读出磁盘上的完整日志，供「设置 → 日志」查看 */
-    fun readAll(ctx: Context): String = try {
-        val dir = WorkDir.logs(ctx) ?: return ""
-        val f = dir.findFile("app.log") ?: return ""
-        ctx.contentResolver.openInputStream(f.uri)?.use {
-            it.readBytes().toString(Charsets.UTF_8)
-        } ?: ""
-    } catch (t: Throwable) {
-        ""
+    fun readAll(ctx: Context): String {
+        return try {
+            val dir = WorkDir.logs(ctx) ?: return ""
+            val f = dir.findFile("app.log") ?: return ""
+            ctx.contentResolver.openInputStream(f.uri)?.use {
+                it.readBytes().toString(Charsets.UTF_8)
+            } ?: ""
+        } catch (t: Throwable) {
+            ""
+        }
     }
 
     fun clearFile(ctx: Context) {
