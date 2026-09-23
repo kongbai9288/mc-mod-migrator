@@ -103,6 +103,17 @@ class ModPageActivity : AppCompatActivity() {
 
     private fun loadTranslated(engine: String) {
         if (url.isBlank()) return
+        // 离线模式：不加载任何代理页，改为页面加载完后注入本地词典做词级标注
+        if (Prefs.get(this).getBoolean(K.OFFLINE, false)) {
+            toast("离线：用本地词典标注页面（不会发起网络请求）")
+            web.webViewClient = object : android.webkit.WebViewClient() {
+                override fun onPageFinished(view: android.webkit.WebView?, u: String?) {
+                    view?.evaluateJavascript(OfflineTranslate.webScript(this@ModPageActivity), null)
+                }
+            }
+            web.loadUrl(url)
+            return
+        }
         toast("正在加载翻译页…")
         web.loadUrl(Translator.pageProxy(engine, url))
     }
