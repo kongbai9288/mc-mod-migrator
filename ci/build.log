@@ -29,8 +29,8 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:createReleaseCompatibleScreenManifests
 > Task :app:extractDeepLinksRelease
 > Task :app:parseReleaseLocalResources
-> Task :app:mergeReleaseResources
 > Task :app:processReleaseMainManifest
+> Task :app:mergeReleaseResources
 > Task :app:processReleaseManifest
 > Task :app:javaPreCompileRelease
 > Task :app:extractProguardFiles
@@ -41,9 +41,8 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:desugarReleaseFileDependencies
 > Task :app:checkReleaseDuplicateClasses
-> Task :app:processReleaseManifestForPackage
 > Task :app:mergeReleaseArtProfile
-> Task :app:processReleaseResources
+> Task :app:processReleaseManifestForPackage
 > Task :app:mergeExtDexRelease
 > Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
@@ -55,6 +54,7 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:validateSigningRelease
 > Task :app:writeReleaseAppMetadata
 > Task :app:writeReleaseSigningConfigVersions
+> Task :app:processReleaseResources
 > Task :app:optimizeReleaseResources
 
 > Task :app:compileReleaseKotlin FAILED
@@ -73,5 +73,5 @@ Execution failed for task ':app:compileReleaseKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 1m 50s
+BUILD FAILED in 1m 43s
 31 actionable tasks: 31 executed
