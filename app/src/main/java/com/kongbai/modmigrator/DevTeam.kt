@@ -25,7 +25,24 @@ object DevTeam {
         Dev("Pterodactyl", "服务器面板协议", "https://pterodactyl.io")
     )
 
+    /** 内置名单，外部可直接取用（远端拿不到时的兜底） */
+    fun builtin(): List<Dev> = BUILTIN
+
+    /**
+     * 读取名单。无论发生什么都不抛异常：
+     * 远端拿不到、JSON 解析失败、网络超时一律退回内置名单。
+     * 之前这里会把异常抛给调用方，调用方的 catch 又是空的，
+     * 于是列表一片空白——现在从源头杜绝。
+     */
     fun load(ctx: Context): List<Dev> {
+        return try {
+            loadInner(ctx)
+        } catch (t: Throwable) {
+            BUILTIN
+        }
+    }
+
+    private fun loadInner(ctx: Context): List<Dev> {
         val o = owner(ctx)
         val r = repo(ctx)
         if (o.isNotBlank() && r.isNotBlank()) {

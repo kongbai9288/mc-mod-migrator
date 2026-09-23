@@ -39,10 +39,28 @@ class ToolsFragment : Fragment() {
             setPadding(pad, pad, pad, pad)
         }
         scroll.addView(root)
-        root.addView(btn("模组体检") { doctor() })
-        root.addView(btn("配置对比") { diff() })
-        root.addView(btn("清理缓存") { clearCache() })
-        root.addView(btn("存储用量") { usage() })
+        root.addView(UiCards.hint(ctx, "迁移前后的检查与清理工具。"))
+
+        root.addView(UiCards.infoCard(
+            ctx, R.drawable.ic_check_circle, "模组体检",
+            "查重复模组、可疑文件名、超大文件", "运行"
+        ) { doctor() })
+
+        root.addView(UiCards.infoCard(
+            ctx, R.drawable.ic_content_copy, "配置对比",
+            "对比迁移前后 config 的差异，看会被覆盖哪些", "运行"
+        ) { diff() })
+
+        root.addView(UiCards.infoCard(
+            ctx, R.drawable.ic_delete, "清理缓存",
+            "清掉翻译缓存与下载缓存", "清理"
+        ) { clearCache() })
+
+        root.addView(UiCards.infoCard(
+            ctx, R.drawable.ic_folder, "存储用量",
+            "看工作目录各子目录占了多少空间", "查看"
+        ) { usage() })
+
         return scroll
     }
 

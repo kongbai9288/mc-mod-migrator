@@ -39,56 +39,47 @@ class MoreFragment : Fragment() {
         box.addView(hint)
 
         val ctx0 = ctx
-        val inNav = NavConfig.bottom(ctx0)
         val pages = NavConfig.more(ctx0)
 
-        for (p in pages) {
-            val row = LinearLayout(ctx0)
-            row.orientation = LinearLayout.HORIZONTAL
-            row.gravity = Gravity.CENTER_VERTICAL
-            row.setPadding(0, (10 * resources.displayMetrics.density).toInt(), 0, 0)
-
-            val title = TextView(ctx0)
-            title.text = getString(p.title)
-            title.textSize = 15f
-            title.layoutParams = LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-            )
-            row.addView(title)
-
-            val btnMove = Button(ctx0)
-            btnMove.text = getString(R.string.nav_move_to_bar)
-            btnMove.setOnClickListener {
-                if (!NavConfig.moveToBottom(ctx0, p.key)) {
-                    MaterialAlertDialogBuilder(ctx0)
-                        .setMessage(R.string.nav_limit)
-                        .setPositiveButton(R.string.ok, null)
-                        .show()
-                    return@setOnClickListener
-                }
-                (activity as? MainActivity)?.rebuildNav()
-                // 设置页是 Activity，需要重建主界面才能刷新导航栏
-                try {
-                    activity?.recreate()
-                } catch (t: Throwable) {
-                }
-            }
-            row.addView(btnMove)
-
-            val btnOpen = Button(ctx0)
-            btnOpen.text = getString(R.string.tab_more)
-            btnOpen.setOnClickListener { openPage(p) }
-            row.addView(btnOpen)
-
-            box.addView(row)
-        }
-
         if (pages.isEmpty()) {
-            val tv = TextView(ctx0)
-            tv.text = getString(R.string.empty_hint)
-            box.addView(tv)
+            box.addView(
+                UiCards.emptyCard(
+                    ctx0, "所有功能都在底部栏了",
+                    "到「设置 → 底部导航栏」可以把功能移回这里。"
+                )
+            )
         }
+        for (p in pages) {
+            val card = UiCards.infoCard(
+                ctx0,
+                p.icon,
+                getString(p.title),
+                "在「更多」里 · 长按可移到底部导航栏",
+                "打开"
+            ) { openPage(p) }
+            card.setOnLongClickListener { moveToBottom(p.key) }
+            box.addView(card)
+        }
+
         return scroll
+    }
+
+    /** 长按卡片：把这一项移到底部导航栏 */
+    private fun moveToBottom(key: String): Boolean {
+        val ctx = context ?: return false
+        val ok = NavConfig.moveToBottom(ctx, key)
+        android.widget.Toast.makeText(
+            ctx,
+            if (ok) "已移到底部导航栏" else "底部最多 4 个，先移一个出来",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
+        if (ok) {
+            (activity as? MainActivity)?.rebuildNav()
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, MoreFragment())
+                .commit()
+        }
+        return true
     }
 
     private fun openPage(p: NavConfig.Item) {

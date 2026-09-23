@@ -69,7 +69,7 @@ class SettingsMigrateFragment : Fragment() {
         if (sp != null) {
             val labels = resources.getStringArray(R.array.parallel_labels)
             sp.adapter = android.widget.ArrayAdapter(
-                requireContext(), android.R.layout.simple_spinner_dropdown_item, labels
+                requireContext(), R.layout.item_spinner, labels
             )
             val cur = Prefs.get(requireContext()).getInt(K.DOWNLOAD_PARALLEL, 3)
             val vals = resources.getStringArray(R.array.parallel_values)
