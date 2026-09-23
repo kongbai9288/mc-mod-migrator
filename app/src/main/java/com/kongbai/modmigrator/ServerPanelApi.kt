@@ -208,6 +208,6 @@ object ServerPanelApi {
         return out
     }
 
-    private fun esc(s: String): String = s.replace("\", "\\").replace(""", "\"")
+    private fun esc(x: String): String = x.replace("\\", "\\\\").replace("\"", "\\\"")
 
 }

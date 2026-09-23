@@ -202,7 +202,7 @@ class MigrationFragment : Fragment() {
             // 主力路径：直接扫文件系统（能进 Android/data），SAF 只能作为补充
             var list = mutableListOf<InstanceInfo>()
             if (InstanceScanner.hasAllFilesAccess()) {
-                list.addAll(InstanceScanner.scanFiles { m -> log(m) })
+                list.addAll(InstanceScanner.scanFiles(log = { m -> log(m) }))
             } else {
                 log("未获得「所有文件访问」权限，先试 SAF 目录扫描…")
             }
