@@ -37,7 +37,7 @@ class ModPageActivity : AppCompatActivity() {
         web.settings.domStorageEnabled = true
         web.settings.loadWithOverviewMode = true
         web.settings.useWideViewPort = true
-        web.webViewClient = WebViewClient()
+        web.webViewClient = PageClient()
         if (url.isNotBlank()) web.loadUrl(url)
 
         findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
@@ -88,18 +88,44 @@ class ModPageActivity : AppCompatActivity() {
     }
 
     private fun translateDialog() {
-        val opts = arrayOf("微软翻译（国内可达）", "谷歌翻译（需梯子）", "恢复原文")
+        // 默认走本地标注：不跳转、不发请求，绝不会白屏
+        val opts = arrayOf(
+            "本地词典标注（推荐，不会白屏）",
+            "微软翻译代理页（国内可达）",
+            "谷歌翻译代理页（需梯子）",
+            "恢复原文"
+        )
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.trans_page_title)
             .setItems(opts) { _, w ->
                 when (w) {
-                    0 -> loadTranslated("bing")
-                    1 -> loadTranslated("google")
+                    0 -> markLocal()
+                    1 -> loadTranslated("bing")
+                    2 -> loadTranslated("google")
                     else -> web.loadUrl(url)
                 }
             }
             .show()
     }
+
+    /** 本地词典标注：页面加载完成后注入 JS，失败也不影响原页面 */
+    private fun markLocal() {
+        if (url.isBlank()) return
+        val script = try {
+            OfflineTranslate.webScript(this)
+        } catch (t: Throwable) {
+            toast("词典加载失败：${t.message}")
+            return
+        }
+        pendingScript = script
+        runOnMainScript = true
+        toast("已开启本地标注，页面刷新后生效")
+        web.loadUrl(url)
+    }
+
+    /** 页面加载完后要注入的脚本；null 表示不需要注入 */
+    private var pendingScript: String? = null
+    private var runOnMainScript: Boolean = false
 
     private fun loadTranslated(engine: String) {
         if (url.isBlank()) return
@@ -114,8 +140,64 @@ class ModPageActivity : AppCompatActivity() {
             web.loadUrl(url)
             return
         }
-        toast("正在加载翻译页…")
+        // 离线模式一律不跳代理页
+        if (Prefs.get(this).getBoolean(K.OFFLINE, false)) {
+            toast("离线模式：使用本地标注")
+            markLocal()
+            return
+        }
+        toast("正在加载翻译页，失败会自动退回原页面…")
+        proxyMode = true
         web.loadUrl(Translator.pageProxy(engine, url))
+    }
+
+    /** 是否处于翻译代理页：用于失败回退 */
+    private var proxyMode = false
+
+    /** 自定义 WebViewClient：捕获加载失败与空白页，避免白屏 */
+    private inner class PageClient : WebViewClient() {
+
+        override fun onPageFinished(view: WebView?, u: String?) {
+            super.onPageFinished(view, u)
+            // 注入本地标注脚本
+            val sc = pendingScript
+            if (sc != null && view != null) {
+                try {
+                    view.evaluateJavascript(sc, null)
+                } catch (t: Throwable) {
+                    // 注入失败不影响页面显示
+                }
+                pendingScript = null
+                return
+            }
+            // 代理页：检测是否是空白页（翻译站被墙时会返回空内容）
+            if (proxyMode && view != null) {
+                view.evaluateJavascript(
+                    "(function(){return document.body?document.body.innerText.trim().length:0})()"
+                ) { v ->
+                    val len = v?.trim('"')?.toIntOrNull() ?: 0
+                    if (len < 50) {
+                        proxyMode = false
+                        toast("翻译页没加载出来，已退回原页面")
+                        view.loadUrl(url)
+                    } else {
+                        proxyMode = false
+                    }
+                }
+            }
+        }
+
+        @Deprecated("Deprecated in Java")
+        override fun onReceivedError(
+            view: WebView?, errorCode: Int, description: String?, failingUrl: String?
+        ) {
+            super.onReceivedError(view, errorCode, description, failingUrl)
+            if (proxyMode && view != null) {
+                proxyMode = false
+                toast("加载失败：${description ?: "未知错误"}，已退回原页面")
+                view.loadUrl(url)
+            }
+        }
     }
 
     private fun markPage() {

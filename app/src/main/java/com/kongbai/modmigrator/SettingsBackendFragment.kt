@@ -21,6 +21,7 @@ class SettingsBackendFragment : Fragment() {
     private lateinit var etBackup: EditText
     private lateinit var btnProbe: Button
     private lateinit var tv: TextView
+    private lateinit var tvCb: TextView
     private val exec = Executors.newSingleThreadExecutor()
     private val handler = Handler(Looper.getMainLooper())
 
@@ -32,6 +33,7 @@ class SettingsBackendFragment : Fragment() {
         etBackup = v.findViewById(R.id.etBackup)
         btnProbe = v.findViewById(R.id.btnProbe)
         tv = v.findViewById(R.id.tvState)
+        tvCb = v.findViewById(R.id.tvCb)
 
         val p = Prefs.get(requireContext())
         etBase.setText(p.getString(K.BACKEND_BASE, "") ?: "")
@@ -51,8 +53,43 @@ class SettingsBackendFragment : Fragment() {
         watch(etBackup)
 
         btnProbe.setOnClickListener { probe() }
+        v.findViewById<Button>(R.id.btnCopyCb)?.setOnClickListener { copyCallback() }
+        v.findViewById<Button>(R.id.btnGhOauth)?.setOnClickListener { openGhSettings() }
         probe()
+        showCallback()
         return v
+    }
+
+    private fun showCallback() {
+        val ctx = requireContext()
+        exec.execute {
+            val cb = BackendApi.callbackUrl(ctx)
+            handler.post { tvCb.text = "回调地址：$cb\n（GitHub OAuth App 里必须填这一条）" }
+        }
+    }
+
+    private fun copyCallback() {
+        val ctx = requireContext()
+        exec.execute {
+            val cb = BackendApi.callbackUrl(ctx)
+            handler.post {
+                val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("callback", cb))
+                android.widget.Toast.makeText(ctx, "已复制回调地址", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun openGhSettings() {
+        try {
+            startActivity(
+                android.content.Intent(
+                    android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse("https://github.com/settings/developers")
+                )
+            )
+        } catch (t: Throwable) {
+        }
     }
 
     private fun probe() {

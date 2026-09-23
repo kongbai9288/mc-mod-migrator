@@ -65,6 +65,12 @@ class SettingsMainFragment : Fragment() {
     }
 
     private fun go(page: String) {
+        // 已经在设置容器里就直接切 fragment，避免新开 Activity 造成返回栈错乱
+        val host = activity as? SettingsHostActivity
+        if (host != null) {
+            host.show(page, true)
+            return
+        }
         val i = Intent(requireContext(), SettingsHostActivity::class.java)
         i.putExtra("page", page)
         startActivity(i)

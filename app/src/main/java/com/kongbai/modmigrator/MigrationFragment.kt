@@ -170,24 +170,64 @@ class MigrationFragment : Fragment() {
         }
     }
 
+    /** 申请「所有文件访问」：Android 11+ 只有这样才能读 Android/data 里的启动器实例 */
+    private fun askAllFiles() {
+        try {
+            if (InstanceScanner.hasAllFilesAccess()) {
+                toast("已有全部文件访问权限")
+                return
+            }
+            val i = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+            i.data = android.net.Uri.parse("package:" + requireContext().packageName)
+            startActivity(i)
+            toast("请打开「允许访问所有文件」，回来后重新扫描")
+        } catch (t: Throwable) {
+            try {
+                startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+            } catch (t2: Throwable) {
+                toast("无法打开权限设置页，请手动在系统设置里授权")
+            }
+        }
+    }
+
     private fun scanLocal() {
         val ctx = requireContext()
-        val p = Prefs.get(ctx)
-        val root = p.getString(K.SCAN_ROOT, null)
-        if (root == null) {
-            toast("请先选择一个根目录（包含各启动器/instances 的目录）")
-            val i = android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT_TREE)
-            startActivityForResult(i, 13)
-            return
-        }
         toast("扫描中…")
         bg {
-            val list = InstanceScanner.scan(ctx, root, { m -> log(m) }, true)
+            // 主力路径：直接扫文件系统（能进 Android/data），SAF 只能作为补充
+            var list = mutableListOf<InstanceInfo>()
+            if (InstanceScanner.hasAllFilesAccess()) {
+                list.addAll(InstanceScanner.scanFiles { m -> log(m) })
+            } else {
+                log("未获得「所有文件访问」权限，先试 SAF 目录扫描…")
+            }
+            if (list.isEmpty()) {
+                val root = Prefs.get(ctx).getString(K.SCAN_ROOT, null)
+                if (!root.isNullOrBlank()) {
+                    list.addAll(InstanceScanner.scan(ctx, root, { m -> log(m) }, true))
+                }
+            }
+            val finalList = list
+            if (finalList.isEmpty() && !InstanceScanner.hasAllFilesAccess()) {
+                safePost(handler) {
+                    log("提示：启动器实例通常在 Android/data 下，需要「所有文件访问」权限才能读到")
+                    com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                        .setTitle("扫不到实例")
+                        .setMessage("启动器数据多在 Android/data 目录，Android 11 起必须授予「所有文件访问」权限才能读取。要现在去授权吗？")
+                        .setPositiveButton("去授权") { _, _ -> askAllFiles() }
+                        .setNegativeButton("改用手动选目录") { _, _ ->
+                            val i2 = android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT_TREE)
+                            startActivityForResult(i2, 13)
+                        }
+                        .setNeutralButton("取消", null)
+                        .show()
+                }
+            }
             safePost(handler) {
                 instances.clear()
-                instances.addAll(list)
-                toast(if (list.isEmpty()) "没找到实例" else "找到 ${list.size} 个实例")
-                if (list.isNotEmpty()) showInstancePicker()
+                instances.addAll(finalList)
+                toast(if (finalList.isEmpty()) "没找到实例" else "找到 ${finalList.size} 个实例")
+                if (finalList.isNotEmpty()) showInstancePicker()
             }
         }
     }

@@ -78,6 +78,13 @@ object BackendApi {
         return Json.s(o, "url")
     }
 
+    /** 后端实际使用的回调地址（GitHub OAuth App 里必须配上这个，否则报 redirect_uri 不匹配） */
+    fun callbackUrl(ctx: Context): String {
+        val r = getAnyWithBase(ctx, "/api/config")
+        val b = r?.first ?: base(ctx)
+        return "$b/api/auth/callback"
+    }
+
     fun me(ctx: Context): User? {
         val o = Json.obj(getAny(ctx, "/api/auth/me") ?: return null) ?: return null
         val u = o.asJsonObject.get("user")

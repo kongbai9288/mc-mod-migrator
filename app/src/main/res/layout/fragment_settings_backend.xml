@@ -41,6 +41,36 @@
             android:text="@string/btn_test_conn" />
 
         <TextView
+            android:id="@+id/tvCb"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="8dp"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/btnCopyCb"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/cfg_copy_callback" />
+
+        <Button
+            android:id="@+id/btnGhOauth"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/cfg_gh_oauth" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="8dp"
+            android:text="@string/cfg_callback_hint"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
+
+        <TextView
             android:id="@+id/tvState"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
