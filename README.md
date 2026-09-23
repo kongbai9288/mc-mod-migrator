@@ -3,6 +3,9 @@
 给 Minecraft Java 版启动器玩家的 Android 工具：**自动跨版本迁移 + 模组市场 + 跨设备同步**。
 私有仓库，自用性质。应用内不含任何 Minecraft 游戏素材，图标来自第三方 Material Symbols（Apache-2.0）。
 
+## 导语
+- 是的，ModMigrator是一款安卓mod迁移工具，安卓不是错，而是没有工具，在此本项目的前端开发yuan bao与审核、后端开发kongbai9288诚邀你开启高效版本之旅，更快的路，更好用的体验
+
 ## 能做什么
 
 ### 1. 版本迁移（自动）
