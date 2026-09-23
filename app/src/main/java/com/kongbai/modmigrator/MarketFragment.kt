@@ -92,6 +92,9 @@ class MarketFragment : Fragment() {
         }
     }
 
+    /** 后台线程里安全取 context：Fragment 已 detach 就返回 null */
+    private fun ctx0(): android.content.Context? = try { context } catch (t: Throwable) { null }
+
     private fun mcVersion(): String {
         val s = etVersion.text.toString().trim()
         return s.ifBlank { Prefs.get(requireContext()).getString(K.DEF_VERSION, "") ?: "" }
@@ -108,16 +111,13 @@ class MarketFragment : Fragment() {
         val mc = mcVersion()
         val ld = loader()
         val ctx = requireContext()
-        val p = Prefs.get(ctx)
-        val src = p.getString(K.SOURCE, "Modrinth") ?: "Modrinth"
-        val key = p.getString(K.CF_KEY, "") ?: ""
         toast("搜索中…")
         bg {
-            val list = if (src == "CurseForge") {
-                val r = CurseForgeApi.search(q, mc, ld, key)
-                if (r.isEmpty()) ModrinthApi.search(q, mc, ld) else r
-            } else {
-                ModrinthApi.search(q, mc, ld)
+            // 走统一入口：按设置决定 Modrinth / CurseForge(官方或后端) / 聚合
+            val list = AggregateSearch.search(ctx, q, mc, ld)
+            if (list.isEmpty() && Prefs.get(ctx).getBoolean(K.OFFLINE, false)) {
+                toast("离线模式下无法搜索")
+                return@bg
             }
             safePost(handler) {
                 results.clear()
@@ -131,10 +131,11 @@ class MarketFragment : Fragment() {
 
     private fun translate(mod: MarketMod) {
         if (mod.summaryZh.isNotBlank()) return
+        val c = ctx0() ?: return
         bg {
-            val zh = Translator.toZh(mod.summary)
+            val zh = OfflineTranslate.translate(c, mod.summary)
             if (zh == null) {
-                toast("翻译失败，可能是网络或额度限制")
+                toast("翻译失败：离线无匹配且网络不可用")
                 return@bg
             }
             mod.summaryZh = zh
@@ -146,11 +147,12 @@ class MarketFragment : Fragment() {
     }
 
     private fun autoTranslate(list: List<MarketMod>) {
-        if (!Prefs.get(requireContext()).getBoolean(K.AUTO_TRANS, true)) return
+        val c = ctx0() ?: return
+        if (!Prefs.get(c).getBoolean(K.AUTO_TRANS, true)) return
         bg {
             var n = 0
             for (m in list.take(10)) {
-                val zh = Translator.toZh(m.summary)
+                val zh = OfflineTranslate.translate(c, m.summary)
                 if (zh != null) {
                     m.summaryZh = zh
                     n++
@@ -168,14 +170,25 @@ class MarketFragment : Fragment() {
         bg {
             var name = ""
             var headers: Map<String, String> = emptyMap()
-            val url = if (mod.source == "curseforge") {
-                headers = CurseForgeApi.authHeaders()
-                CurseForgeApi.downloadUrl(mod)
-            } else {
-                val files = ModrinthApi.versions(mod.id, mc, ld)
-                val f0 = files.firstOrNull()
-                if (f0 != null) name = f0.fileName
-                f0?.url ?: ""
+            val url = when (mod.source) {
+                "curseforge" -> {
+                    headers = CurseForgeApi.authHeaders()
+                    CurseForgeApi.downloadUrl(mod)
+                }
+                "backend" -> {
+                    val fs = BackendApi.files(ctx, mod.id, mc, ld)
+                    val f0 = fs.firstOrNull()
+                    if (f0 != null) {
+                        name = f0.name.ifBlank { f0.display }
+                        BackendApi.absolute(ctx, f0.url)
+                    } else ""
+                }
+                else -> {
+                    val files = ModrinthApi.versions(mod.id, mc, ld)
+                    val f0 = files.firstOrNull()
+                    if (f0 != null) name = f0.fileName
+                    f0?.url ?: ""
+                }
             }
             if (url.isBlank()) {
                 toast("没有可下载的文件")
