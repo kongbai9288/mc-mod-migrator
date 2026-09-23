@@ -39,10 +39,10 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:stripReleaseDebugSymbols NO-SOURCE
 > Task :app:extractReleaseNativeSymbolTables NO-SOURCE
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
-> Task :app:processReleaseManifestForPackage
 > Task :app:desugarReleaseFileDependencies
-> Task :app:checkReleaseDuplicateClasses
+> Task :app:processReleaseManifestForPackage
 > Task :app:mergeReleaseArtProfile
+> Task :app:checkReleaseDuplicateClasses
 > Task :app:processReleaseResources
 > Task :app:mergeExtDexRelease
 > Task :app:mergeReleaseShaders
@@ -69,10 +69,10 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Fs.kt:23:17 Condition 'arr == null' is always 'false'
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/InstanceScanner.kt:497:17 Variable 'n' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/InstanceScanner.kt:571:17 Variable 'n' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:168:9 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:172:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:218:9 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:296:29 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:234:9 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:238:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:284:9 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:362:29 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModPageActivity.kt:194:19 'onReceivedError(WebView!, Int, String!, String!): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModPageActivity.kt:265:54 'onBackPressed(): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/OfflineTranslate.kt:137:19 Parameter 'ctx' is never used
@@ -95,7 +95,7 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 > Task :app:lintVitalRelease
 > Task :app:assembleRelease
 
-BUILD SUCCESSFUL in 2m 1s
+BUILD SUCCESSFUL in 2m 10s
 42 actionable tasks: 42 executed
 To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
 Daemon will be stopped at the end of the build 
@@ -111,8 +111,8 @@ Daemon will be stopped at the end of the build
 > Task :app:createDebugCompatibleScreenManifests
 > Task :app:extractDeepLinksDebug
 > Task :app:parseDebugLocalResources
-> Task :app:processDebugMainManifest
 > Task :app:mergeDebugResources
+> Task :app:processDebugMainManifest
 > Task :app:processDebugManifest
 > Task :app:javaPreCompileDebug
 > Task :app:mergeDebugShaders
@@ -122,12 +122,12 @@ Daemon will be stopped at the end of the build
 > Task :app:desugarDebugFileDependencies
 > Task :app:compressDebugAssets
 > Task :app:mergeDebugJniLibFolders
-> Task :app:processDebugManifestForPackage
 > Task :app:checkDebugDuplicateClasses
-> Task :app:processDebugResources
 > Task :app:mergeDebugNativeLibs NO-SOURCE
+> Task :app:processDebugManifestForPackage
 > Task :app:stripDebugDebugSymbols NO-SOURCE
 > Task :app:mergeLibDexDebug
+> Task :app:processDebugResources
 > Task :app:validateSigningDebug
 > Task :app:writeDebugAppMetadata
 > Task :app:writeDebugSigningConfigVersions
@@ -145,10 +145,10 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Fs.kt:23:17 Condition 'arr == null' is always 'false'
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/InstanceScanner.kt:497:17 Variable 'n' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/InstanceScanner.kt:571:17 Variable 'n' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:168:9 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:172:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:218:9 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:296:29 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:234:9 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:238:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:284:9 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:362:29 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModPageActivity.kt:194:19 'onReceivedError(WebView!, Int, String!, String!): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModPageActivity.kt:265:54 'onBackPressed(): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/OfflineTranslate.kt:137:19 Parameter 'ctx' is never used
@@ -167,5 +167,5 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 > Task :app:createDebugApkListingFileRedirect
 > Task :app:assembleDebug
 
-BUILD SUCCESSFUL in 54s
+BUILD SUCCESSFUL in 57s
 33 actionable tasks: 33 executed
