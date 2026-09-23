@@ -120,6 +120,14 @@
     <string name="cfg_callback_hint">登录报 redirect_uri 不匹配时：把上面的回调地址填进 GitHub OAuth App 的 Authorization callback URL 里保存，再回来登录。授权在浏览器里完成，成功后回到本应用刷新即可，应用不会要你的 GitHub 密码。</string>
     <string name="scan_launcher_dir_hint">主流启动器会把各个版本收进一个总文件夹（通常是 instances、versions 这类目录）。选择这个总文件夹即可，会自动钻进去找出里面每个版本。</string>
     <string name="btn_scan_local2">扫描本机版本</string>
+    <string name="panel_mode_login">账号密码</string>
+    <string name="panel_mode_key">API 密钥</string>
+    <string name="panel_user">面板账号（邮箱/用户名）</string>
+    <string name="panel_pass">面板密码</string>
+    <string name="panel_auth_hint">账号密码登录会调用面板登录接口换取 token；部分面板版本不支持直登，失败时请改用 API 密钥（在面板 → 账户 → API 凭据里生成 ptlc_ 开头的 Client Key）。</string>
+    <string name="panel_scan">扫描</string>
+    <string name="panel_probe_dir">自动找目录</string>
+    <string name="panel_dir_pick">面板里找到了这些目录，选择要扫描的：</string>
     <string name="cfg_clear">清除本机标记与缓存</string>
     <string name="privacy_title">隐私说明</string>
     <string name="license_title">第三方开源许可</string>

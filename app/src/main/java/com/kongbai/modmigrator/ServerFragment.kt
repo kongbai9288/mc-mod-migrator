@@ -20,7 +20,11 @@ import java.util.concurrent.Executors
 class ServerFragment : Fragment() {
 
     private lateinit var etBase: EditText
+    private lateinit var etUser: EditText
+    private lateinit var etPass: EditText
     private lateinit var etKey: EditText
+    private lateinit var rgAuth: android.widget.RadioGroup
+    private val cred = ServerPanelApi.Cred()
     private lateinit var etDir: EditText
     private lateinit var etVersion: EditText
     private lateinit var spLoader: Spinner
@@ -43,7 +47,10 @@ class ServerFragment : Fragment() {
     ): View {
         val v = inflater.inflate(R.layout.fragment_server, container, false)
         etBase = v.findViewById(R.id.etPanelBase)
+        etUser = v.findViewById(R.id.etPanelUser)
+        etPass = v.findViewById(R.id.etPanelPass)
         etKey = v.findViewById(R.id.etPanelKey)
+        rgAuth = v.findViewById(R.id.rgAuth)
         etDir = v.findViewById(R.id.etPanelDir)
         etVersion = v.findViewById(R.id.etVersion)
         spLoader = v.findViewById(R.id.spLoader)
@@ -57,15 +64,92 @@ class ServerFragment : Fragment() {
 
         val p = Prefs.get(requireContext())
         etBase.setText(p.getString(K.PANEL_BASE, "") ?: "")
+        etUser.setText(p.getString(K.PANEL_USER, "") ?: "")
+        etPass.setText(p.getString(K.PANEL_PASS, "") ?: "")
         etKey.setText(p.getString(K.PANEL_KEY, "") ?: "")
+        if (p.getBoolean(K.PANEL_MODE_KEY, false)) {
+            rgAuth.check(R.id.rbKey)
+        } else {
+            rgAuth.check(R.id.rbLogin)
+        }
+        syncAuthFields()
         etDir.setText(p.getString(K.PANEL_DIR, "/mods") ?: "/mods")
         etVersion.setText(p.getString(K.DEF_VERSION, "") ?: "")
 
         v.findViewById<Button>(R.id.btnConnect).setOnClickListener { connect() }
         v.findViewById<Button>(R.id.btnScanFiles).setOnClickListener { scanFiles() }
+        v.findViewById<Button>(R.id.btnProbeDir)?.setOnClickListener { probeDirs() }
+        rgAuth.setOnCheckedChangeListener { _, _ -> syncAuthFields() }
         v.findViewById<Button>(R.id.btnCheckUpdates).setOnClickListener { checkUpdates() }
         v.findViewById<Button>(R.id.btnDownloadAll).setOnClickListener { downloadAll() }
         return v
+    }
+
+    /** 按认证方式显示/隐藏对应输入框，避免"只有一个框"的困惑 */
+    private fun syncAuthFields() {
+        val useKey = rgAuth.checkedRadioButtonId == R.id.rbKey
+        etKey.visibility = if (useKey) View.VISIBLE else View.GONE
+        etUser.visibility = if (useKey) View.GONE else View.VISIBLE
+        etPass.visibility = if (useKey) View.GONE else View.VISIBLE
+    }
+
+    /** 收集当前凭据：账号密码模式会先登录换 token */
+    private fun cred(): ServerPanelApi.Cred {
+        val p = Prefs.get(requireContext())
+        val c = ServerPanelApi.Cred(
+            base = etBase.text.toString().trim(),
+            mode = if (rgAuth.checkedRadioButtonId == R.id.rbKey)
+                ServerPanelApi.Mode.KEY else ServerPanelApi.Mode.LOGIN,
+            key = etKey.text.toString().trim(),
+            user = etUser.text.toString().trim(),
+            pass = etPass.text.toString().trim()
+        )
+        // 保存（密码走加密 Prefs）
+        p.edit()
+            .putString(K.PANEL_BASE, c.base)
+            .putString(K.PANEL_USER, c.user)
+            .putString(K.PANEL_PASS, c.pass)
+            .putString(K.PANEL_KEY, c.key)
+            .putBoolean(K.PANEL_MODE_KEY, c.mode == ServerPanelApi.Mode.KEY)
+            .apply()
+        return c
+    }
+
+    /** 自动找目录：面板下各服务器根目录结构不统一，逐个试候选 */
+    private fun probeDirs() {
+        val srv = chosen
+        if (srv == null) {
+            toast("请先连接并选一台服务器")
+            return
+        }
+        val c = cred()
+        toast("正在找模组目录…")
+        bg {
+            val token = try {
+                ServerPanelApi.tokenOf(c)
+            } catch (t: Throwable) {
+                log("认证失败：${t.message}")
+                toast("认证失败：${t.message}")
+                return@bg
+            }
+            val dirs = ServerPanelApi.probeDirs(c.base, token, srv.uuid.ifBlank { srv.id })
+            safePost(handler) {
+                if (dirs.isEmpty()) {
+                    log("没自动找到含 jar 的目录，可手动填路径（常见：/mods、/plugins）")
+                    toast("没找到，请手动填目录")
+                } else {
+                    log("找到目录：${dirs.joinToString("、")}")
+                    val arr = dirs.toTypedArray()
+                    MaterialAlertDialogBuilder(requireContext())
+                        .setTitle(R.string.panel_dir_pick)
+                        .setItems(arr) { _, w ->
+                            etDir.setText(arr[w])
+                            scanFiles()
+                        }
+                        .show()
+                }
+            }
+        }
     }
 
     private fun log(s: String) {
@@ -96,17 +180,30 @@ class ServerFragment : Fragment() {
     }
 
     private fun connect() {
-        save()
-        val base = etBase.text.toString().trim()
-        val key = etKey.text.toString().trim()
-        if (base.isBlank() || key.isBlank()) {
-            toast("请填写面板地址和 API Key")
+        val c = cred()
+        if (c.base.isBlank()) {
+            toast("请填写面板地址")
+            return
+        }
+        if (c.mode == ServerPanelApi.Mode.KEY && c.key.isBlank()) {
+            toast("请填写 Client API Key")
+            return
+        }
+        if (c.mode == ServerPanelApi.Mode.LOGIN && (c.user.isBlank() || c.pass.isBlank())) {
+            toast("请填写面板账号和密码")
             return
         }
         toast("正在连接面板…")
         bg {
+            val token = try {
+                ServerPanelApi.tokenOf(c)
+            } catch (t: Throwable) {
+                log("认证失败：${t.message}")
+                safePost(handler) { toast("认证失败：${t.message}") }
+                return@bg
+            }
             val list = try {
-                ServerPanelApi.servers(base, key)
+                ServerPanelApi.servers(c.base, token)
             } catch (t: Throwable) {
                 log("连接失败：${t.message}")
                 emptyList<PanelServer>()
@@ -122,8 +219,10 @@ class ServerFragment : Fragment() {
                         .setTitle("选择服务器")
                         .setItems(names) { _, w ->
                             chosen = list[w]
-                            tvServer.text = "服务器：${chosen!!.name} · ${chosen!!.id}"
-                            log("已选择 ${chosen!!.name}")
+                            tvServer.text = "服务器：${list[w].name} · ${list[w].id}"
+                            log("已选择 ${list[w].name}")
+                            // 选完服务器立刻找目录，省得用户自己去猜路径
+                            probeDirs()
                         }
                         .show()
                     toast("找到 ${list.size} 台服务器")
@@ -138,14 +237,21 @@ class ServerFragment : Fragment() {
             toast("请先连接并选择服务器")
             return
         }
-        val base = etBase.text.toString().trim()
-        val key = etKey.text.toString().trim()
+        val c = cred()
+        val base = c.base
         val dir = etDir.text.toString().trim().ifBlank { "/mods" }
         val ctx = requireContext()
         toast("正在列出 $dir …")
         bg {
+            val token = try {
+                ServerPanelApi.tokenOf(c)
+            } catch (t: Throwable) {
+                log("认证失败：${t.message}")
+                safePost(handler) { toast("认证失败：${t.message}") }
+                return@bg
+            }
             val list = try {
-                ServerPanelApi.listFiles(base, key, s.uuid.ifBlank { s.id }, dir)
+                ServerPanelApi.listFiles(base, token, s.uuid.ifBlank { s.id }, dir)
             } catch (t: Throwable) {
                 log("读取失败：${t.message}")
                 emptyList<PanelFile>()

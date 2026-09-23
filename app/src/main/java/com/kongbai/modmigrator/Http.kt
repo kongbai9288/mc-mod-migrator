@@ -37,6 +37,19 @@ object Http {
         }
     }
 
+    fun postJson(url: String, json: String, headers: Map<String, String> = emptyMap()): String {
+        val b = Request.Builder().url(url).header("User-Agent", UA)
+        for ((k, v) in headers) b.header(k, v)
+        val body = json.toRequestBody("application/json; charset=utf-8".toMediaType())
+        b.post(body)
+        val r = client.newCall(b.build()).execute()
+        r.use {
+            val s = it.body?.string() ?: ""
+            if (!it.isSuccessful) throw RuntimeException("HTTP ${it.code} ${s.take(200)}")
+            return s
+        }
+    }
+
     fun put(url: String, json: String, headers: Map<String, String>): String {
         val b = Request.Builder().url(url).header("User-Agent", UA)
         for ((k, v) in headers) b.header(k, v)
