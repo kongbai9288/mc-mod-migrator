@@ -12,4 +12,19 @@
     <color name="warn">#FFF9A825</color>
     <color name="error">#FFC62828</color>
     <color name="ok">#FF2E7D32</color>
+    <color name="primary_blue">#FF1565C0</color>
+    <color name="primaryDark_blue">#FF0D47A1</color>
+    <color name="accent_blue">#FF42A5F5</color>
+    <color name="primary_purple">#FF6A1B9A</color>
+    <color name="primaryDark_purple">#FF4A148C</color>
+    <color name="accent_purple">#FFAB47BC</color>
+    <color name="primary_orange">#FFEF6C00</color>
+    <color name="primaryDark_orange">#FFE65100</color>
+    <color name="accent_orange">#FFFFA726</color>
+    <color name="primary_red">#FFC62828</color>
+    <color name="primaryDark_red">#FFB71C1C</color>
+    <color name="accent_red">#FFEF5350</color>
+    <color name="primary_teal">#FF00695C</color>
+    <color name="primaryDark_teal">#FF004D40</color>
+    <color name="accent_teal">#FF26A69A</color>
 </resources>

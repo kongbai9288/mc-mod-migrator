@@ -1,6 +1,7 @@
 package com.kongbai.modmigrator
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -12,13 +13,29 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 
 class MainActivity : AppCompatActivity() {
 
+    /** 「更多」是固定项，占底部 5 个名额里的最后一个 */
+    private val ID_MORE = 1900
+    private var nav: BottomNavigationView? = null
+
+    /** 语言拓展包在这层注入，之后所有 getString 都会走译文 */
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LangPack.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        setTheme(ThemePrefs.styleRes(this))
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val nav = findViewById<BottomNavigationView>(R.id.bottom_nav)
-        if (savedInstanceState == null) switchTo(R.id.nav_migration)
-        nav.setOnItemSelectedListener { item ->
+        nav = findViewById(R.id.bottom_nav)
+        buildNav()
+
+        if (savedInstanceState == null) {
+            val first = NavConfig.navPages(this).firstOrNull()
+            if (first != null && first.key != "settings") switchTo(NavConfig.idOf(first.key))
+        }
+
+        nav?.setOnItemSelectedListener { item ->
             switchTo(item.itemId)
             true
         }
@@ -43,23 +60,56 @@ class MainActivity : AppCompatActivity() {
         CrashReport.showIfAny(this)
     }
 
+    /**
+     * 每次回到主界面都重建导航：
+     * 用户可能在设置/更多里改了导航栏配置，不刷新就会显示旧的。
+     */
+    override fun onResume() {
+        super.onResume()
+        try {
+            buildNav()
+        } catch (t: Throwable) {
+        }
+    }
+
+    private fun buildNav() {
+        val n = nav ?: return
+        val menu = n.menu
+        menu.clear()
+        val pages = NavConfig.navPages(this)
+        // Material 硬性上限 5 项，这里自定义最多 4 项 + 固定的「更多」
+        for ((i, p) in pages.withIndex()) {
+            menu.add(0, NavConfig.idOf(p.key), i, getString(p.titleRes))
+                .setIcon(p.iconRes)
+        }
+        menu.add(0, ID_MORE, pages.size, getString(R.string.tab_more))
+            .setIcon(R.drawable.ic_filter_list)
+    }
+
     private fun switchTo(id: Int) {
-        // 设置走独立的二级菜单页面，不再塞进底部导航
-        if (id == R.id.nav_settings) {
-            startActivity(android.content.Intent(this, SettingsHostActivity::class.java))
+        if (id == ID_MORE) {
+            replace(MoreFragment())
             return
         }
-        val f: Fragment = try {
-            when (id) {
-                R.id.nav_server -> ServerFragment()
-                R.id.nav_market -> MarketFragment()
-                R.id.nav_sync -> SyncFragment()
-                else -> MigrationFragment()
+        val key = NavConfig.keyOfId(id) ?: return
+        // 设置是二级菜单页，保持原来的入口行为
+        if (key == "settings") {
+            try {
+                startActivity(android.content.Intent(this, SettingsHostActivity::class.java))
+            } catch (t: Throwable) {
             }
+            return
+        }
+        val p = NavConfig.find(key) ?: return
+        val f: Fragment = try {
+            p.make()
         } catch (t: Throwable) {
-            // 某个页面构造失败时退回默认页，至少应用能用
             MigrationFragment()
         }
+        replace(f)
+    }
+
+    private fun replace(f: Fragment) {
         try {
             supportFragmentManager.beginTransaction()
                 .replace(R.id.fragment_container, f)

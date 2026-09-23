@@ -1,0 +1,146 @@
+package com.kongbai.modmigrator
+
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Toast
+import androidx.fragment.app.Fragment
+import com.google.android.material.button.MaterialButton
+
+/**
+ * 底部导航栏自定义。
+ *
+ * 可以：
+ *   - 把「更多」里的功能移到底部栏（正向移动）
+ *   - 把底部栏的功能移回「更多」（反向移动）
+ *   - 在底部栏内上下调序
+ *
+ * Material 的 BottomNavigationView 硬限制 5 项，这里始终保证不超过。
+ */
+class SettingsNavFragment : Fragment() {
+
+    private lateinit var boxBottom: LinearLayout
+    private lateinit var boxMore: LinearLayout
+    private lateinit var tvTip: TextView
+
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
+    ): View {
+        val ctx = requireContext()
+        val scroll = android.widget.ScrollView(ctx)
+        val root = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            val pad = (16 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad, pad, pad)
+        }
+        scroll.addView(root)
+
+        tvTip = TextView(ctx).apply {
+            textSize = 12f
+            setTextColor(resources.getColor(R.color.textSecondary, null))
+        }
+        root.addView(tvTip)
+
+        root.addView(TextView(ctx).apply {
+            text = "底部导航栏（长按可上下调序）"
+            textSize = 14f
+            setPadding(0, 12, 0, 6)
+        })
+        boxBottom = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        root.addView(boxBottom)
+
+        root.addView(TextView(ctx).apply {
+            text = "更多（不在底部栏的）"
+            textSize = 14f
+            setPadding(0, 16, 0, 6)
+        })
+        boxMore = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        root.addView(boxMore)
+
+        refresh()
+        return scroll
+    }
+
+    private fun toast(s: String) {
+        context?.let { Toast.makeText(it, s, Toast.LENGTH_SHORT).show() }
+    }
+
+    private fun refresh() {
+        val ctx = context ?: return
+        val bottom = NavConfig.bottom(ctx)
+        val more = NavConfig.more(ctx)
+        tvTip.text =
+            "底部最多 5 项（Material 限制）。当前底部 ${bottom.size} 个、更多 ${more.size} 个。"
+
+        boxBottom.removeAllViews()
+        for ((i, key) in bottom.withIndex()) {
+            val it = NavConfig.item(key) ?: continue
+            val row = LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, 4, 0, 4)
+            }
+            val label = TextView(ctx).apply {
+                text = getString(it.title)
+                textSize = 14f
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            row.addView(label)
+            val up = MaterialButton(ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
+            up.text = "↑"
+            up.setOnClickListener {
+                if (!NavConfig.moveInBottom(ctx, key, true)) toast("已经在最上面")
+                refresh()
+            }
+            row.addView(up)
+            val down = MaterialButton(ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
+            down.text = "↓"
+            down.setOnClickListener {
+                if (!NavConfig.moveInBottom(ctx, key, false)) toast("已经在最下面")
+                refresh()
+            }
+            row.addView(down)
+            val out = MaterialButton(ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
+            out.text = "移出"
+            out.setOnClickListener {
+                if (!NavConfig.moveToMore(ctx, key)) toast("底部至少保留 1 项")
+                else {
+                    toast("已移到「更多」")
+                    (activity as? MainActivity)?.rebuildNav()
+                }
+                refresh()
+            }
+            row.addView(out)
+            boxBottom.addView(row)
+        }
+
+        boxMore.removeAllViews()
+        for (it in more) {
+            val row = LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, 4, 0, 4)
+            }
+            val label = TextView(ctx).apply {
+                text = getString(it.title)
+                textSize = 14f
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            row.addView(label)
+            val add = MaterialButton(ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
+            add.text = "移到底部"
+            add.setOnClickListener {
+                if (!NavConfig.moveToBottom(ctx, it.key)) {
+                    toast("底部最多 5 个，先从上面移一个出来")
+                } else {
+                    toast("已移到底部导航栏")
+                    (activity as? MainActivity)?.rebuildNav()
+                }
+                refresh()
+            }
+            row.addView(add)
+            boxMore.addView(row)
+        }
+    }
+}

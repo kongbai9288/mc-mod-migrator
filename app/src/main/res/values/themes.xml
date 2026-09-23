@@ -8,4 +8,41 @@
         <item name="android:statusBarColor">@color/primaryDark</item>
         <item name="preferenceTheme">@style/PreferenceThemeOverlay</item>
     </style>
+
+    <style name="Theme.ModMigrator.Green" parent="Theme.ModMigrator" />
+
+    <style name="Theme.ModMigrator.Blue" parent="Theme.ModMigrator">
+        <item name="colorPrimary">@color/primary_blue</item>
+        <item name="colorPrimaryDark">@color/primaryDark_blue</item>
+        <item name="colorAccent">@color/accent_blue</item>
+        <item name="android:statusBarColor">@color/primaryDark_blue</item>
+    </style>
+
+    <style name="Theme.ModMigrator.Purple" parent="Theme.ModMigrator">
+        <item name="colorPrimary">@color/primary_purple</item>
+        <item name="colorPrimaryDark">@color/primaryDark_purple</item>
+        <item name="colorAccent">@color/accent_purple</item>
+        <item name="android:statusBarColor">@color/primaryDark_purple</item>
+    </style>
+
+    <style name="Theme.ModMigrator.Orange" parent="Theme.ModMigrator">
+        <item name="colorPrimary">@color/primary_orange</item>
+        <item name="colorPrimaryDark">@color/primaryDark_orange</item>
+        <item name="colorAccent">@color/accent_orange</item>
+        <item name="android:statusBarColor">@color/primaryDark_orange</item>
+    </style>
+
+    <style name="Theme.ModMigrator.Red" parent="Theme.ModMigrator">
+        <item name="colorPrimary">@color/primary_red</item>
+        <item name="colorPrimaryDark">@color/primaryDark_red</item>
+        <item name="colorAccent">@color/accent_red</item>
+        <item name="android:statusBarColor">@color/primaryDark_red</item>
+    </style>
+
+    <style name="Theme.ModMigrator.Teal" parent="Theme.ModMigrator">
+        <item name="colorPrimary">@color/primary_teal</item>
+        <item name="colorPrimaryDark">@color/primaryDark_teal</item>
+        <item name="colorAccent">@color/accent_teal</item>
+        <item name="android:statusBarColor">@color/primaryDark_teal</item>
+    </style>
 </resources>

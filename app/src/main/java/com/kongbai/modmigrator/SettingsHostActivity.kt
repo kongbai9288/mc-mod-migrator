@@ -1,5 +1,6 @@
 package com.kongbai.modmigrator
 
+import android.content.Context
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
@@ -7,7 +8,12 @@ import androidx.fragment.app.Fragment
 /** 二级设置：入口页 + 各分组详情页 */
 class SettingsHostActivity : AppCompatActivity() {
 
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LangPack.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        setTheme(ThemePrefs.styleRes(this))
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings2)
         current = intent.getStringExtra("page") ?: "main"
@@ -24,6 +30,11 @@ class SettingsHostActivity : AppCompatActivity() {
             "search" -> SettingsSearchFragment()
             "migrate" -> SettingsMigrateFragment()
             "storage" -> SettingsStorageFragment()
+            "nav" -> SettingsNavFragment()
+            "more" -> MoreFragment()
+            "nav" -> SettingsNavFragment()
+            "theme" -> SettingsThemeFragment()
+            "lang" -> SettingsLangFragment()
             "plugin" -> PluginFragment()
             "devs" -> DevsFragment()
             "log" -> SettingsLogFragment()
@@ -39,6 +50,11 @@ class SettingsHostActivity : AppCompatActivity() {
             "search" -> getString(R.string.menu_search)
             "migrate" -> getString(R.string.menu_migrate)
             "storage" -> getString(R.string.menu_storage)
+            "nav" -> getString(R.string.menu_nav)
+            "more" -> getString(R.string.tab_more)
+            "nav" -> getString(R.string.nav_title)
+            "theme" -> getString(R.string.theme_title)
+            "lang" -> getString(R.string.lang_title)
             "plugin" -> getString(R.string.menu_plugin)
             "devs" -> getString(R.string.menu_devs)
             "log" -> getString(R.string.menu_log)
