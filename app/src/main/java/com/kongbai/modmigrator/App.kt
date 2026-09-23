@@ -13,6 +13,7 @@ class App : Application() {
         installCrashHandler()
         Prefs.init(this)
         Store.init(this)
+        runCatching { LangPack.load(this) }
         runCatching { UpdateWorker.schedule(this) }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
