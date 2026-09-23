@@ -96,6 +96,13 @@
             android:text="@string/menu_devs" />
 
         <Button
+            android:id="@+id/btnGoLog"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/menu_log" />
+
+        <Button
             android:id="@+id/btnGoAbout"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="match_parent"

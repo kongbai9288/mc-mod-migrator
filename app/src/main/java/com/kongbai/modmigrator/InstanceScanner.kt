@@ -171,10 +171,10 @@ object InstanceScanner {
                     val ver = Json.s(c, "version")
                     when {
                         uid == "net.minecraft" -> info.mcVersion = ver
-                        uid.startsWith("net.fabricmc") -> info.loader = "fabric"
-                        uid.startsWith("org.quiltmc") -> info.loader = "quilt"
-                        uid.startsWith("net.minecraftforge") -> info.loader = "forge"
-                        uid.startsWith("net.neoforged") -> info.loader = "neoforge"
+                        else -> {
+                            val n = Loaders.normalize(uid)
+                            if (n != "auto") info.loader = n
+                        }
                     }
                 }
             }
@@ -189,13 +189,7 @@ object InstanceScanner {
             val ls = Json.a(mcObj, "modLoaders")
             if (ls != null && ls.size() > 0) {
                 val idv = Json.s(ls[0], "id")
-                info.loader = when {
-                    idv.startsWith("forge") -> "forge"
-                    idv.startsWith("neoforge") -> "neoforge"
-                    idv.startsWith("fabric") -> "fabric"
-                    idv.startsWith("quilt") -> "quilt"
-                    else -> "auto"
-                }
+                info.loader = Loaders.normalize(idv)
             }
             info.kind = "CurseForge"
         }
@@ -365,10 +359,10 @@ object InstanceScanner {
                     val ver = Json.s(c, "version")
                     when {
                         uid == "net.minecraft" -> info.mcVersion = ver
-                        uid.startsWith("net.fabricmc") -> info.loader = "fabric"
-                        uid.startsWith("org.quiltmc") -> info.loader = "quilt"
-                        uid.startsWith("net.minecraftforge") -> info.loader = "forge"
-                        uid.startsWith("net.neoforged") -> info.loader = "neoforge"
+                        else -> {
+                            val n = Loaders.normalize(uid)
+                            if (n != "auto") info.loader = n
+                        }
                     }
                 }
             }
@@ -383,13 +377,7 @@ object InstanceScanner {
             val ls = Json.a(mcObj, "modLoaders")
             if (ls != null && ls.size() > 0) {
                 val idv = Json.s(ls[0], "id")
-                info.loader = when {
-                    idv.startsWith("forge") -> "forge"
-                    idv.startsWith("neoforge") -> "neoforge"
-                    idv.startsWith("fabric") -> "fabric"
-                    idv.startsWith("quilt") -> "quilt"
-                    else -> "auto"
-                }
+                info.loader = Loaders.normalize(idv)
             }
             info.kind = "CurseForge"
         }

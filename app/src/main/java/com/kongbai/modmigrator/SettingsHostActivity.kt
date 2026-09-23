@@ -26,6 +26,7 @@ class SettingsHostActivity : AppCompatActivity() {
             "storage" -> SettingsStorageFragment()
             "plugin" -> PluginFragment()
             "devs" -> DevsFragment()
+            "log" -> SettingsLogFragment()
             "about" -> SettingsAboutFragment()
             else -> SettingsMainFragment()
         }
@@ -40,6 +41,7 @@ class SettingsHostActivity : AppCompatActivity() {
             "storage" -> getString(R.string.menu_storage)
             "plugin" -> getString(R.string.menu_plugin)
             "devs" -> getString(R.string.menu_devs)
+            "log" -> getString(R.string.menu_log)
             "about" -> getString(R.string.menu_about)
             else -> getString(R.string.tab_settings)
         }

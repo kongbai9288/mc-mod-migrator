@@ -45,7 +45,14 @@ class MarketFragment : Fragment() {
         rvMods = v.findViewById(R.id.rvMods)
         rvLinks = v.findViewById(R.id.rvLinks)
 
-        resAdapter = MarketAdapter(results, { m -> install(m) }, { m -> openPage(m.pageUrl) }, { m -> translate(m) })
+        resAdapter = MarketAdapter(
+            results,
+            { m -> install(m) },
+            { m -> openPage(m.pageUrl) },
+            { m -> translate(m) },
+            { m -> toggleFav(m) },
+            { m -> Favorites.has(requireContext(), m) }
+        )
         linkAdapter = LinkAdapter(links, { l -> downloadLink(l) }, { l ->
             Store.removeLink(requireContext(), l.url)
             reloadLinks()
@@ -58,6 +65,8 @@ class MarketFragment : Fragment() {
         rvLinks.isNestedScrollingEnabled = false
 
         v.findViewById<Button>(R.id.btnSearch).setOnClickListener { search() }
+        v.findViewById<Button>(R.id.btnRecommend)?.setOnClickListener { recommend() }
+        v.findViewById<Button>(R.id.btnFavorites)?.setOnClickListener { showFavorites() }
         v.findViewById<Button>(R.id.btnAddLink).setOnClickListener { addLinkDialog() }
         v.findViewById<Button>(R.id.btnOpenPage).setOnClickListener { openPageDialog() }
 
@@ -131,6 +140,59 @@ class MarketFragment : Fragment() {
                 autoTranslate(list)
             }
         }
+    }
+
+    /** 已安装模组名（小写），用于推荐时过滤掉装过的 */
+    private fun installedNames(): Set<String> {
+        return try {
+            val ctx = context ?: return emptySet()
+            val dir = WorkDir.modsDir(ctx) ?: return emptySet()
+            Fs.children(dir).mapNotNull { it.name }
+                .filter { it.endsWith(".jar", true) }
+                .map { it.substringBeforeLast(".").lowercase() }
+                .toSet()
+        } catch (t: Throwable) {
+            emptySet()
+        }
+    }
+
+    /** 长按收藏 / 取消收藏 */
+    private fun toggleFav(mod: MarketMod) {
+        val ctx = context ?: return
+        val added = Favorites.toggle(ctx, mod)
+        toast(if (added) "已收藏：${mod.name}" else "已取消收藏：${mod.name}")
+        resAdapter.notifyDataSetChanged()
+    }
+
+    /** 推荐：按当前版本与加载器拉热门模组 */
+    private fun recommend() {
+        val ctx = context ?: return
+        val mc = mcVersion()
+        val ld = loader()
+        toast("正在获取推荐…")
+        bg {
+            val list = AggregateSearch.recommend(ctx, mc, ld, installedNames())
+            safePost(handler) {
+                results.clear()
+                results.addAll(list)
+                resAdapter.notifyDataSetChanged()
+                toast(if (list.isEmpty()) "没获取到推荐" else "推荐 ${list.size} 个")
+            }
+        }
+    }
+
+    /** 收藏夹 */
+    private fun showFavorites() {
+        val ctx = context ?: return
+        val favs = Favorites.list(ctx)
+        if (favs.isEmpty()) {
+            toast("收藏夹是空的（长按搜索结果即可收藏）")
+            return
+        }
+        results.clear()
+        results.addAll(favs)
+        resAdapter.notifyDataSetChanged()
+        toast("收藏 ${favs.size} 个")
     }
 
     private fun translate(mod: MarketMod) {

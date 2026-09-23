@@ -11,6 +11,7 @@ data class ModEntry(
     var targetVersion: String = "",
     var targetUrl: String = "",
     var targetFileName: String = "",
+    var pageUrl: String = "",
     var status: String = "待处理"
 )
 

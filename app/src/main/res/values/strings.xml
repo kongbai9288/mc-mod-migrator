@@ -142,4 +142,13 @@
     <string name="downloading">正在下载</string>
     <string name="mark_link_title">标记为下载链接？</string>
     <string name="empty_hint">这里还没有内容</string>
+    <string name="token_auto_ok">已自动获取 GitHub Token，同步无需手填</string>
+    <string name="token_manual_hint">已授权，但后端未开放 Token 下发接口，请在下面的 Token 框手动填写</string>
+    <string name="token_offline_hint">离线模式：不发网络请求，请手动填写 Token</string>
+    <string name="btn_recommend">推荐</string>
+    <string name="btn_favorites">收藏夹</string>
+    <string name="market_tips">长按结果可收藏；点整行打开模组页；「推荐」按当前版本与加载器给热门模组并过滤已装的</string>
+    <string name="menu_log">运行日志</string>
+    <string name="btn_refresh_log">刷新</string>
+    <string name="btn_only_errors">只看错误</string>
 </resources>

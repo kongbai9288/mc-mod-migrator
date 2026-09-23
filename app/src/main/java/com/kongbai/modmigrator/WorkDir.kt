@@ -34,6 +34,12 @@ object WorkDir {
     fun cache(ctx: Context): DocumentFile? = sub(ctx, "cache")
     fun translate(ctx: Context): DocumentFile? = sub(ctx, "translate")
 
+    /** 运行日志 */
+    fun logs(ctx: Context): DocumentFile? = sub(ctx, "logs")
+
+    /** 收藏与用户数据（收藏列表、标记链接等，跟着工作目录走，换设备可带走） */
+    fun data(ctx: Context): DocumentFile? = sub(ctx, "data")
+
     /** 目标 mods 目录：优先工作目录，没授权才退回应用私有目录 */
     fun modsDir(ctx: Context): DocumentFile? {
         return mods(ctx) ?: Targets.modsDir(ctx)

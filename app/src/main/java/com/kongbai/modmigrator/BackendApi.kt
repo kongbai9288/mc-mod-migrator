@@ -86,10 +86,32 @@ object BackendApi {
         )
     }
 
+    /**
+     * 登录入口固定走 workers.dev。
+     * 原因：后端用 ${url.origin} 拼 redirect_uri，而 GitHub OAuth App 里
+     * 只登记了 workers.dev 这一条回调地址。走自定义域会因回调未登记而报
+     * redirect_uri 不匹配。搜索等接口仍可用自定义域并自动兜底。
+     */
+    fun authBase(): String = WORKERS_BASE
+
     fun loginUrl(ctx: Context): String {
-        val o = Json.obj(getAny(ctx, "/api/auth/login") ?: return "") ?: return ""
+        // 登录必须打 workers.dev，否则回调地址对不上
+        val o = Json.obj(Http.get(authBase() + "/api/auth/login")) ?: return ""
         return Json.s(o, "url")
     }
+
+    /** 已通过 GitHub 授权后，向后端换取可用的 GitHub token（自动填充，无需手填） */
+    fun fetchToken(ctx: Context): String {
+        return try {
+            val o = Json.obj(Http.get(authBase() + "/api/auth/token")) ?: return ""
+            Json.s(o, "token")
+        } catch (t: Throwable) {
+            ""
+        }
+    }
+
+    /** 是否已经通过后端完成 GitHub 授权 */
+    fun authed(ctx: Context): Boolean = me(ctx) != null
 
     /**
      * 后端实际使用的回调地址。
@@ -106,7 +128,12 @@ object BackendApi {
         knownBases().map { "$it/api/auth/callback" }
 
     fun me(ctx: Context): User? {
-        val o = Json.obj(getAny(ctx, "/api/auth/me") ?: return null) ?: return null
+        // 登录态 cookie 绑定在 workers.dev 下，这里固定走同一域名
+        val o = try {
+            Json.obj(Http.get(authBase() + "/api/auth/me"))
+        } catch (t: Throwable) {
+            null
+        } ?: return null
         val u = o.asJsonObject.get("user")
         if (u == null || u.isJsonNull) return null
         return User(
@@ -118,7 +145,7 @@ object BackendApi {
 
     fun logout(ctx: Context) {
         try {
-            getAny(ctx, "/api/auth/logout")
+            Http.get(authBase() + "/api/auth/logout")
         } catch (t: Throwable) {
         }
     }

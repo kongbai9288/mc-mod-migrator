@@ -15,7 +15,8 @@ object Prefs {
         get(ctx)
     }
 
-    fun appCtx(): Context = app
+    /** 可能还没 init，返回 null 而不是崩 */
+    fun appCtx(): Context? = if (::app.isInitialized) app else null
 
     fun mirror(): Boolean {
         if (!::app.isInitialized) return true
@@ -79,4 +80,6 @@ object K {
     const val RECOMMEND = "recommend"
     const val UPDATE_CHECK = "update_check"
     const val LAST_UPDATE_TIP = "last_update_tip"
+    const val FAVORITES = "favorites"
+    const val GH_TOKEN_BACKEND = "gh_token_backend"
 }

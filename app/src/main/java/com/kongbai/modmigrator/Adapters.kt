@@ -11,7 +11,8 @@ import coil.load
 
 class ModAdapter(
     private val items: MutableList<ModEntry>,
-    private val onAction: (ModEntry) -> Unit
+    private val onAction: (ModEntry) -> Unit,
+    private val onDetail: ((ModEntry) -> Unit)? = null
 ) : RecyclerView.Adapter<ModAdapter.VH>() {
 
     class VH(v: View) : RecyclerView.ViewHolder(v) {
@@ -37,6 +38,10 @@ class ModAdapter(
         h.action.text = if (m.targetUrl.isBlank()) "跳过" else "下载"
         h.action.isEnabled = m.targetUrl.isNotBlank()
         h.action.setOnClickListener { onAction(m) }
+        // 整行点击 = 打开模组详情页（有地址才跳）
+        h.itemView.setOnClickListener {
+            if (onDetail != null) onDetail(m)
+        }
     }
 }
 
@@ -44,7 +49,9 @@ class MarketAdapter(
     private val items: MutableList<MarketMod>,
     private val onInstall: (MarketMod) -> Unit,
     private val onOpen: (MarketMod) -> Unit,
-    private val onTranslate: (MarketMod) -> Unit
+    private val onTranslate: (MarketMod) -> Unit,
+    private val onFav: (MarketMod) -> Unit = {},
+    private val isFav: (MarketMod) -> Boolean = { false }
 ) : RecyclerView.Adapter<MarketAdapter.VH>() {
 
     class VH(v: View) : RecyclerView.ViewHolder(v) {
@@ -65,7 +72,8 @@ class MarketAdapter(
 
     override fun onBindViewHolder(h: VH, pos: Int) {
         val m = items[pos]
-        h.name.text = m.name
+        // 收藏的加个星标，一眼能认出来
+        h.name.text = (if (isFav(m)) "★ " else "") + m.name
         h.meta.text = "${m.source} · 下载量 ${m.downloads}"
         if (m.summaryZh.isNotBlank()) {
             h.status.text = m.summaryZh
@@ -93,6 +101,11 @@ class MarketAdapter(
         h.action.text = "安装"
         h.action.setOnClickListener { onInstall(m) }
         h.itemView.setOnClickListener { onOpen(m) }
+        // 长按收藏 / 取消收藏
+        h.itemView.setOnLongClickListener {
+            onFav(m)
+            true
+        }
     }
 }
 
