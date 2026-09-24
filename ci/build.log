@@ -36,16 +36,18 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:extractProguardFiles
 > Task :app:mergeReleaseJniLibFolders
 > Task :app:mergeReleaseNativeLibs
-> Task :app:checkReleaseDuplicateClasses
 > Task :app:desugarReleaseFileDependencies
+> Task :app:checkReleaseDuplicateClasses
+> Task :app:processReleaseManifestForPackage
+> Task :app:mergeReleaseArtProfile
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libtranslate_jni.so.
 
-> Task :app:processReleaseManifestForPackage
 > Task :app:extractReleaseNativeSymbolTables
+> Task :app:processReleaseResources
+> Task :app:mergeExtDexRelease
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
-> Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
@@ -56,11 +58,8 @@ Unable to strip the following libraries, packaging them as they are: libtranslat
 > Task :app:validateSigningRelease
 > Task :app:writeReleaseAppMetadata
 > Task :app:writeReleaseSigningConfigVersions
-> Task :app:processReleaseResources
-> Task :app:mergeExtDexRelease
 > Task :app:optimizeReleaseResources
-
-> Task :app:compileReleaseKotlin FAILED
+> Task :app:compileReleaseKotlin
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/NavConfig.kt:43:13 No value passed for parameter 'make'
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Store.kt:89:28 Unresolved reference: LAST_VIEW_KEY
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Store.kt:90:28 Unresolved reference: LAST_VIEW_TITLE
@@ -71,6 +70,8 @@ e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Store.kt:112:25 Unresolved reference: LAST_VIEW_KEY
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Store.kt:112:47 Unresolved reference: LAST_VIEW_TITLE
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Store.kt:112:71 Unresolved reference: LAST_VIEW_AT
+
+> Task :app:compileReleaseKotlin FAILED
 
 FAILURE: Build failed with an exception.
 
@@ -85,5 +86,5 @@ Execution failed for task ':app:compileReleaseKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 1m 35s
+BUILD FAILED in 1m 55s
 34 actionable tasks: 34 executed
