@@ -32,8 +32,8 @@ class SettingsStorageFragment : Fragment() {
             startActivityForResult(i, 21)
         }
         btnClear.setOnClickListener {
-            Prefs.get(requireContext()).edit().putString(K.WORKDIR_URI, "")
-                    WorkDir.invalidate().apply()
+            Prefs.get(requireContext()).edit().putString(K.WORKDIR_URI, "").apply()
+            WorkDir.invalidate()
             refresh()
             Toast.makeText(requireContext(), "已清除工作目录", Toast.LENGTH_SHORT).show()
         }

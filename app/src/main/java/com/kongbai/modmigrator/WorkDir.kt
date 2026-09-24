@@ -105,8 +105,8 @@ object WorkDir {
     fun persist(ctx: Context, treeUri: Uri): Boolean {
         // 统一走 Perms：复用已有授权、自动回收配额，避免越用越卡
         val ok = Perms.take(ctx, treeUri)
-        Prefs.get(ctx).edit().putString(K.WORKDIR_URI, treeUri.toString()
-                    WorkDir.invalidate()).apply()
+        Prefs.get(ctx).edit().putString(K.WORKDIR_URI, treeUri.toString()).apply()
+        WorkDir.invalidate()
         return ok
     }
 }
