@@ -86,9 +86,9 @@ object Store {
     fun markViewed(ctx: android.content.Context, key: String, title: String) {
         try {
             Prefs.get(ctx).edit()
-                .putString(LAST_VIEW_KEY, key)
-                .putString(LAST_VIEW_TITLE, title)
-                .putLong(LAST_VIEW_AT, System.currentTimeMillis())
+                .putString(K.LAST_VIEW_KEY, key)
+                .putString(K.LAST_VIEW_TITLE, title)
+                .putLong(K.LAST_VIEW_AT, System.currentTimeMillis())
                 .apply()
         } catch (t: Throwable) {
         }
@@ -98,9 +98,9 @@ object Store {
     fun lastViewed(ctx: android.content.Context): Triple<String, String, Long>? {
         return try {
             val p = Prefs.get(ctx)
-            val k = p.getString(LAST_VIEW_KEY, "") ?: ""
+            val k = p.getString(K.LAST_VIEW_KEY, "") ?: ""
             if (k.isBlank()) return null
-            Triple(k, p.getString(LAST_VIEW_TITLE, "") ?: "", p.getLong(LAST_VIEW_AT, 0L))
+            Triple(k, p.getString(K.LAST_VIEW_TITLE, "") ?: "", p.getLong(K.LAST_VIEW_AT, 0L))
         } catch (t: Throwable) {
             null
         }
@@ -109,7 +109,7 @@ object Store {
     fun clearViewed(ctx: android.content.Context) {
         try {
             Prefs.get(ctx).edit()
-                .remove(LAST_VIEW_KEY).remove(LAST_VIEW_TITLE).remove(LAST_VIEW_AT)
+                .remove(K.LAST_VIEW_KEY).remove(K.LAST_VIEW_TITLE).remove(K.LAST_VIEW_AT)
                 .apply()
         } catch (t: Throwable) {
         }

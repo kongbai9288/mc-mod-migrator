@@ -114,5 +114,7 @@ object K {
     const val LAST_VIEW_KEY = "last_view_key"
     const val LAST_VIEW_TITLE = "last_view_title"
     const val LAST_VIEW_AT = "last_view_at"              // 动画速率：0慢 1正常 2快
+    const val MC_VERSION = "mc_version"            // 目标 MC 版本
+    const val LOADER = "loader_type"                // 目标加载器 fabric/forge/quilt/neoforge
     const val DOWNLOAD_SPEED = "download_speed"      // 下载并发：0单线程 1适中 2最大
 }

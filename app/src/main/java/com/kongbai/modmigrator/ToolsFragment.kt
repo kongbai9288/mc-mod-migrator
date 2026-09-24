@@ -61,7 +61,294 @@ class ToolsFragment : Fragment() {
             "看工作目录各子目录占了多少空间", "查看"
         ) { usage() })
 
+        // ---------- 依赖与冲突 ----------
+        root.addView(UiCards.sectionTitle(ctx, "依赖与冲突"))
+
+        root.addView(UiCards.infoCard(
+            ctx, R.drawable.ic_extension, "依赖体检（递归）",
+            "逐级追查缺失的前置，不只查一层；检测重复 ID、加载器冲突", "运行"
+        ) { depCheck() })
+
+        root.addView(UiCards.infoCard(
+            ctx, R.drawable.ic_warning, "模组开关",
+            "直接启用/禁用模组，不移动文件（改扩展名，加载器原生支持）", "打开"
+        ) { modToggle() })
+
+        // ---------- 实例与加载器 ----------
+        root.addView(UiCards.sectionTitle(ctx, "实例与加载器"))
+
+        root.addView(UiCards.infoCard(
+            ctx, R.drawable.ic_rocket_launch, "补齐实例结构",
+            "建好 mods/config/saves 等目录，写入 Prism 可识别的实例描述", "创建"
+        ) { createInstance() })
+
+        // ---------- 整合包 ----------
+        root.addView(UiCards.sectionTitle(ctx, "整合包"))
+
+        root.addView(UiCards.infoCard(
+            ctx, R.drawable.ic_cloud_upload, "导出 .mrpack",
+            "按 Modrinth 格式导出，可分享给别人或自己备份", "导出"
+        ) { exportMrpack() })
+
+        // ---------- 开发者 ----------
+        root.addView(UiCards.sectionTitle(ctx, "开发者"))
+
+        root.addView(UiCards.infoCard(
+            ctx, R.drawable.ic_edit, "代码级迁移",
+            "Forge↔Fabric↔NeoForge 工程转换，先扫描出报告再改", "打开"
+        ) { codeMigrate() })
+
         return scroll
+    }
+
+    // ---------------- 依赖体检 ----------------
+
+    private fun depCheck() {
+        val ctx = context ?: return
+        toast("正在读取本地模组…")
+        bg {
+            val dir = Targets.modsDir(ctx) ?: WorkDir.modsDir(ctx)
+            if (dir == null) {
+                toast("没有可用的 mods 目录")
+                return@bg
+            }
+            val files = dir.listFiles().filter { (it.name ?: "").endsWith(".jar", true) }
+            if (files.isEmpty()) {
+                toast("mods 目录是空的")
+                return@bg
+            }
+            val mods = ArrayList<ModDepGraph.Mod>()
+            for (f in files) {
+                val meta = ModMeta.read(ctx, f.uri)
+                val name = f.name ?: ""
+                val id = meta.id.ifBlank { name.substringBeforeLast('.') }
+                mods.add(
+                    ModDepGraph.Mod(
+                        file = name,
+                        id = id,
+                        name = meta.name.ifBlank { id },
+                        version = meta.version,
+                        loader = meta.loader,
+                        depends = meta.depends,
+                        breaks = meta.breaks
+                    )
+                )
+            }
+            val report = ModDepGraph.analyze(mods)
+            show("依赖体检（${mods.size} 个模组）", ModDepGraph.format(report))
+        }
+    }
+
+    // ---------------- 模组开关 ----------------
+
+    private fun modToggle() {
+        val ctx = context ?: return
+        bg {
+            val dir = Targets.modsDir(ctx) ?: WorkDir.modsDir(ctx)
+            if (dir == null) {
+                toast("没有可用的 mods 目录")
+                return@bg
+            }
+            val files = dir.listFiles().filter {
+                val n = (it.name ?: "").lowercase()
+                n.endsWith(".jar") || n.endsWith(".jar.disabled")
+            }
+            if (files.isEmpty()) {
+                toast("mods 目录里没有模组")
+                return@bg
+            }
+            val names = files.map { ModToggle.displayName(it) }.toTypedArray()
+            val states = files.map { !ModToggle.isDisabled(it) }.toBooleanArray()
+
+            handler.post {
+                if (!isAdded) return@post
+                MaterialAlertDialogBuilder(ctx)
+                    .setTitle("模组开关（点一下切换）")
+                    .setMultiChoiceItems(names, states) { _, which, checked ->
+                        bg {
+                            val f = files[which]
+                            val wantDisabled = !checked
+                            val ok = if (wantDisabled) ModToggle.disable(f)
+                            else ModToggle.enable(f)
+                            handler.post {
+                                if (ok != null) {
+                                    toast(if (wantDisabled) "已禁用" else "已启用")
+                                } else {
+                                    toast("操作失败（目录可能只读）")
+                                }
+                            }
+                        }
+                    }
+                    .setPositiveButton(R.string.ok, null)
+                    .setNeutralButton("说明") { _, _ ->
+                        MaterialAlertDialogBuilder(ctx)
+                            .setTitle("这是怎么生效的")
+                            .setMessage(
+                                "禁用 = 把 xxx.jar 改名成 xxx.jar.disabled。\n\n" +
+                                    "加载器只加载 .jar 结尾的文件，改了名它就不加载了。\n\n" +
+                                    "好处：文件还在原地，随时能改回来，比挪走安全。"
+                            )
+                            .setPositiveButton(R.string.ok, null)
+                            .show()
+                    }
+                    .show()
+            }
+        }
+    }
+
+    // ---------------- 实例结构 ----------------
+
+    private fun createInstance() {
+        val ctx = context ?: return
+        val dstUri = Prefs.get(ctx).getString(K.DST_URI, "") ?: ""
+        if (dstUri.isBlank()) {
+            toast("请先在迁移页设置「迁移后」的目录")
+            return
+        }
+        val opts = arrayOf("Fabric", "Forge", "Quilt", "NeoForge", "先不装加载器")
+        val keys = arrayOf("fabric", "forge", "quilt", "neoforge", "")
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("目标实例用哪个加载器")
+            .setItems(opts) { _, w ->
+                val loader = keys[w]
+                bg {
+                    val dst = Fs.tree(ctx, dstUri)
+                    if (dst == null) {
+                        toast("目标目录不可访问")
+                        return@bg
+                    }
+                    val made = InstanceCreator.scaffold(ctx, dst)
+                    val mc = Prefs.get(ctx).getString(K.MC_VERSION, "") ?: ""
+                    val name = dst.name ?: "新实例"
+                    InstanceCreator.writeInstanceCfg(ctx, dst, name, mc)
+                    InstanceCreator.writeMmcPack(ctx, dst, name, mc, loader)
+
+                    handler.post {
+                        if (!isAdded) return@post
+                        val sb = StringBuilder()
+                        sb.append("已补齐实例结构。\n\n")
+                        if (made.isNotEmpty()) sb.append("新建目录：${made.joinToString("、")}\n")
+                        sb.append("已写入 instance.cfg 与 mmc-pack.json，")
+                        sb.append("Prism / MultiMC 可直接识别。\n")
+                        if (loader.isBlank()) {
+                            sb.append("\n未选择加载器，之后可以随时再装。")
+                            show("已创建", sb.toString())
+                        } else {
+                            sb.append("\n接下来需要你自己装 ${opts[w]}：")
+                            MaterialAlertDialogBuilder(ctx)
+                                .setTitle("安装 ${opts[w]}")
+                                .setMessage(
+                                    sb.toString() + "\n\n" +
+                                        InstanceCreator.installGuide(loader, mc)
+                                )
+                                .setPositiveButton("打开官方下载页") { _, _ ->
+                                    val page = InstanceCreator.loaderPage(loader)
+                                    if (page.isNotBlank()) {
+                                        WebActivity.open(ctx, page, "${opts[w]} 下载")
+                                    }
+                                }
+                                .setNegativeButton(R.string.cancel, null)
+                                .show()
+                        }
+                    }
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    // ---------------- 导出 mrpack ----------------
+
+    private fun exportMrpack() {
+        val ctx = context ?: return
+        val srcUri = Prefs.get(ctx).getString(K.SRC_URI, "") ?: ""
+        if (srcUri.isBlank()) {
+            toast("请先在迁移页设置「迁移前」的目录")
+            return
+        }
+        toast("正在打包…")
+        bg {
+            val src = Fs.tree(ctx, srcUri)
+            if (src == null) {
+                toast("源目录不可访问")
+                return@bg
+            }
+            val modsDir = Fs.find(src, "mods")
+            val configDir = Fs.find(src, "config")
+            val mc = Prefs.get(ctx).getString(K.MC_VERSION, "") ?: ""
+            val loader = Prefs.get(ctx).getString(K.LOADER, "") ?: ""
+            val name = (src.name ?: "整合包")
+
+            val out = java.io.File(ctx.cacheDir, "export/${name}.mrpack")
+            out.parentFile?.mkdirs()
+
+            val f = MrpackExport.export(
+                ctx,
+                MrpackExport.Options(
+                    name = name,
+                    mcVersion = mc,
+                    loader = loader
+                ),
+                modsDir, configDir, out
+            )
+            handler.post {
+                if (!isAdded) return@post
+                if (f == null || !f.exists()) {
+                    toast("导出失败")
+                    return@post
+                }
+                MaterialAlertDialogBuilder(ctx)
+                    .setTitle("已导出")
+                    .setMessage(
+                        "$name.mrpack\n${f.length() / 1024} KB\n\n" +
+                            "包含 mods 与 config，离线可用（模组本体已打包进 overrides）。"
+                    )
+                    .setPositiveButton("分享") { _, _ ->
+                        QuickTransfer.shareOne(ctx, f, "$name.mrpack")
+                    }
+                    .setNegativeButton(R.string.ok, null)
+                    .show()
+            }
+        }
+    }
+
+    // ---------------- 代码级迁移 ----------------
+
+    private fun codeMigrate() {
+        val ctx = context ?: return
+        val pairs = CodeMigrator.supportedPairs()
+        val labels = pairs.map { "${it.first} → ${it.second}" }.toTypedArray()
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("代码级迁移")
+            .setItems(labels) { _, w ->
+                val (from, to) = pairs[w]
+                val root = WorkDir.root(ctx)
+                val dir = java.io.File(ctx.getExternalFilesDir(null), "code")
+                val target = if (root != null && root.uri.scheme == "file") {
+                    java.io.File(root.uri.path ?: "")
+                } else dir
+
+                toast("正在扫描…")
+                bg {
+                    val hits = CodeMigrator.scan(target, from, to)
+                    handler.post {
+                        if (!isAdded) return@post
+                        MaterialAlertDialogBuilder(ctx)
+                            .setTitle("$from → $to")
+                            .setMessage(CodeMigrator.report(hits))
+                            .setPositiveButton("全部应用") { _, _ ->
+                                bg {
+                                    val (ok, bad) = CodeMigrator.apply(target, hits)
+                                    toast("已改 $ok 个文件${if (bad > 0) "，$bad 个失败" else ""}")
+                                }
+                            }
+                            .setNegativeButton(R.string.cancel, null)
+                            .show()
+                    }
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     private fun btn(text: String, act: () -> Unit): MaterialButton {

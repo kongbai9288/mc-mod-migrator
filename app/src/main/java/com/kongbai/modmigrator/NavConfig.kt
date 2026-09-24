@@ -38,10 +38,7 @@ object NavConfig {
         Item("devs", R.string.menu_devs, R.drawable.ic_person) { DevsFragment() },
         Item("log", R.string.menu_log, R.drawable.ic_info) { SettingsLogFragment() },
         Item("favorites", R.string.tab_favorites, R.drawable.ic_check_circle) { FavoritesFragment() },
-        Item("feed", R.string.tab_feed,
-
-            R.drawable.ic_bolt),
-
+        Item("feed", R.string.tab_feed, R.drawable.ic_bolt) { McFeedFragment() },
         Item("weekly", R.string.tab_weekly, R.drawable.ic_rocket_launch) { WeeklyReportFragment() },
         Item("sites", R.string.tab_sites, R.drawable.ic_open_in_new) { SitesFragment() },
         Item("mods", R.string.tab_mods, R.drawable.ic_extension) { ModManagerFragment() },
