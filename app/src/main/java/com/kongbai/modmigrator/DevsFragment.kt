@@ -37,15 +37,10 @@ class DevsFragment : Fragment() {
      * 用 ToneGenerator 合成，不依赖任何音频文件——
      * 之前那种依赖资源的做法在资源缺失时就会"点了没反应"。
      */
+    /** 彩蛋：长按或连点触发，播旋律后弹调色板 */
     private fun showEgg() {
         val ctx = context ?: return
-        EggPlayer.play(ctx) { _ ->
-            // 主题已切换，重建界面生效
-            try {
-                activity?.recreate()
-            } catch (t: Throwable) {
-            }
-        }
+        Egg.show(ctx)
     }
 
     override fun onCreateView(
@@ -144,13 +139,13 @@ class DevsFragment : Fragment() {
         tvState.text = stateText
     }
 
-    private fun devRow(ctx: android.content.Context, d: DevTeam.Dev): View =
-        UiCards.devCard(ctx, d.name, d.role, d.url) {
+    private fun devRow(ctx: android.content.Context, d: DevTeam.Dev): View {
+        // 头像：名单里写了就用写的，没写就按地址推导（GitHub 用户头像 / 站点 favicon）
+        val av = d.avatar.ifBlank { DevTeam.avatarOf(d.url, d.name) }
+        return UiCards.devCard(ctx, d.name, d.role, d.url, av) {
             if (d.url.isNotBlank()) {
-                try {
-                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(d.url)))
-                } catch (t: Throwable) {
-                }
+                WebActivity.open(ctx, d.url, d.name)
             }
         }
+    }
 }

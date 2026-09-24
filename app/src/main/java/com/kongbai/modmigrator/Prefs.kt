@@ -95,4 +95,19 @@ object K {
     const val LAST_UPDATE_TIP = "last_update_tip"
     const val FAVORITES = "favorites"
     const val GH_TOKEN_BACKEND = "gh_token_backend"
+
+    // ---- 本轮新增 ----
+    const val NIGHT_MODE = "night_mode"              // 深色模式：0跟随系统 1浅色 2深色
+    const val AUTO_TRANS_PAGE = "auto_trans_page"    // 打开网页自动翻译
+    const val TRASH_DAYS = "trash_days"              // 回收站保留天数
+    const val TRAFFIC_WARN_MB = "traffic_warn_mb"    // 流量提醒阈值 MB
+    const val BACKUP_ONLY_WIFI = "backup_only_wifi"
+    const val EXPERIMENTAL_UPGRADE = "exp_upgrade"   // 实验性自动升级（彩蛋激活）
+    const val ANNO_CLOSED = "anno_closed"            // 已关闭的公告版本号
+    const val ANNO_CLEARED = "anno_cleared"
+    const val FIRST_MARKET_VISIT = "first_market_visit"
+    const val GH_AVATAR = "gh_avatar"
+    const val GH_LOGIN = "gh_login"
+    const val BROWSER_INTERNAL = "browser_internal"  // 一律用内置浏览器
+    const val RESUME_DOWNLOAD = "resume_download"    // 断点续传
 }

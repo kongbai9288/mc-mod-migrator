@@ -12,12 +12,18 @@ object Http {
 
     const val UA = "ModMigrator/1.0 (https://github.com/kongbai9288/mc-mod-migrator)"
 
+    /**
+     * 装上 WebView 的 cookie 桥：
+     * 登录在内置浏览器里完成，cookie 存在 WebView 的 CookieManager 里，
+     * OkHttp 从这里读，两边才是同一份登录态。
+     */
     val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
         .writeTimeout(120, TimeUnit.SECONDS)
         .followRedirects(true)
         .followSslRedirects(true)
+        .cookieJar(WebCookies())
         .build()
 
     fun enc(s: String): String = URLEncoder.encode(s, "UTF-8")
@@ -33,6 +39,10 @@ object Http {
         r.use {
             val body = it.body?.string() ?: ""
             if (!it.isSuccessful) throw RuntimeException("HTTP ${it.code} ${body.take(160)}")
+            // 流量统计：移动网络下累计，超阈值由调用方提示
+            runCatching {
+                Prefs.appCtx()?.let { c -> Traffic.record(c, body.length.toLong() + 512) }
+            }
             return body
         }
     }

@@ -25,6 +25,11 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(ThemePrefs.styleRes(this))
         super.onCreate(savedInstanceState)
+        // 每次冷启动重置「首次进商店」标记：
+        // 这样推荐只在本次打开应用后的第一次进商店时自动跑
+        runCatching {
+            Prefs.get(this).edit().putBoolean(K.FIRST_MARKET_VISIT, false).apply()
+        }
         setContentView(R.layout.activity_main)
 
         nav = findViewById(R.id.bottom_nav)
@@ -37,6 +42,7 @@ class MainActivity : AppCompatActivity() {
 
         nav?.setOnItemSelectedListener { item ->
             switchTo(item.itemId)
+        checkAnnouncement()
             true
         }
 
@@ -146,6 +152,47 @@ class MainActivity : AppCompatActivity() {
                 .commit()
         } catch (t: Throwable) {
         }
+    }
+
+    /**
+     * 公告：从仓库拉 announcement.json，多镜像源依次尝试。
+     * 弹窗展示，可关闭 / 清除 / 在设置里再弹一次。
+     */
+    private fun checkAnnouncement() {
+        Thread {
+            val ctx = this@MainActivity
+            val n = try {
+                Announcement.fetch(ctx)
+            } catch (t: Throwable) {
+                null
+            } ?: return@Thread
+            runOnUiThread {
+                try {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    val msg = StringBuilder(n.body)
+                    if (n.url.isNotBlank()) {
+                        msg.append("\n\n详情：").append(n.url)
+                    }
+                    com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                        .setTitle(n.title)
+                        .setMessage(msg.toString())
+                        .setPositiveButton("知道了") { _, _ ->
+                            Announcement.dismiss(ctx, n.id)
+                        }
+                        .setNeutralButton("清除") { _, _ ->
+                            Announcement.clear(ctx, n.id)
+                            android.widget.Toast.makeText(ctx, "已清除这条公告", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                        .setNegativeButton("打开链接") { _, _ ->
+                            Announcement.dismiss(ctx, n.id)
+                            if (n.url.isNotBlank()) WebActivity.open(ctx, n.url, n.title)
+                        }
+                        .setCancelable(true)
+                        .show()
+                } catch (t: Throwable) {
+                }
+            }
+        }.start()
     }
 
     private fun replace(f: Fragment) {

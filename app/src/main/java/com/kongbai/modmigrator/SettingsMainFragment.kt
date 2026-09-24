@@ -141,7 +141,9 @@ class SettingsMainFragment : Fragment() {
                     return@post
                 }
                 try {
-                    startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+                    // 用内置浏览器登录：cookie 存在 WebView 里，
+                    // OkHttp 通过 cookie 桥能读到，登录状态才对得上
+                    WebActivity.login(requireContext(), url)
                     toast("在浏览器里完成授权后，回来点「登录 GitHub」刷新")
                 } catch (t: Throwable) {
                     toast("打不开浏览器")

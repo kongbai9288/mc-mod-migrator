@@ -133,7 +133,7 @@ class SettingsAboutFragment : Fragment() {
                                         rel.apkUrl.substringAfterLast('/')
                                     )
                                     startActivity(
-                                        Intent(Intent.ACTION_VIEW, android.net.Uri.parse(u))
+                                        WebActivity.open(requireContext(), u, "")
                                     )
                                 } catch (t: Throwable) {
                                     Toast.makeText(ctx, "打不开下载页", Toast.LENGTH_SHORT).show()

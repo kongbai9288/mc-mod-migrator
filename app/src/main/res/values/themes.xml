@@ -45,4 +45,39 @@
         <item name="colorAccent">@color/accent_teal</item>
         <item name="android:statusBarColor">@color/primaryDark_teal</item>
     </style>
+
+    <style name="Theme.ModMigrator.Cyan" parent="Theme.ModMigrator">
+        <item name="colorPrimary">@color/primary_cyan</item>
+        <item name="colorPrimaryDark">@color/primaryDark_cyan</item>
+        <item name="colorAccent">@color/accent_cyan</item>
+        <item name="android:statusBarColor">@color/primaryDark_cyan</item>
+    </style>
+
+    <style name="Theme.ModMigrator.Pink" parent="Theme.ModMigrator">
+        <item name="colorPrimary">@color/primary_pink</item>
+        <item name="colorPrimaryDark">@color/primaryDark_pink</item>
+        <item name="colorAccent">@color/accent_pink</item>
+        <item name="android:statusBarColor">@color/primaryDark_pink</item>
+    </style>
+
+    <style name="Theme.ModMigrator.Indigo" parent="Theme.ModMigrator">
+        <item name="colorPrimary">@color/primary_indigo</item>
+        <item name="colorPrimaryDark">@color/primaryDark_indigo</item>
+        <item name="colorAccent">@color/accent_indigo</item>
+        <item name="android:statusBarColor">@color/primaryDark_indigo</item>
+    </style>
+
+    <style name="Theme.ModMigrator.Lime" parent="Theme.ModMigrator">
+        <item name="colorPrimary">@color/primary_lime</item>
+        <item name="colorPrimaryDark">@color/primaryDark_lime</item>
+        <item name="colorAccent">@color/accent_lime</item>
+        <item name="android:statusBarColor">@color/primaryDark_lime</item>
+    </style>
+
+    <style name="Theme.ModMigrator.Brown" parent="Theme.ModMigrator">
+        <item name="colorPrimary">@color/primary_brown</item>
+        <item name="colorPrimaryDark">@color/primaryDark_brown</item>
+        <item name="colorAccent">@color/accent_brown</item>
+        <item name="android:statusBarColor">@color/primaryDark_brown</item>
+    </style>
 </resources>

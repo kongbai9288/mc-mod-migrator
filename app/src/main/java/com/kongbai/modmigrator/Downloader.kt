@@ -232,6 +232,19 @@ object Downloader {
         }
     }
 
+    /** 只探测文件长度，不下载。服务里用来算进度。失败返回 -1。 */
+    fun probeLength(url: String): Long {
+        return try {
+            val r = Http.call(url)
+            val len = r.header("Content-Length")?.toLongOrNull()
+                ?: r.body?.contentLength()?.takeIf { it > 0 }
+            r.close()
+            len ?: -1L
+        } catch (t: Throwable) {
+            -1L
+        }
+    }
+
     /** 下载到 cache 目录（供外部直接取文件） */
     fun toCache(ctx: Context, url: String, name: String): File? {
         return try {

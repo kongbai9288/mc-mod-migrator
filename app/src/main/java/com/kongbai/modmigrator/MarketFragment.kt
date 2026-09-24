@@ -78,6 +78,17 @@ class MarketFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        // 首次进入商店页自动跑一次推荐，让页面一打开就有内容（不是空白）
+        // 只在「本次打开应用后的第一次」执行，之后进出不再自动跑
+        val ctx = context ?: return
+        if (!Prefs.get(ctx).getBoolean(K.FIRST_MARKET_VISIT, false)) {
+            Prefs.get(ctx).edit().putBoolean(K.FIRST_MARKET_VISIT, true).apply()
+            if (results.isEmpty()) {
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    if (isAdded && results.isEmpty()) recommend()
+                }, 400)
+            }
+        }
         reloadLinks()
     }
 

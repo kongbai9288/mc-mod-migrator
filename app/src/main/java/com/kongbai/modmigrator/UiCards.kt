@@ -86,11 +86,16 @@ object UiCards {
     /**
      * 名单卡片：圆形首字母头像 + 名字 + 角色 + 可点击打开主页。
      */
+    /**
+     * 名单卡片：圆形头像（有头像地址就加载，否则用首字母色块）
+     * + 名字 + 角色 + 右上角外链图标，整块可点。
+     */
     fun devCard(
         ctx: Context,
         name: String,
         role: String,
         url: String = "",
+        avatarUrl: String = "",
         onClick: (() -> Unit)? = null
     ): View {
         val card = LinearLayout(ctx).apply {
@@ -106,19 +111,50 @@ object UiCards {
             layoutParams = lp
         }
 
-        // 首字母头像
+        // 首字母头像（先显示，网络图加载成功再盖上去）
         val initial = name.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
-        val avatar = TextView(ctx).apply {
+        val size = dp(ctx, 44)
+        val avatarBox = android.widget.FrameLayout(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams(size, size)
+        }
+        avatarBox.addView(TextView(ctx).apply {
             text = initial
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f)
             setTypeface(typeface, android.graphics.Typeface.BOLD)
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             background = avatarBg(ctx, name.hashCode())
-            val size = dp(ctx, 40)
-            layoutParams = LinearLayout.LayoutParams(size, size)
+            layoutParams = android.widget.FrameLayout.LayoutParams(size, size)
+        })
+
+        // 网络头像：Coil 异步加载，圆形裁切；失败就留着首字母
+        if (avatarUrl.isNotBlank()) {
+            val iv = ImageView(ctx).apply {
+                layoutParams = android.widget.FrameLayout.LayoutParams(size, size)
+                scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                // 圆角遮罩
+                outlineProvider = object : android.view.ViewOutlineProvider() {
+                    override fun getOutline(v: View, o: android.graphics.Outline) {
+                        o.setOval(0, 0, v.width, v.height)
+                    }
+                }
+                clipToOutline = true
+            }
+            avatarBox.addView(iv)
+            try {
+                coil.ImageLoader(ctx).enqueue(
+                    coil.request.ImageRequest.Builder(ctx)
+                        .data(avatarUrl)
+                        .target(iv)
+                        .crossfade(true)
+                        .listener(onError = { _, _ -> avatarBox.removeView(iv) })
+                        .build()
+                )
+            } catch (t: Throwable) {
+                avatarBox.removeView(iv)
+            }
         }
-        card.addView(avatar)
+        card.addView(avatarBox)
 
         val texts = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
@@ -155,24 +191,12 @@ object UiCards {
         if (url.isNotBlank()) {
             card.addView(ImageView(ctx).apply {
                 setImageResource(R.drawable.ic_open_in_new)
-                val size = dp(ctx, 20)
-                layoutParams = LinearLayout.LayoutParams(size, size)
+                val s2 = dp(ctx, 20)
+                layoutParams = LinearLayout.LayoutParams(s2, s2)
                 alpha = 0.5f
             })
             card.setOnClickListener { onClick?.invoke() }
-            // 按下反馈
             card.isClickable = true
-            val tv = TypedValue()
-            ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, tv, true)
-            if (tv.resourceId != 0) card.setBackgroundResource(0).also {
-                card.foreground = try {
-                    if (android.os.Build.VERSION.SDK_INT >= 23) ctx.getDrawable(tv.resourceId)
-                    else @Suppress("DEPRECATION") ctx.resources.getDrawable(tv.resourceId)
-                } catch (t: Throwable) {
-                    null
-                }
-            }
-            card.background = cardBg(ctx)
         }
         return card
     }

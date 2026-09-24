@@ -141,6 +141,8 @@ class MigrationFragment : Fragment() {
         v.findViewById<Button>(R.id.btnPickSource).setOnClickListener { pickDir(11) }
         v.findViewById<Button>(R.id.btnPickTarget).setOnClickListener { pickDir(12) }
         v.findViewById<Button>(R.id.btnScan).setOnClickListener { scan() }
+        v.findViewById<Button>(R.id.btnDownloadAll)?.setOnClickListener { downloadAll() }
+        v.findViewById<Button>(R.id.btnDownloadAll)?.setOnClickListener { downloadAll() }
         v.findViewById<Button>(R.id.btnRun).setOnClickListener { runMigration() }
         v.findViewById<Button>(R.id.btnDoctor).setOnClickListener { runDoctor() }
         v.findViewById<Button>(R.id.btnDiff).setOnClickListener { runDiff() }
@@ -605,6 +607,44 @@ class MigrationFragment : Fragment() {
         }
     }
 
+    /**
+     * 一键下载全部：把迁移方案里所有能适配的模组一次性下完。
+     *
+     * 走 DownloadService（后台服务）：
+     *   - 切到后台不会被杀
+     *   - 中途断网/关掉 App 后，再点一次是**续传**，不用从头下
+     *   - 通知栏能取消
+     */
+    private fun downloadAll() {
+        val ctx = context ?: return
+        val list = mods.filter { it.targetUrl.isNotBlank() }
+        if (list.isEmpty()) {
+            toast("没有可下载的模组（可能还没扫描，或都没有适配版本）")
+            return
+        }
+        val dir = Targets.modsDir(ctx)
+        if (dir == null) {
+            toast("「迁移后」的目录不可用")
+            return
+        }
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("一键下载")
+            .setMessage(getString(R.string.download_all_confirm, list.size))
+            .setPositiveButton("开始") { _, _ ->
+                for (m in list) {
+                    DownloadService.start(
+                        ctx, m.targetUrl,
+                        m.targetFileName.ifBlank { Downloader.guessName(m.targetUrl) },
+                        "mods"
+                    )
+                }
+                toast(getString(R.string.download_all_bg, list.size))
+                log("已在后台开始下载 ${list.size} 个模组")
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
     private fun downloadOne(m: ModEntry) {
         val ctx = requireContext()
         bg {
@@ -649,10 +689,33 @@ class MigrationFragment : Fragment() {
             toast(getString(R.string.no_target))
             return
         }
+        // 同实例保护：源和目标一样的话，等于把文件复制给自己，
+        // 既没意义又可能把原文件写坏（同名覆盖时读写的可能是同一个文件）
+        if (srcUri == dstUri) {
+            MaterialAlertDialogBuilder(ctx)
+                .setTitle("这是同一个实例")
+                .setMessage(
+                    "迁移前和迁移后选的是同一个目录：\n${
+                        Fs.tree(ctx, srcUri)?.name ?: srcUri
+                    }\n\n" +
+                        "把配置迁到自己身上没有任何效果，" +
+                        "而且同名文件覆盖时可能把原文件写坏。\n\n" +
+                        "请到下面重新选一个「迁移后的版本」。"
+                )
+                .setPositiveButton("去改目标") { _, _ -> setAs("dst") }
+                .setNegativeButton("仍然继续") { _, _ -> doMigrate(srcUri, dstUri) }
+                .show()
+            return
+        }
         if (mods.isEmpty()) {
             toast("请先扫描生成迁移方案")
             return
         }
+        doMigrate(srcUri, dstUri)
+    }
+
+    /** 真正的迁移执行（同实例检查通过后才会走到这里） */
+    private fun doMigrate(srcUri: String, dstUri: String) {
         val wantConfig = cbConfig.isChecked
         val wantScripts = cbScripts.isChecked
         val wantOptions = cbOptions.isChecked

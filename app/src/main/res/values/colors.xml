@@ -27,4 +27,19 @@
     <color name="primary_teal">#FF00695C</color>
     <color name="primaryDark_teal">#FF004D40</color>
     <color name="accent_teal">#FF26A69A</color>
+    <color name="primary_cyan">#FF00838F</color>
+    <color name="primaryDark_cyan">#FF006064</color>
+    <color name="accent_cyan">#FF26C6DA</color>
+    <color name="primary_pink">#FFC2185B</color>
+    <color name="primaryDark_pink">#FFAD1457</color>
+    <color name="accent_pink">#FFEC407A</color>
+    <color name="primary_indigo">#FF3949AB</color>
+    <color name="primaryDark_indigo">#FF283593</color>
+    <color name="accent_indigo">#FF5C6BC0</color>
+    <color name="primary_lime">#FF9E9D24</color>
+    <color name="primaryDark_lime">#FF827717</color>
+    <color name="accent_lime">#FFD4E157</color>
+    <color name="primary_brown">#FF6D4C41</color>
+    <color name="primaryDark_brown">#FF4E342E</color>
+    <color name="accent_brown">#FF8D6E63</color>
 </resources>

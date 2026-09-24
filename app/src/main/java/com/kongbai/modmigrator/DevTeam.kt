@@ -13,12 +13,38 @@ object DevTeam {
     data class Dev(
         var name: String = "",
         var role: String = "",
-        var url: String = ""
+        var url: String = "",
+        var avatar: String = ""   // 头像地址，空则用首字母圆圈
     )
+
+    /**
+     * 头像地址推导：
+     *   - GitHub 用户页 → https://github.com/<user>.png
+     *   - 普通网站 → <域名>/favicon.ico
+     * 这样名单里既有真人头像，也有各站点的图标，不用再手写。
+     */
+    fun avatarOf(url: String, name: String): String {
+        if (url.isBlank()) return ""
+        return try {
+            val u = android.net.Uri.parse(url)
+            val host = u.host ?: return ""
+            when {
+                host.equals("github.com", true) -> {
+                    val user = u.path?.trim('/')?.substringBefore('/') ?: ""
+                    if (user.isNotBlank()) "https://github.com/$user.png?size=96" else ""
+                }
+                host.equals("raw.githubusercontent.com", true) -> ""
+                else -> "https://$host/favicon.ico"
+            }
+        } catch (t: Throwable) {
+            ""
+        }
+    }
 
     /** 内置兜底名单 */
     private val BUILTIN = listOf(
-        Dev("kongbai9288", "发起人 / 主程", "https://github.com/kongbai9288"),
+        Dev("kongbai9288", "发起人 / 主程", "https://github.com/kongbai9288",
+            "https://github.com/kongbai9288.png?size=96"),
         Dev("Modrinth", "模组数据源", "https://modrinth.com"),
         Dev("CurseForge", "模组数据源", "https://curseforge.com"),
         Dev("MCIM", "国内镜像源", "https://www.mcimirror.top"),
@@ -61,7 +87,10 @@ object DevTeam {
                             Dev(
                                 name = Json.s(d, "name"),
                                 role = Json.s(d, "role"),
-                                url = Json.s(d, "url")
+                                url = Json.s(d, "url"),
+                                avatar = Json.s(d, "avatar").ifBlank {
+                                    avatarOf(Json.s(d, "url"), Json.s(d, "name"))
+                                }
                             )
                         )
                     }
