@@ -93,6 +93,19 @@ jobs:
           echo "===== last 60 lines ====="
           tail -60 /tmp/build.log
 
+      - name: Rename APK to a stable name
+        run: |
+          set -e
+          # softprops action 会直接用文件原名（app-release.apk），
+          # 为了和历史版本保持一致、也方便用户辨认，统一改名。
+          mkdir -p app/build/outputs/apk/release
+          for f in app/build/outputs/apk/release/*.apk; do
+            [ -e "$f" ] || continue
+            mv "$f" app/build/outputs/apk/release/ModMigrator-release.apk
+            break
+          done
+          ls -la app/build/outputs/apk/release/
+
       - name: Upload APK artifact
         if: success()
         uses: actions/upload-artifact@v4
