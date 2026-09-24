@@ -103,14 +103,16 @@ class FavoritesFragment : Fragment() {
         Toast.makeText(ctx, "开始解析下载地址…", Toast.LENGTH_SHORT).show()
         Thread {
             try {
-                val files = if (m.source == "curseforge") {
-                    BackendApi.files(ctx, m.id, "", "")
+                // 两个数据源返回的类型不同，统一成 (url, fileName) 再用
+                val pair: Pair<String, String>? = if (m.source == "curseforge") {
+                    BackendApi.files(ctx, m.id, "", "").firstOrNull()?.let {
+                        it.url to it.name
+                    }
                 } else {
-                    // versions() 已按 primary 挑好文件，直接返回 ModFile 列表
                     ModrinthApi.versions(m.id.ifBlank { m.slug }, "", "")
+                        .firstOrNull()?.let { it.url to it.fileName }
                 }
-                val f = files.firstOrNull()
-                if (f == null) {
+                if (pair == null || pair.first.isBlank()) {
                     main { Toast.makeText(ctx, "这个模组暂时没有可下载的文件", Toast.LENGTH_SHORT).show() }
                     return@Thread
                 }
@@ -119,8 +121,9 @@ class FavoritesFragment : Fragment() {
                     main { Toast.makeText(ctx, "请先设置工作目录", Toast.LENGTH_SHORT).show() }
                     return@Thread
                 }
-                Downloader.download(ctx, f.url, dir, f.fileName, emptyMap())
-                main { Toast.makeText(ctx, "已安装：${f.fileName}", Toast.LENGTH_SHORT).show() }
+                val name = pair.second.ifBlank { Downloader.guessName(pair.first) }
+                Downloader.download(ctx, pair.first, dir, name, emptyMap())
+                main { Toast.makeText(ctx, "已安装：$name", Toast.LENGTH_SHORT).show() }
             } catch (t: Throwable) {
                 main { Toast.makeText(ctx, "安装失败：${t.message}", Toast.LENGTH_SHORT).show() }
             }
