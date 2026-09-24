@@ -36,18 +36,18 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:extractProguardFiles
 > Task :app:mergeReleaseJniLibFolders
 > Task :app:processReleaseManifestForPackage
+> Task :app:checkReleaseDuplicateClasses
 > Task :app:mergeReleaseNativeLibs
 > Task :app:desugarReleaseFileDependencies
+> Task :app:processReleaseResources
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libtranslate_jni.so.
 
-> Task :app:checkReleaseDuplicateClasses
-> Task :app:mergeReleaseArtProfile
-> Task :app:extractReleaseNativeSymbolTables
-> Task :app:processReleaseResources
 > Task :app:mergeExtDexRelease
+> Task :app:extractReleaseNativeSymbolTables
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
@@ -114,7 +114,7 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 > Task :app:lintVitalRelease
 > Task :app:assembleRelease
 
-BUILD SUCCESSFUL in 2m 52s
+BUILD SUCCESSFUL in 2m 57s
 45 actionable tasks: 45 executed
 To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
 Daemon will be stopped at the end of the build 
@@ -131,16 +131,16 @@ Daemon will be stopped at the end of the build
 > Task :app:extractDeepLinksDebug
 > Task :app:parseDebugLocalResources
 > Task :app:processDebugMainManifest
-> Task :app:mergeDebugResources
 > Task :app:processDebugManifest
 > Task :app:javaPreCompileDebug
 > Task :app:mergeDebugShaders
 > Task :app:compileDebugShaders NO-SOURCE
 > Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:mergeDebugResources
 > Task :app:mergeDebugAssets
-> Task :app:processDebugManifestForPackage
-> Task :app:compressDebugAssets
 > Task :app:desugarDebugFileDependencies
+> Task :app:compressDebugAssets
+> Task :app:processDebugManifestForPackage
 > Task :app:mergeDebugJniLibFolders
 > Task :app:checkDebugDuplicateClasses
 > Task :app:mergeDebugNativeLibs
@@ -205,5 +205,5 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 > Task :app:createDebugApkListingFileRedirect
 > Task :app:assembleDebug
 
-BUILD SUCCESSFUL in 1m 33s
+BUILD SUCCESSFUL in 1m 29s
 35 actionable tasks: 35 executed
