@@ -106,13 +106,8 @@ class FavoritesFragment : Fragment() {
                 val files = if (m.source == "curseforge") {
                     BackendApi.files(ctx, m.id, "", "")
                 } else {
+                    // versions() 已按 primary 挑好文件，直接返回 ModFile 列表
                     ModrinthApi.versions(m.id.ifBlank { m.slug }, "", "")
-                        .map {
-                            com.kongbai.modmigrator.ModFile(
-                                name = m.name, version = it.version,
-                                url = it.url, fileName = it.fileName
-                            )
-                        }
                 }
                 val f = files.firstOrNull()
                 if (f == null) {

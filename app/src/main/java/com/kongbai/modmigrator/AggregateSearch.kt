@@ -155,9 +155,9 @@ object AggregateSearch {
         // CurseForge 镜像 / 官方直连
         if (aggregate || mode == "CurseForge" || mode == "后端") {
             val canOfficial = useOfficial && key.isNotBlank()
+            val label = if (canOfficial) "CurseForge官方" else "CurseForge镜像"
             out.add(
-                if (canOfficial) "CurseForge官方" else "CurseForge镜像"
-                        to { CurseForgeApi.search(q, mc, loader, if (canOfficial) key else "", 20) }
+                Pair(label, { CurseForgeApi.search(q, mc, loader, if (canOfficial) key else "", 20) })
             )
             logCf(if (canOfficial) "CurseForge 走官方直连" else "CurseForge 走国内镜像")
         }

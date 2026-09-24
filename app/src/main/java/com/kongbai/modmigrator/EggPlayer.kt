@@ -81,7 +81,8 @@ object EggPlayer {
      */
     private fun freqToTone(freq: Int): Int {
         val n = (12.0 * kotlin.math.ln(freq / 16.35) / kotlin.math.ln(2.0)).toInt()
-        return n.coerceIn(1, ToneGenerator.MAX_TONE_INDEX)
+        // ToneGenerator 的音调编号范围有限，超出会抛异常
+        return n.coerceIn(1, 100)
     }
 
     /** 是否正在播放 */
