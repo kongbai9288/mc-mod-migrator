@@ -26,28 +26,28 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mapReleaseSourceSetPaths
 > Task :app:generateReleaseResources
 > Task :app:packageReleaseResources
-> Task :app:mergeReleaseResources
 > Task :app:createReleaseCompatibleScreenManifests
 > Task :app:extractDeepLinksRelease
 > Task :app:parseReleaseLocalResources
+> Task :app:mergeReleaseResources
 > Task :app:processReleaseMainManifest
 > Task :app:processReleaseManifest
 > Task :app:javaPreCompileRelease
 > Task :app:extractProguardFiles
 > Task :app:mergeReleaseJniLibFolders
+> Task :app:processReleaseManifestForPackage
+> Task :app:checkReleaseDuplicateClasses
 > Task :app:mergeReleaseNativeLibs
 > Task :app:desugarReleaseFileDependencies
-> Task :app:checkReleaseDuplicateClasses
-> Task :app:processReleaseManifestForPackage
-> Task :app:mergeReleaseArtProfile
+> Task :app:processReleaseResources
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libtranslate_jni.so.
 
-> Task :app:extractReleaseNativeSymbolTables
-> Task :app:processReleaseResources
 > Task :app:mergeExtDexRelease
+> Task :app:extractReleaseNativeSymbolTables
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
@@ -59,26 +59,10 @@ Unable to strip the following libraries, packaging them as they are: libtranslat
 > Task :app:writeReleaseAppMetadata
 > Task :app:writeReleaseSigningConfigVersions
 > Task :app:optimizeReleaseResources
+
 > Task :app:compileReleaseKotlin
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:630:9 Unresolved reference: MaterialAlertDialogBuilder
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:633:40 Cannot infer a type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:633:43 Cannot infer a type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:695:13 Unresolved reference: MaterialAlertDialogBuilder
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:705:46 Cannot infer a type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:705:49 Cannot infer a type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:705:60 Type mismatch: inferred type is String but InstanceInfo was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:705:60 No value passed for parameter 'asSource'
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:706:46 Cannot infer a type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:706:49 Cannot infer a type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:728:31 Unresolved reference: ctx
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:729:31 Unresolved reference: ctx
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:752:33 Unresolved reference: ctx
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:778:38 Unresolved reference: ctx
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:790:45 Unresolved reference: ctx
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:815:27 Unresolved reference: ctx
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:816:17 Unresolved reference: p
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:817:27 Unresolved reference: p
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:819:58 Unresolved reference: ctx
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:818:17 Unresolved reference: p
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:819:27 Unresolved reference: p
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:69:44 Unresolved reference: t
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsAboutFragment.kt:136:41 Type mismatch: inferred type is Unit but Intent! was expected
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsLangFragment.kt:97:35 Unresolved reference: i
@@ -99,5 +83,5 @@ Execution failed for task ':app:compileReleaseKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 1m 55s
+BUILD FAILED in 1m 15s
 34 actionable tasks: 34 executed
