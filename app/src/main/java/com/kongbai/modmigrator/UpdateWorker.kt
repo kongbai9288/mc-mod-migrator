@@ -21,7 +21,8 @@ class UpdateWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params)
         return try {
             val rel = UpdateChecker.latest(ctx)
             if (rel == null) {
-                saveState(ctx, "", "没能取到版本信息（可能网络不通或仓库不可访问）")
+                val why = UpdateChecker.lastError.ifBlank { "未知原因" }
+                saveState(ctx, "", "没能取到版本信息：$why")
                 return Result.success()
             }
             val cur = currentVersion(ctx)

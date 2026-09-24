@@ -249,21 +249,11 @@ class WebActivity : AppCompatActivity() {
         web.loadUrl(url)
     }
 
-    /** 登录走完：标记结果并关闭，让设置页重新查状态 */
+    /** 登录走完：先刷 cookie，再关页面，让设置页能查到登录态 */
     private fun finishWithLoginOk() {
-        try {
-            // 立刻同步一次：拿到 token 就存起来（免得还要用户手填）
-            Thread {
-                runCatching {
-                    val t = BackendApi.fetchToken(this)
-                    if (t.isNotBlank()) {
-                        Prefs.get(this).edit().putString(K.TOKEN, t).apply()
-                    }
-                }
-            }.start()
-            setResult(RESULT_OK)
-        } catch (t: Throwable) {
-        }
+        // cookie 必须先落盘，否则回到设置页立刻查 /me 时读到的还是旧的
+        runCatching { WebCookies.flushAll() }
+        runCatching { setResult(RESULT_OK) }
         try {
             finish()
         } catch (t: Throwable) {

@@ -110,4 +110,6 @@ object K {
     const val GH_LOGIN = "gh_login"
     const val BROWSER_INTERNAL = "browser_internal"  // 一律用内置浏览器
     const val RESUME_DOWNLOAD = "resume_download"    // 断点续传
+    const val ANIM_SPEED = "anim_speed"              // 动画速率：0慢 1正常 2快
+    const val DOWNLOAD_SPEED = "download_speed"      // 下载并发：0单线程 1适中 2最大
 }

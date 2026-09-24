@@ -131,6 +131,21 @@ object Egg {
             var picked = cur
             var pickedNight = ThemePrefs.nightMode(ctx)
 
+            // 彩蛋深处：连点标题 7 次解锁实验性功能
+            var titleTaps = 0
+            root.getChildAt(0).setOnClickListener {
+                if (++titleTaps >= 7) {
+                    titleTaps = 0
+                    val on = !Prefs.get(ctx).getBoolean(K.EXPERIMENTAL_UPGRADE, false)
+                    Prefs.get(ctx).edit().putBoolean(K.EXPERIMENTAL_UPGRADE, on).apply()
+                    Toast.makeText(
+                        ctx,
+                        if (on) "🔓 已解锁实验性功能：设置 → 实验室" else "已隐藏实验性功能",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+
             val dlg = MaterialAlertDialogBuilder(ctx)
                 .setView(root)
                 .setNeutralButton("深色模式") { _, _ -> }

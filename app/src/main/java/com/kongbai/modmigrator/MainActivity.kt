@@ -140,6 +140,7 @@ class MainActivity : AppCompatActivity() {
                 "devs" -> DevsFragment()
                 "log" -> SettingsLogFragment()
                 "about" -> SettingsAboutFragment()
+                "lab" -> SettingsLabFragment()
                 else -> SettingsMainFragment()
             }
         } catch (t: Throwable) {

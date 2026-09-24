@@ -54,8 +54,34 @@ object AnimPrefs {
         }
     }
 
-    /** 显示时长的基准值；关闭动画时为 0 */
-    fun dur(ctx: Context, ms: Long = 220L): Long = if (enabled(ctx)) ms else 0L
+    /**
+     * 显示时长的基准值；关闭动画时为 0。
+     *
+     * 速率可调（设置 → 实验室 → 动画速率）：
+     *   慢 = 1.6 倍时长（看得清）、正常 = 1 倍、快 = 0.5 倍（干脆利落）。
+     */
+    fun dur(ctx: Context, ms: Long = 220L): Long {
+        if (!enabled(ctx)) return 0L
+        val f = when (speed(ctx)) {
+            0 -> 1.6f   // 慢
+            2 -> 0.5f   // 快
+            else -> 1.0f
+        }
+        return (ms * f).toLong()
+    }
+
+    /** 动画速率：0=慢 1=正常 2=快 */
+    fun speed(ctx: Context): Int = Prefs.get(ctx).getInt(K.ANIM_SPEED, 1).coerceIn(0, 2)
+
+    fun setSpeed(ctx: Context, sp: Int) {
+        Prefs.get(ctx).edit().putInt(K.ANIM_SPEED, sp.coerceIn(0, 2)).apply()
+    }
+
+    fun speedLabel(ctx: Context): String = when (speed(ctx)) {
+        0 -> "慢"
+        2 -> "快"
+        else -> "正常"
+    }
 
     /**
      * 淡入。关闭动画时直接设为可见。

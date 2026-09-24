@@ -34,6 +34,30 @@ object LauncherHelper {
     )
 
     /**
+     * 已知启动器的发布页（走 GitHub 镜像加速）。
+     *
+     * 说明：启动器是独立应用，本应用**不能**直接改它的内部版本数据，
+     * 只能把用户带到官方发布页，由用户自己下载安装。
+     * 不认识的启动器返回空串，界面会提示用户自己去找。
+     */
+    private val UPDATE_PAGES = mapOf(
+        "net.kdt.pojavlaunch" to "https://github.com/PojavLauncherTeam/PojavLauncher/releases/latest",
+        "net.kdt.pojavlaunch.zhcn" to "https://github.com/PojavLauncherTeam/PojavLauncher/releases/latest",
+        "com.movtery.zalithlauncher" to "https://github.com/ZalithLauncher/ZalithLauncher/releases/latest",
+        "com.tungsten.fcl" to "https://github.com/FCL-Team/FoldCraftLauncher/releases/latest",
+        "com.tungsten.fcl.zhcn" to "https://github.com/FCL-Team/FoldCraftLauncher/releases/latest",
+        "com.mio.miomc" to "https://github.com/mio-team/mio-mc/releases/latest"
+    )
+
+    /** 该启动器的更新页地址（已套镜像），不认识就返回空 */
+    fun updateUrl(pkg: String): String {
+        if (pkg.isBlank()) return ""
+        val page = UPDATE_PAGES[pkg] ?: return ""
+        // 套一层镜像加速，国内更容易打开
+        return "https://ghfast.top/$page"
+    }
+
+    /**
      * 列出系统里所有可启动的应用（用户能在桌面看到的那张应用列表）。
      * 排除自己，并按「名字像不像启动器」排序，像的排前面。
      */

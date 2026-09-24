@@ -65,6 +65,7 @@ class WeeklyReportFragment : Fragment() {
         box.removeAllViews()
 
         // 先渲染本机部分（本地数据，几乎立刻出结果），不用等网络
+        renderSites()
         renderLocal()
 
         exec.execute {
@@ -105,6 +106,55 @@ class WeeklyReportFragment : Fragment() {
             box.addView(card(ctx, "使用情况", sb.toString()))
         } catch (t: Throwable) {
             box.addView(UiCards.emptyCard(ctx, "暂无本地数据", "用一阵子再来看就有了。"))
+        }
+    }
+
+    /**
+     * 站点动态：抓外部站点的内容摘要。
+     *
+     * 每条都标明来源站点，点进去是原文地址——不伪装成自己的内容。
+     * 抓不到就显示降级文案，不会让整页空白。
+     */
+    private fun renderSites() {
+        val ctx = context ?: return
+        box.addView(UiCards.sectionTitle(ctx, "社区动态（来自各站点）"))
+        exec.execute {
+            val list = try {
+                SiteFeed.fetch()
+            } catch (t: Throwable) {
+                emptyList()
+            }
+            handler.post {
+                if (!isAdded) return@post
+                if (list.isEmpty()) {
+                    box.addView(
+                        UiCards.emptyCard(
+                            ctx, "暂时抓不到社区动态",
+                            "可能网络不通，或站点改版导致解析失效。不影响其他功能。"
+                        )
+                    )
+                    return@post
+                }
+                for ((source, entries) in SiteFeed.groupBySource(list)) {
+                    val first = entries.first()
+                    val sb = StringBuilder()
+                    for (e in entries) {
+                        sb.append("· ${e.title}\n")
+                    }
+                    val card = UiCards.infoCard(
+                        ctx, R.drawable.ic_open_in_new,
+                        source, sb.toString(), "查看原文"
+                    ) {
+                        WebActivity.open(ctx, first.sourceUrl, source)
+                    }
+                    box.addView(card)
+                }
+                box.addView(TextView(ctx).apply {
+                    text = "以上内容分别来自各站点，版权归原作者所有。点击可跳转原文。"
+                    textSize = 11f
+                    setPadding(0, (8 * resources.displayMetrics.density).toInt(), 0, 0)
+                })
+            }
         }
     }
 

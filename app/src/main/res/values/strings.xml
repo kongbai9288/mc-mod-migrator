@@ -236,6 +236,7 @@
     <string name="sort_relevance">按相关度排序</string>
     <string name="favorites_empty">收藏夹是空的</string>
     <string name="search_results_kept">搜索结果已保留，点「搜索结果」可切回</string>
+    <string name="menu_lab">实验室 / 高级</string>
     <string name="empty_hint">这里还没有内容</string>
     <string name="token_auto_ok">已自动获取 GitHub Token，同步无需手填</string>
     <string name="token_manual_hint">已授权，但后端未开放 Token 下发接口，请在下面的 Token 框手动填写</string>

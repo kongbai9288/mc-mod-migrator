@@ -28,6 +28,45 @@ class SettingsMainFragment : Fragment() {
     private val exec = Executors.newSingleThreadExecutor()
     private val handler = Handler(Looper.getMainLooper())
 
+    /**
+     * 登录结果回调。
+     *
+     * 之前用 startActivity 打开登录页，回来后 Fragment 完全不知道登录已完成，
+     * 界面还停在"未登录"——于是后面所有依赖登录的操作（后端搜索、同步、备份）
+     * 都以为没登录，全部拒绝执行。这就是"登录成功但后续操作都不行"的根因。
+     * 现在用结果回调：登录页一结束就回来刷新状态、并自动取回 token。
+     */
+    private val loginLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { _ ->
+        onLoginReturned()
+    }
+
+    /** 从登录页返回：刷 cookie → 取 token → 刷新界面 */
+    private fun onLoginReturned() {
+        val ctx = context ?: return
+        toast("正在完成登录…")
+        exec.execute {
+            // cookie 落盘后再查，否则可能读到旧快照
+            runCatching { WebCookies.flushAll() }
+            // 后端有 token 接口就自动取回，不用用户手填
+            val t = runCatching { BackendApi.fetchToken(ctx) }.getOrNull()
+            if (!t.isNullOrBlank()) {
+                Prefs.get(ctx).edit().putString(K.TOKEN, t).apply()
+            }
+            handler.post {
+                if (!isAdded) return@post
+                refreshAccount()
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 从登录页/其他页面回来时刷新一次登录态（防止状态显示滞后）
+        if (::tvAccount.isInitialized) refreshAccount()
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
@@ -60,6 +99,7 @@ class SettingsMainFragment : Fragment() {
         v.findViewById<Button>(R.id.btnGoNav).setOnClickListener { go("nav") }
         v.findViewById<Button>(R.id.btnGoStorage).setOnClickListener { go("storage") }
         v.findViewById<Button>(R.id.btnGoAbout).setOnClickListener { go("about") }
+        v.findViewById<Button>(R.id.btnGoLab)?.setOnClickListener { go("lab") }
 
         refreshAccount()
         return v
@@ -142,9 +182,14 @@ class SettingsMainFragment : Fragment() {
                 }
                 try {
                     // 用内置浏览器登录：cookie 存在 WebView 里，
-                    // OkHttp 通过 cookie 桥能读到，登录状态才对得上
-                    WebActivity.login(requireContext(), url)
-                    toast("在浏览器里完成授权后，回来点「登录 GitHub」刷新")
+                    // OkHttp 通过 cookie 桥能读到，登录状态才对得上。
+                    // 用结果回调启动，登录完成后会自动回到这里刷新状态。
+                    val i = Intent(requireContext(), WebActivity::class.java)
+                    i.putExtra("url", url)
+                    i.putExtra("title", "登录 GitHub")
+                    i.putExtra("login", true)
+                    loginLauncher.launch(i)
+                    toast("在页面里完成授权即可，完成后会自动刷新")
                 } catch (t: Throwable) {
                     toast("打不开浏览器")
                 }

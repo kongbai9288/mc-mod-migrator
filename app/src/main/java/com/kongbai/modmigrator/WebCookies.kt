@@ -86,5 +86,17 @@ class WebCookies : CookieJar {
             } catch (t: Throwable) {
             }
         }
+
+        /**
+         * 强制把 WebView 的 cookie 落盘。
+         * 登录刚完成时必须调一次——否则 OkHttp 可能读到的是刷新前的旧 cookie，
+         * 导致"登录成功了但后续操作都报未登录"。
+         */
+        fun flushAll() {
+            try {
+                CookieManager.getInstance().flush()
+            } catch (t: Throwable) {
+            }
+        }
     }
 }
