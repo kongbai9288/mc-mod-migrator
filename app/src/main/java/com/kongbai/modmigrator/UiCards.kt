@@ -79,7 +79,7 @@ object UiCards {
     /** 描边按钮（次要操作），描边与文字同样跟随主题主色 */
     fun outlinedButton(ctx: Context, text: String, onClick: (() -> Unit)? = null): View =
         com.google.android.material.button.MaterialButton(
-            ctx, null, R.attr.materialButtonOutlinedStyle
+            ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle
         ).apply {
             this.text = text
             onClick?.let { setOnClickListener { it() } }
