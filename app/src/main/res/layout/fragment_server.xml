@@ -113,6 +113,22 @@
             android:text="@string/panel_probe_dir" />
     </LinearLayout>
 
+    <Button
+        android:id="@+id/btnBrowseDir"
+        style="@style/AppButtonOutlined"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="浏览目录（逐级进入，边逛边看 jar）" />
+
+    <Button
+        android:id="@+id/btnPickOutDir"
+        style="@style/AppButtonOutlined"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="存放位置：默认" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

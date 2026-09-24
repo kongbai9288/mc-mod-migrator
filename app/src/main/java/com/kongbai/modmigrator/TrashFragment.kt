@@ -26,6 +26,10 @@ class TrashFragment : Fragment() {
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var box: LinearLayout
     private lateinit var tvState: TextView
+    private lateinit var cbAll: android.widget.CheckBox
+    private lateinit var btnBatch: View
+    /** 当前勾选的回收站条目 */
+    private val picked = HashSet<String>()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -53,18 +57,45 @@ class TrashFragment : Fragment() {
         }
         root.addView(tvState)
 
-        val row = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
-        row.addView(android.widget.Button(ctx).apply {
-            text = "保留天数：${Trash.days(ctx)} 天"
-            setOnClickListener { pickDays() }
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        })
-        row.addView(android.widget.Button(ctx).apply {
-            text = getString(R.string.trash_empty_all)
-            setOnClickListener { confirmEmpty() }
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        })
+        // 操作按钮用 MaterialButton（原生 Button 不跟主题色，会一直是灰色），
+        // 两个按钮一行等宽，间距用 dp 而不是写死像素
+        val row = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, (8 * resources.displayMetrics.density).toInt(), 0, 0)
+        }
+        fun opBtn(text: String, filled: Boolean, act: () -> Unit): View {
+            val b = if (filled) UiCards.button(ctx, text) else UiCards.outlinedButton(ctx, text)
+            b.setOnClickListener { act() }
+            val lp = LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+            )
+            lp.marginEnd = (6 * resources.displayMetrics.density).toInt()
+            b.layoutParams = lp
+            return b
+        }
+        row.addView(opBtn("保留天数：${Trash.days(ctx)} 天", false) { pickDays() })
+        val emptyBtn = opBtn(getString(R.string.trash_empty_all), false) { confirmEmpty() }
+        (emptyBtn.layoutParams as LinearLayout.LayoutParams).marginEnd = 0
+        row.addView(emptyBtn)
         root.addView(row)
+
+        // 批量操作栏：全选 / 还原所选 / 彻底删除所选
+        val batchRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, (6 * resources.displayMetrics.density).toInt(), 0, 0)
+        }
+        cbAll = android.widget.CheckBox(ctx).apply {
+            text = "全选"
+            textSize = 13f
+        }
+        batchRow.addView(cbAll)
+        batchRow.addView(android.widget.Space(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+            )
+        })
+        btnBatch = opBtn("还原所选", true) { restoreSelected() }
+        batchRow.addView(btnBatch)
 
         box = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
@@ -97,8 +128,22 @@ class TrashFragment : Fragment() {
         val mb = Trash.totalSize(ctx) / 1048576.0
         tvState.text = "共 ${items.size} 个 · ${String.format("%.1f MB", mb)}"
         val fmt = SimpleDateFormat("MM-dd HH:mm", Locale.CHINA)
+        picked.retainAll(items.map { it.name }.toSet())
         for (item in items) {
-            box.addView(
+            // 每条做成"勾选框 + 卡片"，既能单选还原，也能批量操作
+            val line = LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+            }
+            val cb = android.widget.CheckBox(ctx).apply {
+                isChecked = picked.contains(item.name)
+                setOnCheckedChangeListener { _, on ->
+                    if (on) picked.add(item.name) else picked.remove(item.name)
+                    updateBatchBtn()
+                }
+            }
+            line.addView(cb)
+            line.addView(
                 UiCards.infoCard(
                     ctx, R.drawable.ic_delete,
                     item.name,
@@ -108,6 +153,44 @@ class TrashFragment : Fragment() {
                     card.setOnLongClickListener { doDelete(item) }
                 }
             )
+            box.addView(line)
+        }
+
+        cbAll.setOnCheckedChangeListener(null)
+        cbAll.isChecked = picked.size == items.size && items.isNotEmpty()
+        cbAll.setOnCheckedChangeListener { _, on ->
+            if (on) picked.addAll(items.map { it.name }) else picked.clear()
+            render()
+        }
+        updateBatchBtn()
+    }
+
+    private fun updateBatchBtn() {
+        if (!::btnBatch.isInitialized) return
+        val n = picked.size
+        (btnBatch as? android.widget.TextView)?.text =
+            if (n > 0) "还原所选（$n）" else "还原所选"
+        btnBatch.isEnabled = n > 0
+        btnBatch.alpha = if (n > 0) 1f else 0.4f
+    }
+
+    /** 批量还原 */
+    private fun restoreSelected() {
+        val ctx = context ?: return
+        if (picked.isEmpty()) return
+        val names = picked.toList()
+        Toast.makeText(ctx, "正在还原 ${names.size} 个…", Toast.LENGTH_SHORT).show()
+        exec.execute {
+            var ok = 0
+            for (n in names) {
+                val item = Trash.items(ctx).firstOrNull { it.name == n }
+                if (item != null && Trash.restore(ctx, item)) ok++
+            }
+            safePost(handler) {
+                Toast.makeText(ctx, "已还原 $ok / ${names.size}", Toast.LENGTH_SHORT).show()
+                picked.clear()
+                render()
+            }
         }
     }
 

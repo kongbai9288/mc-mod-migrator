@@ -71,6 +71,7 @@ object K {
     const val PANEL_USER = "panel_user"
     const val PANEL_PASS = "panel_pass"
     const val PANEL_MODE_KEY = "panel_mode_key"
+    const val PANEL_OUT_DIR = "panel_out_dir"  // 服务器更新结果的本地存放目录
     const val PANEL_DIR = "panel_dir"
     const val SCAN_ROOT = "scan_root"
     const val USE_MIRROR = "use_mirror"

@@ -82,7 +82,184 @@ class ServerFragment : Fragment() {
         rgAuth.setOnCheckedChangeListener { _, _ -> syncAuthFields() }
         v.findViewById<Button>(R.id.btnCheckUpdates).setOnClickListener { checkUpdates() }
         v.findViewById<Button>(R.id.btnDownloadAll).setOnClickListener { downloadAll() }
+        // 目录浏览器：连上之后逐级进入目录，边逛边看这个目录里有哪些 jar
+        v.findViewById<Button>(R.id.btnBrowseDir)?.setOnClickListener {
+            browseDir(etDir.text.toString().trim().ifBlank { "/" })
+        }
+        // 选择"更新下来的文件放哪"（不上传回服务器）
+        v.findViewById<Button>(R.id.btnPickOutDir)?.setOnClickListener { pickOutDir() }
+        refreshOutDirLabel()
         return v
+    }
+
+    // ---------------- 输出目录（不上传，只落地到本地） ----------------
+
+    /** 更新结果存放目录。空=用默认（迁移后目录/工作目录） */
+    private fun outDir(): androidx.documentfile.provider.DocumentFile? {
+        val ctx = context ?: return null
+        val saved = Prefs.get(ctx).getString(K.PANEL_OUT_DIR, "") ?: ""
+        return if (saved.isNotBlank()) {
+            runCatching { Fs.tree(ctx, saved) }.getOrNull()
+        } else {
+            WorkDir.modsDir(ctx) ?: outDir()
+        }
+    }
+
+    private fun refreshOutDirLabel() {
+        val ctx = context ?: return
+        val saved = Prefs.get(ctx).getString(K.PANEL_OUT_DIR, "") ?: ""
+        val btn = view?.findViewById<Button>(R.id.btnPickOutDir) ?: return
+        btn.text = if (saved.isBlank()) {
+            "存放位置：默认（迁移后目录）"
+        } else {
+            val d = runCatching { Fs.tree(ctx, saved) }.getOrNull()
+            "存放位置：${d?.name ?: "（已失效，点此重选）"}"
+        }
+    }
+
+    /**
+     * 让用户自己挑一个目录放更新下来的模组。
+     * 明确说明：文件只落地到本地，**不会**上传回服务器。
+     */
+    private fun pickOutDir() {
+        val ctx = context ?: return
+        val opts = arrayOf("用默认目录（迁移后 / 工作目录）", "自己选一个目录…", "清除选择，回到默认")
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("更新下来的文件放哪")
+            .setMessage("服务器模组的更新只会下载到本机指定目录，不会上传回服务器。")
+            .setItems(opts) { _, w ->
+                when (w) {
+                    0 -> {
+                        Prefs.get(ctx).edit().putString(K.PANEL_OUT_DIR, "").apply()
+                        refreshOutDirLabel()
+                    }
+                    1 -> {
+                        val i = android.content.Intent(
+                            android.content.Intent.ACTION_OPEN_DOCUMENT_TREE
+                        )
+                        startActivityForResult(i, 91)
+                    }
+                    2 -> {
+                        Prefs.get(ctx).edit().putString(K.PANEL_OUT_DIR, "").apply()
+                        refreshOutDirLabel()
+                        toast("已回到默认目录")
+                    }
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != 91 || resultCode != android.app.Activity.RESULT_OK) return
+        val uri = data?.data ?: return
+        val ctx = context ?: return
+        try {
+            ctx.contentResolver.takePersistableUriPermission(
+                uri,
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+        } catch (t: Throwable) {
+        }
+        Prefs.get(ctx).edit().putString(K.PANEL_OUT_DIR, uri.toString()).apply()
+        refreshOutDirLabel()
+        toast("已设置存放位置")
+    }
+
+    // ---------------- 目录浏览器 ----------------
+
+    /**
+     * 逐级浏览服务器目录。
+     *
+     * 之前只能手填路径，面板结构各家不同，用户根本猜不出该填什么。
+     * 现在列当前目录的内容：目录可进入，jar 会实时标出来，
+     * 选好了直接"就用这个目录"去扫描。
+     */
+    private fun browseDir(path: String) {
+        val srv = chosen
+        if (srv == null) {
+            toast("请先连接并选择服务器")
+            return
+        }
+        val c = cred()
+        val ctx = requireContext()
+        toast("正在读取 $path …")
+        bg {
+            val token = try {
+                ServerPanelApi.tokenOf(c)
+            } catch (t: Throwable) {
+                log("认证失败：${t.message}")
+                safePost(handler) { toast("认证失败：${t.message}") }
+                return@bg
+            }
+            val entries = try {
+                ServerPanelApi.listRaw(c.base, token, srv.uuid.ifBlank { srv.id }, path)
+            } catch (t: Throwable) {
+                log("读取失败：${t.message}")
+                emptyList<Pair<String, Boolean>>()
+            }
+
+            if (entries.isEmpty()) {
+                safePost(handler) {
+                    toast("这个目录是空的，或读不出来（面板可能限制了访问）")
+                }
+                return@bg
+            }
+
+            // 目录在前，文件在后；jar 单独标出来
+            val dirs = entries.filter { it.second }.map { it.first }.sorted()
+            val jars = entries.filter { !it.second && it.first.endsWith(".jar", true) }
+                .map { it.first }.sorted()
+            val others = entries.filter { !it.second && !it.first.endsWith(".jar", true) }
+                .map { it.first }
+
+            safePost(handler) {
+                if (!isAdded) return@post
+                val labels = ArrayList<String>()
+                val actions = ArrayList<() -> Unit>()
+
+                // 上一层
+                if (path != "/" && path.isNotBlank()) {
+                    labels.add("↑ 上一级")
+                    actions.add {
+                        val parent = path.trimEnd('/').substringBeforeLast('/').ifBlank { "/" }
+                        browseDir(parent)
+                    }
+                }
+                for (d in dirs) {
+                    labels.add("📁 $d")
+                    actions.add { browseDir(path.trimEnd('/') + "/" + d) }
+                }
+                for (j in jars) {
+                    labels.add("📦 $j")
+                    actions.add { /* 点 jar 不做事，用下面的按钮确认目录 */ }
+                }
+
+                val sb = StringBuilder()
+                sb.append("当前：").append(path).append('\n')
+                sb.append("子目录 ").append(dirs.size).append(" 个 · jar ").append(jars.size)
+                    .append(" 个")
+                if (others.isNotEmpty()) sb.append(" · 其它 ").append(others.size).append(" 个")
+
+                MaterialAlertDialogBuilder(ctx)
+                    .setTitle("浏览服务器目录")
+                    .setMessage(sb.toString())
+                    .setItems(labels.toTypedArray()) { _, w -> actions[w].invoke() }
+                    .setPositiveButton("就用这个目录") { _, _ ->
+                        etDir.setText(path)
+                        Prefs.get(ctx).edit().putString(K.PANEL_DIR, path).apply()
+                        if (jars.isNotEmpty()) {
+                            scanFiles()
+                        } else {
+                            toast("这个目录没有 jar，可继续进入子目录找找")
+                        }
+                    }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
+            }
+        }
     }
 
     /** 按认证方式显示/隐藏对应输入框，避免"只有一个框"的困惑 */
@@ -336,7 +513,7 @@ class ServerFragment : Fragment() {
             return
         }
         val ctx = requireContext()
-        val dir = Targets.modsDir(ctx)
+        val dir = outDir()
         if (dir == null) {
             toast("「迁移后」的目录不可用，请先在迁移页选择")
             return
@@ -363,7 +540,7 @@ class ServerFragment : Fragment() {
             return
         }
         val ctx = requireContext()
-        val dir = Targets.modsDir(ctx)
+        val dir = outDir()
         if (dir == null) {
             toast("「迁移后」的目录不可用")
             return

@@ -130,7 +130,10 @@ object UpdateChecker {
                 return Release(
                     tag = tag,
                     name = Json.s(root, "name").ifBlank { tag },
-                    notes = Json.s(root, "body").take(400),
+                    // 之前的 release body 是 CI 写死的模板，每次都一样，
+                    // 显示出来毫无意义（用户看到的是"更新内容"却永远是同一句话）。
+                    // 这里识别并过滤掉模板文案，留空则由界面不显示该栏。
+                    notes = realNotes(Json.s(root, "body")),
                     apkUrl = url,
                     size = size,
                     published = Json.s(root, "published_at")
@@ -240,4 +243,37 @@ object UpdateChecker {
         } catch (t: Throwable) {
             "0.0.0"
         }
+
+    /**
+     * 识别并过滤"没有信息量"的更新说明。
+     *
+     * CI 曾用一段写死的模板当作 release body，结果每次更新
+     * 显示的"更新内容"都是同一句话——对用户毫无意义，
+     * 反而让人误以为自己没更新成功。
+     *
+     * 这里做两件事：
+     *  1. 命中模板特征 → 返回空，界面就不显示这一栏（比显示废话好）
+     *  2. 正常内容 → 原样返回，并去掉 HTML 标签
+     */
+    fun realNotes(body: String): String {
+        val raw = body.trim()
+        if (raw.isBlank()) return ""
+
+        // 模板特征句：这些话在任何版本里都一样，没有信息量
+        val boilerplate = listOf(
+            "更新内容以本条 release 的说明为准",
+            "CI 自动构建的 release APK",
+            "安装后需在设置里填写"
+        )
+        val hit = boilerplate.count { raw.contains(it) }
+        // 模板里这些句子会同时出现；真 changelog 不会
+        if (hit >= 2) return ""
+
+        // 去掉常见 Markdown/HTML 噪音，保留可读文本
+        return raw
+            .replace(Regex("<[^>]+>"), "")
+            .replace(Regex("^#+\\s*", RegexOption.MULTILINE), "")
+            .trim()
+            .take(600)
+    }
 }

@@ -20,6 +20,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # 默认只拉最新一层（fetch-depth: 1），那样 git log 拿不到历史，
+          # 生成 changelog 就成了空壳。拉全量历史才能对比上一个 tag。
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -114,18 +118,47 @@ jobs:
           path: app/build/outputs/apk/*/*.apk
           retention-days: 30
 
+      - name: Generate real changelog from commits
+        id: changelog
+        run: |
+          set -e
+          # 之前 release body 是一段写死的模板，每次都一样，
+          # 用户点「检查更新」看到的"更新内容"永远是同一句话，毫无意义。
+          # 这里改成从 git 提交记录生成真实改动列表。
+          PREV=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          echo "previous tag: ${PREV:-none}"
+          {
+            echo "## ModMigrator ${{ steps.ver.outputs.tag }}"
+            echo
+            echo "CI 自动构建，已签名。"
+            echo
+            if [ -n "$PREV" ]; then
+              echo "### 本次改动（相对 $PREV）"
+              echo
+              git log --no-merges --pretty=format:'- %s' "$PREV"..HEAD | head -60
+            else
+              echo "### 本次改动"
+              echo
+              git log --no-merges --pretty=format:'- %s' -30
+            fi
+            echo
+            echo
+            echo "### 变更文件"
+            echo
+            if [ -n "$PREV" ]; then
+              git diff --stat "$PREV"..HEAD | tail -20
+            fi
+          } > /tmp/CHANGELOG.md
+          echo "===== changelog ====="
+          cat /tmp/CHANGELOG.md
+
       - name: Publish APK to Release
         if: success()
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
           name: ModMigrator ${{ steps.ver.outputs.tag }}
-          body: |
-            ## ModMigrator ${{ steps.ver.outputs.tag }}
-
-            CI 自动构建的 release APK，已签名。
-
-            更新内容以本条 release 的说明为准。
+          body_path: /tmp/CHANGELOG.md
           files: app/build/outputs/apk/release/*.apk
           draft: false
           prerelease: false
