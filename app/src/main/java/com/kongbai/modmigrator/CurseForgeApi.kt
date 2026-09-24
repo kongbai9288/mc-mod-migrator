@@ -53,7 +53,8 @@ object CurseForgeApi {
                     downloads = Json.l(d, "downloadCount"),
                     fileId = fileId,
                     fileName = fileName,
-                    source = "curseforge"
+                    source = "curseforge",
+                    updated = Json.s(d, "dateModified").ifBlank { Json.s(d, "dateReleased") }
                 )
             )
         }

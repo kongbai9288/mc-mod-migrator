@@ -26,7 +26,8 @@ data class MarketMod(
     var fileId: String = "",
     var fileName: String = "",
     var summaryZh: String = "",
-    var source: String = "modrinth"
+    var source: String = "modrinth",
+    var updated: String = ""   // 最近更新时间（ISO），用于按时间排序
 )
 
 data class ModFile(

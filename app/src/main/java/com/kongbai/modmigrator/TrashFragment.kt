@@ -97,16 +97,16 @@ class TrashFragment : Fragment() {
         val mb = Trash.totalSize(ctx) / 1048576.0
         tvState.text = "共 ${items.size} 个 · ${String.format("%.1f MB", mb)}"
         val fmt = SimpleDateFormat("MM-dd HH:mm", Locale.CHINA)
-        for (it in items) {
+        for (item in items) {
             box.addView(
                 UiCards.infoCard(
                     ctx, R.drawable.ic_delete,
-                    it.name,
-                    "删除于 ${fmt.format(Date(it.at))} · ${it.size / 1024} KB",
+                    item.name,
+                    "删除于 ${fmt.format(Date(item.at))} · ${item.size / 1024} KB",
                     "还原"
-                ) { doRestore(it) }
-            val card = box.getChildAt(box.childCount - 1)
-            card.setOnLongClickListener { doDelete(it) }
+                ) { doRestore(item) }.also { card ->
+                    card.setOnLongClickListener { doDelete(item) }
+                }
             )
         }
     }

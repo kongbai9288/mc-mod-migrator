@@ -25,10 +25,22 @@ class MarketFragment : Fragment() {
     private lateinit var rvMods: RecyclerView
     private lateinit var rvLinks: RecyclerView
 
+    // 搜索/推荐的结果单独存一份，切到收藏夹再切回来还在，
+    // 不会像之前那样被 clear() 冲掉
+    private val searchResults = mutableListOf<MarketMod>()
+    private val favResults = mutableListOf<MarketMod>()
+
+    /** 当前展示的列表（adapter 绑定它） */
     private val results = mutableListOf<MarketMod>()
     private val links = mutableListOf<MarkedLink>()
     private lateinit var resAdapter: MarketAdapter
     private lateinit var linkAdapter: LinkAdapter
+
+    /** 当前页签：search=搜索结果 / fav=收藏夹 */
+    private var currentTab = "search"
+    private lateinit var tvListTitle: android.widget.TextView
+    private lateinit var spSort: Spinner
+    private lateinit var btnFav: Button
 
     private val exec = Executors.newSingleThreadExecutor()
     private val handler = Handler(Looper.getMainLooper())
@@ -64,11 +76,29 @@ class MarketFragment : Fragment() {
         rvLinks.adapter = linkAdapter
         rvLinks.isNestedScrollingEnabled = false
 
+        tvListTitle = v.findViewById(R.id.tvListTitle)
+        spSort = v.findViewById(R.id.spSort)
+        btnFav = v.findViewById(R.id.btnFavorites)
+
         v.findViewById<Button>(R.id.btnSearch).setOnClickListener { search() }
         v.findViewById<Button>(R.id.btnRecommend)?.setOnClickListener { recommend() }
-        v.findViewById<Button>(R.id.btnFavorites)?.setOnClickListener { showFavorites() }
         v.findViewById<Button>(R.id.btnAddLink).setOnClickListener { addLinkDialog() }
         v.findViewById<Button>(R.id.btnOpenPage).setOnClickListener { openPageDialog() }
+
+        // 收藏按钮 = 页签切换：在收藏夹和搜索结果之间来回切，
+        // 两边各自保留，不会互相覆盖
+        btnFav.setOnClickListener { toggleTab() }
+
+        // 排序
+        spSort.setSelection(0, false)
+        spSort.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(
+                p0: android.widget.AdapterView<*>?, p1: View?, pos: Int, p3: Long
+            ) {
+                applySort()
+            }
+            override fun onNothingSelected(p0: android.widget.AdapterView<*>?) {}
+        }
 
         val p = Prefs.get(requireContext())
         etVersion.setText(p.getString(K.DEF_VERSION, "") ?: "")
@@ -139,26 +169,26 @@ class MarketFragment : Fragment() {
         val ld = loader()
         val ctx = requireContext()
         toast("搜索中…")
-        // 分批：先清空，但每个源回来就立刻追加显示，
-        // 不会因为某一个源慢或挂掉而整页卡住
-        results.clear()
-        resAdapter.notifyDataSetChanged()
+        // 分批：先清空搜索结果列表，但每个源回来就立刻追加显示，
+        // 不会因为某一个源慢或挂掉而整页卡住。
+        // 结果存在 searchResults 里，切到收藏夹再回来依然在。
+        searchResults.clear()
+        currentTab = "search"
+        refreshList()
         AggregateSearch.searchStreaming(ctx, q, mc, ld) { batch, source, finished ->
             if (!isAdded) return@searchStreaming
             if (batch.isNotEmpty()) {
-                results.addAll(batch)
-                // 按下载量排序，新来的插到合适位置
-                results.sortByDescending { it.downloads }
-                resAdapter.notifyDataSetChanged()
-                toast("$source 返回 ${batch.size} 个（共 ${results.size}）")
+                searchResults.addAll(batch)
+                refreshList()
+                toast("$source 返回 ${batch.size} 个（共 ${searchResults.size}）")
                 autoTranslate(batch)
             }
             if (finished) {
                 val routes = AggregateSearch.lastRoutes
-                if (results.isEmpty()) {
+                if (searchResults.isEmpty()) {
                     toast("没有结果${if (routes.isNotBlank()) "（$routes）" else ""}")
                 } else {
-                    toast("共 ${results.size} 个${if (routes.isNotBlank()) " · $routes" else ""}")
+                    toast("共 ${searchResults.size} 个${if (routes.isNotBlank()) " · $routes" else ""}")
                 }
             }
         }
@@ -195,26 +225,79 @@ class MarketFragment : Fragment() {
         bg {
             val list = AggregateSearch.recommend(ctx, mc, ld, installedNames())
             safePost(handler) {
-                results.clear()
-                results.addAll(list)
-                resAdapter.notifyDataSetChanged()
+                searchResults.clear()
+                searchResults.addAll(list)
+                currentTab = "search"
+                refreshList()
                 toast(if (list.isEmpty()) "没获取到推荐" else "推荐 ${list.size} 个")
+                if (list.isNotEmpty()) autoTranslate(list)
             }
         }
     }
 
-    /** 收藏夹 */
+    /** 收藏夹页签：加载并显示，搜索结果原样保留在内存里 */
     private fun showFavorites() {
         val ctx = context ?: return
-        val favs = Favorites.list(ctx)
-        if (favs.isEmpty()) {
+        favResults.clear()
+        favResults.addAll(Favorites.list(ctx))
+        if (favResults.isEmpty()) {
             toast("收藏夹是空的（长按搜索结果即可收藏）")
-            return
+        } else {
+            toast("收藏 ${favResults.size} 个")
         }
+        currentTab = "fav"
+        refreshList()
+    }
+
+    /** 切回搜索结果页签 */
+    private fun showSearchTab() {
+        currentTab = "search"
+        refreshList()
+    }
+
+    /** 两个页签之间来回切 */
+    private fun toggleTab() {
+        if (currentTab == "search") showFavorites()
+        else showSearchTab()
+    }
+
+    /**
+     * 把当前页签对应的列表灌进展示列表，并应用排序。
+     * 搜索结果和收藏各自独立存放，切换不会丢。
+     */
+    private fun refreshList() {
+        val src = if (currentTab == "search") searchResults else favResults
         results.clear()
-        results.addAll(favs)
+        results.addAll(src)
+        applySort()
+        // 标题随页签变，让用户知道自己在看哪个列表
+        tvListTitle.text = if (currentTab == "search")
+            getString(R.string.tab_search_results) + "（${results.size}）"
+        else
+            getString(R.string.tab_favorites) + "（${results.size}）"
+        btnFav.text = if (currentTab == "search")
+            getString(R.string.tab_favorites)
+        else
+            getString(R.string.tab_search_results)
+    }
+
+    /** 排序：下载量 / 更新时间 / 名称 / 原顺序 */
+    private fun applySort() {
+        when (spSort.selectedItemPosition) {
+            0 -> results.sortByDescending { it.downloads }
+            1 -> results.sortByDescending { it.updated }
+            2 -> results.sortWith(
+                compareBy(String.CASE_INSENSITIVE_ORDER) { it.name }
+            )
+            else -> {
+                // 相关度 = 数据源返回的原顺序，先恢复原序再排序没意义，
+                // 这里按来源原始顺序：用 searchResults/favResults 的顺序重灌
+                val src = if (currentTab == "search") searchResults else favResults
+                results.clear()
+                results.addAll(src)
+            }
+        }
         resAdapter.notifyDataSetChanged()
-        toast("收藏 ${favs.size} 个")
     }
 
     private fun translate(mod: MarketMod) {
@@ -233,35 +316,95 @@ class MarketFragment : Fragment() {
         }
     }
 
+    /**
+     * 自动翻译。
+     *
+     * 之前只翻前 10 条、而且是同时并发发出去的：
+     *   - 10 条以后的永远不翻 → 看起来"有的翻了有的没翻"
+     *   - 并发调用同一个翻译引擎，后面的容易失败
+     * 现在改成**串行队列**，逐条翻，翻多少取决于实际条数，
+     * 每条翻完单独刷新，失败的不影响后面的继续。
+     */
     private fun autoTranslate(list: List<MarketMod>) {
         val c = ctx0() ?: return
         if (!Prefs.get(c).getBoolean(K.AUTO_TRANS, true)) return
-        // 逐条异步翻译，翻完一条刷一条，不用等全部完成
-        var n = 0
-        for (m in list.take(10)) {
+        val targets = list.filter { it.summary.isNotBlank() && it.summaryZh.isBlank() }
+        if (targets.isEmpty()) return
+
+        fun next(i: Int) {
+            if (i >= targets.size || !isAdded) return
+            val m = targets[i]
             OfflineTranslate.translate(c, m.summary) { zh ->
-                if (zh != null) {
-                    m.summaryZh = zh
-                    n++
-                    safePost(handler) { resAdapter.notifyDataSetChanged() }
+                if (zh != null) m.summaryZh = zh
+                // 翻一条刷一条，用户能看着逐步出中文
+                safePost(handler) {
+                    val idx = results.indexOf(m)
+                    if (idx >= 0) resAdapter.notifyItemChanged(idx)
                 }
+                next(i + 1)
             }
         }
+        next(0)
     }
 
+    /**
+     * 安装模组。
+     *
+     * CurseForge 特殊处理：它的下载要先过「读秒页面」，
+     * 直接拿 API 给的地址去下载，下到的只是一个 HTML。
+     * 所以这里改成：后台开一个隐藏页面等它读秒，
+     * 真实地址出现时截获，再拿去下载（用户全程不用盯着）。
+     */
     private fun install(mod: MarketMod) {
         val ctx = requireContext()
         val mc = mcVersion()
         val ld = loader()
+
+        if (mod.source == "curseforge") {
+            val page = DelayedDownload.curseForgePage(mod)
+            if (page.isBlank()) {
+                toast("没有下载地址")
+                return
+            }
+            toast("CurseForge 需要等待读秒，正在后台获取真实地址…")
+            DelayedDownload.capture(
+                ctx, page,
+                onGot = { real ->
+                    toast("已拿到下载地址，开始下载…")
+                    bg {
+                        val n = mod.fileName.ifBlank { Downloader.guessName(real) }
+                        val dir = Targets.modsDir(ctx)
+                        val f = if (dir == null) null
+                        else Downloader.download(ctx, real, dir, n)
+                        toast(if (f == null) "下载失败" else "已安装：${f.name}")
+                        if (f != null) Notifier.show(ctx, "下载完成", mod.name)
+                    }
+                },
+                onFail = { why ->
+                    toast("没拿到下载地址（$why），改用直连试试…")
+                    // 兜底：还是用 API 给的地址试一次
+                    bg {
+                        val u = CurseForgeApi.downloadUrl(mod)
+                        if (u.isBlank()) {
+                            toast("下载失败")
+                            return@bg
+                        }
+                        val n = mod.fileName.ifBlank { Downloader.guessName(u) }
+                        val dir = Targets.modsDir(ctx)
+                        val f = if (dir == null) null
+                        else Downloader.download(ctx, u, dir, n, CurseForgeApi.authHeaders())
+                        toast(if (f == null) "下载失败" else "已安装：${f.name}")
+                    }
+                }
+            )
+            return
+        }
+
         toast("准备下载…")
         bg {
             var name = ""
-            var headers: Map<String, String> = emptyMap()
+            val headers: Map<String, String> = emptyMap()
             val url = when (mod.source) {
-                "curseforge" -> {
-                    headers = CurseForgeApi.authHeaders()
-                    CurseForgeApi.downloadUrl(mod)
-                }
                 "backend" -> {
                     val fs = BackendApi.files(ctx, mod.id, mc, ld)
                     val f0 = fs.firstOrNull()

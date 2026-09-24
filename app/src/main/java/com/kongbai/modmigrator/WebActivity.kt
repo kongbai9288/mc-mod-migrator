@@ -84,11 +84,27 @@ class WebActivity : AppCompatActivity() {
                 (3 * resources.displayMetrics.density).toInt()
             )
         }
-        web = WebView(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
+        // WebView 在部分设备/首次启动时会构造失败（系统 WebView 未就绪、
+        // 被禁用、或内存不足）。这里兜住：失败就用外部浏览器打开，
+        // 而不是让整个页面崩掉——这正是"有概率不工作"的原因之一。
+        try {
+            web = WebView(this).apply {
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+            }
+        } catch (t: Throwable) {
+            try {
+                val u = intent.getStringExtra(EXTRA_URL) ?: ""
+                if (u.isNotBlank()) {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(u)))
+                }
+            } catch (e2: Throwable) {
+            }
+            Toast.makeText(this, "内置浏览器不可用，已改用外部浏览器", Toast.LENGTH_SHORT).show()
+            finish()
+            return
         }
         root.addView(web)
         root.addView(bar)
@@ -350,12 +366,44 @@ class WebActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        // 彻底清理 WebView：这类页面最容易泄漏 Activity，
+        // 顺序必须是 摘父容器 → 停加载 → 清回调 → destroy
         try {
             WebTranslate.stop()
-            web.stopLoading()
-            web.destroy()
+            if (::web.isInitialized) {
+                (web.parent as? android.view.ViewGroup)?.removeView(web)
+                web.stopLoading()
+                web.webViewClient = WebViewClient()
+                web.webChromeClient = WebChromeClient()
+                web.clearHistory()
+                web.clearCache(true)
+                web.destroy()
+            }
         } catch (t: Throwable) {
         }
         super.onDestroy()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // 页面不可见时暂停 JS 与渲染，省电也减少后台被杀的概率
+        try {
+            if (::web.isInitialized) {
+                web.pauseTimers()
+                web.onPause()
+            }
+        } catch (t: Throwable) {
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        try {
+            if (::web.isInitialized) {
+                web.resumeTimers()
+                web.onResume()
+            }
+        } catch (t: Throwable) {
+        }
     }
 }

@@ -33,4 +33,10 @@
         <item>6</item>
     </string-array>
 
+    <string-array name="sort_modes">
+        <item>下载量最多</item>
+        <item>最近更新</item>
+        <item>名称 A-Z</item>
+        <item>相关度（原顺序）</item>
+    </string-array>
 </resources>

@@ -32,7 +32,8 @@ object ModrinthApi {
                     iconUrl = Json.s(h, "icon_url"),
                     pageUrl = "https://modrinth.com/mod/${Json.s(h, "slug")}",
                     downloads = Json.l(h, "downloads"),
-                    source = "modrinth"
+                    source = "modrinth",
+                    updated = Json.s(h, "date_modified").ifBlank { Json.s(h, "date_created") }
                 )
             )
         }
