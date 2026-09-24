@@ -36,7 +36,10 @@ object NavConfig {
         Item("plugin", R.string.tab_plugin, R.drawable.ic_extension) { PluginFragment() },
         Item("settings", R.string.tab_settings, R.drawable.ic_settings) { SettingsMainFragment() },
         Item("devs", R.string.menu_devs, R.drawable.ic_person) { DevsFragment() },
-        Item("log", R.string.menu_log, R.drawable.ic_info) { SettingsLogFragment() }
+        Item("log", R.string.menu_log, R.drawable.ic_info) { SettingsLogFragment() },
+        Item("favorites", R.string.tab_favorites, R.drawable.ic_check_circle) { FavoritesFragment() },
+        Item("weekly", R.string.tab_weekly, R.drawable.ic_rocket_launch) { WeeklyReportFragment() },
+        Item("sites", R.string.tab_sites, R.drawable.ic_open_in_new) { SitesFragment() }
     )
 
     fun defaultKeys(): List<String> = listOf("migration", "market")

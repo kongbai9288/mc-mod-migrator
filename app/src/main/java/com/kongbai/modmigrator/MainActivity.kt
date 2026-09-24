@@ -100,14 +100,10 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val key = NavConfig.keyOfId(id) ?: return
-        // 设置是二级菜单页，保持原来的入口行为
-        if (key == "settings") {
-            try {
-                startActivity(android.content.Intent(this, SettingsHostActivity::class.java))
-            } catch (t: Throwable) {
-            }
-            return
-        }
+        // 设置现在就在主界面里显示，不再跳到独立 Activity。
+        // 之前那样做会导致：从设置返回后底部导航高亮还停在别的 tab 上，
+        // 看起来像"返回到了别的页面"。现在设置就是一个普通 tab，
+        // 子页在同一容器内打开，返回路径连贯。
         val p = NavConfig.find(key) ?: return
         val f: Fragment = try {
             p.make()
@@ -115,6 +111,40 @@ class MainActivity : AppCompatActivity() {
             MigrationFragment()
         }
         replace(f)
+    }
+
+    /**
+     * 打开设置子页。
+     * 跟一级设置页共用同一个容器并压入返回栈，
+     * 返回键路径：子页 → 设置入口 → 上一个 tab。
+     */
+    fun openSettingsPage(page: String) {
+        val f: Fragment = try {
+            when (page) {
+                "backend" -> SettingsBackendFragment()
+                "search" -> SettingsSearchFragment()
+                "migrate" -> SettingsMigrateFragment()
+                "storage" -> SettingsStorageFragment()
+                "nav" -> SettingsNavFragment()
+                "theme" -> SettingsThemeFragment()
+                "lang" -> SettingsLangFragment()
+                "anim" -> SettingsAnimFragment()
+                "plugin" -> PluginFragment()
+                "devs" -> DevsFragment()
+                "log" -> SettingsLogFragment()
+                "about" -> SettingsAboutFragment()
+                else -> SettingsMainFragment()
+            }
+        } catch (t: Throwable) {
+            SettingsMainFragment()
+        }
+        try {
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, f)
+                .addToBackStack("settings:$page")
+                .commit()
+        } catch (t: Throwable) {
+        }
     }
 
     private fun replace(f: Fragment) {

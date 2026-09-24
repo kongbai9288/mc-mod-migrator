@@ -32,35 +32,20 @@ class DevsFragment : Fragment() {
     private lateinit var box: LinearLayout
     private lateinit var tvState: TextView
 
+    /**
+     * 彩蛋：播放一小段属于本应用的旋律，放完自动换主题色。
+     * 用 ToneGenerator 合成，不依赖任何音频文件——
+     * 之前那种依赖资源的做法在资源缺失时就会"点了没反应"。
+     */
     private fun showEgg() {
         val ctx = context ?: return
-        val facts = listOf(
-            "Minecraft 的唱片「11」里藏着一段脚步声与低语，\n至今没人完全解读清楚。",
-            "「Herobrine」从未在 Minecraft 正式版里出现过，\n官方更新日志多次以「移除了 Herobrine」开玩笑。",
-            "苦力怕（Creeper）的诞生源于一次建模事故：\n作者本想做猪，结果把身体拉长了。",
-            "末影人的声音是把现实里的录音倒放再处理出来的。",
-            "Minecraft 最早的名字叫「Cave Game」，\n后来才改成 Minecraft: Order of the Stone。",
-            "1.13 更新把「方块 ID」系统彻底重写，\n这也是为什么老模组在那之后几乎全部失效。",
-            "下界传送门在 Java 版与基岩版的坐标换算不同，\n所以跨版本迁移存档要格外小心。"
-        )
-        val fact = facts[(System.currentTimeMillis() % facts.size).toInt()]
-        val pkg = try {
-            val pi = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
-            "${pi.versionName}（${pi.packageName}）"
-        } catch (t: Throwable) {
-            "未知"
+        EggPlayer.play(ctx) { _ ->
+            // 主题已切换，重建界面生效
+            try {
+                activity?.recreate()
+            } catch (t: Throwable) {
+            }
         }
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("🥚 你发现了彩蛋")
-            .setMessage(
-                "$fact\n\n" +
-                    "—— 致每一位把配置一个个搬过去的 MC 玩家。\n\n" +
-                    "版本：$pkg\n" +
-                    "本工具由 kongbai 与贡献者共同维护，欢迎在仓库提 Issue 与 PR。"
-            )
-            .setPositiveButton("再抽一条") { _, _ -> showEgg() }
-            .setNegativeButton("关闭", null)
-            .show()
     }
 
     override fun onCreateView(

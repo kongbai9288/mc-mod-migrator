@@ -233,6 +233,40 @@ object BackendApi {
         return b + if (maybeRelative.startsWith("/")) maybeRelative else "/$maybeRelative"
     }
 
+    /**
+     * 后端推荐榜。
+     * 后端没这个接口时返回 null，调用方会自动跳过这个源，不会报错。
+     */
+    fun recommend(ctx: Context, mc: String, loader: String): List<MarketMod>? {
+        val b = base(ctx)
+        if (b.isBlank()) return null
+        val q = ArrayList<String>()
+        if (mc.isNotBlank()) q.add("mc=" + Http.enc(mc))
+        if (loader.isNotBlank() && loader != "auto") q.add("loader=" + Http.enc(loader))
+        val url = b + "/recommend" + if (q.isEmpty()) "" else "?" + q.joinToString("&")
+        return try {
+            val arr = Json.arr(Http.get(url)) ?: return null
+            val out = ArrayList<MarketMod>()
+            for (e in arr) {
+                out.add(
+                    MarketMod(
+                        id = Json.s(e, "id"),
+                        slug = Json.s(e, "slug"),
+                        name = Json.s(e, "name").ifBlank { Json.s(e, "title") },
+                        summary = Json.s(e, "summary").ifBlank { Json.s(e, "description") },
+                        iconUrl = Json.s(e, "iconUrl").ifBlank { Json.s(e, "icon_url") },
+                        pageUrl = Json.s(e, "pageUrl").ifBlank { Json.s(e, "url") },
+                        downloads = Json.l(e, "downloads"),
+                        source = "curseforge"
+                    )
+                )
+            }
+            if (out.isEmpty()) null else out
+        } catch (t: Throwable) {
+            null
+        }
+    }
+
     fun categories(ctx: Context): List<Pair<String, String>> {
         val root = Json.obj(getAny(ctx, "/api/categories") ?: return emptyList()) ?: return emptyList()
         val arr = when {

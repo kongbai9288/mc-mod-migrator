@@ -41,6 +41,9 @@ object WorkDir {
     fun data(ctx: Context): DocumentFile? = sub(ctx, "data")
 
     /** 目标 mods 目录：优先工作目录，没授权才退回应用私有目录 */
+    /** 模组图标缓存目录 */
+    fun icons(ctx: Context) = sub(ctx, "icons")
+
     fun modsDir(ctx: Context): DocumentFile? {
         return mods(ctx) ?: Targets.modsDir(ctx)
     }

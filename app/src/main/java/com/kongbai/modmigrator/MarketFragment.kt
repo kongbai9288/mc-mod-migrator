@@ -128,23 +128,27 @@ class MarketFragment : Fragment() {
         val ld = loader()
         val ctx = requireContext()
         toast("搜索中…")
-        bg {
-            // 走统一入口：按设置决定 Modrinth / CurseForge(官方或后端) / 聚合
-            val list = AggregateSearch.search(ctx, q, mc, ld)
-            val routes = AggregateSearch.lastRoutes
-            if (list.isEmpty() && Prefs.get(ctx).getBoolean(K.OFFLINE, false)) {
-                toast("离线模式下无法搜索")
-                return@bg
-            }
-            safePost(handler) {
-                results.clear()
-                results.addAll(list)
+        // 分批：先清空，但每个源回来就立刻追加显示，
+        // 不会因为某一个源慢或挂掉而整页卡住
+        results.clear()
+        resAdapter.notifyDataSetChanged()
+        AggregateSearch.searchStreaming(ctx, q, mc, ld) { batch, source, finished ->
+            if (!isAdded) return@searchStreaming
+            if (batch.isNotEmpty()) {
+                results.addAll(batch)
+                // 按下载量排序，新来的插到合适位置
+                results.sortByDescending { it.downloads }
                 resAdapter.notifyDataSetChanged()
-                toast(
-                    if (list.isEmpty()) "没有结果${if (routes.isNotBlank()) "（$routes）" else ""}"
-                    else "找到 ${list.size} 个${if (routes.isNotBlank()) " · $routes" else ""}"
-                )
-                autoTranslate(list)
+                toast("$source 返回 ${batch.size} 个（共 ${results.size}）")
+                autoTranslate(batch)
+            }
+            if (finished) {
+                val routes = AggregateSearch.lastRoutes
+                if (results.isEmpty()) {
+                    toast("没有结果${if (routes.isNotBlank()) "（$routes）" else ""}")
+                } else {
+                    toast("共 ${results.size} 个${if (routes.isNotBlank()) " · $routes" else ""}")
+                }
             }
         }
     }

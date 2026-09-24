@@ -37,5 +37,78 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/cfg_clear_workdir" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/swLocalIcon"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:checked="true"
+            android:text="@string/cfg_local_icon" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="8dp"
+            android:text="@string/cfg_local_icon_hint"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/cfg_backup_title"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="6dp"
+            android:text="@string/cfg_backup_hint"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
+
+        <EditText
+            android:id="@+id/etCloudUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/cfg_cloud_url_hint"
+            android:inputType="textUri"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/btnOpenCloud"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/cfg_open_cloud" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="6dp"
+            android:text="@string/cfg_backup_interval"
+            android:textSize="13sp" />
+
+        <Spinner
+            android:id="@+id/spBackup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <Button
+            android:id="@+id/btnBackupNow"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/cfg_backup_now" />
+
+        <TextView
+            android:id="@+id/tvBackup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="8dp"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
     </LinearLayout>
 </ScrollView>

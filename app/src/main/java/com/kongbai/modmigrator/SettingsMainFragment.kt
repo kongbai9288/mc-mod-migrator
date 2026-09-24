@@ -58,9 +58,6 @@ class SettingsMainFragment : Fragment() {
         v.findViewById<Button>(R.id.btnGoAnim).setOnClickListener { go("anim") }
         v.findViewById<Button>(R.id.btnGoNav).setOnClickListener { go("nav") }
         v.findViewById<Button>(R.id.btnGoStorage).setOnClickListener { go("storage") }
-        v.findViewById<Button>(R.id.btnGoPlugin)?.setOnClickListener { go("plugin") }
-        v.findViewById<Button>(R.id.btnGoDevs)?.setOnClickListener { go("devs") }
-        v.findViewById<Button>(R.id.btnGoLog)?.setOnClickListener { go("log") }
         v.findViewById<Button>(R.id.btnGoAbout).setOnClickListener { go("about") }
 
         refreshAccount()
@@ -72,6 +69,13 @@ class SettingsMainFragment : Fragment() {
         val host = activity as? SettingsHostActivity
         if (host != null) {
             host.show(page, true)
+            return
+        }
+        // 设置入口现在在主界面里，子页也直接在主界面容器内打开，
+        // 不再另起 Activity——这样返回键的路径是连贯的。
+        val main = activity as? MainActivity
+        if (main != null) {
+            main.openSettingsPage(page)
             return
         }
         val i = Intent(requireContext(), SettingsHostActivity::class.java)

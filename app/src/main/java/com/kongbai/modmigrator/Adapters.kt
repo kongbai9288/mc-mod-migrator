@@ -15,6 +15,10 @@ class ModAdapter(
     private val onDetail: ((ModEntry) -> Unit)? = null
 ) : RecyclerView.Adapter<ModAdapter.VH>() {
 
+    /** 图标异步加载线程池。列表滚动时不会阻塞。 */
+    private val iconPool = java.util.concurrent.Executors.newFixedThreadPool(2)
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
     class VH(v: View) : RecyclerView.ViewHolder(v) {
         val icon: ImageView = v.findViewById(R.id.ivIcon)
         val name: TextView = v.findViewById(R.id.tvName)
@@ -38,6 +42,24 @@ class ModAdapter(
         h.action.text = if (m.targetUrl.isBlank()) "跳过" else "下载"
         h.action.isEnabled = m.targetUrl.isNotBlank()
         h.action.setOnClickListener { onAction(m) }
+        // 图标：优先从本地 jar 里提取（离线可用、不耗流量），
+        // 取不到就保留默认的方块占位图。
+        h.icon.tag = m.uri
+        h.icon.setImageResource(R.drawable.ic_extension)
+        if (m.uri.isNotBlank()) {
+            iconPool.submit {
+                val bmp = try {
+                    ModIcons.ofUri(h.itemView.context, m.uri)
+                } catch (t: Throwable) {
+                    null
+                }
+                if (bmp != null && h.icon.tag == m.uri) {
+                    mainHandler.post {
+                        if (h.icon.tag == m.uri) h.icon.setImageBitmap(bmp)
+                    }
+                }
+            }
+        }
         // 整行点击 = 打开模组详情页（有地址才跳）
         h.itemView.setOnClickListener {
             onDetail?.invoke(m)
