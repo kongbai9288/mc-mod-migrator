@@ -29,25 +29,24 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:createReleaseCompatibleScreenManifests
 > Task :app:extractDeepLinksRelease
 > Task :app:parseReleaseLocalResources
-> Task :app:mergeReleaseResources
 > Task :app:processReleaseMainManifest
+> Task :app:mergeReleaseResources
 > Task :app:processReleaseManifest
 > Task :app:javaPreCompileRelease
 > Task :app:extractProguardFiles
 > Task :app:mergeReleaseJniLibFolders
-> Task :app:processReleaseManifestForPackage
-> Task :app:checkReleaseDuplicateClasses
 > Task :app:mergeReleaseNativeLibs
 > Task :app:desugarReleaseFileDependencies
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libtranslate_jni.so.
 
-> Task :app:processReleaseResources
-> Task :app:mergeExtDexRelease
-> Task :app:extractReleaseNativeSymbolTables
-> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :app:checkReleaseDuplicateClasses
 > Task :app:mergeReleaseArtProfile
+> Task :app:extractReleaseNativeSymbolTables
+> Task :app:processReleaseManifestForPackage
+> Task :app:mergeExtDexRelease
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
@@ -58,16 +57,13 @@ Unable to strip the following libraries, packaging them as they are: libtranslat
 > Task :app:validateSigningRelease
 > Task :app:writeReleaseAppMetadata
 > Task :app:writeReleaseSigningConfigVersions
+> Task :app:processReleaseResources
 > Task :app:optimizeReleaseResources
 
 > Task :app:compileReleaseKotlin FAILED
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:159:17 Type mismatch: inferred type is String but Pair<String, () -> List<MarketMod>> was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:159:34 Type mismatch: inferred type is String but Pair<String, () -> List<MarketMod>> was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:160:30 Type mismatch: inferred type is String but Pair<String, () -> List<MarketMod>> was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/EggPlayer.kt:84:44 Unresolved reference: MAX_TONE_INDEX
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/FavoritesFragment.kt:127:44 Unresolved reference: url
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/FavoritesFragment.kt:127:56 Unresolved reference: fileName
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/FavoritesFragment.kt:128:53 Unresolved reference: fileName
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/FavoritesFragment.kt:122:44 Unresolved reference: url
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/FavoritesFragment.kt:122:56 Unresolved reference: fileName
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/FavoritesFragment.kt:123:53 Unresolved reference: fileName
 
 FAILURE: Build failed with an exception.
 
@@ -82,5 +78,5 @@ Execution failed for task ':app:compileReleaseKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 1m 45s
+BUILD FAILED in 1m 43s
 34 actionable tasks: 34 executed
