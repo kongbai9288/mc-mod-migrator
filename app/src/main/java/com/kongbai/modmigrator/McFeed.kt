@@ -37,7 +37,7 @@ object McFeed {
     )
 
     /** 分区定义：名字、站点名、地址、选择器 */
-    private data class Zone(
+    data class Zone(
         val key: String,
         val label: String,
         val site: String,
