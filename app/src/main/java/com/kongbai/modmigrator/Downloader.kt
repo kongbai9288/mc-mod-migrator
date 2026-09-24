@@ -96,22 +96,55 @@ object Downloader {
         val safe = guessName(name).ifBlank { "mod.jar" }
         val out = File(cache, safe)
 
+        // 原子提交：先写 .part，完整写完后才 rename 成正式文件。
+        // 否则下载中断会留下半截文件，下次复用缓存时会被当成完整文件，
+        // 装进 mods 目录就是个坏 jar——这是"下载中断后模组装不上"的常见根因。
+        val part = File(cache, "$safe.part")
+        runCatching { if (part.exists()) part.delete() }
+        runCatching { if (out.exists()) out.delete() }
+
         val parallel = Prefs.get(ctx).getInt(K.DOWNLOAD_PARALLEL, 3).coerceIn(1, MAX_CHUNKS)
         val info = probe(url, headers)
 
         // 不支持断点、拿不到长度、文件太小、或用户只开 1 并发 → 单线程
-        if (info == null || !info.acceptRange || info.length < MIN_CHUNK_TOTAL || parallel <= 1) {
-            return single(url, headers, out, onProgress, info?.length ?: -1)
+        val got: File? = if (
+            info == null || !info.acceptRange ||
+            info.length < MIN_CHUNK_TOTAL || parallel <= 1
+        ) {
+            single(url, headers, part, onProgress, info?.length ?: -1)
+        } else {
+            val chunks = chunkCount(info.length, parallel)
+            val parts = chunked(url, headers, info.length, chunks, onProgress)
+            if (parts == null) {
+                // 分块失败就退回单线程，不能因为追求速度导致下不下来
+                runCatching { part.delete() }
+                single(url, headers, part, onProgress, info.length)
+            } else {
+                mergeParts(parts, part)
+            }
         }
 
-        val chunks = chunkCount(info.length, parallel)
-        val parts = chunked(url, headers, info.length, chunks, onProgress)
-        if (parts == null) {
-            // 分块失败就退回单线程，不能因为追求速度导致下不下来
-            out.delete()
-            return single(url, headers, out, onProgress, info.length)
+        // 校验实际大小：拿得到总长度就必须对得上，对不上视为失败
+        if (got == null || !got.exists()) {
+            runCatching { part.delete() }
+            return null
         }
-        return mergeParts(parts, out)
+        if (info != null && info.length > 0 && got.length() != info.length) {
+            runCatching { got.delete() }
+            return null
+        }
+        return try {
+            if (out.exists()) out.delete()
+            if (!part.renameTo(out)) {
+                // 极少数文件系统 rename 失败，退化为复制
+                part.inputStream().use { i -> out.outputStream().use { i.copyTo(it) } }
+                part.delete()
+            }
+            out
+        } catch (t: Throwable) {
+            runCatching { part.delete() }
+            null
+        }
     }
 
     private data class Probe(val length: Long, val acceptRange: Boolean)

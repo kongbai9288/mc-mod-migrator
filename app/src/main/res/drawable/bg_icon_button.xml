@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  图标按钮背景（按下时有反馈）。
+
+  为什么不用 ?attr/selectableItemBackground：
+  在部分 ROM 上，该 attr 解析出来的值本身仍是一个 attr 引用，
+  而不是真实 drawable。把它交给 setBackgroundResource() 会抛
+  Resources$NotFoundException（Resource ID #0x101030e），直接崩 Activity。
+  这里写成明确的 selector，不依赖主题解析，任何 ROM 都不会崩。
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape android:shape="oval">
+            <solid android:color="#20000000" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#00000000" />
+        </shape>
+    </item>
+</selector>

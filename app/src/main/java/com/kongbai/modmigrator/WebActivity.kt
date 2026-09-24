@@ -101,19 +101,13 @@ class WebActivity : AppCompatActivity() {
             android.widget.ImageButton(this).apply {
                 setImageResource(res)
                 contentDescription = desc
-                // 注意：android.R.attr.selectableItemBackground 是 attr id，
-                // 直接传给 setBackgroundResource 会因找不到 drawable 而崩
-                // （Resources$NotFoundException: #0x101030e）。
-                // 必须先在当前主题里把 attr 解析成真实的 drawable 资源。
-                runCatching {
-                    val tv = android.util.TypedValue()
-                    if (theme.resolveAttribute(
-                            android.R.attr.selectableItemBackgroundBorderless, tv, true
-                        ) && tv.resourceId != 0
-                    ) {
-                        setBackgroundResource(tv.resourceId)
-                    }
-                }
+                // 用项目自带的 drawable，不依赖主题 attr 解析。
+                // 之前用 android.R.attr.selectableItemBackground（=0x101030e）：
+                // 它是属性 id 而非 drawable id，交给 setBackgroundResource 必崩；
+                // 后来改成 theme.resolveAttribute() 解析，但部分 ROM 上解析结果
+                // 仍然是个 attr 引用，照样崩。这里直接写死一个真实 drawable，
+                // 彻底断开对系统 attr 的依赖。
+                setBackgroundResource(R.drawable.bg_icon_button)
                 setPadding(8, 8, 8, 8)
                 layoutParams = LinearLayout.LayoutParams(btnSize, btnSize)
                 setOnClickListener { act() }

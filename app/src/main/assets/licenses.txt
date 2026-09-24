@@ -44,7 +44,12 @@ ModMigrator 第三方开源许可
    用于：加载模组图标
 
 8. Google ML Kit Translate（翻译引擎）
-   许可：SDK 为 Apache License 2.0；翻译模型受 Google 服务条款约束
+   许可性质（重要）：**不属于 Apache-2.0 开源依赖**。
+     ML Kit 官方文档页版权为 CC BY 4.0、示例代码为 Apache-2.0，
+     但 SDK 与翻译模型本身受《Google APIs 使用条款》及 ML Kit 翻译专项
+     条款约束，不是可自由再分发的开源组件。
+     已知限制：仅限手机 / 平板 / 笔记本 / 台式机使用；
+     用于汽车、电视、家电、音箱等嵌入式设备需 Google 事先书面许可。
    来源：https://developers.google.com/ml-kit/language/translation
    用于：模组简介与网页的离线翻译。模型下载一次（约 30MB）后完全离线可用。
    说明：模型由 Google 分发，需联网下载一次；之后翻译完全在本机进行，
