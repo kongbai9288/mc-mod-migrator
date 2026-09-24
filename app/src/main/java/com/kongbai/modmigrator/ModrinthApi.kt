@@ -82,18 +82,59 @@ fun search(query: String, mc: String, loader: String, limit: Int = 20): List<Mar
         return out
     }
 
-    fun lookupHash(sha1: String): Triple<String, String, String>? {
-        if (sha1.isBlank()) return null
-        return try {
-            val o = Json.obj(Http.get("${base()}/version_file/$sha1?algorithm=sha1")) ?: return null
+    /**
+ * 按哈希反查项目。
+ *
+ * **关键改动**：之前 catch 把所有异常都吞成 null，
+ * 于是「网络连不上 / 超时」和「这个模组确实没被收录」混为一谈，
+ * 用户看到的都是"Modrinth 未识别"——根本分不清是该重试还是该死心。
+ *
+ * 现在返回结构化结果：
+ *  - found=true  → 查到了
+ *  - netError=true → 网络问题（可重试），msg 里说明是什么错
+ *  - found=false 且 netError=false → 确实没收录（不用重试）
+ */
+data class LookupResult(
+    val found: Boolean,
+    val projectId: String = "",
+    val version: String = "",
+    val slug: String = "",
+    val netError: Boolean = false,
+    val msg: String = ""
+)
+
+fun lookupHash(sha1: String): LookupResult {
+    if (sha1.isBlank()) return LookupResult(false)
+    return try {
+        val o = Json.obj(
+            Http.get("${base()}/version_file/$sha1?algorithm=sha1", timeout = Http.SHORT)
+        )
+        if (o == null) {
+            // 返回体解析不出来：多半是网关返回了 HTML 错误页
+            LookupResult(false, netError = true, msg = "返回内容不是 JSON（可能被网关拦截）")
+        } else {
             val pid = Json.s(o, "project_id")
-            if (pid.isBlank()) return null
-            refresh(pid)
-            Triple(pid, Json.s(o, "version_number").ifBlank { Json.s(o, "name") }, slugs[pid] ?: "")
-        } catch (t: Throwable) {
-            null
+            if (pid.isBlank()) {
+                LookupResult(false)   // 正常响应但没有匹配 → 确实没收录
+            } else {
+                refresh(pid)
+                LookupResult(
+                    found = true, projectId = pid,
+                    version = Json.s(o, "version_number").ifBlank { Json.s(o, "name") },
+                    slug = slugs[pid] ?: ""
+                )
+            }
         }
+    } catch (t: Throwable) {
+        LookupResult(false, netError = true, msg = Http.describeError(t))
     }
+}
+
+/** 兼容旧调用：只关心"查到没有"的地方 */
+fun lookupHashSimple(sha1: String): Triple<String, String, String>? {
+    val r = lookupHash(sha1)
+    return if (r.found) Triple(r.projectId, r.version, r.slug) else null
+}
 
     fun refresh(pid: String) {
         if (titles.containsKey(pid)) return

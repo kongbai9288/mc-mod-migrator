@@ -553,26 +553,64 @@ class MigrationFragment : Fragment() {
             val files = Fs.children(dir).filter { it.isFile && (it.name ?: "").endsWith(".jar", true) }
             log("发现 ${files.size} 个 jar")
             var idx = 0
+            // 统计：区分"真的没收录"和"网络问题没查成"
+            var netFail = 0
+            val netFailNames = ArrayList<String>()
+            var notFound = 0
             for (f in files) {
                 idx++
                 Progress.update("正在识别模组 ${f.name}", idx, files.size)
                 val e = ModEntry(fileName = f.name ?: "mod.jar", uri = f.uri.toString())
                 e.sha1 = Fs.sha1(ctx, f)
                 val info = ModrinthApi.lookupHash(e.sha1)
-                if (info == null) {
-                    e.status = "Modrinth 未识别（可去市场手动标记链接）"
-                } else {
-                    e.projectId = info.first
-                    e.currentVersion = info.second
-                    e.slug = info.third
-                    e.name = ModrinthApi.title(info.first).ifBlank { e.fileName }
+                if (!info.found) {
+                    // 网络问题 ≠ 没收录。之前这两种情况都显示"未识别"，
+                    // 用户根本分不清是该重试还是这个模组确实查不到。
+                    if (info.netError) {
+                        netFail++
+                        netFailNames.add(e.fileName)
+                        e.status = "网络问题未能识别（${info.msg}）"
+                        e.netError = true
+                        log("× ${e.fileName}：${info.msg}，已跳过")
+                    } else {
+                        notFound++
+                        e.status = "Modrinth 未收录（可去市场手动标记链接）"
+                    }
+                    safePost(handler) {
+                        mods.add(e)
+                        adapter.notifyItemInserted(mods.size - 1)
+                    }
+                    continue
+                }
+                run {
+                    e.projectId = info.projectId
+                    e.currentVersion = info.version
+                    e.slug = info.slug
+                    e.name = ModrinthApi.title(info.projectId).ifBlank { e.fileName }
                     // 记录页面地址，列表里点整行就能打开模组详情页
                     e.pageUrl = if (e.slug.isNotBlank()) {
                         "https://modrinth.com/mod/${e.slug}"
                     } else {
                         "https://modrinth.com/mod/${e.projectId}"
                     }
-                    val vers = ModrinthApi.versions(info.first, mc, loader)
+                    val vers = try {
+                        ModrinthApi.versions(info.projectId, mc, loader)
+                    } catch (t: Throwable) {
+                        // 查版本这一步也可能网络失败，同样要跳过并说明
+                        netFail++
+                        netFailNames.add(e.fileName)
+                        e.status = "查版本失败（${Http.describeError(t)}）"
+                        e.netError = true
+                        log("× ${e.name}：查版本失败，${Http.describeError(t)}")
+                        emptyList<ModFile>()
+                    }
+                    if (e.status.startsWith("查版本失败")) {
+                        safePost(handler) {
+                            mods.add(e)
+                            adapter.notifyItemInserted(mods.size - 1)
+                        }
+                        return@run
+                    }
                     val v0 = vers.firstOrNull()
                     if (v0 == null) {
                         // 目标加载器上没有构建时，查已知平替（如 Sodium → Embeddium）
@@ -600,10 +638,152 @@ class MigrationFragment : Fragment() {
                 }
             }
             log("扫描完成")
+            val nf = netFail
+            val nfNames = ArrayList(netFailNames)
+            val nfound = notFound
             safePost(handler) {
                 pb.visibility = View.GONE
                 val ok = mods.count { it.targetUrl.isNotBlank() }
                 toast("可迁移 $ok / ${mods.size}")
+
+                // 连不上的必须明确告诉用户，而不是混在"未识别"里糊过去
+                if (nf > 0) {
+                    log("⚠ $nf 个因网络问题没能识别，其余已正常处理")
+                    MaterialAlertDialogBuilder(ctx)
+                        .setTitle("$nf 个模组没识别成功")
+                        .setMessage(
+                            buildString {
+                                append("这些是因为**网络问题**没查到（不是没收录）：\n\n")
+                                nfNames.take(10).forEach { append("  · $it\n") }
+                                if (nf > 10) append("  …等 $nf 个\n")
+                                append("\n另外有 $nfound 个是 Modrinth 确实没收录，")
+                                append("这类重试也没用，需手动标记链接。\n\n")
+                                append("建议：换个网络或稍后再「重试失败项」。")
+                            }
+                        )
+                        .setPositiveButton("重试失败项") { _, _ -> retryFailed() }
+                        .setNegativeButton(R.string.ok, null)
+                        .show()
+                }
+            }
+        }
+    }
+
+    /** 只重下"下载失败"的项，成功的不再动 */
+    private fun retryDownloads(count: Int) {
+        val ctx = context ?: return
+        val todo = mods.filter { it.status.startsWith("下载失败") }
+        if (todo.isEmpty()) {
+            toast("没有需要重试的项")
+            return
+        }
+        val dstUri = Prefs.get(ctx).getString(K.DST_URI, null)
+        if (dstUri == null) {
+            toast("「迁移后」的目录不可用")
+            return
+        }
+        toast("重试 ${todo.size} 个…")
+        pb.visibility = View.VISIBLE
+        bg {
+            val dst = Fs.tree(ctx, dstUri)
+            val dir = if (dst != null) Fs.ensureDir(dst, "mods") else null
+            if (dir == null) {
+                safePost(handler) {
+                    pb.visibility = View.GONE
+                    toast("目标目录不可用")
+                }
+                return@bg
+            }
+            var ok = 0
+            val still = ArrayList<String>()
+            for (m in todo) {
+                val name = m.targetFileName.ifBlank { Downloader.guessName(m.targetUrl) }
+                var err = ""
+                val f = try {
+                    Downloader.download(ctx, m.targetUrl, dir, name)
+                } catch (t: Throwable) {
+                    err = Http.describeError(t)
+                    null
+                }
+                if (f != null) {
+                    ok++
+                    safePost(handler) {
+                        m.status = "已安装"
+                        adapter.notifyDataSetChanged()
+                    }
+                } else {
+                    still.add("${m.name.ifBlank { m.fileName }}：$err")
+                    safePost(handler) {
+                        m.status = "下载失败（$err）"
+                        adapter.notifyDataSetChanged()
+                    }
+                }
+            }
+            safePost(handler) {
+                pb.visibility = View.GONE
+                toast("重试完成：成功 $ok / ${todo.size}")
+                log("下载重试：成功 $ok / ${todo.size}")
+                if (still.isNotEmpty()) {
+                    MaterialAlertDialogBuilder(ctx)
+                        .setTitle("仍有 ${still.size} 个失败")
+                        .setMessage(still.take(10).joinToString("\n") { "  · $it" })
+                        .setPositiveButton(R.string.ok, null)
+                        .show()
+                }
+            }
+        }
+    }
+
+    /** 只重试上次因网络问题失败的项，不用全部重扫 */
+    private fun retryFailed() {
+        val ctx = context ?: return
+        val todo = mods.filter { it.netError }
+        if (todo.isEmpty()) {
+            toast("没有需要重试的项")
+            return
+        }
+        toast("重试 ${todo.size} 个…")
+        // 目标版本/加载器沿用扫描时保存的，不重新读控件（避免控件还没初始化）
+        val pp = Prefs.get(ctx)
+        val mc = pp.getString(K.DEF_VERSION, "") ?: ""
+        val loader = pp.getString(K.DEF_LOADER, "auto") ?: "auto"
+        bg {
+            var fixed = 0
+            for (e in todo) {
+                val info = ModrinthApi.lookupHash(e.sha1)
+                if (!info.found) {
+                    safePost(handler) {
+                        e.status = if (info.netError) "仍连不上（${info.msg}）" else "Modrinth 未收录"
+                        adapter.notifyDataSetChanged()
+                    }
+                    continue
+                }
+                val vers = try {
+                    ModrinthApi.versions(info.projectId, mc, loader)
+                } catch (t: Throwable) {
+                    emptyList<ModFile>()
+                }
+                val v0 = vers.firstOrNull()
+                safePost(handler) {
+                    if (v0 != null) {
+                        e.projectId = info.projectId
+                        e.name = ModrinthApi.title(info.projectId).ifBlank { e.fileName }
+                        e.targetVersion = v0.version
+                        e.targetUrl = v0.url
+                        e.targetFileName = v0.fileName
+                        e.status = "可迁移"
+                        e.netError = false
+                        fixed++
+                    } else {
+                        e.status = "重试后仍无可用文件"
+                        e.netError = false
+                    }
+                    adapter.notifyDataSetChanged()
+                }
+            }
+            safePost(handler) {
+                toast("重试完成，成功 $fixed / ${todo.size}")
+                log("重试完成：成功 $fixed / ${todo.size}")
             }
         }
     }
@@ -786,20 +966,25 @@ class MigrationFragment : Fragment() {
             Progress.start("下载模组", todo.size)
             log("开始下载 ${todo.size} 个模组（并发 $parallel）")
 
+            // 记录每一项失败的原因，最后统一告诉用户哪些没下成、为什么
+            val failed = java.util.Collections.synchronizedList(ArrayList<String>())
             for (m in todo) {
                 pool.submit {
                     val name = m.targetFileName.ifBlank { Downloader.guessName(m.targetUrl) }
+                    var err = ""
                     val f = try {
                         Downloader.download(ctx, m.targetUrl, dir, name)
                     } catch (t: Throwable) {
+                        err = Http.describeError(t)
                         null
                     }
                     val n = doneCnt.incrementAndGet()
                     if (f != null) okCnt.incrementAndGet()
-                    log("${if (f == null) "失败" else "已安装"}：${m.name} ${m.targetVersion}")
+                    else failed.add("${m.name.ifBlank { m.fileName }}：$err")
+                    log("${if (f == null) "失败（$err）" else "已安装"}：${m.name} ${m.targetVersion}")
                     Progress.update("下载模组", n, todo.size)
                     safePost(handler) {
-                        m.status = if (f == null) "下载失败" else "已安装"
+                        m.status = if (f == null) "下载失败（$err）" else "已安装"
                         adapter.notifyDataSetChanged()
                     }
                 }
@@ -812,9 +997,29 @@ class MigrationFragment : Fragment() {
 
             val ok = okCnt.get()
             val total = todo.size
+            val bad = ArrayList(failed)
             Progress.done("迁移完成：模组 $ok/$total")
             log("迁移完成：模组 $ok/$total")
-            safePost(handler) { pb.visibility = View.GONE }
+            safePost(handler) {
+                pb.visibility = View.GONE
+                // 有失败的必须说清楚，不能只报个总数让用户自己猜
+                if (bad.isNotEmpty()) {
+                    MaterialAlertDialogBuilder(ctx)
+                        .setTitle("有 ${bad.size} 个没下成")
+                        .setMessage(
+                            buildString {
+                                append("成功 $ok / $total。失败的：\n\n")
+                                bad.take(10).forEach { append("  · $it\n") }
+                                if (bad.size > 10) append("  …等 ${bad.size} 个\n")
+                                append("\n这些通常是网络问题或源站临时不可用，")
+                                append("可以点「重试」只重下失败的，其余不受影响。")
+                            }
+                        )
+                        .setPositiveButton("重试失败的") { _, _ -> retryDownloads(bad.size) }
+                        .setNegativeButton(R.string.ok, null)
+                        .show()
+                }
+            }
             Notifier.show(ctx, "迁移完成", "模组 $ok/$total")
             if (p.getBoolean(K.AUTO_LAUNCH, false)) {
                 val pkg = p.getString(K.LAUNCHER, "") ?: ""

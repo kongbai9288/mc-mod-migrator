@@ -26,16 +26,53 @@ object Http {
         .cookieJar(WebCookies())
         .build()
 
-    fun enc(s: String): String = URLEncoder.encode(s, "UTF-8")
+    /**
+     * 批量请求用的短超时客户端。
+     *
+     * 扫描模组时要对几十上百个文件逐个反查，
+     * 主 client 的 readTimeout 是 120 秒——一个请求卡住就要等 2 分钟，
+     * 几十个下来用户以为应用死了。批量场景改用短超时，
+     * 连不上就快速失败并跳过，最后统一告诉用户哪些没查到。
+     */
+    const val SHORT = 1
+    const val NORMAL = 0
 
-    fun call(url: String, headers: Map<String, String> = emptyMap()): Response {
-        val b = Request.Builder().url(url).header("User-Agent", UA)
-        for ((k, v) in headers) b.header(k, v)
-        return client.newCall(b.build()).execute()
+    private val shortClient: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(6, TimeUnit.SECONDS)
+        .readTimeout(12, TimeUnit.SECONDS)
+        .writeTimeout(12, TimeUnit.SECONDS)
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .cookieJar(WebCookies())
+        .build()
+
+    /** 把异常翻译成用户能看懂的话 */
+    fun describeError(t: Throwable): String {
+        val m = (t.message ?: "").lowercase()
+        return when {
+            m.contains("timeout") || m.contains("timed out") -> "连接超时"
+            m.contains("unable to resolve") || m.contains("unknownhost") -> "域名解析失败"
+            m.contains("connectionreset") || m.contains("reset") -> "连接被重置"
+            m.contains("failed to connect") || m.contains("econnrefused") -> "连不上服务器"
+            m.contains("network is unreachable") -> "网络不可用"
+            m.startsWith("http 4") -> "请求被拒绝（${t.message?.take(24)}）"
+            m.startsWith("http 5") -> "服务器出错（${t.message?.take(24)}）"
+            m.startsWith("http") -> "HTTP 异常（${t.message?.take(24)}）"
+            else -> t.message?.take(40) ?: "未知错误"
+        }
     }
 
-    fun get(url: String, headers: Map<String, String> = emptyMap()): String {
-        val r = call(url, headers)
+    fun enc(s: String): String = URLEncoder.encode(s, "UTF-8")
+
+    fun call(url: String, headers: Map<String, String> = emptyMap(), timeout: Int = NORMAL): Response {
+        val c = if (timeout == SHORT) shortClient else client
+        val b = Request.Builder().url(url).header("User-Agent", UA)
+        for ((k, v) in headers) b.header(k, v)
+        return c.newCall(b.build()).execute()
+    }
+
+    fun get(url: String, headers: Map<String, String> = emptyMap(), timeout: Int = NORMAL): String {
+        val r = call(url, headers, timeout)
         r.use {
             val body = it.body?.string() ?: ""
             if (!it.isSuccessful) throw RuntimeException("HTTP ${it.code} ${body.take(160)}")

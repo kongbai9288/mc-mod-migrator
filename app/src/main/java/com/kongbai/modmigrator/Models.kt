@@ -12,7 +12,9 @@ data class ModEntry(
     var targetUrl: String = "",
     var targetFileName: String = "",
     var pageUrl: String = "",
-    var status: String = "待处理"
+    var status: String = "待处理",
+    /** 是否是"网络问题导致没查成"（区别于确实没收录）。用于重试。 */
+    var netError: Boolean = false
 )
 
 data class MarketMod(

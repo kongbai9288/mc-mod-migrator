@@ -50,7 +50,7 @@ object SyncManager {
                 val n = f.name ?: continue
                 if (!n.endsWith(".jar", true)) continue
                 val sha1 = Fs.sha1(ctx, f)
-                val info = ModrinthApi.lookupHash(sha1)
+                val info = ModrinthApi.lookupHashSimple(sha1)
                 val o = JSONObject()
                 o.put("file", n)
                 o.put("sha1", sha1)

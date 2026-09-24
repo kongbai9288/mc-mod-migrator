@@ -135,7 +135,7 @@ class ModpackFragment : Fragment() {
                 } catch (t: Throwable) {
                     ""
                 }
-                val hit = if (sha.isBlank()) null else ModrinthApi.lookupHash(sha)
+                val hit = if (sha.isBlank()) null else ModrinthApi.lookupHashSimple(sha)
                 if (hit == null) {
                     rows.add(
                         UpdateRow(
