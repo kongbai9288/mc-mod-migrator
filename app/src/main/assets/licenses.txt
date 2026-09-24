@@ -120,3 +120,17 @@ https://opensource.org/licenses/MIT
 - 若你发现本应用使用了未在此列出的第三方代码，
   或你认为存在许可冲突，请在仓库提交 Issue，我们会立即处理。
 - 本列表随版本更新，以应用内最新版本为准。
+
+补充（1.2.0 新增，均为系统组件或宽松许可）：
+
+- Android DownloadManager（android.app.DownloadManager）
+  系统内置组件，非第三方库，无独立许可证
+  用于：应用更新下载。断点续传、通知栏进度、安装调起均由系统提供。
+
+- AndroidX Core / FileProvider
+  许可：Apache License 2.0
+  用于：崩溃日志通过系统分享面板发送给其他应用
+
+- 崩溃捕获实现参考了业界通行做法（递归展开 cause、
+  处理器内三重异常保护、写入后 fsync、目录降级），
+  为通用工程实践，不涉及任何开源代码复制。

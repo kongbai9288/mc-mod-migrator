@@ -112,15 +112,8 @@ object CrashShare {
         }
     }
 
-    /** 读取崩溃日志内容 */
-    fun read(ctx: Context): String {
-        return try {
-            val f = File(ctx.filesDir, "crash.log")
-            if (!f.exists()) "" else f.readText()
-        } catch (t: Throwable) {
-            ""
-        }
-    }
+    /** 读取崩溃日志内容（统一走 CrashHandler，含 cause 与设备信息） */
+    fun read(ctx: Context): String = CrashHandler.readAll(ctx)
 
     fun clear(ctx: Context) {
         try {

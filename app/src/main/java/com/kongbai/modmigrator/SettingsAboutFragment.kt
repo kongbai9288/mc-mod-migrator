@@ -132,9 +132,11 @@ class SettingsAboutFragment : Fragment() {
                                         rel.tag,
                                         rel.apkUrl.substringAfterLast('/')
                                     )
-                                    WebActivity.open(requireContext(), u, "下载")
+                                    // 走系统 DownloadManager：断点续传、通知栏进度、
+                                    // 完成后调起安装都是系统自带的，比开 WebView 稳
+                                    UpdateInstaller.download(ctx, u, rel.tag)
                                 } catch (t: Throwable) {
-                                    Toast.makeText(ctx, "打不开下载页", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(ctx, "无法开始下载：${t.message}", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
@@ -201,14 +203,33 @@ class SettingsAboutFragment : Fragment() {
         startActivity(i)
     }
 
+    /**
+     * 崩溃日志。
+     *
+     * 安卓剪贴板对长文本支持很差（多数 ROM 直接截断），
+     * 所以不走复制，而是：先**写成 .log 文件**，再调系统分享面板发出去。
+     */
     private fun showCrash() {
-        val f = File(requireContext().filesDir, "crash.log")
-        val txt = if (f.exists()) f.readText().take(6000) else "暂无崩溃记录"
-        AlertDialog.Builder(requireContext())
+        val ctx = requireContext()
+        val txt = CrashHandler.readAll(ctx)
+        if (txt.isBlank()) {
+            AlertDialog.Builder(ctx)
+                .setTitle(R.string.cfg_crash_log)
+                .setMessage("暂无崩溃记录")
+                .setPositiveButton(R.string.ok, null)
+                .show()
+            return
+        }
+        AlertDialog.Builder(ctx)
             .setTitle(R.string.cfg_crash_log)
-            .setMessage(txt)
+            .setMessage(txt.take(4000))
             .setPositiveButton(R.string.ok, null)
-            .setNeutralButton("清空") { _, _ -> f.delete() }
+            .setNeutralButton("保存") { _, _ ->
+                CrashShare.save(ctx, txt)
+            }
+            .setNegativeButton("分享") { _, _ ->
+                CrashShare.share(ctx, txt, "ModMigrator 崩溃日志")
+            }
             .show()
     }
 }

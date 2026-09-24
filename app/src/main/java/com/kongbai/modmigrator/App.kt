@@ -10,7 +10,7 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        installCrashHandler()
+        CrashHandler.install(this)
         Prefs.init(this)
         // 主题必须在任何 Activity 创建前定好，否则深色模式要重启才生效
         runCatching { ThemePrefs.init(this) }
@@ -30,26 +30,4 @@ class App : Application() {
         }
     }
 
-    private fun installCrashHandler() {
-        val old = Thread.getDefaultUncaughtExceptionHandler()
-        Thread.setDefaultUncaughtExceptionHandler { t, e ->
-            try {
-                val f = java.io.File(filesDir, "crash.log")
-                val w = java.io.FileWriter(f, true)
-                val ts = java.text.SimpleDateFormat(
-                    "yyyy-MM-dd HH:mm:ss",
-                    java.util.Locale.CHINA
-                ).format(java.util.Date())
-                w.append(ts).append("  ").append(t.name).append('\n')
-                w.append(e.toString()).append('\n')
-                for (st in e.stackTrace.take(25)) {
-                    w.append("    at ").append(st.toString()).append('\n')
-                }
-                w.flush()
-                w.close()
-            } catch (ignore: Throwable) {
-            }
-            old?.uncaughtException(t, e)
-        }
-    }
-}
+
