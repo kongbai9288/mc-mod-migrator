@@ -55,56 +55,56 @@
 
         <Button
             android:id="@+id/btnGoBackend"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/AppButtonOutlined"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/menu_backend" />
 
         <Button
             android:id="@+id/btnGoSearch"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/AppButtonOutlined"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/menu_search" />
 
         <Button
             android:id="@+id/btnGoMigrate"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/AppButtonOutlined"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/menu_migrate" />
 
         <Button
             android:id="@+id/btnGoLab"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/AppButtonOutlined"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/menu_lab" />
 
         <Button
             android:id="@+id/btnGoTranslate"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/AppButtonOutlined"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/menu_translate" />
 
         <Button
             android:id="@+id/btnGoNav"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/AppButtonOutlined"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/menu_nav" />
 
         <Button
             android:id="@+id/btnGoStorage"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/AppButtonOutlined"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/menu_storage" />
 
         <Button
             android:id="@+id/btnGoAbout"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/AppButtonOutlined"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/menu_about" />

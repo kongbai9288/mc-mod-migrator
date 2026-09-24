@@ -80,4 +80,20 @@
         <item name="colorAccent">@color/accent_brown</item>
         <item name="android:statusBarColor">@color/primaryDark_brown</item>
     </style>
+
+    <!-- 描边按钮：描边与文字都跟随当前主题的主色，
+         否则会一直是默认的灰色，换了主题色也不跟着变 -->
+    <style name="AppButtonOutlined" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="strokeColor">?attr/colorPrimary</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
+        <item name="iconTint">?attr/colorPrimary</item>
+        <item name="rippleColor">?attr/colorPrimary</item>
+    </style>
+
+    <!-- 填充按钮：确保背景取主题主色 -->
+    <style name="AppButton" parent="Widget.MaterialComponents.Button">
+        <item name="backgroundTint">?attr/colorPrimary</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="rippleColor">?attr/colorPrimary</item>
+    </style>
 </resources>

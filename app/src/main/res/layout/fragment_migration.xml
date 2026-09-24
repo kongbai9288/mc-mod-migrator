@@ -76,7 +76,7 @@
 
                 <Button
                     android:id="@+id/btnPickSource"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    style="@style/AppButtonOutlined"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
@@ -140,7 +140,7 @@
 
                 <Button
                     android:id="@+id/btnPickTarget"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    style="@style/AppButtonOutlined"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
@@ -175,7 +175,7 @@
 
         <Button
             android:id="@+id/btnDownloadAll"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/AppButtonOutlined"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/btn_download_all" />
@@ -187,7 +187,7 @@
 
             <Button
                 android:id="@+id/btnDoctor"
-                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                style="@style/AppButtonOutlined"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -195,7 +195,7 @@
 
             <Button
                 android:id="@+id/btnDiff"
-                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                style="@style/AppButtonOutlined"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -204,7 +204,7 @@
 
         <Button
             android:id="@+id/btnRun"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/AppButtonOutlined"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"

@@ -42,7 +42,7 @@
 
             <Button
                 android:id="@+id/btnRefresh"
-                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                style="@style/AppButtonOutlined"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/refresh_devices" />

@@ -21,7 +21,7 @@
 
     <Button
         android:id="@+id/btnScan"
-        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        style="@style/AppButtonOutlined"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/plugin_scan" />

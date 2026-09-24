@@ -53,7 +53,7 @@
 
         <Button
             android:id="@+id/btnRecommend"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/AppButtonOutlined"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -61,7 +61,7 @@
 
         <Button
             android:id="@+id/btnFavorites"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/AppButtonOutlined"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -84,7 +84,7 @@
 
         <Button
             android:id="@+id/btnAddLink"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/AppButtonOutlined"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -92,7 +92,7 @@
 
         <Button
             android:id="@+id/btnOpenPage"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/AppButtonOutlined"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"

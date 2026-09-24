@@ -18,7 +18,7 @@
 
         <Button
             android:id="@+id/btnPickWork"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/AppButtonOutlined"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/cfg_pick_workdir" />
@@ -79,7 +79,7 @@
 
         <Button
             android:id="@+id/btnOpenCloud"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/AppButtonOutlined"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/cfg_open_cloud" />
@@ -98,7 +98,7 @@
 
         <Button
             android:id="@+id/btnBackupNow"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/AppButtonOutlined"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/cfg_backup_now" />

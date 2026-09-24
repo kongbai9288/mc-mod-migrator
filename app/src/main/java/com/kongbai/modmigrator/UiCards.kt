@@ -62,6 +62,29 @@ object UiCards {
      * 用于 ImageView 的占位与失败兜底——这样头像区始终是**一个**视图，
      * 不会出现两层叠加错位。
      */
+    /**
+     * 代码里创建的按钮。
+     *
+     * 关键点：直接 new Button(ctx) 拿到的是**原生 Button**，
+     * 不会经过 LayoutInflater 的 Material 替换，所以背景是系统默认灰色，
+     * 换主题色也不跟着变——这正是"某些页面按钮是灰的"的原因。
+     * 这里统一返回 MaterialButton，背景自动取当前主题主色。
+     */
+    fun button(ctx: Context, text: String, onClick: (() -> Unit)? = null): View =
+        com.google.android.material.button.MaterialButton(ctx).apply {
+            this.text = text
+            onClick?.let { setOnClickListener { it() } }
+        }
+
+    /** 描边按钮（次要操作），描边与文字同样跟随主题主色 */
+    fun outlinedButton(ctx: Context, text: String, onClick: (() -> Unit)? = null): View =
+        com.google.android.material.button.MaterialButton(
+            ctx, null, R.attr.materialButtonOutlinedStyle
+        ).apply {
+            this.text = text
+            onClick?.let { setOnClickListener { it() } }
+        }
+
     private fun avatarDrawable(ctx: Context, name: String): android.graphics.drawable.Drawable {
         val size = dp(ctx, 44)
         val bmp = android.graphics.Bitmap.createBitmap(

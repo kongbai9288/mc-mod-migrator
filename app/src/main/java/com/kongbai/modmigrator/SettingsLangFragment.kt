@@ -103,7 +103,7 @@ class SettingsLangFragment : Fragment() {
 
     private fun button(text: String, onClick: () -> Unit): Button {
         val ctx = requireContext()
-        val b = Button(ctx)
+        val b = com.google.android.material.button.MaterialButton(ctx)
         b.text = text
         b.setOnClickListener { onClick() }
         return b
