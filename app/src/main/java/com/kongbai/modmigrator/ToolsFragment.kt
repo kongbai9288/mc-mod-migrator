@@ -210,6 +210,9 @@ class ToolsFragment : Fragment() {
             }
             var ok = 0
             val failed = ArrayList<String>()
+            // 变量名不能用 to —— 与标准库的中缀函数 to 同名，
+            // 在字符串模板里 $to 会被解析成函数调用而报编译错。
+            val targetLoader = plans.firstOrNull()?.toLoader ?: ""
             for (p in todo) {
                 val name = p.url.substringAfterLast('/').ifBlank { "${p.modName}.jar" }
                 val f = try {
@@ -226,7 +229,7 @@ class ToolsFragment : Fragment() {
                     .setTitle("替换完成")
                     .setMessage(
                         buildString {
-                            append("已下载 $ok / ${todo.size} 个 ${to} 版本。\n\n")
+                            append("已下载 $ok / ${todo.size} 个 $targetLoader 版本。\n\n")
                             append("原来的文件还留在 mods 目录里，")
                             append("请到「模组管理」里删掉旧的那份（会进回收站，可还原）。")
                             if (failed.isNotEmpty()) {
