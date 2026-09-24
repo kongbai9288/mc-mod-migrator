@@ -26,10 +26,10 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mapReleaseSourceSetPaths
 > Task :app:generateReleaseResources
 > Task :app:packageReleaseResources
-> Task :app:mergeReleaseResources
 > Task :app:createReleaseCompatibleScreenManifests
 > Task :app:extractDeepLinksRelease
 > Task :app:parseReleaseLocalResources
+> Task :app:mergeReleaseResources
 > Task :app:processReleaseMainManifest
 > Task :app:processReleaseManifest
 > Task :app:javaPreCompileRelease
@@ -43,7 +43,6 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 Unable to strip the following libraries, packaging them as they are: libtranslate_jni.so.
 
 > Task :app:processReleaseManifestForPackage
-> Task :app:mergeExtDexRelease
 > Task :app:extractReleaseNativeSymbolTables
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:mergeReleaseArtProfile
@@ -58,19 +57,10 @@ Unable to strip the following libraries, packaging them as they are: libtranslat
 > Task :app:writeReleaseAppMetadata
 > Task :app:writeReleaseSigningConfigVersions
 > Task :app:processReleaseResources
+> Task :app:mergeExtDexRelease
 > Task :app:optimizeReleaseResources
-> Task :app:compileReleaseKotlin
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:80:37 Unresolved reference: LinearLayout
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McFeed.kt:85:9 'public' function exposes its 'private-in-class' return type argument Zone
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McFeedFragment.kt:70:57 Cannot access 'Zone': it is private in 'McFeed'
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McFeedFragment.kt:75:25 Cannot access 'Zone': it is private in 'McFeed'
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McFeedFragment.kt:76:57 Cannot access 'Zone': it is private in 'McFeed'
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McFeedFragment.kt:83:41 Cannot access 'Zone': it is private in 'McFeed'
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McFeedFragment.kt:88:40 Cannot access 'Zone': it is private in 'McFeed'
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McFeedFragment.kt:100:65 Cannot access 'Zone': it is private in 'McFeed'
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McFeedFragment.kt:101:57 Cannot access 'Zone': it is private in 'McFeed'
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McFeedFragment.kt:101:64 Cannot access 'Zone': it is private in 'McFeed'
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McFeedFragment.kt:116:44 Cannot access 'Zone': it is private in 'McFeed'
+
+> Task :app:compileReleaseKotlin FAILED
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/NavConfig.kt:43:13 No value passed for parameter 'make'
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Store.kt:89:28 Unresolved reference: LAST_VIEW_KEY
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Store.kt:90:28 Unresolved reference: LAST_VIEW_TITLE
@@ -81,8 +71,6 @@ e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Store.kt:112:25 Unresolved reference: LAST_VIEW_KEY
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Store.kt:112:47 Unresolved reference: LAST_VIEW_TITLE
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Store.kt:112:71 Unresolved reference: LAST_VIEW_AT
-
-> Task :app:compileReleaseKotlin FAILED
 
 FAILURE: Build failed with an exception.
 
@@ -97,5 +85,5 @@ Execution failed for task ':app:compileReleaseKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 2m 21s
+BUILD FAILED in 1m 35s
 34 actionable tasks: 34 executed
