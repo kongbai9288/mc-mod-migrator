@@ -57,6 +57,41 @@ object UiCards {
         }
 
     /** 圆形头像背景 */
+    /**
+     * 首字母头像（Drawable 形式）。
+     * 用于 ImageView 的占位与失败兜底——这样头像区始终是**一个**视图，
+     * 不会出现两层叠加错位。
+     */
+    private fun avatarDrawable(ctx: Context, name: String): android.graphics.drawable.Drawable {
+        val size = dp(ctx, 44)
+        val bmp = android.graphics.Bitmap.createBitmap(
+            size, size, android.graphics.Bitmap.Config.ARGB_8888
+        )
+        val canvas = android.graphics.Canvas(bmp)
+        avatarBg(ctx, name.hashCode()).apply {
+            setSize(size, size)
+            setBounds(0, 0, size, size)
+            draw(canvas)
+        }
+        val initial = name.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textAlign = android.graphics.Paint.Align.CENTER
+            textSize = size * 0.42f
+            typeface = android.graphics.Typeface.create(
+                android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD
+            )
+        }
+        val fm = paint.fontMetrics
+        canvas.drawText(
+            initial,
+            size / 2f,
+            size / 2f - (fm.ascent + fm.descent) / 2f,
+            paint
+        )
+        return android.graphics.drawable.BitmapDrawable(ctx.resources, bmp)
+    }
+
     private fun avatarBg(ctx: Context, seed: Int): GradientDrawable =
         GradientDrawable().apply {
             shape = GradientDrawable.OVAL
@@ -111,50 +146,36 @@ object UiCards {
             layoutParams = lp
         }
 
-        // 首字母头像（先显示，网络图加载成功再盖上去）
-        val initial = name.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+        // 头像：只用**一个 ImageView**，不用叠加布局。
+        // 之前用 FrameLayout 把网络图盖在首字母 TextView 上，
+        // 圆形裁切在低版本 WebView/ImageView 上不生效，两张图会错位重叠。
+        // 现在：先放首字母占位图，Coil 加载成功后直接替换同一个 ImageView 的内容，
+        // 加载失败就保持首字母——始终只有一个视图，不存在重叠。
         val size = dp(ctx, 44)
-        val avatarBox = android.widget.FrameLayout(ctx).apply {
+        val avatar = ImageView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(size, size)
+            scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+            // 固定尺寸，避免 wrap_content 时被内容撑大导致排版错位
+            adjustViewBounds = false
         }
-        avatarBox.addView(TextView(ctx).apply {
-            text = initial
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f)
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            background = avatarBg(ctx, name.hashCode())
-            layoutParams = android.widget.FrameLayout.LayoutParams(size, size)
-        })
+        avatar.setImageDrawable(avatarDrawable(ctx, name))
+        card.addView(avatar)
 
-        // 网络头像：Coil 异步加载，圆形裁切；失败就留着首字母
         if (avatarUrl.isNotBlank()) {
-            val iv = ImageView(ctx).apply {
-                layoutParams = android.widget.FrameLayout.LayoutParams(size, size)
-                scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
-                // 圆角遮罩
-                outlineProvider = object : android.view.ViewOutlineProvider() {
-                    override fun getOutline(v: View, o: android.graphics.Outline) {
-                        o.setOval(0, 0, v.width, v.height)
-                    }
-                }
-                clipToOutline = true
-            }
-            avatarBox.addView(iv)
             try {
                 coil.ImageLoader(ctx).enqueue(
                     coil.request.ImageRequest.Builder(ctx)
                         .data(avatarUrl)
-                        .target(iv)
-                        .crossfade(true)
-                        .listener(onError = { _, _ -> avatarBox.removeView(iv) })
+                        .target(avatar)   // 直接替换同一个 View，不新增
+                        .crossfade(false)
+                        .placeholder(avatarDrawable(ctx, name))
+                        .error(avatarDrawable(ctx, name))
                         .build()
                 )
             } catch (t: Throwable) {
-                avatarBox.removeView(iv)
+                // 加载失败就保持首字母
             }
         }
-        card.addView(avatarBox)
 
         val texts = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL

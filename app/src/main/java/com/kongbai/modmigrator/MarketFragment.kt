@@ -370,30 +370,41 @@ class MarketFragment : Fragment() {
             DelayedDownload.capture(
                 ctx, page,
                 onGot = { real ->
-                    toast("已拿到下载地址，开始下载…")
+                    val n = mod.fileName.ifBlank { Downloader.guessName(real) }
+                    val dlg = ProgressDialog.show(ctx, n)
                     bg {
-                        val n = mod.fileName.ifBlank { Downloader.guessName(real) }
                         val dir = Targets.modsDir(ctx)
                         val f = if (dir == null) null
-                        else Downloader.download(ctx, real, dir, n)
-                        toast(if (f == null) "下载失败" else "已安装：${f.name}")
+                        else Downloader.download(ctx, real, dir, n) { done, total ->
+                            safePost(handler) { dlg.update(done, total) }
+                        }
+                        safePost(handler) {
+                            dlg.dismiss()
+                            toast(if (f == null) "下载失败" else "已安装：${f.name}")
+                        }
                         if (f != null) Notifier.show(ctx, "下载完成", mod.name)
                     }
                 },
                 onFail = { why ->
                     toast("没拿到下载地址（$why），改用直连试试…")
                     // 兜底：还是用 API 给的地址试一次
+                    val u = CurseForgeApi.downloadUrl(mod)
+                    if (u.isBlank()) {
+                        toast("下载失败")
+                        return@capture
+                    }
+                    val n = mod.fileName.ifBlank { Downloader.guessName(u) }
+                    val dlg = ProgressDialog.show(ctx, n)
                     bg {
-                        val u = CurseForgeApi.downloadUrl(mod)
-                        if (u.isBlank()) {
-                            toast("下载失败")
-                            return@bg
-                        }
-                        val n = mod.fileName.ifBlank { Downloader.guessName(u) }
                         val dir = Targets.modsDir(ctx)
                         val f = if (dir == null) null
-                        else Downloader.download(ctx, u, dir, n, CurseForgeApi.authHeaders())
-                        toast(if (f == null) "下载失败" else "已安装：${f.name}")
+                        else Downloader.download(
+                            ctx, u, dir, n, CurseForgeApi.authHeaders()
+                        ) { done, total -> safePost(handler) { dlg.update(done, total) } }
+                        safePost(handler) {
+                            dlg.dismiss()
+                            toast(if (f == null) "下载失败" else "已安装：${f.name}")
+                        }
                     }
                 }
             )
@@ -425,10 +436,22 @@ class MarketFragment : Fragment() {
                 return@bg
             }
             if (name.isBlank()) name = Downloader.guessName(url)
-            val dir = Targets.modsDir(ctx)
-            val f = if (dir == null) null else Downloader.download(ctx, url, dir, name, headers)
-            toast(if (f == null) "下载失败" else "已安装：${f.name}")
-            Notifier.show(ctx, getString(R.string.downloading), mod.name)
+            val n = name
+            safePost(handler) {
+                val dlg = ProgressDialog.show(ctx, n)
+                bg {
+                    val dir = Targets.modsDir(ctx)
+                    val f = if (dir == null) null
+                    else Downloader.download(ctx, url, dir, n, headers) { done, total ->
+                        safePost(handler) { dlg.update(done, total) }
+                    }
+                    safePost(handler) {
+                        dlg.dismiss()
+                        toast(if (f == null) "下载失败" else "已安装：${f.name}")
+                        if (f != null) Notifier.show(ctx, "下载完成", mod.name)
+                    }
+                }
+            }
         }
     }
 

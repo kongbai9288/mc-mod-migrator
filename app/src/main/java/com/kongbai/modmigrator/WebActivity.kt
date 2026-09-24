@@ -6,6 +6,8 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
+import android.view.Gravity
+import android.widget.LinearLayout
 import android.view.Menu
 import android.view.MenuItem
 import android.webkit.CookieManager
@@ -39,6 +41,7 @@ class WebActivity : AppCompatActivity() {
     private lateinit var bar: ProgressBar
     private var desktopUa = false
     private var loginMode = false
+    private var loginPolling = false
 
     companion object {
         private const val EXTRA_URL = "url"
@@ -74,13 +77,64 @@ class WebActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val root = FrameLayout(this)
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        // 顶部工具条：返回 / 前进 / 刷新 / 关闭。
+        // 之前只能靠系统返回键，有些页面（尤其是从对话框里打开的）
+        // 用户找不到怎么退回去，看起来就像"没有返回键"。
+        val tools = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(
+                (6 * resources.displayMetrics.density).toInt(), 0,
+                (6 * resources.displayMetrics.density).toInt(), 0
+            )
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        val btnSize = (40 * resources.displayMetrics.density).toInt()
+        fun toolBtn(res: Int, desc: String, act: () -> Unit): android.widget.ImageButton =
+            android.widget.ImageButton(this).apply {
+                setImageResource(res)
+                contentDescription = desc
+                setBackgroundResource(android.R.attr.selectableItemBackground)
+                setPadding(8, 8, 8, 8)
+                layoutParams = LinearLayout.LayoutParams(btnSize, btnSize)
+                setOnClickListener { act() }
+            }
+        val btnBack = toolBtn(
+            android.R.drawable.ic_media_previous, "返回"
+        ) { if (web.canGoBack()) web.goBack() else finish() }
+        val btnFwd = toolBtn(
+            android.R.drawable.ic_media_next, "前进"
+        ) { if (web.canGoForward()) web.goForward() }
+        val btnReload = toolBtn(
+            android.R.drawable.ic_popup_sync, "刷新"
+        ) { web.reload() }
+        val btnClose = toolBtn(
+            android.R.drawable.ic_menu_close_clear_cancel, "关闭"
+        ) { finish() }
+        tools.addView(btnBack)
+        tools.addView(btnFwd)
+        tools.addView(btnReload)
+        tools.addView(android.widget.Space(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+            )
+        })
+        tools.addView(btnClose)
+        root.addView(tools)
+
         bar = ProgressBar(
             this, null, android.R.attr.progressBarStyleHorizontal
         ).apply {
             max = 100
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
                 (3 * resources.displayMetrics.density).toInt()
             )
         }
@@ -89,9 +143,10 @@ class WebActivity : AppCompatActivity() {
         // 而不是让整个页面崩掉——这正是"有概率不工作"的原因之一。
         try {
             web = WebView(this).apply {
-                layoutParams = FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.MATCH_PARENT
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    0,
+                    1f
                 )
             }
         } catch (t: Throwable) {
@@ -202,14 +257,13 @@ class WebActivity : AppCompatActivity() {
 
             override fun onPageFinished(view: WebView?, u: String?) {
                 bar.visibility = android.view.View.GONE
-                // 登录完成后后端会渲染一个页面，URL 可能不带回调特征，
-                // 这里再兜一次：只要已经落在后端域名下且不是授权页，就算走完了
-                if (loginMode && u != null && !u.contains("/login/oauth")) {
-                    val host = runCatching { Uri.parse(u).host }.getOrNull()
-                    if (host != null && !host.contains("github.com")) {
-                        finishWithLoginOk()
-                        return
-                    }
+                // 登录模式：**不再靠 URL 猜**。
+                // 之前只要"不是 github.com 就认为登录完了"，结果页面刚起个头就被关掉
+                // ——这就是"点进去没加载完就弹出"的原因。
+                // 现在的做法：页面加载完就启动轮询，去后端查登录态，
+                // 只有真的查到已登录才关闭。靠结果说话，不靠猜地址。
+                if (loginMode) {
+                    startLoginPolling()
                 }
                 // 自动翻译：页面加载完就翻
                 if (autoTrans && view != null) {
@@ -247,6 +301,46 @@ class WebActivity : AppCompatActivity() {
         }
 
         web.loadUrl(url)
+    }
+
+    /**
+     * 登录轮询：每隔一段时间去后端查一次登录状态。
+     *
+     * 为什么不用 URL 判断：GitHub 授权会经过多次 302，
+     * 中间任何一个 URL 都可能"看起来像完成了"，导致页面被提前关掉。
+     * 只有后端真的返回已登录，才算完成。
+     *
+     * 最多查 40 次（约 60 秒），超时不自动关——留给用户手动点「我已完成」。
+     */
+    private fun startLoginPolling() {
+        if (!loginMode || loginPolling) return
+        loginPolling = true
+        Thread {
+            var ok = false
+            for (i in 0 until 40) {
+                try {
+                    val u = BackendApi.me(this)
+                    if (u != null) {
+                        ok = true
+                        break
+                    }
+                } catch (t: Throwable) {
+                }
+                try {
+                    Thread.sleep(1500)
+                } catch (t: Throwable) {
+                }
+                // 页面已经关了就别查了
+                if (isFinishing || isDestroyed) break
+            }
+            val done = ok
+            runOnUiThread {
+                loginPolling = false
+                if (done && !isFinishing && !isDestroyed) {
+                    finishWithLoginOk()
+                }
+            }
+        }.start()
     }
 
     /** 登录走完：先刷 cookie，再关页面，让设置页能查到登录态 */
@@ -299,6 +393,9 @@ class WebActivity : AppCompatActivity() {
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        if (loginMode) {
+            menu.add(0, 9, 0, getString(R.string.login_done))
+        }
         menu.add(0, 1, 0, getString(R.string.open_external))
         menu.add(0, 2, 0, getString(R.string.refresh))
         menu.add(0, 3, 0, getString(R.string.copy_url))
@@ -310,6 +407,10 @@ class WebActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
+            9 -> {
+                // 手动确认：有些情况下轮询没那么快，用户可自行结束
+                finishWithLoginOk()
+            }
             1 -> {
                 try {
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(web.url)))

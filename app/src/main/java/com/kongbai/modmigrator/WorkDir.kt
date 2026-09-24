@@ -47,18 +47,36 @@ object WorkDir {
     /** 现在始终可用（有私有目录兜底），保留这个方法是为了兼容旧调用 */
     fun ready(ctx: Context): Boolean = root(ctx)?.isDirectory == true
 
+    /**
+     * 子目录缓存。
+     *
+     * 之前每次 sub() 都会走一遍 findFile/createDirectory，
+     * 在树授权下这是跨进程调用，一次迁移可能重复几十上百次，
+     * 既慢又容易触发"反复请求授权"的错觉。
+     * 这里按 目录URI+名字 缓住，同一进程内只解析一次。
+     */
+    private val dirCache = java.util.concurrent.ConcurrentHashMap<String, DocumentFile?>()
+
+    /** 换工作目录时必须清缓存，否则会拿到旧目录 */
+    fun invalidate() {
+        dirCache.clear()
+    }
+
     /** 在工作目录下取（或建）一个子目录。 */
     fun sub(ctx: Context, name: String): DocumentFile? {
         val r = root(ctx) ?: return null
-        return if (r.uri.scheme == "file") {
-            // 私有目录走普通 File，createFile 在 fromFile 下也支持，
-            // 但先建目录更稳
+        val key = "${r.uri}|$name"
+        val hit = dirCache[key]
+        if (hit != null && hit.isDirectory) return hit
+        val got = if (r.uri.scheme == "file") {
             val f = java.io.File(r.uri.path, name)
             if (!f.exists()) f.mkdirs()
             androidx.documentfile.provider.DocumentFile.fromFile(f)
         } else {
             Fs.ensureDir(r, name)
         }
+        if (got != null) dirCache[key] = got
+        return got
     }
 
     fun packs(ctx: Context): DocumentFile? = sub(ctx, "packs")
@@ -87,7 +105,8 @@ object WorkDir {
     fun persist(ctx: Context, treeUri: Uri): Boolean {
         // 统一走 Perms：复用已有授权、自动回收配额，避免越用越卡
         val ok = Perms.take(ctx, treeUri)
-        Prefs.get(ctx).edit().putString(K.WORKDIR_URI, treeUri.toString()).apply()
+        Prefs.get(ctx).edit().putString(K.WORKDIR_URI, treeUri.toString()
+                    WorkDir.invalidate()).apply()
         return ok
     }
 }

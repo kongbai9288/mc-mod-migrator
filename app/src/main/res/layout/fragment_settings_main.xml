@@ -75,13 +75,6 @@
             android:text="@string/menu_migrate" />
 
         <Button
-            android:id="@+id/btnGoAnim"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/anim_title" />
-
-        <Button
             android:id="@+id/btnGoLab"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="match_parent"
