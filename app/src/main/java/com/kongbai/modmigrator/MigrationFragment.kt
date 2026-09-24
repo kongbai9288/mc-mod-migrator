@@ -19,6 +19,7 @@ import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.util.concurrent.Executors
 
 class MigrationFragment : Fragment() {
@@ -702,7 +703,7 @@ class MigrationFragment : Fragment() {
                         "而且同名文件覆盖时可能把原文件写坏。\n\n" +
                         "请到下面重新选一个「迁移后的版本」。"
                 )
-                .setPositiveButton("去改目标") { _, _ -> setAs("dst") }
+                .setPositiveButton("知道了", null)
                 .setNegativeButton("仍然继续") { _, _ -> doMigrate(srcUri, dstUri) }
                 .show()
             return
@@ -716,6 +717,7 @@ class MigrationFragment : Fragment() {
 
     /** 真正的迁移执行（同实例检查通过后才会走到这里） */
     private fun doMigrate(srcUri: String, dstUri: String) {
+        val ctx = requireContext()
         val wantConfig = cbConfig.isChecked
         val wantScripts = cbScripts.isChecked
         val wantOptions = cbOptions.isChecked
