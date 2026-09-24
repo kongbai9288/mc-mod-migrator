@@ -36,15 +36,17 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:extractProguardFiles
 > Task :app:mergeReleaseJniLibFolders
 > Task :app:processReleaseManifestForPackage
-> Task :app:checkReleaseDuplicateClasses
-> Task :app:mergeReleaseNativeLibs
-> Task :app:desugarReleaseFileDependencies
 > Task :app:processReleaseResources
+> Task :app:mergeReleaseNativeLibs
+> Task :app:checkReleaseDuplicateClasses
+> Task :app:desugarReleaseFileDependencies
+> Task :app:compileReleaseKotlin
+> Task :app:stripReleaseDebugSymbols
+> Task :app:mergeExtDexRelease
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libtranslate_jni.so.
 
-> Task :app:mergeExtDexRelease
 > Task :app:extractReleaseNativeSymbolTables
 > Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
@@ -59,6 +61,7 @@ Unable to strip the following libraries, packaging them as they are: libtranslat
 > Task :app:writeReleaseAppMetadata
 > Task :app:writeReleaseSigningConfigVersions
 > Task :app:optimizeReleaseResources
+
 > Task :app:compileReleaseKotlin
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:66:41 Parameter 'source' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:97:18 Parameter 'ctx' is never used
@@ -97,7 +100,7 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsStorageFragment.kt:120:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Translator.kt:59:9 Parameter 'ctx' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Translator.kt:257:21 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebActivity.kt:365:20 'onBackPressed(): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebActivity.kt:355:20 'onBackPressed(): Unit' is deprecated. Deprecated in Java
 
 > Task :app:compileReleaseJavaWithJavac NO-SOURCE
 > Task :app:dexBuilderRelease
@@ -113,7 +116,7 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 > Task :app:lintVitalRelease
 > Task :app:assembleRelease
 
-BUILD SUCCESSFUL in 2m 42s
+BUILD SUCCESSFUL in 2m 40s
 45 actionable tasks: 45 executed
 To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
 Daemon will be stopped at the end of the build 
@@ -129,8 +132,8 @@ Daemon will be stopped at the end of the build
 > Task :app:createDebugCompatibleScreenManifests
 > Task :app:extractDeepLinksDebug
 > Task :app:parseDebugLocalResources
-> Task :app:processDebugMainManifest
 > Task :app:mergeDebugResources
+> Task :app:processDebugMainManifest
 > Task :app:processDebugManifest
 > Task :app:javaPreCompileDebug
 > Task :app:mergeDebugShaders
@@ -140,19 +143,19 @@ Daemon will be stopped at the end of the build
 > Task :app:desugarDebugFileDependencies
 > Task :app:compressDebugAssets
 > Task :app:mergeDebugJniLibFolders
-> Task :app:checkDebugDuplicateClasses
 > Task :app:processDebugManifestForPackage
-> Task :app:mergeDebugNativeLibs
+> Task :app:checkDebugDuplicateClasses
+> Task :app:processDebugResources
 > Task :app:mergeExtDexDebug
 > Task :app:mergeLibDexDebug
+> Task :app:mergeDebugNativeLibs
+> Task :app:validateSigningDebug
+> Task :app:writeDebugAppMetadata
+> Task :app:writeDebugSigningConfigVersions
 
 > Task :app:stripDebugDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libtranslate_jni.so.
 
-> Task :app:validateSigningDebug
-> Task :app:writeDebugAppMetadata
-> Task :app:writeDebugSigningConfigVersions
-> Task :app:processDebugResources
 > Task :app:compileDebugKotlin
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:66:41 Parameter 'source' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:97:18 Parameter 'ctx' is never used
@@ -191,7 +194,7 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsStorageFragment.kt:120:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Translator.kt:59:9 Parameter 'ctx' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Translator.kt:257:21 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebActivity.kt:365:20 'onBackPressed(): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebActivity.kt:355:20 'onBackPressed(): Unit' is deprecated. Deprecated in Java
 
 > Task :app:compileDebugJavaWithJavac NO-SOURCE
 > Task :app:dexBuilderDebug
@@ -203,5 +206,5 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 > Task :app:createDebugApkListingFileRedirect
 > Task :app:assembleDebug
 
-BUILD SUCCESSFUL in 1m 31s
+BUILD SUCCESSFUL in 1m 22s
 35 actionable tasks: 35 executed
