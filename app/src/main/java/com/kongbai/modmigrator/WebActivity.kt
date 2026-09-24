@@ -107,16 +107,16 @@ class WebActivity : AppCompatActivity() {
                 setOnClickListener { act() }
             }
         val btnBack = toolBtn(
-            android.R.drawable.ic_media_previous, "返回"
+            R.drawable.ic_arrow_back, "返回"
         ) { if (web.canGoBack()) web.goBack() else finish() }
         val btnFwd = toolBtn(
-            android.R.drawable.ic_media_next, "前进"
+            R.drawable.ic_play_arrow, "前进"
         ) { if (web.canGoForward()) web.goForward() }
         val btnReload = toolBtn(
-            android.R.drawable.ic_popup_sync, "刷新"
+            R.drawable.ic_refresh, "刷新"
         ) { web.reload() }
         val btnClose = toolBtn(
-            android.R.drawable.ic_menu_close_clear_cancel, "关闭"
+            R.drawable.ic_close, "关闭"
         ) { finish() }
         tools.addView(btnBack)
         tools.addView(btnFwd)
