@@ -49,7 +49,9 @@ object InstanceScanner {
     /** 游戏目录（= 实例）的标志性内容：有这些之一才算 */
     private val GAME_MARKS = setOf(
         "mods", "saves", "config", "options.txt", "level.dat",
-        "mmc-pack.json", "manifest.json", "instance.cfg", "version.json"
+        "mmc-pack.json", "manifest.json", "instance.cfg", "version.json",
+        // CurseForge / HMCL 的实例清单（对照成熟启动器的探测顺序补充）
+        "minecraftinstance.json", "launcher_profiles.json"
     )
 
     /** 以点开头也要放行的目录名：.minecraft 才是真正的游戏目录 */

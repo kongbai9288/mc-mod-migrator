@@ -2,20 +2,32 @@ package com.kongbai.modmigrator
 
 object ModrinthApi {
 
-    private const val OFFICIAL = "https://api.modrinth.com/v2"
+    // v2 搜索端点已迁移到 v3，统一用 v3
+    private const val OFFICIAL = "https://api.modrinth.com/v3"
     private const val MIRROR = "https://mod.mcimirror.top/modrinth/v2"
 
     private fun base(): String = if (Prefs.mirror()) MIRROR else OFFICIAL
     private val titles = HashMap<String, String>()
     private val slugs = HashMap<String, String>()
 
-    fun search(query: String, mc: String, loader: String, limit: Int = 20): List<MarketMod> {
-        val facets = ArrayList<String>()
-        facets.add("[\"project_type:mod\"]")
-        if (mc.isNotBlank()) facets.add("[\"versions:$mc\"]")
-        if (loader.isNotBlank() && loader != "auto") facets.add("[\"categories:$loader\"]")
-        val f = facets.joinToString(",", "[", "]")
-        val url = "${base()}/search?query=${Http.enc(query)}&limit=$limit&index=downloads&facets=${Http.enc(f)}"
+    /**
+ * 搜索。
+ *
+ * 两处关键修正（对照 Modrinth 官方 v3 文档）：
+ *  1. **端点版本**：原来用的是 `/v2/search`，该端点已迁移到 v3。
+ *     继续打 v2 会拿不到结果或返回旧结构——这是"商店搜不出东西"的根因之一。
+ *  2. **过滤语法**：v2 的 `facets` 已废弃，v3 用 MeiliSearch 语法的 `new_filters`。
+ *     写成 `project_types=["mod"] AND game_versions=["1.20.1"]`，
+ *     继续传 facets 在新接口上会被忽略，导致过滤失效（比如不限版本）。
+ */
+fun search(query: String, mc: String, loader: String, limit: Int = 20): List<MarketMod> {
+        val filters = ArrayList<String>()
+        filters.add("""project_types=["mod"]""")
+        if (mc.isNotBlank()) filters.add("""game_versions=["$mc"]""")
+        if (loader.isNotBlank() && loader != "auto") filters.add("""categories=["$loader"]""")
+        val nf = filters.joinToString(" AND ")
+        val url = "${base()}/search?query=${Http.enc(query)}" +
+            "&limit=$limit&index=downloads&new_filters=${Http.enc(nf)}"
         val root = Json.obj(Http.get(url)) ?: return emptyList()
         val hits = Json.a(root, "hits") ?: return emptyList()
         val out = mutableListOf<MarketMod>()

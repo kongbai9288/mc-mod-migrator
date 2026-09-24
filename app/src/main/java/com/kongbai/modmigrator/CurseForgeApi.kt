@@ -26,7 +26,10 @@ object CurseForgeApi {
     fun search(query: String, mc: String, loader: String, key: String, limit: Int = 20): List<MarketMod> {
         val b = base(key)
         val headers = if (key.isNotBlank()) mapOf("x-api-key" to key) else emptyMap()
-        var url = "$b/mods/search?gameId=432&searchFilter=${Http.enc(query)}&pageSize=$limit"
+        // index 是**基于 0 的起始偏移**，不是页码。官方约束 index + pageSize <= 10000。
+        // 之前只传 pageSize 不传 index，部分镜像/网关会按默认偏移返回，导致结果异常。
+        var url = "$b/mods/search?gameId=432&classId=6&searchFilter=${Http.enc(query)}" +
+            "&pageSize=$limit&index=0&sortField=6&sortOrder=desc"
         if (mc.isNotBlank()) url = "$url&gameVersion=${Http.enc(mc)}"
         val lt = loaderType(loader)
         if (lt != 0) url = "$url&modLoaderType=$lt"
