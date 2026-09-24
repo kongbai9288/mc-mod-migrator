@@ -718,6 +718,7 @@ class MigrationFragment : Fragment() {
     /** 真正的迁移执行（同实例检查通过后才会走到这里） */
     private fun doMigrate(srcUri: String, dstUri: String) {
         val ctx = requireContext()
+        val p = Prefs.get(ctx)
         val wantConfig = cbConfig.isChecked
         val wantScripts = cbScripts.isChecked
         val wantOptions = cbOptions.isChecked

@@ -94,7 +94,6 @@ class SettingsLangFragment : Fragment() {
                 val u = WorkDir.uri(ctx)
                 if (u.isNotBlank()) {
                     WebActivity.open(requireContext(), u, "")
-                    startActivity(i)
                 }
             } catch (t: Throwable) {
             }

@@ -104,9 +104,9 @@ class TrashFragment : Fragment() {
                     it.name,
                     "删除于 ${fmt.format(Date(it.at))} · ${it.size / 1024} KB",
                     "还原"
-                ) { doRestore(it) }.apply {
-                    setOnLongClickListener { doDelete(it) }
-                }
+                ) { doRestore(it) }
+            val card = box.getChildAt(box.childCount - 1)
+            card.setOnLongClickListener { doDelete(it) }
             )
         }
     }

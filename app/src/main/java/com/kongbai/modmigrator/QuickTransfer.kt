@@ -60,13 +60,15 @@ object QuickTransfer {
             Toast.makeText(ctx, "没有可发送的文件", Toast.LENGTH_SHORT).show()
             return
         }
+        var err = ""
         val zip = try {
             pack(ctx, files, zipName)
-        } catch (t: Throwable) {
+        } catch (e: Throwable) {
+            err = e.message ?: "未知错误"
             null
         }
         if (zip == null) {
-            Toast.makeText(ctx, "打包失败：${t0(t)}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, "打包失败：$err", Toast.LENGTH_SHORT).show()
             return
         }
         shareOne(ctx, zip, "迁移包")
@@ -92,8 +94,6 @@ object QuickTransfer {
             Toast.makeText(ctx, "无法分享：${t.message}", Toast.LENGTH_LONG).show()
         }
     }
-
-    private fun t0(t: Throwable?) = t?.message ?: "未知错误"
 
     /** 打成 zip */
     private fun pack(ctx: Context, files: List<File>, zipName: String): File? {

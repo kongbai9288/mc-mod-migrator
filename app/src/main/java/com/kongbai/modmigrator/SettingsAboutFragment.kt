@@ -132,9 +132,7 @@ class SettingsAboutFragment : Fragment() {
                                         rel.tag,
                                         rel.apkUrl.substringAfterLast('/')
                                     )
-                                    startActivity(
-                                        WebActivity.open(requireContext(), u, "")
-                                    )
+                                    WebActivity.open(requireContext(), u, "下载")
                                 } catch (t: Throwable) {
                                     Toast.makeText(ctx, "打不开下载页", Toast.LENGTH_SHORT).show()
                                 }
