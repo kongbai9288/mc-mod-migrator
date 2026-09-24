@@ -6,6 +6,8 @@ import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.webkit.WebView
+import android.view.Menu
+import android.view.MenuItem
 import android.webkit.WebViewClient
 import android.widget.ImageButton
 import android.widget.TextView
@@ -156,11 +158,16 @@ class ModPageActivity : AppCompatActivity() {
                 WebTranslate.start(
                     this@ModPageActivity,
                     view,
-                    onProgress = { done, total ->
-                        if (done % 20 == 0) toast("已翻译 $done/$total")
+                    onProgress = { done, _ ->
+                        if (done % 20 == 0) toast("已翻译 $done 段")
                     },
                     onDone = { n ->
-                        toast(if (n > 0) "翻译完成，共 $n 段" else "这段页面没有可翻译的文字，或模型还没下载好")
+                        translated = n > 0
+                        invalidateOptionsMenu()
+                        toast(
+                            if (n > 0) "翻译完成，共 $n 段（菜单里可还原原文）"
+                            else "这段页面没有可翻译的文字，或模型还没下载好"
+                        )
                     }
                 )
             }
@@ -173,6 +180,9 @@ class ModPageActivity : AppCompatActivity() {
         }
         web.loadUrl(url)
     }
+
+    /** 是否已翻译过，用于显示「还原原文」入口 */
+    private var translated = false
 
     /** 是否处于翻译代理页：用于失败回退 */
     private var proxyMode = false
@@ -287,4 +297,40 @@ class ModPageActivity : AppCompatActivity() {
     override fun onBackPressed() {
         if (web.canGoBack()) web.goBack() else super.onBackPressed()
     }
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menu.add(0, 10, 0, "翻译本页")
+        menu.add(0, 11, 0, "还原原文")
+        menu.add(0, 12, 0, "用浏览器打开")
+        return true
+    }
+
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        menu.findItem(11)?.isVisible = translated
+        return super.onPrepareOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
+            10 -> loadTranslated("mlkit")
+            11 -> {
+                WebTranslate.restore(web)
+                translated = false
+                invalidateOptionsMenu()
+                toast("已还原原文")
+            }
+            12 -> {
+                try {
+                    startActivity(
+                        android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse(web.url)
+                        )
+                    )
+                } catch (t: Throwable) {
+                }
+            }
+        }
+        return true
+    }
+
 }

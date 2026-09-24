@@ -126,27 +126,27 @@ object Translator {
         ensureModel(ctx) { ready ->
             if (!ready) {
                 // 模型不可用 → 在线兜底
-                val online = onlineTranslate(t)
+                val online = fallbackTranslate(t)
                 if (online != null) cache[t] = online
                 onResult(online)
                 return@ensureModel
             }
             val tr = client
             if (tr == null) {
-                onResult(onlineTranslate(t))
+                onResult(fallbackTranslate(t))
                 return@ensureModel
             }
             tr.translate(t)
                 .addOnSuccessListener { out ->
                     if (out.isBlank()) {
-                        onResult(onlineTranslate(t))
+                        onResult(fallbackTranslate(t))
                     } else {
                         cache[t] = out
                         onResult(out)
                     }
                 }
                 .addOnFailureListener {
-                    val online = onlineTranslate(t)
+                    val online = fallbackTranslate(t)
                     if (online != null) cache[t] = online
                     onResult(online)
                 }
@@ -185,12 +185,12 @@ object Translator {
         }
         ensureModel(ctx) { ready ->
             if (!ready) {
-                onResult(onlineTranslate(text))
+                onResult(fallbackTranslate(text))
                 return@ensureModel
             }
             val tr = client
             if (tr == null) {
-                onResult(onlineTranslate(text))
+                onResult(fallbackTranslate(text))
                 return@ensureModel
             }
             tr.translate(text)
@@ -198,7 +198,7 @@ object Translator {
                     if (!r.isNullOrBlank()) cache[text] = r
                     onResult(r)
                 }
-                .addOnFailureListener { onResult(onlineTranslate(text)) }
+                .addOnFailureListener { onResult(fallbackTranslate(text)) }
         }
     }
 
@@ -223,7 +223,8 @@ object Translator {
      * 在线兜底（MyMemory 免费接口）。
      * 只是 ML Kit 不可用时的备胎，正常路径不会走到这里。
      */
-    private fun onlineTranslate(text: String): String? {
+    /** 在线兜底：模型不可用时的备胎，公开给需要同步结果的场景 */
+    fun fallbackTranslate(text: String): String? {
         if (Prefs.appCtx()?.let { Prefs.get(it).getBoolean(K.OFFLINE, false) } == true) {
             return null
         }
