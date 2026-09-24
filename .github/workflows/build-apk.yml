@@ -5,6 +5,13 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+# 同一分支同时只允许一个构建在跑：
+# 之前 push 触发与手动触发会并发，两个 job 抢同一个 release，
+# 互相踩导致发布失败。
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -50,6 +57,14 @@ jobs:
           sudo unzip -q -o /tmp/gradle.zip -d /opt
           echo "/opt/gradle-8.2/bin" >> $GITHUB_PATH
 
+      - name: Read app version
+        id: ver
+        run: |
+          set -e
+          V=$(grep -m1 'versionName' app/build.gradle | sed -E 's/.*versionName\s+"([^"]+)".*/\1/')
+          echo "tag=v$V" >> $GITHUB_OUTPUT
+          echo "app version: v$V"
+
       - name: Decode keystore
         run: |
           set -e
@@ -88,134 +103,21 @@ jobs:
 
       - name: Publish APK to Release
         if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ModMigrator ${{ steps.ver.outputs.tag }}
+          body: |
+            ## ModMigrator ${{ steps.ver.outputs.tag }}
+
+            CI 自动构建的 release APK，已签名。
+
+            更新内容以本条 release 的说明为准。
+          files: app/build/outputs/apk/release/*.apk
+          draft: false
+          prerelease: false
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-        run: |
-          python3 - <<'PYEOF'
-          import json, os, glob, urllib.request, urllib.error
-
-          token = os.environ['GH_TOKEN']
-          repo = os.environ['REPO']
-          api = 'https://api.github.com'
-          up = 'https://uploads.github.com'
-
-
-          def req(method, url, payload=None):
-              data = json.dumps(payload).encode('utf-8') if payload is not None else None
-              r = urllib.request.Request(url, data=data, method=method)
-              r.add_header('Authorization', 'Bearer ' + token)
-              r.add_header('Accept', 'application/vnd.github+json')
-              r.add_header('User-Agent', 'ci')
-              if data:
-                  r.add_header('Content-Type', 'application/json')
-              try:
-                  with urllib.request.urlopen(r, timeout=120) as resp:
-                      return json.loads(resp.read().decode('utf-8'))
-              except urllib.error.HTTPError as e:
-                  return {'__error__': e.code, 'body': e.read().decode('utf-8', 'ignore')[:300]}
-              except Exception as e:
-                  return {'__error__': 0, 'body': str(e)[:200]}
-
-
-          rel = glob.glob('app/build/outputs/apk/release/*.apk')
-          dbg = glob.glob('app/build/outputs/apk/debug/*.apk')
-          apks = rel or dbg
-          ASSET_NAME = 'ModMigrator-release.apk' if rel else 'ModMigrator-debug.apk'
-          print('release:', rel, '| debug:', dbg)
-          print('found apks:', apks)
-          if not apks:
-              print('NO APK')
-              raise SystemExit(0)
-
-          apk = apks[0]
-          print('apk', apk, os.path.getsize(apk))
-
-          # 版本号从 build.gradle 里读，保证 tag、APK versionName 一致。
-          # 之前固定用 nightly 标签，导致应用内的「检查更新」永远判断不出新版本。
-          import re as _re
-          gradle = open('app/build.gradle').read()
-          vname = _re.search(r'versionName\s+"([^"]+)"', gradle)
-          vcode = _re.search(r'versionCode\s+(\d+)', gradle)
-          APP_VER = 'v' + (vname.group(1) if vname else '0.0.0')
-          APP_CODE = vcode.group(1) if vcode else '0'
-          print('app version:', APP_VER, 'code:', APP_CODE)
-
-          NOTES = (
-              '## ModMigrator %s（构建 %s）\n\n'
-              'CI 自动构建的 release APK，已签名。\n\n'
-              '安装后需在设置里填写自己的 GitHub Token 与仓库；'
-              '服务器页需填面板地址与 Client API Key。\n\n'
-              '更新内容以本条 release 的说明为准。'
-          ) % (APP_VER, APP_CODE)
-
-          # 不再"删旧 release + 删 tag 再重建"：
-          # 那两步有时序问题，失败时只是 print 一下，job 依然显示成功，
-          # 结果就是"构建绿了但 APK 其实没更新"，用户装的还是旧包。
-          # 现在：查已有 release → 有就删掉它的同名 asset 再传，
-          # 没有才创建；任何一步失败都 raise，让 job 真正变红。
-          cur = req('GET', '%s/repos/%s/releases/tags/%s' % (api, repo, APP_VER))
-          rel_id = None
-          if isinstance(cur, dict) and cur.get('id') and '__error__' not in cur:
-              rel_id = cur['id']
-              # 清掉同名旧 asset
-              for a in cur.get('assets', []):
-                  if a.get('name') == ASSET_NAME:
-                      req('DELETE', '%s/repos/%s/releases/assets/%s' % (api, repo, a['id']))
-                      print('deleted old asset', a['id'])
-          if rel_id is None:
-              rel = req('POST', '%s/repos/%s/releases' % (api, repo), {
-                  'tag_name': APP_VER,
-                  'name': 'ModMigrator %s' % APP_VER,
-                  'body': NOTES,
-                  'draft': False, 'prerelease': False,
-              })
-              if '__error__' in rel:
-                  print('RELEASE FAIL', rel)
-                  raise SystemExit(1)
-              rel_id = rel.get('id')
-          if not rel_id:
-              print('NO RELEASE ID')
-              raise SystemExit(1)
-          print('release', rel_id)
-
-          data = open(apk, 'rb').read()
-          print('uploading', len(data), 'bytes')
-
-          # 大文件上传偶发失败，重试若干次；
-          # 每次失败都打印状态码与返回体，便于定位（之前是静默失败，
-          # 表现为"构建绿了但 APK 没更新"）。
-          uploaded = False
-          last_err = ''
-          for attempt in range(1, 6):
-              try:
-                  u = '%s/repos/%s/releases/%s/assets?name=' % (up, repo, rel['id']) + ASSET_NAME
-                  r = urllib.request.Request(u, data=data, method='POST')
-                  r.add_header('Authorization', 'Bearer ' + token)
-                  r.add_header('Content-Type', 'application/vnd.android.package-archive')
-                  r.add_header('Accept', 'application/vnd.github+json')
-                  r.add_header('User-Agent', 'ci')
-                  with urllib.request.urlopen(r, timeout=600) as resp:
-                      a = json.loads(resp.read().decode('utf-8'))
-                      print('ASSET OK', a.get('name'), a.get('size'), a.get('browser_download_url'))
-                      uploaded = True
-                      break
-              except urllib.error.HTTPError as e:
-                  last_err = 'HTTP %s: %s' % (e.code, e.read().decode('utf-8', 'ignore')[:300])
-              except Exception as e:
-                  last_err = str(e)[:300]
-              print('upload attempt %d failed: %s' % (attempt, last_err))
-              import time as _t
-              _t.sleep(5 * attempt)
-
-          if not uploaded:
-              print('ASSET FAIL after retries:', last_err)
-              raise SystemExit(1)
-          if not os.path.exists(apk) or os.path.getsize(apk) < 1024:
-              print('APK TOO SMALL')
-              raise SystemExit(1)
-          print('DONE')
-          PYEOF
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish build log to repo
         if: always()
