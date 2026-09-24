@@ -123,14 +123,27 @@ object OfflineTranslate {
         saveCache(ctx, original.trim().lowercase(Locale.ROOT), translated)
     }
 
-    /** 先离线，离线没有再联网；离线模式下完全不联网 */
-    fun translate(ctx: Context, text: String): String? {
-        val off = lookup(ctx, text)
-        if (off != null) return off
-        if (Prefs.get(ctx).getBoolean(K.OFFLINE, false)) return null
-        val zh = Translator.toZh(text)
-        if (zh != null) remember(ctx, text, zh)
-        return zh
+    /**
+     * 翻译：本地缓存/词典 → ML Kit 离线模型 → 在线兜底。
+     *
+     * 现在是异步回调（ML Kit 本身就是异步的）。
+     * 本地命中的话会同步立刻回调，调用方不用区分。
+     */
+    fun translate(ctx: Context, text: String, cb: (String?) -> Unit) {
+        val cached = lookup(ctx, text)
+        if (cached != null) {
+            cb(cached)
+            return
+        }
+        // 离线模式：只用本地词典，不联网
+        if (Prefs.get(ctx).getBoolean(K.OFFLINE, false)) {
+            cb(null)
+            return
+        }
+        Translator.toZh(ctx, text) { zh ->
+            if (zh != null) remember(ctx, text, zh)
+            cb(zh)
+        }
     }
 
     /** 网页离线翻译：注入 JS 做词级替换，页面不出网也能看个大概 */

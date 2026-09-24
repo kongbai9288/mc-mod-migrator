@@ -42,6 +42,11 @@ android {
         jvmTarget = '17'
     }
 
+    // ML Kit 的翻译模型不能被压缩，否则加载失败
+    aaptOptions {
+        noCompress "tflite", "lite"
+    }
+
     packagingOptions {
         exclude 'META-INF/DEPENDENCIES'
         exclude 'META-INF/LICENSE'
@@ -69,4 +74,7 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'org.jsoup:jsoup:1.17.2'
     implementation 'io.coil-kt:coil:2.5.0'
+
+    // 离线翻译引擎（Google 官方，模型下载后完全离线可用，50+ 语言）
+    implementation 'com.google.mlkit:translate:17.0.3'
 }

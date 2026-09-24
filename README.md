@@ -44,7 +44,7 @@ Minecraft Java 版 **模组与配置迁移工具**（Android）。
 ### 模组市场
 - 搜索 Modrinth / CurseForge，**聚合模式**同时查两边并去重
 - 一键安装到目标 `mods` 目录
-- 简介翻译（本地词典优先，离线可用；也有在线翻译）
+- 简介与网页翻译：用 Google ML Kit 的离线神经网络模型，下好模型后完全离线
 - 收藏、推荐
 
 ### 整合包
@@ -113,6 +113,18 @@ Minecraft Java 版 **模组与配置迁移工具**（Android）。
 
 ---
 
+## 翻译
+
+用 **Google ML Kit Translate**，不是自己拼的接口：
+
+- 真神经网络翻译，质量远超词典替换
+- 模型约 30MB，**下载一次后完全离线可用**
+- 支持 50+ 语言
+- 网页翻译不再是跳 `translate.google.com` 代理页（国内经常打不开、一失败就白屏），
+  而是页面正常加载后把文字用本地模型翻成中文再替换——离线也能翻，页面内容不外发
+
+首次使用在「设置 → 翻译」里点一下下载模型即可。没下载也能用，会走在线接口兜底。
+
 ## 隐私
 
 - 代码里**不含任何凭据**（GitHub Token、CurseForge Key、面板密码都不写死）
@@ -146,7 +158,7 @@ CI（GitHub Actions）会在每次推送后自动构建并发布 Release。
 
 ## 技术栈
 
-Kotlin · Android SDK 34（minSdk 26）· Material Components 2 · OkHttp · Gson · Jsoup · Coil · WorkManager · AndroidX Security
+Kotlin · Android SDK 34（minSdk 26）· Material Components 2 · OkHttp · Gson · Jsoup · Coil · WorkManager · AndroidX Security · **ML Kit Translate（离线翻译）**
 
 ## 许可
 

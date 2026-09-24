@@ -43,7 +43,14 @@ ModMigrator 第三方开源许可
    来源：https://github.com/coil-kt/coil
    用于：加载模组图标
 
-8. Material Icons（本应用所有图标）
+8. Google ML Kit Translate（翻译引擎）
+   许可：SDK 为 Apache License 2.0；翻译模型受 Google 服务条款约束
+   来源：https://developers.google.com/ml-kit/language/translation
+   用于：模组简介与网页的离线翻译。模型下载一次（约 30MB）后完全离线可用。
+   说明：模型由 Google 分发，需联网下载一次；之后翻译完全在本机进行，
+        不会把待翻译文本发送到任何服务器。
+
+9. Material Icons（本应用所有图标）
    许可：Apache License 2.0
    来源：https://fonts.google.com/icons
    说明：全部为官方 Material Symbols，未使用任何第三方美术资源。
@@ -54,7 +61,7 @@ ModMigrator 第三方开源许可
 
 以下项目的实现思路被参考，用于改进本应用的下载与目录扫描：
 
-9. lingochamp / FileDownloader
+10. lingochamp / FileDownloader
    许可：Apache License 2.0
    来源：https://github.com/lingochamp/FileDownloader
    参考点：多任务并发、断点续传、分块下载的调度思路。
@@ -62,13 +69,13 @@ ModMigrator 第三方开源许可
         而是按同样的思路用 OkHttp 自行实现，因此不适用其许可约束，
         此处仍予致谢并标明来源。
 
-10. jackfengji / android-download-manager
+11. jackfengji / android-download-manager
     许可：MIT License
     来源：https://github.com/jackfengji/android-download-manager
     参考点：HTTP Range 分块下载、并发任务数控制。
     说明：同上，仅参考思路。
 
-11. SirLYC / YC-Downloader
+12. SirLYC / YC-Downloader
     许可：MIT License
     来源：https://github.com/SirLYC/YC-Downloader
     参考点：多任务队列、速度限制、进度回调节流。
@@ -77,22 +84,22 @@ ModMigrator 第三方开源许可
 三、数据来源与服务
 ============================================================
 
-12. Modrinth
+13. Modrinth
     许可：其 API 数据遵循各自模组的许可；平台代码为 AGPL-3.0，
         但本应用仅通过其公开 HTTP API 读取元数据，
         不构成对其代码的复制或衍生，因此不受 AGPL 传染。
     来源：https://modrinth.com
 
-13. CurseForge
+14. CurseForge
     说明：通过其公开 API 与国内镜像（MCIM）读取模组元数据。
     来源：https://www.curseforge.com 、 https://www.mcimirror.top
 
-14. Pterodactyl
+15. Pterodactyl
     许可：MIT License（面板服务端软件）
     来源：https://pterodactyl.io
     说明：本应用仅作为客户端调用其 Client API。
 
-15. GitHub REST API
+16. GitHub REST API
     说明：用于读取 release 与仓库文件，遵循 GitHub 服务条款。
 
 ============================================================

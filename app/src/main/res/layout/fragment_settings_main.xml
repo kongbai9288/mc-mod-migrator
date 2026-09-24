@@ -82,6 +82,13 @@
             android:text="@string/anim_title" />
 
         <Button
+            android:id="@+id/btnGoTranslate"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/menu_translate" />
+
+        <Button
             android:id="@+id/btnGoNav"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="match_parent"

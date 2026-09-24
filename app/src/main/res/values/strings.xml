@@ -194,6 +194,15 @@
     <string name="cfg_backup_interval">自动备份间隔</string>
     <string name="cfg_backup_now">立即备份一次</string>
     <string name="title_browser">浏览器</string>
+    <string name="menu_translate">翻译</string>
+    <string name="translate_engine">翻译引擎</string>
+    <string name="translate_model_state">模型状态</string>
+    <string name="translate_download">下载离线翻译模型</string>
+    <string name="translate_downloading">正在下载…</string>
+    <string name="translate_ready">已就绪，可离线翻译</string>
+    <string name="translate_not_ready">还没下载，现在只能在线翻译</string>
+    <string name="translate_test">测试翻译</string>
+    <string name="translate_hint">翻译用的是 Google ML Kit 的离线神经网络模型。下载一次（约 30MB）后，翻译模组简介和网页都不再需要联网。不下载也能用，但会走在线接口。</string>
     <string name="empty_hint">这里还没有内容</string>
     <string name="token_auto_ok">已自动获取 GitHub Token，同步无需手填</string>
     <string name="token_manual_hint">已授权，但后端未开放 Token 下发接口，请在下面的 Token 框手动填写</string>

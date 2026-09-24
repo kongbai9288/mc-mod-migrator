@@ -134,28 +134,44 @@ class ModPageActivity : AppCompatActivity() {
     private var pendingScript: String? = null
     private var runOnMainScript: Boolean = false
 
+    /**
+     * 整页翻译。
+     *
+     * 不再跳 translate.google.com 那种代理页——国内十次有九次打不开，
+     * 一失败就是白屏，这正是之前的毛病。
+     * 现在：页面照常加载，加载完后把文字用 ML Kit 离线模型翻成中文再替换。
+     * 离线也能翻，不外发页面内容，也不会白屏。
+     */
     private fun loadTranslated(engine: String) {
         if (url.isBlank()) return
-        // 离线模式：不加载任何代理页，改为页面加载完后注入本地词典做词级标注
-        if (Prefs.get(this).getBoolean(K.OFFLINE, false)) {
-            toast("离线：用本地词典标注页面（不会发起网络请求）")
-            web.webViewClient = object : android.webkit.WebViewClient() {
-                override fun onPageFinished(view: android.webkit.WebView?, u: String?) {
-                    view?.evaluateJavascript(OfflineTranslate.webScript(this@ModPageActivity), null)
-                }
+        proxyMode = false
+        val offline = Prefs.get(this).getBoolean(K.OFFLINE, false)
+        toast(if (offline) "离线翻译中（用本地模型）…" else "翻译中…")
+
+        web.webViewClient = object : android.webkit.WebViewClient() {
+            override fun onPageFinished(view: android.webkit.WebView?, u: String?) {
+                super.onPageFinished(view, u)
+                if (view == null) return
+                // 页面已正常显示，翻不翻出来都不会白屏
+                WebTranslate.start(
+                    this@ModPageActivity,
+                    view,
+                    onProgress = { done, total ->
+                        if (done % 20 == 0) toast("已翻译 $done/$total")
+                    },
+                    onDone = { n ->
+                        toast(if (n > 0) "翻译完成，共 $n 段" else "这段页面没有可翻译的文字，或模型还没下载好")
+                    }
+                )
             }
-            web.loadUrl(url)
-            return
         }
-        // 离线模式一律不跳代理页
-        if (Prefs.get(this).getBoolean(K.OFFLINE, false)) {
-            toast("离线模式：使用本地标注")
-            markLocal()
-            return
+
+        // 模型没下好时先下载，下载完用户再点一次即可；
+        // 这里同时触发一次，下次就是秒翻
+        Translator.ensureModel(this) { ready ->
+            if (ready) toast("翻译模型已就绪")
         }
-        toast("正在加载翻译页，失败会自动退回原页面…")
-        proxyMode = true
-        web.loadUrl(Translator.pageProxy(engine, url))
+        web.loadUrl(url)
     }
 
     /** 是否处于翻译代理页：用于失败回退 */

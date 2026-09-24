@@ -56,6 +56,7 @@ class SettingsMainFragment : Fragment() {
         v.findViewById<Button>(R.id.btnGoSearch).setOnClickListener { go("search") }
         v.findViewById<Button>(R.id.btnGoMigrate).setOnClickListener { go("migrate") }
         v.findViewById<Button>(R.id.btnGoAnim).setOnClickListener { go("anim") }
+        v.findViewById<Button>(R.id.btnGoTranslate).setOnClickListener { go("translate") }
         v.findViewById<Button>(R.id.btnGoNav).setOnClickListener { go("nav") }
         v.findViewById<Button>(R.id.btnGoStorage).setOnClickListener { go("storage") }
         v.findViewById<Button>(R.id.btnGoAbout).setOnClickListener { go("about") }

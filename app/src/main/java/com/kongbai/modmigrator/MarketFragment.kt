@@ -209,11 +209,10 @@ class MarketFragment : Fragment() {
     private fun translate(mod: MarketMod) {
         if (mod.summaryZh.isNotBlank()) return
         val c = ctx0() ?: return
-        bg {
-            val zh = OfflineTranslate.translate(c, mod.summary)
+        OfflineTranslate.translate(c, mod.summary) { zh ->
             if (zh == null) {
-                toast("翻译失败：离线无匹配且网络不可用")
-                return@bg
+                toast("翻译失败：模型还没下载好，或离线且无本地匹配")
+                return@translate
             }
             mod.summaryZh = zh
             safePost(handler) {
@@ -226,16 +225,16 @@ class MarketFragment : Fragment() {
     private fun autoTranslate(list: List<MarketMod>) {
         val c = ctx0() ?: return
         if (!Prefs.get(c).getBoolean(K.AUTO_TRANS, true)) return
-        bg {
-            var n = 0
-            for (m in list.take(10)) {
-                val zh = OfflineTranslate.translate(c, m.summary)
+        // 逐条异步翻译，翻完一条刷一条，不用等全部完成
+        var n = 0
+        for (m in list.take(10)) {
+            OfflineTranslate.translate(c, m.summary) { zh ->
                 if (zh != null) {
                     m.summaryZh = zh
                     n++
+                    safePost(handler) { resAdapter.notifyDataSetChanged() }
                 }
             }
-            if (n > 0) safePost(handler) { resAdapter.notifyDataSetChanged() }
         }
     }
 

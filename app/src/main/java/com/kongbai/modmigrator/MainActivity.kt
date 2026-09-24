@@ -129,6 +129,7 @@ class MainActivity : AppCompatActivity() {
                 "theme" -> SettingsThemeFragment()
                 "lang" -> SettingsLangFragment()
                 "anim" -> SettingsAnimFragment()
+                "translate" -> SettingsTranslateFragment()
                 "plugin" -> PluginFragment()
                 "devs" -> DevsFragment()
                 "log" -> SettingsLogFragment()
