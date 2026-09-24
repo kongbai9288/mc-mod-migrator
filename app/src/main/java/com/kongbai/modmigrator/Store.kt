@@ -77,6 +77,44 @@ object Store {
         saveLinks(c, list)
     }
 
+    /**
+     * 记录"上次看到哪儿"。
+     *
+     * 分享时带上这个位置，收到的人（或你另一台设备）打开就能直接
+     * 回到同一个地方，不用从头翻。存的是路径/链接 + 标题 + 时间。
+     */
+    fun markViewed(ctx: android.content.Context, key: String, title: String) {
+        try {
+            Prefs.get(ctx).edit()
+                .putString(LAST_VIEW_KEY, key)
+                .putString(LAST_VIEW_TITLE, title)
+                .putLong(LAST_VIEW_AT, System.currentTimeMillis())
+                .apply()
+        } catch (t: Throwable) {
+        }
+    }
+
+    /** 上次查看的位置，没有则返回 null */
+    fun lastViewed(ctx: android.content.Context): Triple<String, String, Long>? {
+        return try {
+            val p = Prefs.get(ctx)
+            val k = p.getString(LAST_VIEW_KEY, "") ?: ""
+            if (k.isBlank()) return null
+            Triple(k, p.getString(LAST_VIEW_TITLE, "") ?: "", p.getLong(LAST_VIEW_AT, 0L))
+        } catch (t: Throwable) {
+            null
+        }
+    }
+
+    fun clearViewed(ctx: android.content.Context) {
+        try {
+            Prefs.get(ctx).edit()
+                .remove(LAST_VIEW_KEY).remove(LAST_VIEW_TITLE).remove(LAST_VIEW_AT)
+                .apply()
+        } catch (t: Throwable) {
+        }
+    }
+
     fun clear(c: Context) {
         file(c).delete()
     }

@@ -64,8 +64,15 @@ jobs:
           KEY_PASS: ${{ secrets.KEY_PASS }}
         run: |
           gradle assembleRelease --no-daemon > /tmp/build.log 2>&1
+          REL_EXIT=$?
+          echo "RELEASE_EXIT=$REL_EXIT"
           gradle assembleDebug --no-daemon >> /tmp/build.log 2>&1
-          echo "EXIT=$?"
+          echo "DEBUG_EXIT=$?"
+          if [ "$REL_EXIT" != "0" ]; then
+            echo "===== RELEASE BUILD FAILED ====="
+            tail -60 /tmp/build.log
+            exit 1
+          fi
           echo "===== apk find ====="
           find . -name "*.apk" -type f -exec ls -la {} \;
           echo "===== last 60 lines ====="
@@ -142,22 +149,35 @@ jobs:
               '更新内容以本条 release 的说明为准。'
           ) % (APP_VER, APP_CODE)
 
-          # 同版本重复构建时覆盖旧的 release
+          # 不再"删旧 release + 删 tag 再重建"：
+          # 那两步有时序问题，失败时只是 print 一下，job 依然显示成功，
+          # 结果就是"构建绿了但 APK 其实没更新"，用户装的还是旧包。
+          # 现在：查已有 release → 有就删掉它的同名 asset 再传，
+          # 没有才创建；任何一步失败都 raise，让 job 真正变红。
           cur = req('GET', '%s/repos/%s/releases/tags/%s' % (api, repo, APP_VER))
-          if isinstance(cur, dict) and cur.get('id'):
-              req('DELETE', '%s/repos/%s/releases/%s' % (api, repo, cur['id']))
-              req('DELETE', '%s/repos/%s/git/refs/tags/%s' % (api, repo, APP_VER))
-
-          rel = req('POST', '%s/repos/%s/releases' % (api, repo), {
-              'tag_name': APP_VER,
-              'name': 'ModMigrator %s' % APP_VER,
-              'body': NOTES,
-              'draft': False, 'prerelease': False,
-          })
-          if '__error__' in rel:
-              print('RELEASE FAIL', rel)
-              raise SystemExit(0)
-          print('release', rel.get('id'))
+          rel_id = None
+          if isinstance(cur, dict) and cur.get('id') and '__error__' not in cur:
+              rel_id = cur['id']
+              # 清掉同名旧 asset
+              for a in cur.get('assets', []):
+                  if a.get('name') == ASSET_NAME:
+                      req('DELETE', '%s/repos/%s/releases/assets/%s' % (api, repo, a['id']))
+                      print('deleted old asset', a['id'])
+          if rel_id is None:
+              rel = req('POST', '%s/repos/%s/releases' % (api, repo), {
+                  'tag_name': APP_VER,
+                  'name': 'ModMigrator %s' % APP_VER,
+                  'body': NOTES,
+                  'draft': False, 'prerelease': False,
+              })
+              if '__error__' in rel:
+                  print('RELEASE FAIL', rel)
+                  raise SystemExit(1)
+              rel_id = rel.get('id')
+          if not rel_id:
+              print('NO RELEASE ID')
+              raise SystemExit(1)
+          print('release', rel_id)
 
           data = open(apk, 'rb').read()
           r = urllib.request.Request(
@@ -173,6 +193,11 @@ jobs:
                   print('ASSET OK', a.get('name'), a.get('size'), a.get('browser_download_url'))
           except urllib.error.HTTPError as e:
               print('ASSET FAIL', e.code, e.read().decode('utf-8', 'ignore')[:300])
+              raise SystemExit(1)
+          if not os.path.exists(apk) or os.path.getsize(apk) < 1024:
+              print('APK TOO SMALL')
+              raise SystemExit(1)
+          print('DONE')
           PYEOF
 
       - name: Publish build log to repo

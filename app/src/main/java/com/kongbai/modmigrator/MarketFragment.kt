@@ -76,6 +76,28 @@ class MarketFragment : Fragment() {
         rvLinks.adapter = linkAdapter
         rvLinks.isNestedScrollingEnabled = false
 
+        // 中文热门词快捷入口：点一下就填进搜索框并搜
+        val hotBox = v.findViewById<LinearLayout>(R.id.hotBox)
+        for (w in ModAliases.hotWords()) {
+            hotBox.addView(
+                com.google.android.material.button.MaterialButton(
+                    requireContext(),
+                    null,
+                    com.google.android.material.R.attr.materialButtonOutlinedStyle
+                ).apply {
+                    text = w
+                    textSize = 11f
+                    minWidth = 0
+                    minimumWidth = 0
+                    setPadding(12, 0, 12, 0)
+                    setOnClickListener {
+                        etQuery.setText(w)
+                        search()
+                    }
+                }
+            )
+        }
+
         tvListTitle = v.findViewById(R.id.tvListTitle)
         spSort = v.findViewById(R.id.spSort)
         btnFav = v.findViewById(R.id.btnFavorites)
@@ -84,6 +106,7 @@ class MarketFragment : Fragment() {
         v.findViewById<Button>(R.id.btnRecommend)?.setOnClickListener { recommend() }
         v.findViewById<Button>(R.id.btnAddLink).setOnClickListener { addLinkDialog() }
         v.findViewById<Button>(R.id.btnOpenPage).setOnClickListener { openPageDialog() }
+        v.findViewById<Button>(R.id.btnShare)?.setOnClickListener { shareWithPosition() }
 
         // 收藏按钮 = 页签切换：在收藏夹和搜索结果之间来回切，
         // 两边各自保留，不会互相覆盖
@@ -160,15 +183,19 @@ class MarketFragment : Fragment() {
     private fun loader(): String = spLoader.selectedItem?.toString() ?: "auto"
 
     private fun search() {
-        val q = etQuery.text.toString().trim()
-        if (q.isBlank()) {
+        val raw = etQuery.text.toString().trim()
+        if (raw.isBlank()) {
             toast("请输入关键词")
             return
         }
+        // 中文/简称 → 英文：Modrinth、CurseForge 只认英文关键词，
+        // 直接拿中文去查只会返回空结果。
+        val q = ModAliases.translate(raw)
+        val hint = ModAliases.hint(raw)
         val mc = mcVersion()
         val ld = loader()
         val ctx = requireContext()
-        toast("搜索中…")
+        toast("搜索中…$hint")
         // 分批：先清空搜索结果列表，但每个源回来就立刻追加显示，
         // 不会因为某一个源慢或挂掉而整页卡住。
         // 结果存在 searchResults 里，切到收藏夹再回来依然在。
@@ -471,9 +498,54 @@ class MarketFragment : Fragment() {
             toast("没有页面地址")
             return
         }
-        val i = Intent(requireContext(), ModPageActivity::class.java)
+        openPageWith(url, "")
+    }
+
+    /**
+     * 打开模组页并记录"看到哪儿"。
+     * 之后分享时可以把这个位置一起带过去。
+     */
+    private fun openPageWith(url: String, title: String) {
+        val ctx = requireContext()
+        // 记录上次查看位置（分享时可带上）
+        Store.markViewed(ctx, url, title.ifBlank { url })
+        val i = Intent(ctx, ModPageActivity::class.java)
         i.putExtra("url", url)
         startActivity(i)
+    }
+
+    /**
+     * 分享：带上"上次看到哪儿"。
+     *
+     * 收到的人（或你的另一台设备）打开这条分享，能直接回到同一个页面，
+     * 不用再从一堆搜索结果里重新找。
+     */
+    private fun shareWithPosition() {
+        val ctx = requireContext()
+        val v = Store.lastViewed(ctx)
+        if (v == null) {
+            toast("还没有查看过任何模组页")
+            return
+        }
+        val (url, title, _) = v
+        val text = buildString {
+            append("我在看这个模组：").append(title.ifBlank { url }).append('\n')
+            append(url).append('\n')
+            append("（用 ModMigrator 打开可直接回到这个页面）")
+        }
+        try {
+            val i = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_SUBJECT, "ModMigrator 分享")
+                putExtra(Intent.EXTRA_TEXT, text)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            val chooser = Intent.createChooser(i, "分享到（蓝牙/附近分享/其他应用）")
+            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(chooser)
+        } catch (t: Throwable) {
+            toast("分享失败")
+        }
     }
 
     private fun addLinkDialog() {

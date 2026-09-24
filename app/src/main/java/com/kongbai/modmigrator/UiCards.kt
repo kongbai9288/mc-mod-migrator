@@ -37,7 +37,7 @@ object UiCards {
                 else @Suppress("DEPRECATION") ctx.resources.getColor(tv.resourceId)
             } else tv.data
         } catch (t: Throwable) {
-            Color.parseColor("#2E7D32")
+            primary(ctx)   // 跟随主题主色，不再是写死的绿色
         }
     }
 

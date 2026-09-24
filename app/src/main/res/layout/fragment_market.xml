@@ -68,6 +68,20 @@
             android:text="@string/btn_favorites" />
     </LinearLayout>
 
+    <HorizontalScrollView
+        android:id="@+id/hotScroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/hotBox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" />
+    </HorizontalScrollView>
+
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -91,14 +105,22 @@
             android:text="@string/btn_add_link" />
 
         <Button
-            android:id="@+id/btnOpenPage"
+            android:id="@+id/btnShare"
             style="@style/AppButtonOutlined"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
             android:layout_weight="1"
-            android:text="@string/btn_open_page" />
+            android:text="@string/btn_share_position" />
     </LinearLayout>
+
+    <Button
+        android:id="@+id/btnOpenPage"
+        style="@style/AppButtonOutlined"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="@string/btn_open_page" />
 
     <TextView
         android:layout_width="wrap_content"

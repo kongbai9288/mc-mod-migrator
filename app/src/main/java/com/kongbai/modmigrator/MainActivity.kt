@@ -141,6 +141,7 @@ class MainActivity : AppCompatActivity() {
                 "log" -> SettingsLogFragment()
                 "about" -> SettingsAboutFragment()
                 "lab" -> SettingsLabFragment()
+                "feed" -> McFeedFragment()
                 else -> SettingsMainFragment()
             }
         } catch (t: Throwable) {

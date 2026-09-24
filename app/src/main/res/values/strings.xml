@@ -238,6 +238,8 @@
     <string name="search_results_kept">搜索结果已保留，点「搜索结果」可切回</string>
     <string name="menu_lab">实验室 / 高级</string>
     <string name="login_done">我已完成授权</string>
+    <string name="tab_feed">MC 资讯</string>
+    <string name="btn_share_position">分享/继续上次</string>
     <string name="empty_hint">这里还没有内容</string>
     <string name="token_auto_ok">已自动获取 GitHub Token，同步无需手填</string>
     <string name="token_manual_hint">已授权，但后端未开放 Token 下发接口，请在下面的 Token 框手动填写</string>
