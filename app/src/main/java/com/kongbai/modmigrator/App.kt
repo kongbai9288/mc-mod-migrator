@@ -29,5 +29,6 @@ class App : Application() {
             nm.createNotificationChannel(channel)
         }
     }
+}
 
 
