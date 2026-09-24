@@ -226,7 +226,7 @@ class ToolsFragment : Fragment() {
                     .setTitle("替换完成")
                     .setMessage(
                         buildString {
-                            append("已下载 $ok / ${todo.size} 个 $to 版本。\n\n")
+                            append("已下载 $ok / ${todo.size} 个 ${to} 版本。\n\n")
                             append("原来的文件还留在 mods 目录里，")
                             append("请到「模组管理」里删掉旧的那份（会进回收站，可还原）。")
                             if (failed.isNotEmpty()) {

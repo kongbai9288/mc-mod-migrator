@@ -314,6 +314,12 @@ class ModManagerFragment : Fragment() {
         }
     }
 
+    private fun toast(s: String) {
+        handler.post {
+            if (isAdded) android.widget.Toast.makeText(context, s, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun render(list: List<DocumentFile>) {
         val ctx = context ?: return
         box.removeAllViews()

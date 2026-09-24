@@ -216,7 +216,7 @@ class ServerFragment : Fragment() {
                 .map { it.first }
 
             safePost(handler) {
-                if (!isAdded) return@post
+                // safePost 内部已检查 isAdded，这里只用 safePost 的标签返回
                 val labels = ArrayList<String>()
                 val actions = ArrayList<() -> Unit>()
 
