@@ -205,7 +205,7 @@ object CrossLoader {
      *     但**反过来不算**——搜 "sodium" 匹配到 "Sodium Extra" 就是典型误伤
      * 都不匹配就返回 null，让调用方如实告诉用户"没匹配上"。
      */
-    private fun pickProject(hits: List<MarketMod>, modName: String): MarketMod? {
+    fun pickProject(hits: List<MarketMod>, modName: String): MarketMod? {
         if (hits.isEmpty()) return null
         val key = normKey(modName)
         if (key.isBlank()) return hits.first()

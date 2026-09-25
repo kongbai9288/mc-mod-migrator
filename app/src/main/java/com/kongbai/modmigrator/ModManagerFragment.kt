@@ -235,7 +235,11 @@ class ModManagerFragment : Fragment() {
                 } catch (t: Throwable) {
                     emptyList<MarketMod>()
                 }
-                val proj = hits.firstOrNull() ?: continue
+                // 和跨加载器迁移同一个坑：搜索是模糊匹配，
+                // `hits.firstOrNull()` 会把"sodium"匹配到"Sodium Extra"，
+                // 然后下载一个**别的模组**的新版本进来。
+                // 复用 CrossLoader 的名称核对，对不上就跳过（不下载）。
+                val proj = CrossLoader.pickProject(hits, clean) ?: continue
                 val vers = try {
                     ModrinthApi.versions(proj.id, mc, loader)
                 } catch (t: Throwable) {
