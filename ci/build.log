@@ -26,28 +26,28 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mapReleaseSourceSetPaths
 > Task :app:generateReleaseResources
 > Task :app:packageReleaseResources
-> Task :app:mergeReleaseResources
 > Task :app:createReleaseCompatibleScreenManifests
 > Task :app:extractDeepLinksRelease
 > Task :app:parseReleaseLocalResources
+> Task :app:mergeReleaseResources
 > Task :app:processReleaseMainManifest
 > Task :app:processReleaseManifest
 > Task :app:javaPreCompileRelease
 > Task :app:extractProguardFiles
 > Task :app:mergeReleaseJniLibFolders
-> Task :app:processReleaseManifestForPackage
 > Task :app:mergeReleaseNativeLibs
 > Task :app:desugarReleaseFileDependencies
+> Task :app:processReleaseManifestForPackage
+> Task :app:checkReleaseDuplicateClasses
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libtranslate_jni.so.
 
-> Task :app:checkReleaseDuplicateClasses
-> Task :app:mergeReleaseArtProfile
 > Task :app:extractReleaseNativeSymbolTables
 > Task :app:processReleaseResources
 > Task :app:mergeExtDexRelease
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
@@ -59,13 +59,12 @@ Unable to strip the following libraries, packaging them as they are: libtranslat
 > Task :app:writeReleaseAppMetadata
 > Task :app:writeReleaseSigningConfigVersions
 > Task :app:optimizeReleaseResources
-> Task :app:compileReleaseKotlin
+
+> Task :app:compileReleaseKotlin FAILED
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:164:71 Unresolved reference: limit
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:164:78 Unresolved reference: offset
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:177:97 Unresolved reference: limit
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:177:104 Unresolved reference: offset
-
-> Task :app:compileReleaseKotlin FAILED
 
 FAILURE: Build failed with an exception.
 
@@ -80,5 +79,5 @@ Execution failed for task ':app:compileReleaseKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 2m 8s
+BUILD FAILED in 1m 48s
 34 actionable tasks: 34 executed
