@@ -271,8 +271,8 @@ class ToolsFragment : Fragment() {
                         name = meta.name.ifBlank { id },
                         version = meta.version,
                         loader = meta.loader,
-                        depends = meta.depends,
-                        breaks = meta.breaks
+                        depends = meta.depends.keys.toList(),
+                        breaks = meta.breaks.keys.toList()
                     )
                 )
             }
