@@ -70,6 +70,16 @@ object MrpackExport {
                 val files = ArrayList<JSONObject>()
 
                 // ---------- overrides：模组本体 ----------
+                // ⚠️ 关键：**打进 overrides/ 的文件不能再写进 files[]**。
+                // 按 Modrinth 官方规范：
+                //   · files[] 是「需要**下载**的那些文件」，每项必带 downloads 下载地址
+                //   · overrides/ 里的文件由启动器**直接复制**，不参与下载
+                // 之前这里两边都写：jar 进了 overrides/mods/，
+                // 同时又往 files[] 里加了一条**没有 downloads** 的记录。
+                // 启动器读到这条会试图去下载它，却没有地址可用 ——
+                // 表现就是导出的 .mrpack 在 Prism / Modrinth App 里导入失败或漏装，
+                // 而本地看 zip 内容明明是齐的，非常难查。
+                // 离线导出（模组本体已随包）时 files[] 应为空。
                 if (opts.includeOverrides && modsDir != null) {
                     for (f in modsDir.listFiles()) {
                         if (f.isDirectory) continue
@@ -78,14 +88,6 @@ object MrpackExport {
                         // 禁用的模组也带上，但保持 .disabled 后缀，装完仍是禁用状态
                         val entryName = "overrides/mods/$n"
                         putEntry(ctx, zos, f, entryName)
-                        files.add(
-                            fileObj(
-                                path = "mods/$n",
-                                sha512 = sha512Of(ctx, f),
-                                sha1 = sha1Of(ctx, f),
-                                size = f.length()
-                            )
-                        )
                     }
                 }
 
@@ -132,50 +134,54 @@ object MrpackExport {
              }
     }
 
-    /** 极简 JSON 构造：不引第三方库，字段固定可控 */
+    /**
+     * 生成 modrinth.index.json。
+     *
+     * 用 org.json 而不是手写拼字符串：包名来自用户输入，
+     * 手写的 esc() 只转义了反斜杠、双引号和换行，漏掉回车、制表符等控制字符 ——
+     * 生成的 JSON 一旦非法，启动器只会报清单解析失败，
+     * 用户完全看不出是名字里有个奇怪字符导致的。
+     */
     private fun buildIndex(opts: Options, files: List<JSONObject>): String {
-        val sb = StringBuilder()
-        sb.append("{\n")
-        sb.append("  \"formatVersion\": 1,\n")
-        sb.append("  \"game\": \"minecraft\",\n")
-        sb.append("  \"versionId\": \"${esc(opts.name)}-${System.currentTimeMillis()}\",\n")
-        sb.append("  \"name\": \"${esc(opts.name)}\",\n")
-        sb.append("  \"summary\": \"${esc(opts.summary.ifBlank { "由 ModMigrator 导出" })}\",\n")
-
-        // dependencies：MC 版本 + 加载器
-        val deps = ArrayList<String>()
-        if (opts.mcVersion.isNotBlank()) {
-            deps.add("\"minecraft\": \"${esc(opts.mcVersion)}\"")
-        }
+        val deps = org.json.JSONObject()
+        if (opts.mcVersion.isNotBlank()) deps.put("minecraft", opts.mcVersion)
         when (opts.loader.lowercase()) {
-            "fabric" -> deps.add("\"fabric-loader\": \"${esc(opts.loaderVersion.ifBlank { "*" })}\"")
-            "forge" -> deps.add("\"forge\": \"${esc(opts.loaderVersion.ifBlank { "*" })}\"")
-            "quilt" -> deps.add("\"quilt-loader\": \"${esc(opts.loaderVersion.ifBlank { "*" })}\"")
-            "neoforge" -> deps.add("\"neoforge\": \"${esc(opts.loaderVersion.ifBlank { "*" })}\"")
+            "fabric" -> deps.put("fabric-loader", opts.loaderVersion.ifBlank { "*" })
+            "forge" -> deps.put("forge", opts.loaderVersion.ifBlank { "*" })
+            "quilt" -> deps.put("quilt-loader", opts.loaderVersion.ifBlank { "*" })
+            "neoforge" -> deps.put("neoforge", opts.loaderVersion.ifBlank { "*" })
         }
-        sb.append("  \"dependencies\": { ${deps.joinToString(", ")} },\n")
 
-        // files
-        sb.append("  \"files\": [\n")
-        files.forEachIndexed { i, f ->
-            sb.append("    {\n")
-            sb.append("      \"path\": \"${esc(f.path)}\",\n")
-            sb.append("      \"hashes\": { \"sha512\": \"${f.sha512}\", \"sha1\": \"${f.sha1}\" },\n")
-            sb.append("      \"fileSize\": ${f.size}\n")
-            sb.append("    }${if (i < files.size - 1) "," else ""}\n")
+        val arr = org.json.JSONArray()
+        for (f in files) {
+            arr.put(
+                org.json.JSONObject()
+                    .put("path", f.path)
+                    .put(
+                        "hashes",
+                        org.json.JSONObject()
+                            .put("sha512", f.sha512)
+                            .put("sha1", f.sha1)
+                    )
+                    .put("fileSize", f.size)
+            )
         }
-        sb.append("  ]\n")
-        sb.append("}\n")
-        return sb.toString()
+
+        return org.json.JSONObject()
+            .put("formatVersion", 1)
+            .put("game", "minecraft")
+            .put("versionId", "${opts.name}-${System.currentTimeMillis()}")
+            .put("name", opts.name)
+            .put("summary", opts.summary.ifBlank { "由 ModMigrator 导出" })
+            .put("files", arr)
+            .put("dependencies", deps)
+            .toString(2)
     }
 
     private data class JSONObject(val path: String, val sha512: String, val sha1: String, val size: Long)
 
     private fun fileObj(path: String, sha512: String, sha1: String, size: Long) =
         JSONObject(path, sha512, sha1, size)
-
-    private fun esc(s: String) = s.replace("\\", "\\\\").replace("\"", "\\\"")
-        .replace("\n", " ")
 
     private fun sha512Of(ctx: Context, f: DocumentFile): String = digest(ctx, f, "SHA-512")
     private fun sha1Of(ctx: Context, f: DocumentFile): String = digest(ctx, f, "SHA-1")

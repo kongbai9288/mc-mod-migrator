@@ -91,22 +91,29 @@ object InstanceCreator {
     fun writeMmcPack(ctx: Context, dst: DocumentFile, name: String, mc: String, loader: String): Boolean {
         return try {
             val comps = ArrayList<String>()
-            comps.appendMc(mc)
             when (loader.lowercase()) {
-                "fabric" -> comps.add(comp("net.fabricmc.intermediary", mc, "https://meta.fabricmc.net/"))
-                "quilt" -> comps.add(comp("org.quiltmc.intermediary", mc, "https://meta.quiltmc.org/"))
+                "fabric" -> comps.add(comp("net.fabricmc.intermediary", mc))
+                "quilt" -> comps.add(comp("org.quiltmc.intermediary", mc))
             }
-            val json = buildString {
-                appendLine("{")
-                appendLine("  \"formatVersion\": 1,")
-                appendLine("  \"name\": \"${esc(name)}\",")
-                appendLine("  \"components\": [")
-                appendLine("    {\"uid\": \"net.minecraft\", \"version\": \"${esc(mc)}\"}")
-                for (c in comps) append("    ,").appendLine(c)
-                appendLine("  ],")
-                appendLine("  \"packType\": \"modpack\"")
-                appendLine("}")
-            }
+            // ── 必须用 org.json 序列化，不能手写字符串拼 ──────────
+            // 之前用自带的 esc()，只转义 \ 和 "，漏掉换行等控制字符。
+            // 实例名来自**目录名**，目录名里出现引号、换行是允许的，
+            // 拼出来的 mmc-pack.json 就成了非法 JSON ——
+            // Prism / MultiMC 导入时直接失败，而且看不出原因。
+            val arr = org.json.JSONArray()
+            arr.put(
+                org.json.JSONObject()
+                    .put("uid", "net.minecraft")
+                    .put("version", mc)
+            )
+            for (c in comps) arr.put(c)
+            val obj = org.json.JSONObject()
+                .put("formatVersion", 1)
+                .put("name", name)
+                .put("components", arr)
+                .put("packType", "modpack")
+            val json = obj.toString(2)
+
             val old = dst.findFile("mmc-pack.json")
             if (old != null) old.delete()
             val f = dst.createFile("application/json", "mmc-pack.json") ?: return false
@@ -115,22 +122,26 @@ object InstanceCreator {
             }
             true
         } catch (t: Throwable) {
+            Err.ignore(t, "写 mmc-pack.json")
             false
         }
     }
 
-    private fun ArrayList<String>.appendMc(mc: String) {
-        // net.minecraft 已在主调用里加，这里不重复
-    }
+    private fun comp(uid: String, version: String): org.json.JSONObject =
+        org.json.JSONObject().put("uid", uid).put("version", version)
 
-    private fun comp(uid: String, version: String, url: String): String =
-        "{\"uid\": \"$uid\", \"version\": \"${esc(version)}\"}"
-        // 真实环境可带 url，这里省略以免 URL 拼错导致导入失败
-
-    /** 加载器的官方下载页（套镜像加速） */
+    /**
+     * 加载器的官方下载页。
+     *
+     * 之前是 `https://ghfast.top/${l.page}`——
+     * ghfast.top 这类是 **GitHub 文件加速**，不是通用网页代理，
+     * 拿它去套 fabricmc.net / files.minecraftforge.net 基本打不开。
+     * 表现就是：点「打开官方下载页」看到一个错误页，
+     * 用户以为功能坏了。这里直接给官方地址。
+     */
     fun loaderPage(loader: String): String {
         val l = LOADERS.firstOrNull { it.key == loader.lowercase() } ?: return ""
-        return "https://ghfast.top/${l.page}"
+        return l.page
     }
 
     /**
@@ -155,5 +166,4 @@ object InstanceCreator {
         }
     }
 
-    private fun esc(s: String) = s.replace("\\", "\\\\").replace("\"", "\\\"")
 }
