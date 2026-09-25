@@ -207,6 +207,11 @@ class MarketFragment : Fragment() {
         // 新一轮搜索：偏移归零，并记录这次的查询条件供"加载更多"复用
         searchOffset = 0
         hasMore = true
+        // 本轮各源累计返回了多少条。
+        // 之前用「最后一个源的批次是否为空」来判断还有没有下一页——
+        // 但最后一个源可能因为覆盖不到这个关键词而返回空，
+        // 其他源明明还有结果，却被误判成"已全部加载"，翻页直接断掉。
+        var roundGot = 0
         lastQuery = q
         lastMc = mc
         lastLoader = ld
@@ -215,6 +220,7 @@ class MarketFragment : Fragment() {
             if (!isAdded) return@searchStreaming
             if (batch.isNotEmpty()) {
                 searchResults.addAll(batch)
+                roundGot += batch.size
                 refreshList()
                 toast("$source 返回 ${batch.size} 个（共 ${searchResults.size}）")
                 autoTranslate(batch)
@@ -224,9 +230,13 @@ class MarketFragment : Fragment() {
                 if (searchResults.isEmpty()) {
                     toast("没有结果${if (routes.isNotBlank()) "（$routes）" else ""}")
                 } else {
-                    // 这一页如果一条都没返回，说明后面也没有了
-                    if (batch.isEmpty()) hasMore = false
-                    else searchOffset += PAGE_SIZE
+                    // 按「本轮实际拿到的条数」推进偏移。
+                    // 之前固定加 PAGE_SIZE：源返回不足一页时，
+                    // 偏移会跳过中间那段没返回的数据，翻页会漏条目。
+                    val advance = roundGot.coerceAtLeast(1)
+                    searchOffset += advance
+                    // 本轮一条都没拿到 → 后面也不会有了
+                    if (roundGot == 0) hasMore = false
                     val moreHint = if (hasMore) "，下滑加载更多" else "（已全部加载）"
                     toast("共 ${searchResults.size} 个${moreHint}${if (routes.isNotBlank()) " · $routes" else ""}")
                     updateLoadMoreHint()
@@ -246,20 +256,23 @@ class MarketFragment : Fragment() {
         if (lastQuery.isBlank()) return
         loadingMore = true
         val ctx = context ?: run { loadingMore = false; return }
+        // 同样按「本轮实际拿到多少条」推进，不用固定页大小
+        var roundGot = 0
         AggregateSearch.searchStreaming(
             ctx, lastQuery, lastMc, lastLoader, searchOffset, PAGE_SIZE
         ) { batch, source, finished ->
             if (!isAdded) return@searchStreaming
             if (batch.isNotEmpty()) {
                 searchResults.addAll(batch)
+                roundGot += batch.size
                 refreshList()
                 toast("$source 又返回 ${batch.size} 个（共 ${searchResults.size}）")
                 autoTranslate(batch)
             }
             if (finished) {
                 loadingMore = false
-                if (batch.isEmpty()) hasMore = false
-                else searchOffset += PAGE_SIZE
+                if (roundGot == 0) hasMore = false
+                else searchOffset += roundGot
                 updateLoadMoreHint()
             }
         }

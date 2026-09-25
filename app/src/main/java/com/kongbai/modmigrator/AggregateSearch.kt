@@ -196,7 +196,11 @@ object AggregateSearch {
         onBatch: (batch: List<MarketMod>, source: String, finished: Boolean) -> Unit
     ) {
         val p = Prefs.get(ctx)
-        if (p.getBoolean(K.OFFLINE, false) || !p.getBoolean(K.RECOMMEND, true) || mc.isBlank()) {
+        // 注意：这里**不能把 mc.isBlank() 当成关闭条件**。
+        // 之前写成了 `|| mc.isBlank()` —— 用户没填 MC 版本时，
+        // 推荐直接返回空且没有任何提示，表现就是"点推荐没反应"，
+        // 用户只会以为功能坏了。MC 版本是可选过滤条件，不是前置条件。
+        if (p.getBoolean(K.OFFLINE, false) || !p.getBoolean(K.RECOMMEND, true)) {
             onBatch(emptyList(), "推荐已关闭", true)
             return
         }
@@ -204,8 +208,34 @@ object AggregateSearch {
 
         val seen = ConcurrentHashMap<String, MarketMod>()
         val installedNorm = installed.map { norm(it) }.filter { it.isNotBlank() }
-        val pending = AtomicInteger(3)
+        // pending 必须等于**实际注册的任务数**。
+        // 之前写死 3，而下面正好是 3 个 run —— 一旦将来增删源，
+        // pending 就对不上，finished 永远不会回调，界面会一直卡在"加载中"。
         val key = p.getString(K.CF_KEY, "") ?: ""
+
+        /**
+         * 已安装判定。
+         *
+         * 之前是双向 contains：已装 "sodium" 会把 "sodium-extra"、
+         * "reeses-sodium-options" 全都过滤掉 —— 推荐列表莫名其妙少一大半。
+         * 改成：完全相等，或已装名是候选名的**完整词边界前缀**（sodium-extra 匹配 sodium-extra）。
+         */
+        fun isInstalled(k: String): Boolean {
+            if (k.isBlank()) return false
+            for (it in installedNorm) {
+                if (it == k) return true
+                // 词边界前缀：避免 sodium 吃掉 sodiumextra 这类无关项
+                if (k.startsWith(it) && k.length > it.length) {
+                    val next = k[it.length]
+                    if (next == '-' || next == '_' || next == ' ') return true
+                }
+                if (it.startsWith(k) && it.length > k.length) {
+                    val next = it[k.length]
+                    if (next == '-' || next == '_' || next == ' ') return true
+                }
+            }
+            return false
+        }
 
         fun push(list: List<MarketMod>): List<MarketMod> {
             val fresh = ArrayList<MarketMod>()
@@ -213,7 +243,7 @@ object AggregateSearch {
                 val k = norm(m.name)
                 if (k.isBlank()) continue
                 // 过滤已安装
-                if (installedNorm.any { it.contains(k) || k.contains(it) }) continue
+                if (isInstalled(k)) continue
                 val old = seen[k]
                 if (old == null) {
                     if (seen.putIfAbsent(k, m) == null) fresh.add(m)
@@ -224,7 +254,7 @@ object AggregateSearch {
             return fresh
         }
 
-        fun run(name: String, call: () -> List<MarketMod>) {
+        fun run(name: String, call: () -> List<MarketMod>, pending: AtomicInteger) {
             pool.submit {
                 try {
                     val fresh = push(call())
@@ -240,9 +270,13 @@ object AggregateSearch {
         }
 
         // 三个来源并行：Modrinth 热门、CurseForge 热门、后端推荐
-        run("Modrinth") { ModrinthApi.search("", mc, loader, 30) }
-        run("CurseForge") { CurseForgeApi.search("", mc, loader, key, 30) }
-        run("后端") { BackendApi.recommend(ctx, mc, loader) ?: emptyList() }
+        val jobs: List<Pair<String, () -> List<MarketMod>>> = listOf(
+            "Modrinth" to { ModrinthApi.search("", mc, loader, 30) },
+            "CurseForge" to { CurseForgeApi.search("", mc, loader, key, 30) },
+            "后端" to { BackendApi.recommend(ctx, mc, loader) ?: emptyList() }
+        )
+        val pending = AtomicInteger(jobs.size)
+        for ((name, call) in jobs) run(name, call, pending)
     }
 
     fun recommend(
