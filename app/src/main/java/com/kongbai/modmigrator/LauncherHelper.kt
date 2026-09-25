@@ -49,13 +49,21 @@ object LauncherHelper {
         "com.mio.miomc" to "https://github.com/mio-team/mio-mc/releases/latest"
     )
 
-    /** 该启动器的更新页地址（已套镜像），不认识就返回空 */
-    fun updateUrl(pkg: String): String {
-        if (pkg.isBlank()) return ""
-        val page = UPDATE_PAGES[pkg] ?: return ""
-        // 套一层镜像加速，国内更容易打开
-        return "https://ghfast.top/$page"
-    }
+    /**
+     * 该启动器的更新页地址，不认识就返回空。
+     *
+     * ⚠️ 之前写的是 `"https://ghfast.top/$page"`，**用法错了**。
+     * 查 ghfast.top 官方说明，它提供的是
+     * 「GitHub **文件 / Releases / archive / raw** 代理加速**下载**服务」，
+     * 官方示例全是 `git clone` / `wget` / `curl` 拉具体文件，
+     * 明确不是网页浏览代理。而我们这里要打开的是
+     * `releases/latest` 这种**网页**，并且 GitHub 的 `/releases/latest`
+     * 会 **302 跳转到具体版本号地址**，跳转目标不再经过镜像前缀，
+     * 等于代理被绕过、直连失败。
+     * 结果就是：点「检查启动器更新」打不开页面，还以为功能坏了。
+     * 这里直接给官方地址，由内置浏览器打开。
+     */
+    fun updateUrl(pkg: String): String = UPDATE_PAGES[pkg] ?: ""
 
     /**
      * 列出系统里所有可启动的应用（用户能在桌面看到的那张应用列表）。
@@ -105,24 +113,50 @@ object LauncherHelper {
      * 启动器一般把实例放在 Android/data/<pkg>/files 下，
      * 具体子目录各家不同，所以这里列出所有可能路径交给扫描器逐个试。
      */
+    /**
+     * 根据选中的包名，给出它的数据目录候选。
+     *
+     * ⚠️ 必须说清的限制：**Android 11（API 30）起分区存储生效**，
+     * 本应用无法用 File API 直接读取**其他应用**的
+     * `Android/data/<pkg>/files` —— 系统直接拒绝访问。
+     * 本项目 targetSdk 34，在 Android 11+ 设备上这一类路径**基本读不到**。
+     * 所以这里把它们放在**最后**（先试可能真正可读的公共路径），
+     * 并且实际扫描若全部落空，界面应引导用户用 SAF 手动授权目录，
+     * 而不是显示"没找到实例"。
+     */
     fun dataDirs(ctx: Context, pkg: String): List<String> {
-        val out = LinkedHashMap<String, String>()
-        val ext = java.io.File("/storage/emulated/0")
-        val roots = listOf(ext, ctx.getExternalFilesDir(null)).filterNotNull()
-        fun add(f: java.io.File) {
-            if (f.exists() && f.isDirectory) out[f.absolutePath] = f.absolutePath
+        val pub = LinkedHashMap<String, String>()
+        val priv = LinkedHashMap<String, String>()
+        // 公共根目录：优先用系统 API 拿，拿不到才退回硬编码
+        val ext = try {
+            android.os.Environment.getExternalStorageDirectory()
+        } catch (t: Throwable) {
+            java.io.File("/storage/emulated/0")
         }
-        for (r in roots) {
-            add(java.io.File(r, "Android/data/$pkg/files"))
-            add(java.io.File(r, "Android/data/$pkg/files/instances"))
-            add(java.io.File(r, "Android/data/$pkg/files/games"))
+        fun add(m: LinkedHashMap<String, String>, f: java.io.File) {
+            if (f.exists() && f.isDirectory) m[f.absolutePath] = f.absolutePath
         }
-        add(java.io.File(ext, "Android/data/$pkg/files"))
-        // 有些启动器会写到公共目录，用包名或常见名字建子目录
         val short = pkg.substringAfterLast('.')
-        add(java.io.File(ext, "games/$short"))
-        add(java.io.File(ext, short))
-        return out.values.toList()
+
+        // ① 公共目录：这些是普通文件权限能读到的（Android 11+ 下真正可用的部分）
+        for (n in listOf(
+            "games/$short", short, "games/$short/instances",
+            "Minecraft/$short", "MC/$short"
+        )) add(pub, java.io.File(ext, n))
+        // FCL / Pojav 常见的自定义运行目录名
+        for (n in listOf("FCL", "Pojav", "ZalithLauncher", "games/FCL", "games/Pojav")) {
+            add(pub, java.io.File(ext, n))
+        }
+
+        // ② 私有目录：Android 11+ 通常读不到，放最后兜底
+        val roots = listOf(ext, ctx.getExternalFilesDir(null)).filterNotNull()
+        for (r in roots) {
+            add(priv, java.io.File(r, "Android/data/$pkg/files"))
+            add(priv, java.io.File(r, "Android/data/$pkg/files/instances"))
+            add(priv, java.io.File(r, "Android/data/$pkg/files/games"))
+        }
+
+        return pub.values + priv.values
     }
 
     fun launch(ctx: Context, pkg: String): Boolean {

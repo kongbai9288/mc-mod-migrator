@@ -384,7 +384,7 @@ class SettingsLabFragment : Fragment() {
             .setTitle("实验性：更新启动器")
             .setMessage(
                 if (pkg.isBlank()) "还没选择启动器。先到迁移页点「选启动器」。"
-                else "启动器是独立应用，需要你自己下载安装。\n\n已为你找好地址（走镜像）：\n$url"
+                else "启动器是独立应用，需要你自己下载安装。\n\n已为你找好官方发布页：\n$url"
             )
             .setPositiveButton("打开地址") { _, _ ->
                 if (url.isNotBlank()) WebActivity.open(ctx, url, "启动器更新")
