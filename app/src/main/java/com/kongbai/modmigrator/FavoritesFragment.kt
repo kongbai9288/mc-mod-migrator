@@ -100,16 +100,35 @@ class FavoritesFragment : Fragment() {
 
     private fun install(m: MarketMod) {
         val ctx = context ?: return
+        // ⚠️ 之前这里把 MC 版本和加载器都传空串：
+        //    ModrinthApi.versions(id, "", "") —— 等于**不加任何过滤**，
+        //    拿的是这个项目**所有游戏版本里最新发布的那一个**。
+        //    你在 1.20.1，它可能返回 1.21.x 的构建 →
+        //    装进 mods 目录就是版本不符，进游戏直接报错或崩。
+        //    而 MarketFragment.install 是正确传了 mc/loader 的，
+        //    所以只有从收藏夹安装才会踩到。
+        val p = Prefs.get(ctx)
+        val mc = p.getString(K.DEF_VERSION, "") ?: ""
+        val ld = p.getString(K.DEF_LOADER, "auto") ?: "auto"
         Toast.makeText(ctx, "开始解析下载地址…", Toast.LENGTH_SHORT).show()
         Thread {
             try {
                 // 两个数据源返回的类型不同，统一成 (url, fileName) 再用
+                //
+                // ⚠️ curseforge 来源之前走 BackendApi.files()，
+                // 那是**我们自己后端**的接口（/api/mods/{id}/files），
+                // 传 CurseForge 的 id 过去基本查不到 → 一直"没有可下载的文件"。
+                // CurseForge 的正确取址是 CurseForgeApi.downloadUrl()
+                // （用已存的 fileId/fileName 拼 CDN 路径）。
                 val pair: Pair<String, String>? = if (m.source == "curseforge") {
-                    BackendApi.files(ctx, m.id, "", "").firstOrNull()?.let {
-                        it.url to it.name
+                    val u = CurseForgeApi.downloadUrl(m)
+                    if (u.isBlank()) null else u to m.fileName
+                } else if (m.source == "backend") {
+                    BackendApi.files(ctx, m.id, mc, ld).firstOrNull()?.let {
+                        BackendApi.absolute(ctx, it.url) to it.name
                     }
                 } else {
-                    ModrinthApi.versions(m.id.ifBlank { m.slug }, "", "")
+                    ModrinthApi.versions(m.id.ifBlank { m.slug }, mc, ld)
                         .firstOrNull()?.let { it.url to it.fileName }
                 }
                 if (pair == null || pair.first.isBlank()) {
@@ -122,8 +141,16 @@ class FavoritesFragment : Fragment() {
                     return@Thread
                 }
                 val name = pair.second.ifBlank { Downloader.guessName(pair.first) }
-                Downloader.download(ctx, pair.first, dir, name, emptyMap())
-                main { Toast.makeText(ctx, "已安装：$name", Toast.LENGTH_SHORT).show() }
+                // CurseForge 有些文件要求带 API key 头，否则会被拒
+                val headers = if (m.source == "curseforge") CurseForgeApi.authHeaders() else emptyMap()
+                val f = Downloader.download(ctx, pair.first, dir, name, headers)
+                main {
+                    Toast.makeText(
+                        ctx,
+                        if (f == null) "下载失败" else "已安装：${f.name}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             } catch (t: Throwable) {
                 main { Toast.makeText(ctx, "安装失败：${t.message}", Toast.LENGTH_SHORT).show() }
             }
