@@ -50,7 +50,7 @@
 | 模块 | 文件 | 关键函数 | 端点 | 状态 |
 |---|---|---|---|---|
 | Modrinth | `ModrinthApi.kt` | `search` `versions` `lookupHash` `title` | **/v3/search + new_filters** | 已重写（v3 + new_filters + offset + loaders 字段） |
-| CurseForge | `CurseForgeApi.kt` | `search` `files` | CF API，需补 `index` | 待重写 |
+| CurseForge | `CurseForgeApi.kt` | `search` `files` | CF API，需补 `index` | 已重写（index 可变偏移） |
 | 聚合 | `AggregateSearch.kt` | `search` `recommend` | 上述两者 | 待重写 |
 | 后端（用户自有） | `BackendApi.kt` | `me/loginUrl/fetchToken/search` | modmarket workers | 待重写 |
 | 面板 | `ServerPanelApi.kt` | `auth/servers/listFiles/listRaw/probeDirs` | Pterodactyl Client API | 待重写 |
@@ -59,14 +59,14 @@
 
 | 模块 | 文件 | 关键函数 | 状态 |
 |---|---|---|---|
-| 迁移 | `MigrationFragment.kt` | `scan` `doMigrate` `retryFailed` `retryDownloads` | 进行中 |
-| 市场 | `MarketFragment.kt` | `search` `render` `install` | 待重写 |
-| 模组管理 | `ModManagerFragment.kt` | `load` `render` `showInfo` 批量操作 | 进行中 |
-| 整合包更新 | `ModpackFragment.kt` | `checkUpdates` `downloadOne` | 待重写 |
-| 服务器 | `ServerFragment.kt` | `connect` `scanFiles` `browseDir` `checkUpdates` | 进行中 |
-| 工具箱 | `ToolsFragment.kt` | `doctor` `diff` `depCheck` `crossLoader` 等 | 待整理 |
+| 迁移 | `MigrationFragment.kt` | `scan` `doMigrate` `retryFailed` `retryDownloads` | 已重写（跳过+汇总+重试） |
+| 市场 | `MarketFragment.kt` | `search` `render` `install` `loadMore` | 已重写（流式+分页） |
+| 模组管理 | `ModManagerFragment.kt` | `load` `render` `showInfo` 批量操作 | 已重写（ModMeta+批量） |
+| 整合包更新 | `ModpackFragment.kt` | `checkUpdates` `downloadOne` | 已重写 |
+| 服务器 | `ServerFragment.kt` | `connect` `scanFiles` `browseDir` `checkUpdates` | 已重写（目录浏览器+本地存放） |
+| 工具箱 | `ToolsFragment.kt` | `doctor` `diff` `depCheck` `crossLoader` 等 | 已重写（用 ModMeta） |
 | 回收站页 | `TrashFragment.kt` | `render` `doRestore` 批量 | 已重写 |
-| 设置 | `SettingsMainFragment.kt` 等 | 分层设置 | 待重写 |
+| 设置 | `SettingsMainFragment.kt` 等 | 分层设置 | 待重写（返回栈） |
 | 登录 | `LoginDiag.kt` | `run`（4 步诊断） | 已重写 |
 
 ### 5. 工具层
