@@ -3,6 +3,11 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 8.0(API 26)+ 安装未知来源应用**必须**声明这个权限。
+         本项目 targetSdk 34 / minSdk 26，缺了它，下载完 APK 后
+         startActivity(ACTION_VIEW) 会被系统直接拒绝（静默失败或抛
+         SecurityException）—— 这正是"点去更新没反应/崩一下"的根因。 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

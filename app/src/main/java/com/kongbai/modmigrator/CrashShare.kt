@@ -114,9 +114,20 @@ object CrashShare {
     /** 读取崩溃日志内容（统一走 CrashHandler，含 cause 与设备信息） */
     fun read(ctx: Context): String = CrashHandler.readAll(ctx)
 
+    /**
+     * 清除崩溃日志。
+     *
+     * 之前这里只删 `filesDir/crash.log` 一个文件，
+     * 而 CrashHandler 每次崩溃还会往日志目录写 `crash-<时间戳>.log`——
+     * 那些**一份都没被删掉**。用户点了"清除"，下次打开日志还在，
+     * 而且是更早的那些旧崩溃（新的那份反而被删了），看着像清除坏了。
+     * 统一交给 CrashHandler.clear()，两处一起清。
+     */
     fun clear(ctx: Context) {
         try {
-            File(ctx.filesDir, "crash.log").delete()
-        } catch (t: Throwable) { Err.ignore(t, "File(ctx.filesDir, \"crash.log\").delete()") }
+            CrashHandler.clear(ctx)
+        } catch (t: Throwable) {
+            Err.ignore(t, "清除崩溃日志")
+        }
     }
 }

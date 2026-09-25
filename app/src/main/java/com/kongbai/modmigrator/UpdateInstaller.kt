@@ -107,6 +107,36 @@ object UpdateInstaller {
             val dm = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
                 ?: return
             val uri = dm.getUriForDownloadedFile(id) ?: return
+
+            // ── Android 8.0+ 还必须**用户手动授权**"允许来自此来源的应用" ──
+            // 光在 Manifest 里声明权限不够：系统默认关闭这个开关，
+            // 没开就 startActivity 会被直接拒绝，用户只看到"点了没反应"。
+            // 这里先检查，没授权就跳到对应的设置页让用户打开。
+            if (android.os.Build.VERSION.SDK_INT >= 26) {
+                val pm = ctx.packageManager
+                val allowed = try {
+                    pm.canRequestPackageInstalls()
+                } catch (t: Throwable) {
+                    true   // 拿不到状态就照常尝试
+                }
+                if (!allowed) {
+                    Toast.makeText(
+                        ctx,
+                        "需要先允许「来自此来源的应用」，正在打开设置…",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    runCatching {
+                        val i = Intent(
+                            android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                            Uri.parse("package:${ctx.packageName}")
+                        )
+                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        ctx.startActivity(i)
+                    }
+                    return
+                }
+            }
+
             val i = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/vnd.android.package-archive")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -115,6 +145,7 @@ object UpdateInstaller {
             ctx.startActivity(i)
         } catch (t: Throwable) {
             // 某些 ROM 不允许直接安装，退回让用户自己点通知
+            Err.ignore(t, "调起安装界面")
             Toast.makeText(ctx, "请在通知栏点击已下载的安装包", Toast.LENGTH_LONG).show()
         }
     }
