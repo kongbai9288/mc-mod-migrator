@@ -105,7 +105,13 @@ object WorkDir {
     fun persist(ctx: Context, treeUri: Uri): Boolean {
         // 统一走 Perms：复用已有授权、自动回收配额，避免越用越卡
         val ok = Perms.take(ctx, treeUri)
-        Prefs.get(ctx).edit().putString(K.WORKDIR_URI, treeUri.toString()).apply()
+        if (ok) {
+            // 只有真的拿到持久化授权才写入配置。
+            // 之前无论成败都存 URI：失败时界面照样显示"已授权外部目录"，
+            // 但重启后权限没了、目录读不出来，导出和下载全部落空，
+            // 用户完全无从判断。失败就保持原来的设置不动。
+            Prefs.get(ctx).edit().putString(K.WORKDIR_URI, treeUri.toString()).apply()
+        }
         WorkDir.invalidate()
         return ok
     }

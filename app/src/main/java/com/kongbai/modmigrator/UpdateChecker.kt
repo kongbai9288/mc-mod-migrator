@@ -59,7 +59,10 @@ object UpdateChecker {
         val errs = ArrayList<String>()
         for ((idx, url) in releaseApiUrls(o, r).withIndex()) {
             try {
-                val json = Http.get(url, headersFor(idx, token))
+                // 依次试 6 个来源，必须用短超时：
+                // 用默认 120 秒的话，前两三个不通就要耗掉好几分钟，
+                // 用户点"检查更新"后干等，只会觉得功能坏了。
+                val json = Http.get(url, headersFor(idx, token), Http.SHORT)
                 val rel = parseRelease(json, o, r)
                 if (rel != null) {
                     lastError = ""
@@ -184,12 +187,21 @@ object UpdateChecker {
         return out
     }
 
-    /** 挑一个真正能下载的：发 HEAD 请求看响应码 */
+    /**
+     * 挑一个真正能下载的：发 HEAD 请求看响应码。
+     *
+     * 注释早就写着"发 HEAD 请求"，但代码实际是 `Http.call(u)`（**GET**）——
+     * 而这个 APK 有 67MB。探测 6 个镜像时，只要第一个通了还好，
+     * 一旦第一个是能连上但返回的是跳转页/错误页，就会**把整个包下下来**再看码。
+     * 真改成 HEAD，只取响应头，不碰文件本体。
+     * 少数镜像站不支持 HEAD（405），那时再回退 GET 确认一次。
+     */
     fun pickMirror(owner: String, repo: String, tag: String, file: String): String {
         val urls = mirrorUrls(owner, repo, tag, file)
         for (u in urls) {
+            // 1) HEAD：零流量确认可用性
             try {
-                val r = Http.call(u)
+                val r = Http.head(u, timeout = Http.SHORT)
                 r.use {
                     if (it.isSuccessful || it.code in 300..399) return u
                 }
@@ -197,6 +209,15 @@ object UpdateChecker {
                 // 换下一个镜像
                      Err.ignore(t, "换下一个镜像")
                  }
+            // 2) 镜像站可能不支持 HEAD，用只取 1 字节的 Range 再确认一次
+            try {
+                val r = Http.call(u, mapOf("Range" to "bytes=0-0"), Http.SHORT)
+                r.use {
+                    if (it.isSuccessful || it.code in 300..399) return u
+                }
+            } catch (t: Throwable) {
+                Err.ignore(t, "镜像探测回退")
+            }
         }
         return urls.last()
     }

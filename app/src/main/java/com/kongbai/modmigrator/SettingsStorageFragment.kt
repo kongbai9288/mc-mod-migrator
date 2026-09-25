@@ -122,9 +122,19 @@ class SettingsStorageFragment : Fragment() {
         if (requestCode == 21 && resultCode == Activity.RESULT_OK) {
             val uri = data?.data ?: return
             try {
-                WorkDir.persist(requireContext(), uri)
+                // persist() 返回的是**是否真的拿到了持久化授权**。
+                // 之前这里忽略返回值、一律弹"工作目录已设置"——
+                // 而 take() 失败（配额触顶、ROM 限制等）时 URI 照样被存了，
+                // 于是界面显示"已授权外部目录"，实际重启后读不了，
+                // 导出/下载全落空。用户完全不知道是授权没成功。
+                val ok = WorkDir.persist(requireContext(), uri)
                 refresh()
-                Toast.makeText(requireContext(), "工作目录已设置", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    requireContext(),
+                    if (ok) "工作目录已设置"
+                    else "目录已选中，但持久化授权未成功（重启后可能失效）",
+                    Toast.LENGTH_LONG
+                ).show()
             } catch (t: Throwable) {
                 Toast.makeText(requireContext(), "授权失败：${t.message}", Toast.LENGTH_SHORT).show()
             }
