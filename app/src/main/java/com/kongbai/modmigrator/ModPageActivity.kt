@@ -98,20 +98,28 @@ class ModPageActivity : AppCompatActivity() {
     }
 
     private fun translateDialog() {
-        // 默认走本地标注：不跳转、不发请求，绝不会白屏
+        // 注意：这里**只有本地方案**。
+        //
+        // 之前列了"微软翻译代理页""谷歌翻译代理页"两个选项，
+        // 但 loadTranslated(engine) 里**根本没用 engine 这个参数**——
+        // 不管选哪个，实际执行的都是同一套 ML Kit 本地翻译。
+        // 也就是说选项名和行为完全不符：用户以为在开代理页，
+        // 实际走的还是本地模型，选了跟没选一样。
+        //
+        // 代理页本身也是之前"一点翻译就白屏"的根源
+        // （translate.google.com 国内基本打不开），所以干脆去掉，
+        // 只留真正能用的本地方案，不摆没用的选项。
         val opts = arrayOf(
-            "本地词典标注（推荐，不会白屏）",
-            "微软翻译代理页（国内可达）",
-            "谷歌翻译代理页（需梯子）",
+            "ML Kit 离线翻译整页（推荐）",
+            "本地词典标注（不改文字，只加注释）",
             "恢复原文"
         )
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.trans_page_title)
             .setItems(opts) { _, w ->
                 when (w) {
-                    0 -> markLocal()
-                    1 -> loadTranslated("bing")
-                    2 -> loadTranslated("google")
+                    0 -> loadTranslated()
+                    1 -> markLocal()
                     else -> web.loadUrl(url)
                 }
             }
@@ -128,14 +136,12 @@ class ModPageActivity : AppCompatActivity() {
             return
         }
         pendingScript = script
-        runOnMainScript = true
         toast("已开启本地标注，页面刷新后生效")
         web.loadUrl(url)
     }
 
     /** 页面加载完后要注入的脚本；null 表示不需要注入 */
     private var pendingScript: String? = null
-    private var runOnMainScript: Boolean = false
 
     /**
      * 整页翻译。
@@ -145,9 +151,8 @@ class ModPageActivity : AppCompatActivity() {
      * 现在：页面照常加载，加载完后把文字用 ML Kit 离线模型翻成中文再替换。
      * 离线也能翻，不外发页面内容，也不会白屏。
      */
-    private fun loadTranslated(engine: String) {
+    private fun loadTranslated() {
         if (url.isBlank()) return
-        proxyMode = false
         val offline = Prefs.get(this).getBoolean(K.OFFLINE, false)
         toast(if (offline) "离线翻译中（用本地模型）…" else "翻译中…")
 
@@ -185,10 +190,14 @@ class ModPageActivity : AppCompatActivity() {
     /** 是否已翻译过，用于显示「还原原文」入口 */
     private var translated = false
 
-    /** 是否处于翻译代理页：用于失败回退 */
-    private var proxyMode = false
-
-    /** 自定义 WebViewClient：捕获加载失败与空白页，避免白屏 */
+    /**
+     * 自定义 WebViewClient：捕获加载失败与空白页，避免白屏。
+     *
+     * 之前这里有一整套"翻译代理页"回退逻辑（proxyMode 检测空白页后退回），
+     * 但代理页选项已经去掉了，proxyMode 再也没有被置 true 的地方，
+     * 那段检测成了永远不执行的死分支。清理掉，
+     * 改成页面加载失败时正常给用户提示。
+     */
     private inner class PageClient : WebViewClient() {
 
         override fun onPageFinished(view: WebView?, u: String?) {
@@ -205,21 +214,6 @@ class ModPageActivity : AppCompatActivity() {
                 pendingScript = null
                 return
             }
-            // 代理页：检测是否是空白页（翻译站被墙时会返回空内容）
-            if (proxyMode && view != null) {
-                view.evaluateJavascript(
-                    "(function(){return document.body?document.body.innerText.trim().length:0})()"
-                ) { v ->
-                    val len = v?.trim('"')?.toIntOrNull() ?: 0
-                    if (len < 50) {
-                        proxyMode = false
-                        toast("翻译页没加载出来，已退回原页面")
-                        view.loadUrl(url)
-                    } else {
-                        proxyMode = false
-                    }
-                }
-            }
         }
 
         @Deprecated("Deprecated in Java")
@@ -227,11 +221,8 @@ class ModPageActivity : AppCompatActivity() {
             view: WebView?, errorCode: Int, description: String?, failingUrl: String?
         ) {
             super.onReceivedError(view, errorCode, description, failingUrl)
-            if (proxyMode && view != null) {
-                proxyMode = false
-                toast("加载失败：${description ?: "未知错误"}，已退回原页面")
-                view.loadUrl(url)
-            }
+            // 页面加载不出来要明确告诉用户，而不是留个白屏让他猜
+            toast("页面加载失败：${description ?: "未知错误"}")
         }
     }
 
@@ -314,7 +305,7 @@ class ModPageActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
-            10 -> loadTranslated("mlkit")
+            10 -> loadTranslated()
             11 -> {
                 WebTranslate.restore(web)
                 translated = false
