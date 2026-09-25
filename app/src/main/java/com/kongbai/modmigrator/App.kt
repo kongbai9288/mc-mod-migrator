@@ -78,6 +78,16 @@ class App : Application() {
         // cookie 存储才会真正可用，否则登录时 state cookie 写不进去。
         runCatching { WebCookies.warmUp(this) }
         runCatching { LangPack.load(this) }
+
+        // 按用户设定的保留天数清理过期回收站。
+        // 之前 purgeExpired() 只在**打开回收站页面时**手动触发一次——
+        // 用户在设置里选了"保留 7 天"，但从不打开回收站页的话，
+        // 过期文件会一直堆着不清理，这个设置等于没生效。
+        // 改成每次启动后台清一次（清单很小，不影响启动速度）。
+        Thread {
+            runCatching { Trash.purgeExpired(this@App) }
+        }.start()
+
         runCatching { UpdateWorker.schedule(this) }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
