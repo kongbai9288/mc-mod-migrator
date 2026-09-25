@@ -141,11 +141,15 @@ class WeeklyReportFragment : Fragment() {
                     for (e in entries) {
                         sb.append("· ${e.title}\n")
                     }
+                    // 点整张卡片应该跳到**第一条内容的原文**，
+                    // 而不是站点首页 —— 之前传的是 `first.sourceUrl`（首页），
+                    // 用户点进去看到的是站点主页，等于没跳转，
+                    // 还得自己在列表里找刚才那条。
                     val card = UiCards.infoCard(
                         ctx, R.drawable.ic_open_in_new,
                         source, sb.toString(), "查看原文"
                     ) {
-                        WebActivity.open(ctx, first.sourceUrl, source)
+                        WebActivity.open(ctx, first.url, first.title)
                     }
                     box.addView(card)
                 }

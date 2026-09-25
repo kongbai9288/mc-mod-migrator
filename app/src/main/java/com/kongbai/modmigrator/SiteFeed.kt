@@ -68,29 +68,52 @@ object SiteFeed {
         val cached = cached()
         if (cached.isNotEmpty()) return cached
 
-        val out = ArrayList<Entry>()
-        for (s in SOURCES) {
-            try {
-                out.addAll(fetchOne(s))
-            } catch (t: Throwable) {
-                // 这个源挂了，跳过，继续下一个
-                     Err.ignore(t, "这个源挂了，跳过，继续下一个")
-                 }
+        // 4 个源**并发**抓。
+        // 之前是串行 for 循环：而 `Http.get` 用的是默认超时（读取 120 秒），
+        // 4 个站点里只要有一个连不上，整页周报就要等好几分钟才出得来——
+        // 这正是"周报半天刷不出来"的原因，跟网速无关，是串行+长超时叠加。
+        // 并发之后总耗时 = 最慢那个源，而不是所有源之和。
+        val out = java.util.Collections.synchronizedList(ArrayList<Entry>())
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(SOURCES.size)
+        try {
+            val futures = SOURCES.map { s ->
+                pool.submit {
+                    try {
+                        out.addAll(fetchOne(s))
+                    } catch (t: Throwable) {
+                        // 这个源挂了，跳过，不影响其他源
+                        Err.ignore(t, "抓取 ${s.name} 失败")
+                    }
+                }
+            }
+            for (f in futures) {
+                try {
+                    // 单个源最多等 20 秒，整体不会卡死
+                    f.get(20, java.util.concurrent.TimeUnit.SECONDS)
+                } catch (t: Throwable) {
+                    Err.ignore(t, "等待抓取结果超时")
+                }
+            }
+        } finally {
+            pool.shutdownNow()
         }
         if (out.isNotEmpty()) {
-            cache = out
+            cache = ArrayList(out)
             cacheAt = System.currentTimeMillis()
         }
         return out
     }
 
     private fun fetchOne(s: Source): List<Entry> {
+        // 必须用短超时：这里抓的是资讯页面，不是下载，
+        // 没有理由让用户为一个列表页等上两分钟。
         val html = Http.get(
             s.url,
             mapOf(
                 "Accept" to "text/html,application/xhtml+xml",
                 "User-Agent" to Http.UA
-            )
+            ),
+            Http.SHORT
         )
         val doc = Jsoup.parse(html, s.url)
         val out = ArrayList<Entry>()
