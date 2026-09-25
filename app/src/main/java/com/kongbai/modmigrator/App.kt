@@ -13,7 +13,12 @@ class App : Application() {
         // 统一日志：之前各处是静默 catch + 零散 println，
         // 出问题完全查不到。Timber 会把日志接到崩溃报告里一起带出来。
         runCatching {
-            if (BuildConfig.DEBUG) {
+            // 用 applicationInfo.flags 判断可调试，而不是 BuildConfig.DEBUG：
+            // BuildConfig 由各模块各自生成，这里引用的是 app 模块的类，
+            // 但写在了被其它地方共用的位置，容易解析不到。
+            val debuggable =
+                (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+            if (debuggable) {
                 timber.log.Timber.plant(timber.log.Timber.DebugTree())
             }
             timber.log.Timber.plant(CrashTree())
