@@ -49,7 +49,13 @@ object ModTools {
         if (mods == null) {
             return Report("模组体检", "源目录里没有找到 mods 文件夹。")
         }
-        val jars = Fs.children(mods).filter { it.isFile && (it.name ?: "").endsWith(".jar", true) }
+        // 已禁用的模组（.jar.disabled）也要算进来：
+        // 它们同样占空间、同样可能是重复的那一份，
+        // 只按 .jar 过滤会漏掉，体检报告说"没发现问题"其实有问题。
+        val jars = Fs.children(mods).filter {
+            val n = it.name ?: ""
+            it.isFile && (n.endsWith(".jar", true) || n.endsWith(".jar.disabled", true))
+        }
         if (jars.isEmpty()) {
             return Report("模组体检", "mods 里没有 jar 文件。")
         }

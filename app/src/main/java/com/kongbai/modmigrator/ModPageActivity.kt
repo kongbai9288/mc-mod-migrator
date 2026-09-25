@@ -245,15 +245,26 @@ class ModPageActivity : AppCompatActivity() {
             // 弹窗让用户挑，而不是无脑全加
             safePostA(handler) {
                 val labels = list.map { it.title.ifBlank { it.url }.take(60) }.toTypedArray()
+                // ── 不能把 dlg 强转成 android.app.AlertDialog ──────────
+                // MaterialAlertDialogBuilder 创建的是
+                // `androidx.appcompat.app.AlertDialog`，它继承自
+                // `android.app.Dialog`，**并不是** `android.app.AlertDialog` 的子类。
+                // 所以 `(dlg as android.app.AlertDialog).listView`
+                // 必然抛 ClassCastException —— 用户勾好链接点确定的瞬间就崩，
+                // 而且外面还套着 safePostA 的静默兜底，什么都不显示，
+                // 看起来就像"标记功能没反应"。
+                // 改成自己的布尔数组记录勾选项，不去碰对话框内部的 ListView。
+                val checked = BooleanArray(list.size)
                 MaterialAlertDialogBuilder(this)
                     .setTitle("选择要标记的下载链接（${list.size} 个候选）")
-                    .setMultiChoiceItems(labels, null) { _, _, _ -> }
+                    .setMultiChoiceItems(labels, checked) { _, which, isChecked ->
+                        checked[which] = isChecked
+                    }
                     .setNegativeButton(R.string.cancel, null)
-                    .setPositiveButton(R.string.ok) { dlg, _ ->
-                        val lv = (dlg as android.app.AlertDialog).listView
+                    .setPositiveButton(R.string.ok) { _, _ ->
                         var added = 0
                         for (i in list.indices) {
-                            if (lv.isItemChecked(i) && Store.addLink(this, list[i])) added++
+                            if (checked[i] && Store.addLink(this, list[i])) added++
                         }
                         updateMarked()
                         toast("已标记 $added 个")

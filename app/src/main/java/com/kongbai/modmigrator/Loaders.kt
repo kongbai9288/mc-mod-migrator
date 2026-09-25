@@ -84,10 +84,31 @@ object Loaders {
      * @return 替代名；返回 null 表示没有已知替代；返回 "" 表示该加载器下不需要（如 Mod Menu 是 Fabric 专有）
      */
     fun equivalent(modName: String, targetLoader: String): String? {
-        val key = modName.trim().lowercase(Locale.ROOT)
         val loader = normalize(targetLoader)
-        val m = EQUIVALENTS[key] ?: return null
-        return m[loader]
+        // ── 不能只拿完整模组名去查表 ──────────────────────────
+        // 词表 key 是 "sodium" 这类**简称**，而实际传进来的常常是
+        // "Sodium" / "sodium-fabric-1.20.1.jar" / "Sodium Extra" 这类带后缀的全名，
+        // 精确匹配基本命中不了 —— 于是"建议改用 Embeddium"这类提示
+        // 从来没出现过，等于这个功能没生效。
+        // 这里按从具体到宽泛依次试几种写法。
+        val raw = modName.trim().lowercase(Locale.ROOT)
+        if (raw.isBlank()) return null
+        val base = raw.substringBeforeLast(".")
+            .replace(Regex("[\\-_]?\\d+(\\.\\d+)*[\\-_]?(fabric|forge|neoforge|quilt)?$"), "")
+            .trim()
+        val candidates = listOf(
+            raw,
+            base,
+            base.substringBefore(" - "),
+            base.substringBefore("-fabric").substringBefore("-forge"),
+            base.substringBefore(" "),
+            base.replace(" ", "")
+        )
+        for (c in candidates) {
+            val m = EQUIVALENTS[c.trim()] ?: continue
+            return m[loader]
+        }
+        return null
     }
 
     /** 判断某加载器是否需要 Fabric API 这类前置 */

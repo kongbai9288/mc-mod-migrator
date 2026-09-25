@@ -35,7 +35,10 @@ object CrashReport {
             val txt = read(activity)
             if (txt.isBlank()) return
             val short = if (txt.length > 2500) txt.takeLast(2500) else txt
-            android.app.AlertDialog.Builder(activity)
+            // 用 MaterialAlertDialogBuilder：全项目其他地方都用它，
+            // 系统 AlertDialog 不认 Material 的 materialAlertDialogTheme，
+            // 按钮与标题不跟主题色，看起来像另一个应用弹出来的。
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(activity)
                 .setTitle("上次崩溃了")
                 .setMessage(
                     "这次启动前发生了一次崩溃，堆栈如下。\n" +
