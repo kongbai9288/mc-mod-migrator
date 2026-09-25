@@ -73,20 +73,29 @@ object McFeed {
         )
     )
 
-    @Volatile
-    private var cache = HashMap<String, List<Item>>()
-
-    @Volatile
-    private var cacheAt = 0L
+    // ── 缓存 ────────────────────────────────────────────────────
+    // 之前是**一个** `cacheAt` 管四个分区的时间戳：
+    //   先抓"官方" → cacheAt = T1
+    //   再抓"模组" → 写入 cache[MODS]，并**把 cacheAt 刷新成 T2**
+    // 但 cached(key) 判断的是 `now - cacheAt < TTL`，
+    // 于是"官方"那一份明明只存了 2 秒，也因为 cacheAt 被刷新
+    // 而一直被当成"新鲜"，长期不更新。
+    // 反过来更糟：某一个分区反复被刷新时，其他分区的缓存
+    // 有效期被无意义地延长，用户看到的是过期很久的内容。
+    // 改成**每个分区各自记自己的时间戳**。
+    private val cache = java.util.concurrent.ConcurrentHashMap<String, List<Item>>()
+    private val stampAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     private const val TTL = 10 * 60 * 1000L
     private const val PER_ZONE = 8
 
     fun labels(): List<Zone> = ZONES
 
-    fun cached(key: String): List<Item> =
-        if (System.currentTimeMillis() - cacheAt < TTL) cache[key] ?: emptyList()
-        else emptyList()
+    fun cached(key: String): List<Item> {
+        val at = stampAt[key] ?: return emptyList()
+        if (System.currentTimeMillis() - at >= TTL) return emptyList()
+        return cache[key] ?: emptyList()
+    }
 
     /** 抓单个分区。后台线程调用。 */
     fun fetch(ctx: android.content.Context, key: String): List<Item> {
@@ -100,8 +109,7 @@ object McFeed {
         if (key == OFFICIAL) {
             val viaApi = officialVersions(ctx)
             if (viaApi.isNotEmpty()) {
-                cache[key] = viaApi
-                cacheAt = System.currentTimeMillis()
+                put(key, viaApi)
                 return viaApi
             }
         }
@@ -111,21 +119,27 @@ object McFeed {
         } catch (t: Throwable) {
             emptyList()
         }
-        if (list.isNotEmpty()) {
-            cache[key] = list
-            cacheAt = System.currentTimeMillis()
-        }
+        if (list.isNotEmpty()) put(key, list)
         return list
+    }
+
+    /** 写入缓存并给**这个分区**记时间戳 */
+    private fun put(key: String, list: List<Item>) {
+        cache[key] = list
+        stampAt[key] = System.currentTimeMillis()
     }
 
     /** Jsoup 抓取：解析 DOM、按选择器取条目、过滤导航项 */
     private fun scrape(zone: Zone): List<Item> {
+        // 短超时：这只是个资讯列表页，没有理由让用户等两分钟。
+        // 站点抓不通就快速失败，界面显示该分区的降级文案。
         val html = Http.get(
             zone.url,
             mapOf(
                 "Accept" to "text/html,application/xhtml+xml",
                 "User-Agent" to Http.UA
-            )
+            ),
+            Http.SHORT
         )
         val doc = Jsoup.parse(html, zone.url)
         val out = ArrayList<Item>()
@@ -169,7 +183,10 @@ object McFeed {
      */
     private fun officialVersions(ctx: android.content.Context): List<Item> {
         return try {
-            val json = Http.get("https://api.modrinth.com/v3/tag/game_version")
+            val json = Http.get(
+                "https://api.modrinth.com/v3/tag/game_version",
+                timeout = Http.SHORT
+            )
             val arr = Json.arr(json) ?: return emptyList()
             val out = ArrayList<Item>()
             // Modrinth 返回按时间倒序，前几个就是最新的正式版
@@ -208,6 +225,6 @@ object McFeed {
 
     fun clearCache() {
         cache.clear()
-        cacheAt = 0L
+        stampAt.clear()
     }
 }

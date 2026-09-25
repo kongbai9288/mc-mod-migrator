@@ -69,7 +69,7 @@ object ModAliases {
         put("shulker box tooltip", "潜影盒", "shulker", "盒子预览")
         put("replay mod", "回放", "录像", "replaymod", "录像mod")
         put("world edit", "创世神", "worldedit", "we", "建筑")
-        put("litematica", "投影", "litematica", " schematic", "建筑投影")
+        put("litematica", "投影", "litematica", "schematic", "建筑投影")
         put("world preview", "预览", "worldpreview")
 
         // 存储与物流（生电）
@@ -101,7 +101,7 @@ object ModAliases {
         put("alex mobs", "生物", "alexmobs", "更多生物", "新生物")
         put("mowzie mobs", "mowzie", "巨兽")
         put("yungs", "建筑", "yungs", "地牢", "更好的")
-        put(" farmers delight", "农夫乐事", "farmersdelight", "农耕", "种田", "美食")
+        put("farmers delight", "农夫乐事", "farmersdelight", "农耕", "种田", "美食")
         put("alex caves", "洞穴", "alexcaves", "更多洞穴")
         put("deeper darker", "深暗", "deepdark", "更深更暗")
         put("biomes o plenty", "更多生物群系", "biomesoplenty", "群系")
@@ -126,7 +126,10 @@ object ModAliases {
     fun translate(q: String): String {
         val key = q.trim().lowercase(Locale.ROOT)
         if (key.isBlank()) return q
-        return MAP[key] ?: q
+        // 结果也 trim 一层：词表里万一还有首尾空格的条目，
+        // 发出去的搜索词就会带空格（" farmers delight"），
+        // 英文 API 对这个很敏感，可能直接返回空结果。
+        return (MAP[key] ?: q).trim()
     }
 
     /** 是否命中了别名表（界面可以提示"已按 xxx 搜索"） */
