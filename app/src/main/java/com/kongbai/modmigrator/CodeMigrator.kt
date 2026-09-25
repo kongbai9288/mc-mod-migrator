@@ -24,6 +24,7 @@ object CodeMigrator {
 
     /** 扫描出来的待改项 */
     data class Hit(
+        /** **相对于工程根目录的路径**，不是文件名——见 apply() 里的说明 */
         val file: String,
         val line: Int,
         val from: String,
@@ -108,6 +109,17 @@ object CodeMigrator {
                 continue
             }
             val scope = scopeOf(f.name)
+            // ── 记录**相对路径**，不是文件名 ──────────────────
+            // 之前存的是 f.name（纯文件名）。
+            // 一个模组工程里 `Mod.java` / `ClientSetup.java` 这类同名文件
+            // 在不同包目录下很常见，apply() 里 `File(root, name)` 只会
+            // 定位到根目录下那一个 —— 于是子目录里的命中项要么被跳过、
+            // 要么被改到错误的文件上。
+            val rel = try {
+                f.relativeTo(root).path
+            } catch (t: Throwable) {
+                f.name
+            }
             for ((i, line) in lines.withIndex()) {
                 for (r in rules) {
                     if (r.file != scope && r.file != "*") continue
@@ -117,7 +129,7 @@ object CodeMigrator {
                     if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue
                     out.add(
                         Hit(
-                            file = f.name,
+                            file = rel,
                             line = i + 1,
                             from = r.from,
                             to = r.to,
@@ -149,14 +161,18 @@ object CodeMigrator {
         val byFile = hits.groupBy { it.file }
 
         for ((name, list) in byFile) {
+            // name 是相对路径（可能含子目录）
             val f = File(root, name)
             if (!f.exists()) {
                 failed++
                 continue
             }
             try {
-                // 备份
+                // 备份：放到同名 .bak，**必须建好父目录**，
+                // 否则子目录里的文件备份时会因父目录不存在而抛异常，
+                // 整个文件被跳过（而且用户以为已经备份过了）。
                 val bak = File(root, "$name.bak")
+                bak.parentFile?.let { if (!it.exists()) it.mkdirs() }
                 if (!bak.exists()) f.copyTo(bak, overwrite = true)
 
                 val lines = f.readLines().toMutableList()

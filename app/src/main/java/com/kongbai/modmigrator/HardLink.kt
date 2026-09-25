@@ -83,16 +83,25 @@ object HardLink {
 
     /** 这个文件系统看起来支不支持硬链接（用于界面提示） */
     fun supported(dir: File): Boolean {
+        val stamp = System.currentTimeMillis()
+        val test = File(dir, ".hardlink_test_$stamp")
+        val link = File(dir, ".hardlink_test_link_$stamp")
+        // ── 必须 finally 清理 ──────────────────────────────────
+        // 之前清理写在 try 中间：一旦 createNewFile 之后的任何一步抛异常
+        // （比如目录只读、createLink 抛 UnsupportedOperationException），
+        // 就直接跳到 catch 返回 false，
+        // 两个 `.hardlink_test_*` 临时文件**留在用户目录里删不掉**。
+        // 而这个检测是在用户的 mods 目录里做的 ——
+        // 会在游戏里看到两个来历不明的隐藏文件。
         return try {
-            val test = File(dir, ".hardlink_test_${System.currentTimeMillis()}")
             if (!test.createNewFile()) return false
-            val link = File(dir, ".hardlink_test_link_${System.currentTimeMillis()}")
-            val ok = runCatching { Files.createLink(link.toPath(), test.toPath()); true }
+            runCatching { Files.createLink(link.toPath(), test.toPath()); true }
                 .getOrDefault(false)
-            link.delete(); test.delete()
-            ok
         } catch (t: Throwable) {
             false
+        } finally {
+            runCatching { link.delete() }
+            runCatching { test.delete() }
         }
     }
 

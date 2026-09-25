@@ -28,6 +28,8 @@ class ProgressDialog private constructor(
     private lateinit var tv: TextView
     private var dlg: androidx.appcompat.app.AlertDialog? = null
 
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
     private var startAt = System.currentTimeMillis()
     private var lastDone = 0L
     private var lastAt = startAt
@@ -73,42 +75,53 @@ class ProgressDialog private constructor(
             .show()
     }
 
-    /** 更新进度。done/total 单位字节；total<=0 表示未知大小 */
+    /**
+     * 更新进度。done/total 单位字节；total<=0 表示未知大小。
+     *
+     * 这个方法几乎总是从**下载线程**调用，所以内部强制切主线程——
+     * 依赖每个调用方自己记得 `safePost(handler)` 太脆弱，
+     * 漏一处就是 `ViewRootImpl$CalledFromWrongThreadException` 直接崩。
+     */
     fun update(done: Long, total: Long) {
-        try {
-            val now = System.currentTimeMillis()
-            val dt = now - lastAt
-            val db = done - lastDone
-            val speed = if (dt > 400 && db > 0) {
-                (db * 1000.0 / dt / 1024).let { String.format("%.0f KB/s", it) }
-            } else ""
+        mainHandler.post {
+            try {
+                val now = System.currentTimeMillis()
+                val dt = now - lastAt
+                val db = done - lastDone
+                val speed = if (dt > 400 && db > 0) {
+                    (db * 1000.0 / dt / 1024).let { String.format("%.0f KB/s", it) }
+                } else ""
 
-            if (total > 0) {
-                bar.isIndeterminate = false
-                val pct = (done * 100 / total).toInt().coerceIn(0, 100)
-                bar.progress = pct
-                tv.text = buildString {
-                    append(mb(done)).append(" / ").append(mb(total))
-                    append("  ").append(pct).append('%')
-                    if (speed.isNotBlank()) append("  ").append(speed)
+                if (total > 0) {
+                    bar.isIndeterminate = false
+                    val pct = (done * 100 / total).toInt().coerceIn(0, 100)
+                    bar.progress = pct
+                    tv.text = buildString {
+                        append(mb(done)).append(" / ").append(mb(total))
+                        append("  ").append(pct).append('%')
+                        if (speed.isNotBlank()) append("  ").append(speed)
+                    }
+                } else {
+                    tv.text = buildString {
+                        append(mb(done))
+                        if (speed.isNotBlank()) append("  ").append(speed)
+                    }
                 }
-            } else {
-                tv.text = buildString {
-                    append(mb(done))
-                    if (speed.isNotBlank()) append("  ").append(speed)
+                if (dt > 400) {
+                    lastAt = now
+                    lastDone = done
                 }
-            }
-            if (dt > 400) {
-                lastAt = now
-                lastDone = done
-            }
-        } catch (t: Throwable) { Err.ignore(t, "lastDone = done") }
+            } catch (t: Throwable) { Err.ignore(t, "更新进度") }
+        }
     }
 
+    /** 同样可能被后台线程调用，内部切主线程 */
     fun dismiss() {
-        try {
-            dlg?.dismiss()
-        } catch (t: Throwable) { Err.ignore(t, "dlg?.dismiss()") }
+        mainHandler.post {
+            try {
+                dlg?.dismiss()
+            } catch (t: Throwable) { Err.ignore(t, "dlg?.dismiss()") }
+        }
     }
 
     private fun mb(b: Long): String {
