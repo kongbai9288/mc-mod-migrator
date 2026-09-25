@@ -278,7 +278,7 @@ object Trash {
                     // 现在只处理常见的模组配置扩展名。
                     val lower = n.lowercase()
                     if (!RESIDUE_EXT.any { lower.endsWith(it) }) continue
-                    if (base.length() < 3) continue   // 太短的名字不猜
+                    if (base.length < 3) continue   // 太短的名字不猜
 
                     // 配置名能对应到某个已安装模组 → 在用，跳过。
                     // 用**词边界**匹配，避免 "sodium" 命中 "sodiumextra" 这类无关项。
