@@ -112,7 +112,13 @@ object SyncManager {
                         c.owner, c.repo, "$ROOT/$id/config.zip", c.branch, c.token,
                         b64, "sync config from $label", sha
                     )
-                ) "；配置包已上传" else "；配置包上传失败"
+                ) {
+                    "；配置包已上传"
+                } else {
+                    // 把具体原因带给用户，而不是一句没头没脑的"上传失败"
+                    val why = GitHubApi.lastError
+                    "；配置包上传失败" + if (why.isNotBlank()) "：$why" else ""
+                }
             } else {
                 msg += "；无可打包的配置"
             }

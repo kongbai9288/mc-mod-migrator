@@ -72,7 +72,12 @@ class SettingsSearchFragment : Fragment() {
         swAutoTrans.isChecked = p.getBoolean(K.AUTO_TRANS, true)
         swMirror.isChecked = p.getBoolean(K.USE_MIRROR, true)
 
-        spSource.setOnItemSelectedListenerSafe { save() }
+        // Spinner 的 onItemSelected 在**设置监听器时就会自动触发一次**
+        // （布局完成即回调，用户根本没操作）。
+        // 不加 loading 守卫的话，一进这个页面就立刻执行一次 save()，
+        // 把还没初始化完的状态写进配置 —— 同页面其他开关都有 `if (!loading)` 守卫，
+        // 唯独这里漏了。
+        spSource.setOnItemSelectedListenerSafe { if (!loading) save() }
         swAgg.setOnCheckedChangeListener { _, c -> if (!loading) { Prefs.get(requireContext()).edit().putBoolean(K.AGG_SEARCH, c).apply() } }
         swRec.setOnCheckedChangeListener { _, c -> if (!loading) { Prefs.get(requireContext()).edit().putBoolean(K.RECOMMEND, c).apply() } }
         swAutoTrans.setOnCheckedChangeListener { _, c -> if (!loading) { Prefs.get(requireContext()).edit().putBoolean(K.AUTO_TRANS, c).apply() } }
