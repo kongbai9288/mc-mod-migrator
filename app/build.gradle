@@ -11,8 +11,8 @@ android {
         applicationId "com.kongbai.modmigrator"
         minSdk 26
         targetSdk 34
-        versionCode 7
-        versionName "1.5.0"
+        versionCode 8
+        versionName "2.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -72,6 +72,10 @@ dependencies {
 
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'com.google.code.gson:gson:2.10.1'
+    // TOML 解析（Forge/NeoForge 的 mods.toml）。Apache-2.0，无外部依赖，
+    // 自带重定位过的 ANTLR 运行时，不会和别的库冲突。
+    // 之前用正则去 grep mods.toml，嵌套表和数组根本解析不出来。
+    implementation 'org.tomlj:tomlj:1.1.1'
     implementation 'org.jsoup:jsoup:1.17.2'
     implementation 'io.coil-kt:coil:2.5.0'
 

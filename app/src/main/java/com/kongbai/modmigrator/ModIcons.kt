@@ -4,231 +4,195 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.documentfile.provider.DocumentFile
-import java.io.ByteArrayOutputStream
+import java.io.File
 import java.util.Locale
-import java.util.concurrent.ConcurrentHashMap
-import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
+import java.util.zip.ZipFile
 
 /**
- * 模组图标：优先从本地 jar 里提取，取不到才算网络。
+ * 模组图标提取。
  *
- * 为什么优先本地：
- *   1. 迁移列表里的模组本来就在手机里，读 jar 比联网快得多，也不耗流量
- *   2. 离线可用
- *   3. 有些模组在 Modrinth/CurseForge 上没有图标，但 jar 里是有的
+ * 做法（和 Mod Menu / Prism 一致）：
+ *  1. 读 jar 元数据，拿到里面**声明**的图标路径
+ *     （fabric 的 `icon`、forge 的 `logoFile`、mcmod.info 的 `logoFile`）
+ *  2. 元数据没声明时，退回几个常见候选路径
+ *  3. 用 **ZipFile 直接定位条目**（有中央目录，不用顺序扫整个 jar）
+ *  4. **按目标尺寸采样**再解码，避免大图直接进内存导致 OOM
  *
- * 提取顺序（覆盖 Fabric / Forge / Quilt / 资源包）：
- *   1. fabric.mod.json 或 quilt.mod.json 的 "icon" 字段
- *   2. META-INF/mods.toml（Forge 1.13+）的 logoFile
- *   3. mcmod.info（旧 Forge）
- *   4. 压缩包顶层常见的 logo.png / icon.png / pack.png / assets 下的图标
- *   5. pack.mcmeta（说明是资源包/数据包）
- *
- * 结果按文件大小+名称做 key 缓存在内存，并按模组名落盘缓存，
- * 避免每次刷新列表都重新解压一遍。
+ * 之前的问题：
+ *  - 用 ZipInputStream 顺序扫，大 jar 慢
+ *  - 不采样，遇到 512×512 甚至更大的图标容易 OOM
+ *  - 缓存没有上限，长时间用会一直涨
  */
 object ModIcons {
 
-    /** 内存缓存：key -> Bitmap */
-    private val mem = ConcurrentHashMap<String, Bitmap>()
+    /** 缓存上限：超过就整体清掉重来，避免无限增长 */
+    private const val MAX_CACHE = 120
 
-    /** 全局开关：设置里可以关掉（低端机解压 jar 有开销） */
-    fun enabled(ctx: Context): Boolean =
-        Prefs.get(ctx).getBoolean(K.LOCAL_ICON, true)
+    private val cache = LinkedHashMap<String, Bitmap?>(MAX_CACHE + 8, 0.75f, true)
 
-    /** 缓存 key：文件名 + 大小，内容变了自然失效 */
-    private fun keyOf(file: DocumentFile): String =
-        "${file.name ?: ""}_${file.length()}"
+    /** 元数据没声明图标时的候选路径 */
+    private val FALLBACKS = listOf(
+        "icon.png",
+        "logo.png",
+        "assets/icon.png",
+        "assets/logo.png",
+        "mod_icon.png",
+        "pack.png",          // 资源包常见
+        "icon.svg"           // 少数模组用矢量图标
+    )
 
     /**
-     * 取图标。主线程安全，但解压本身有开销，建议后台调用。
-     * @return Bitmap 或 null
+     * 取图标。返回 null 表示取不到，调用方应显示首字母占位图。
+     * 结果会被缓存；同一个文件第二次调用几乎不耗时。
      */
-    fun of(ctx: Context, file: DocumentFile): Bitmap? {
-        if (!enabled(ctx)) return null
-        val key = keyOf(file)
-        mem[key]?.let { return it }
-
-        // 先看磁盘缓存
-        val disk = WorkDir.icons(ctx)?.findFile(key + ".png")
-        if (disk != null) {
-            val bmp = decode(ctx, disk)
-            if (bmp != null) {
-                mem[key] = bmp
-                return bmp
-            }
-        }
+    fun of(ctx: Context, f: DocumentFile): Bitmap? {
+        val key = f.uri.toString()
+        if (cache.containsKey(key)) return cache[key]
 
         val bmp = try {
-            extract(ctx, file)
+            extract(ctx, f)
         } catch (t: Throwable) {
             null
         }
-        if (bmp != null) {
-            mem[key] = bmp
-            saveToDisk(ctx, key, bmp)
+        synchronized(cache) {
+            if (cache.size >= MAX_CACHE) cache.clear()
+            cache[key] = bmp
         }
         return bmp
     }
 
-    /** 从 jar 里解压出图标 */
-    private fun extract(ctx: Context, file: DocumentFile): Bitmap? {
-        ctx.contentResolver.openInputStream(file.uri)?.use { input ->
-            ZipInputStream(input).use { zip ->
-                var entry: ZipEntry?
-                var declared: String? = null   // 清单文件里声明的图标路径
-                var fallback: ByteArray? = null
-                val metaBuf = HashMap<String, String>()
-                // 只扫一遍，最多看 200 个条目，避免大整合包卡住
-                var count = 0
-                while (zip.nextEntry.also { entry = it } != null && count < 200) {
-                    val e = entry ?: break
-                    count++
-                    val n = e.name
-                    if (e.isDirectory) continue
-
-                    when {
-                        // 1) 清单文件：先记下来，条目遍历完再决定
-                        n.equals("fabric.mod.json", true) ||
-                            n.equals("quilt.mod.json", true) ||
-                            n.equals("mcmod.info", true) ||
-                            n.equals("META-INF/mods.toml", true) -> {
-                            val txt = String(zip.readBytes(), Charsets.UTF_8)
-                            metaBuf[n] = txt
-                        }
-
-                        // 2) 图片：可能是清单声明的那个，也可能是通用名
-                        n.endsWith(".png", true) -> {
-                            val short = n.substringAfterLast('/')
-                            val low = short.lowercase(Locale.ROOT)
-                            val isLogo = low == "logo.png" || low == "icon.png" ||
-                                low == "pack.png" || low == "mod.png" ||
-                                low == "logo128.png" || low == "icon128.png"
-                            if (isLogo && fallback == null) {
-                                fallback = zip.readBytes()
-                            }
-                            // 清单已声明过路径就精确命中
-                            if (declared != null && n.equals(declared, true)) {
-                                return BitmapFactory.decodeByteArray(
-                                    zip.readBytes(), 0, zip.readBytes().size
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // 清单里声明的图标优先
-                declared = parseDeclaredIcon(metaBuf)
-                if (!declared.isNullOrBlank()) {
-                    val bmp = readNamed(ctx, file, declared)
-                    if (bmp != null) return bmp
-                }
-                if (fallback != null) {
-                    return BitmapFactory.decodeByteArray(fallback, 0, fallback!!.size)
-                }
+    /** 从本地 File 取（能拿到真实路径时更快） */
+    fun ofFile(file: File, targetPx: Int): Bitmap? {
+        val key = "f:${file.absolutePath}:$targetPx"
+        if (cache.containsKey(key)) return cache[key]
+        val bmp = try {
+            if (!file.exists() || !file.canRead()) null
+            else ZipFile(file).use { zf ->
+                val meta = ModMeta.readFile(file)
+                val path = pickIconPath(zf, meta)
+                if (path.isBlank()) null else decode(zf, path, targetPx)
             }
-        }
-        return null
-    }
-
-    /** 从各种清单里解析出图标路径 */
-    private fun parseDeclaredIcon(metas: Map<String, String>): String? {
-        // fabric.mod.json / quilt.mod.json：{"icon": "assets/xxx/icon.png"}
-        for (k in listOf("fabric.mod.json", "quilt.mod.json")) {
-            val txt = metas[k] ?: continue
-            val m = Regex("\"icon\"\\s*:\\s*\"([^\"]+)\"").find(txt)
-            if (m != null) return m.groupValues[1]
-        }
-        // META-INF/mods.toml：logoFile = "logo.png"
-        val toml = metas["META-INF/mods.toml"]
-        if (toml != null) {
-            val m = Regex("logoFile\\s*=\\s*\"([^\"]+)\"").find(toml)
-            if (m != null) return m.groupValues[1]
-        }
-        // mcmod.info：{"logoFile": "..."}
-        val info = metas["mcmod.info"]
-        if (info != null) {
-            val m = Regex("\"logoFile\"\\s*:\\s*\"([^\"]+)\"").find(info)
-            if (m != null) return m.groupValues[1]
-        }
-        return null
-    }
-
-    /** 按清单里的路径单独再打开一次 zip 读取（第二遍，只在声明存在时才做） */
-    private fun readNamed(ctx: Context, file: DocumentFile, path: String): Bitmap? {
-        return try {
-            ctx.contentResolver.openInputStream(file.uri)?.use { input ->
-                ZipInputStream(input).use { zip ->
-                    var e: ZipEntry?
-                    while (zip.nextEntry.also { e = it } != null) {
-                        val en = e ?: break
-                        // 兼容声明里写 "assets/foo/icon.png" 或 "/icon.png"
-                        val cand = listOf(path, path.trimStart('/'), "assets/$path")
-                        if (cand.any { it.equals(en.name, true) }) {
-                            val bytes = zip.readBytes()
-                            return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                        }
-                    }
-                }
-            }
-            null
         } catch (t: Throwable) {
             null
         }
+        synchronized(cache) {
+            if (cache.size >= MAX_CACHE) cache.clear()
+            cache[key] = bmp
+        }
+        return bmp
     }
 
-    private fun decode(ctx: Context, f: DocumentFile): Bitmap? =
+    private fun extract(ctx: Context, f: DocumentFile): Bitmap? {
+        // SAF 场景下拿不到真实 File，先复制到 cache 再用 ZipFile 打开：
+        // ZipFile 需要可随机访问的文件，直接对 uri 流用 ZipInputStream 会慢很多
+        val tmp = File(ctx.cacheDir, "icons/${f.name?.hashCode() ?: 0}.jar")
+        tmp.parentFile?.mkdirs()
         try {
-            ctx.contentResolver.openInputStream(f.uri)?.use {
-                BitmapFactory.decodeStream(it)
-            }
-        } catch (t: Throwable) {
-            null
-        }
+            ctx.contentResolver.openInputStream(f.uri)?.use { input ->
+                tmp.outputStream().use { input.copyTo(it) }
+            } ?: return null
 
-    /** 落盘缓存，下次直接读，不用重新解压 */
-    private fun saveToDisk(ctx: Context, key: String, bmp: Bitmap) {
-        try {
-            val dir = WorkDir.icons(ctx) ?: return
-            val f = dir.findFile("$key.png")
-                ?: dir.createFile("image/png", "$key.png")
-                ?: return
-            val out = ByteArrayOutputStream()
-            bmp.compress(Bitmap.CompressFormat.PNG, 100, out)
-            ctx.contentResolver.openOutputStream(f.uri, "wt")?.use {
-                it.write(out.toByteArray())
+            val target = (56 * ctx.resources.displayMetrics.density).toInt()
+            ZipFile(tmp).use { zf ->
+                val meta = ModMeta.readFile(tmp)
+                val path = pickIconPath(zf, meta)
+                return if (path.isBlank()) null else decode(zf, path, target)
             }
-        } catch (t: Throwable) {
+        } finally {
+            runCatching { tmp.delete() }
         }
+    }
+
+    /** 决定读哪个条目：优先元数据声明的路径 */
+    private fun pickIconPath(zf: ZipFile, meta: ModMeta.Info): String {
+        val declared = meta.iconPath.trim()
+        if (declared.isNotBlank()) {
+            val normalized = declared.trimStart('/')
+            // fabric 的 icon 有时写成 "assets/xxx.png"，直接找
+            if (zf.getEntry(normalized) != null) return normalized
+            // 有时写的是不带 assets 前缀的名字，兜底试一次
+            val alt = "assets/$normalized"
+            if (zf.getEntry(alt) != null) return alt
+        }
+        for (c in FALLBACKS) {
+            if (zf.getEntry(c) != null) return c
+        }
+        // 最后兜底：根目录里第一个 .png
+        val e = zf.entries().asSequence().firstOrNull {
+            !it.isDirectory && it.name.endsWith(".png", true) && !it.name.contains('/')
+        }
+        return e?.name ?: ""
     }
 
     /**
-     * 按 URI 字符串取图标（列表里用的是这个入口）。
-     * 内部有内存缓存，重复调用不会重复解压。
+     * 按目标尺寸采样解码。
+     * inSampleSize 必须是 2 的幂，先只解码边界拿到原始尺寸，
+     * 算出采样率后再真正解码——这样大图不会整张进内存。
      */
+    private fun decode(zf: ZipFile, path: String, targetPx: Int): Bitmap? {
+        val entry = zf.getEntry(path) ?: return null
+        if (entry.isDirectory) return null
+
+        // SVG 无法用 BitmapFactory 解码，直接放弃（界面会退回首字母占位）
+        if (path.endsWith(".svg", true)) return null
+
+        // 第一遍：只取尺寸
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        zf.getInputStream(entry).use {
+            BitmapFactory.decodeStream(it, null, bounds)
+        }
+        val w = bounds.outWidth
+        val h = bounds.outHeight
+        if (w <= 0 || h <= 0) return null
+
+        // 第二遍：按采样率真解码
+        val sample = calculateInSampleSize(w, h, targetPx)
+        val opts = BitmapFactory.Options().apply {
+            inSampleSize = sample
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        return zf.getInputStream(entry).use {
+            BitmapFactory.decodeStream(it, null, opts)
+        }
+    }
+
+    private fun calculateInSampleSize(w: Int, h: Int, target: Int): Int {
+        if (target <= 0) return 1
+        var sample = 1
+        var max = maxOf(w, h)
+        // 逐级翻倍，直到不超过目标的两倍
+        while (max > target * 2) {
+            sample *= 2
+            max /= 2
+        }
+        return sample.coerceIn(1, 32)   // 上限 32，防止极端情况
+    }
+
+    /** 兼容旧调用：按 uri 字符串取图标 */
     fun ofUri(ctx: Context, uriStr: String): Bitmap? {
-        if (uriStr.isBlank() || !enabled(ctx)) return null
+        if (uriStr.isBlank()) return null
         return try {
             val uri = android.net.Uri.parse(uriStr)
             val f = androidx.documentfile.provider.DocumentFile.fromSingleUri(ctx, uri)
-            if (f != null && f.isFile) of(ctx, f) else null
+            if (f != null) of(ctx, f) else null
         } catch (t: Throwable) {
             null
         }
     }
 
-    /** 清理图标缓存（工具箱里用） */
-    fun clear(ctx: Context): Int {
-        mem.clear()
-        var n = 0
-        try {
-            val dir = WorkDir.icons(ctx) ?: return 0
-            for (f in Fs.children(dir)) {
-                if (f.isFile && f.delete()) n++
-            }
-        } catch (t: Throwable) {
-        }
-        return n
+    /** 清空缓存（切换目录或内存紧张时调用） */
+    fun clear() {
+        synchronized(cache) { cache.clear() }
+    }
+
+    /** 缓存里有多少个条目（供设置页显示） */
+    fun cacheSize(): Int = synchronized(cache) { cache.size }
+
+    /** 给没有图标的模组生成一个稳定的占位色 */
+    fun placeholderColor(id: String): Int {
+        var hash = 0
+        for (c in id.lowercase(Locale.ROOT)) hash = hash * 31 + c.code
+        val hue = (hash % 360).let { if (it < 0) it + 360 else it }.toFloat()
+        return android.graphics.Color.HSVToColor(floatArrayOf(hue, 0.35f, 0.85f))
     }
 }

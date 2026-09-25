@@ -24,7 +24,10 @@ fun search(query: String, mc: String, loader: String, limit: Int = 20): List<Mar
         val filters = ArrayList<String>()
         filters.add("""project_types=["mod"]""")
         if (mc.isNotBlank()) filters.add("""game_versions=["$mc"]""")
-        if (loader.isNotBlank() && loader != "auto") filters.add("""categories=["$loader"]""")
+        // 加载器字段是 loaders，不是 categories。
+        // 官方 v3 文档里两者是不同字段：categories 是内容分类（optimization 等），
+        // loaders 才是 fabric/forge/quilt。之前写成 categories 导致加载器过滤无效。
+        if (loader.isNotBlank() && loader != "auto") filters.add("""loaders=["$loader"]""")
         val nf = filters.joinToString(" AND ")
         val url = "${base()}/search?query=${Http.enc(query)}" +
             "&limit=$limit&index=downloads&new_filters=${Http.enc(nf)}"
