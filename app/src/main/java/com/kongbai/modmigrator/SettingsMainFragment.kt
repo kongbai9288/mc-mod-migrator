@@ -153,7 +153,8 @@ class SettingsMainFragment : Fragment() {
                             ivAvatar.load(u.avatarUrl) { crossfade(true) }
                         } catch (t: Throwable) {
                             // 头像加载失败不影响其他内容
-                        }
+                                 Err.ignore(t, "头像加载失败不影响其他内容")
+                             }
                     }
                     tvConnState.text = "已连接后端"
                 } else {
@@ -322,7 +323,8 @@ class SettingsMainFragment : Fragment() {
                 BackendApi.logout(ctx)
             } catch (t: Throwable) {
                 // 登出失败也按未登录处理
-            }
+                     Err.ignore(t, "登出失败也按未登录处理")
+                 }
             handler.post {
                 if (!isAdded) return@post
                 refreshAccount()
@@ -330,4 +332,11 @@ class SettingsMainFragment : Fragment() {
             }
         }
     }
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // 清理 Handler：页面销毁后若还有未执行的 post，
+        // 回调里访问已销毁的 View 会直接崩。
+        runCatching { handler.removeCallbacksAndMessages(null) }
+    }
+
 }

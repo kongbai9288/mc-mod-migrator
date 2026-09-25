@@ -197,7 +197,8 @@ object UiCards {
                 )
             } catch (t: Throwable) {
                 // 加载失败就保持首字母
-            }
+                     Err.ignore(t, "加载失败就保持首字母")
+                 }
         }
 
         val texts = LinearLayout(ctx).apply {

@@ -127,7 +127,8 @@ object SyncManager {
                 )
             } catch (t: Throwable) {
                 // skip broken manifest
-            }
+                     Err.ignore(t, "skip broken manifest")
+                 }
         }
         return out.sortedByDescending { it.time }
     }
@@ -191,6 +192,7 @@ object SyncManager {
             wm.enqueueUniquePeriodicWork("mm_sync", ExistingPeriodicWorkPolicy.UPDATE, req)
         } catch (t: Throwable) {
             // ignore
-        }
+                 Err.ignore(t, "ignore")
+             }
     }
 }

@@ -55,7 +55,7 @@ class AppPickerActivity : AppCompatActivity() {
     private fun safePostA(h: android.os.Handler, block: () -> Unit) {
         h.post {
             if (isFinishing || isDestroyed) return@post
-            try { block() } catch (t: Throwable) { }
+            try { block() } catch (t: Throwable) { Err.ignore(t, "try { block() }") }
         }
     }
 
@@ -73,7 +73,8 @@ class AppPickerActivity : AppCompatActivity() {
 
             } catch (t: Throwable) {
                 // 后台异常不崩进程
-            }
+                     Err.ignore(t, "后台异常不崩进程")
+                 }
         }
     }
 
@@ -124,4 +125,9 @@ class AppAdapter(
         else h.icon.setImageResource(R.drawable.ic_extension)
         h.itemView.setOnClickListener { onPick(a) }
     }
+    override fun onDestroy() {
+        super.onDestroy()
+        runCatching { handler.removeCallbacksAndMessages(null) }
+    }
+
 }

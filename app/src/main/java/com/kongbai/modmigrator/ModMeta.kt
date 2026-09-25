@@ -145,7 +145,9 @@ object ModMeta {
             scanned++
             val n = e.name ?: ""
             val match = SENTINELS.firstOrNull { it.first.equals(n, true) }
-            if (match != null && (hit == null || SENTINELS.indexOf(match) < SENTINELS.indexOf(hit!!))) {
+            val rank = SENTINELS.indexOf(match)
+            val cur = hit?.let { SENTINELS.indexOf(it) } ?: Int.MAX_VALUE
+            if (rank >= 0 && rank < cur) {
                 val text = runCatching { zip.readBytes().toString(Charsets.UTF_8) }.getOrNull()
                 if (!text.isNullOrBlank()) {
                     hit = match

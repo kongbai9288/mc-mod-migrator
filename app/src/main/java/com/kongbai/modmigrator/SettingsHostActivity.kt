@@ -73,7 +73,8 @@ class SettingsHostActivity : AppCompatActivity() {
                 .commit()
         } catch (t: Throwable) {
             // 事务提交失败也不能崩
-        }
+                 Err.ignore(t, "事务提交失败也不能崩")
+             }
         title = when (page) {
             "backend" -> getString(R.string.menu_backend)
             "search" -> getString(R.string.menu_search)

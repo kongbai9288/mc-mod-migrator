@@ -49,11 +49,11 @@ object EggPlayer {
                 Thread.sleep(300)
                 try {
                     tg.release()
-                } catch (t: Throwable) {
-                }
+                } catch (t: Throwable) { Err.ignore(t, "tg.release()") }
             } catch (t: Throwable) {
                 // 播放失败也要把主题换了，不能卡在"点了没反应"
-            }
+                     Err.ignore(t, "播放失败也要把主题换了，不能卡在\"点了没反应\"")
+                 }
 
             // 换到下一个主题色，循环
             val cur = ThemePrefs.index(ctx)
@@ -68,8 +68,7 @@ object EggPlayer {
                         "🎵 主题已切换为「${ThemePrefs.themes()[next].name}」",
                         android.widget.Toast.LENGTH_SHORT
                     ).show()
-                } catch (t: Throwable) {
-                }
+                } catch (t: Throwable) { Err.ignore(t, ").show()") }
                 onThemeChanged(next)
             }
         }.start()

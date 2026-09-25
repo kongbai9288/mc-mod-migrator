@@ -210,7 +210,7 @@ object WebTranslate {
           }
         }
         attach();
-      } catch (e) {}
+      } catch (e) { Err.ignore(t, "attach();") }
     })();
     """.trimIndent()
 
@@ -300,7 +300,7 @@ object WebTranslate {
               MM.done.add(n);
               idx++;
             }
-          } catch (e) {}
+          } catch (e) { Err.ignore(t, "idx++;") }
         })();
         """.trimIndent()
     }

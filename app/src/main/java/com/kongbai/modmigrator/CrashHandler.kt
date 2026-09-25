@@ -45,11 +45,11 @@ object CrashHandler {
                 save(appCtx, thread, e)
             } catch (t: Throwable) {
                 // 第一层：保存失败也不能影响下面的默认处理
-            }
+                     Err.ignore(t, "第一层：保存失败也不能影响下面的默认处理")
+                 }
             try {
                 old?.uncaughtException(thread, e)
-            } catch (t: Throwable) {
-            }
+            } catch (t: Throwable) { Err.ignore(t, "old?.uncaughtException(thread, e)") }
         }
     }
 
@@ -64,8 +64,7 @@ object CrashHandler {
             try {
                 val pi = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
                 sb.appendLine("版本：${pi.versionName}（${pi.versionCode}）")
-            } catch (t: Throwable) {
-            }
+            } catch (t: Throwable) { Err.ignore(t, "sb.appendLine(\"版本：{pi.versionName}（{pi.versionCo") }
             sb.appendLine("设备：${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
             sb.appendLine("系统：Android ${android.os.Build.VERSION.RELEASE}（API ${android.os.Build.VERSION.SDK_INT}）")
             sb.appendLine("CPU：${android.os.Build.SUPPORTED_ABIS.joinToString()}".take(200))
@@ -109,7 +108,8 @@ object CrashHandler {
             trim(d)
         } catch (t: Throwable) {
             // 第三层：写不进去也不再抛
-        }
+                 Err.ignore(t, "第三层：写不进去也不再抛")
+             }
     }
 
     /** 带 flush + fsync 的写入，尽量保证进程被杀前落盘 */
@@ -121,11 +121,9 @@ object CrashHandler {
                 out.flush()
                 try {
                     out.fd.sync()
-                } catch (t: Throwable) {
-                }
+                } catch (t: Throwable) { Err.ignore(t, "out.fd.sync()") }
             }
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "") }
     }
 
     private fun trim(d: File) {
@@ -135,8 +133,7 @@ object CrashHandler {
             files.sortedByDescending { it.lastModified() }
                 .drop(MAX_FILES)
                 .forEach { runCatching { it.delete() } }
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, ".forEach { runCatching { it.delete() } }") }
     }
 
     /** 读取全部崩溃日志（界面展示/分享用） */
@@ -162,7 +159,6 @@ object CrashHandler {
         try {
             File(ctx.filesDir, "crash.log").delete()
             dir(ctx).listFiles()?.forEach { runCatching { it.delete() } }
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "dir(ctx).listFiles()?.forEach { runCatching { it.d") }
     }
 }

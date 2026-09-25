@@ -89,7 +89,6 @@ class MoreFragment : Fragment() {
                 .replace(R.id.fragment_container, f)
                 .addToBackStack(null)
                 .commit()
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, ".commit()") }
     }
 }

@@ -29,8 +29,7 @@ object CrashShare {
                 try {
                     val pi = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
                     appendLine("版本：${pi.versionName} (${pi.versionCode})")
-                } catch (t: Throwable) {
-                }
+                } catch (t: Throwable) { Err.ignore(t, "appendLine(\"版本：{pi.versionName} ({pi.versionCode") }
                 appendLine("设备：${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} Android ${android.os.Build.VERSION.RELEASE}")
                 appendLine("=".repeat(40))
                 appendLine()
@@ -118,7 +117,6 @@ object CrashShare {
     fun clear(ctx: Context) {
         try {
             File(ctx.filesDir, "crash.log").delete()
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "File(ctx.filesDir, \"crash.log\").delete()") }
     }
 }

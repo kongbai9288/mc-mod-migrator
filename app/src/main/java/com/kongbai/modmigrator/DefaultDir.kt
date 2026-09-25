@@ -63,8 +63,7 @@ object DefaultDir {
             root(ctx).walkTopDown().forEach {
                 if (it.isFile && it.delete()) n++
             }
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "if (it.isFile && it.delete()) n++") }
         return n
     }
 }

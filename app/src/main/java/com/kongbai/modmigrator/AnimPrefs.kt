@@ -40,8 +40,7 @@ object AnimPrefs {
             am?.getMemoryInfo(mi)
             // 总内存小于 4GB 视为低端
             if (mi.totalMem > 0 && mi.totalMem < 4L * 1024 * 1024 * 1024) return true
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "if (mi.totalMem > 0 && mi.totalMem < 4L * 1024 * 1") }
         return false
     }
 

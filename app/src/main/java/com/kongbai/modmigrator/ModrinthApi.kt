@@ -7,8 +7,16 @@ object ModrinthApi {
     private const val MIRROR = "https://mod.mcimirror.top/modrinth/v2"
 
     private fun base(): String = if (Prefs.mirror()) MIRROR else OFFICIAL
-    private val titles = HashMap<String, String>()
-    private val slugs = HashMap<String, String>()
+    /**
+     * 项目标题/别名的本地缓存。
+     *
+     * 这是 object 单例，而搜索**是并发的**（聚合搜索会同时查多个源、
+     * 分页时也会并发），之前用普通 HashMap，多线程同时 put 会导致
+     * 内部结构损坏甚至死循环（HashMap 并发扩容的经典问题）。
+     * 现在用 ConcurrentHashMap。
+     */
+    private val titles = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val slugs = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     /**
  * 搜索。
@@ -149,7 +157,8 @@ fun lookupHashSimple(sha1: String): Triple<String, String, String>? {
             }
         } catch (t: Throwable) {
             // ignore
-        }
+                 Err.ignore(t, "ignore")
+             }
     }
 
     fun title(pid: String): String = titles[pid] ?: ""

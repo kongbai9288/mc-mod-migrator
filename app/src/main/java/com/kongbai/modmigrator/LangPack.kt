@@ -49,7 +49,8 @@ object LangPack {
                 names.add(n)
             } catch (t: Throwable) {
                 // 单个文件坏了不影响其他包
-            }
+                     Err.ignore(t, "单个文件坏了不影响其他包")
+                 }
         }
         if (names.isNotEmpty()) loadedName = names.joinToString("、")
         return names.size
@@ -140,7 +141,6 @@ object LangPack {
             ctx.contentResolver.openOutputStream(f.uri)?.use {
                 it.write(template(ctx).toByteArray(Charsets.UTF_8))
             }
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "it.write(template(ctx).toByteArray(Charsets.UTF_8)") }
     }
 }

@@ -49,8 +49,7 @@ class SitesFragment : Fragment() {
                                 android.net.Uri.parse(s.url)
                             )
                         )
-                    } catch (t: Throwable) {
-                    }
+                    } catch (t: Throwable) { Err.ignore(t, ")") }
                     true
                 }
                 root.addView(card)

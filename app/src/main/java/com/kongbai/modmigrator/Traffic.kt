@@ -67,8 +67,7 @@ object Traffic {
                 p.edit().putLong("traffic_used", 0L).apply()
                 return true
             }
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "return true") }
         return false
     }
 

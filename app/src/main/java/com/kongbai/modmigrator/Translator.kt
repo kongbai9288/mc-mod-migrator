@@ -247,8 +247,7 @@ object Translator {
     fun close() {
         try {
             client?.close()
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "client?.close()") }
         client = null
         modelReady = false
     }

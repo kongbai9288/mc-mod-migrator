@@ -67,8 +67,7 @@ object Trash {
                 arr.put(o)
             }
             indexFile(ctx).writeText(arr.toString())
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "indexFile(ctx).writeText(arr.toString())") }
     }
 
     fun days(ctx: Context): Int = Prefs.get(ctx).getInt(K.TRASH_DAYS, 7).coerceIn(1, 90)
@@ -177,8 +176,7 @@ object Trash {
             try {
                 DocumentFile.fromSingleUri(ctx, android.net.Uri.parse(it.trashUri))?.delete()
                 n++
-            } catch (t: Throwable) {
-            }
+            } catch (t: Throwable) { Err.ignore(t, "n++") }
         }
         save(ctx, emptyList())
         return n

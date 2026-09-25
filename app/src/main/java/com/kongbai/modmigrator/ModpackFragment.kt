@@ -246,8 +246,7 @@ class ModpackFragment : Fragment() {
                         Downloader.download(ctx, r.url, dir, r.latestName, emptyMap())
                         ok++
                     }
-                } catch (t: Throwable) {
-                }
+                } catch (t: Throwable) { Err.ignore(t, "ok++") }
             }
             handler.post {
                 if (!isAdded) return@post
@@ -256,4 +255,11 @@ class ModpackFragment : Fragment() {
             }
         }
     }
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // 清理 Handler：页面销毁后若还有未执行的 post，
+        // 回调里访问已销毁的 View 会直接崩。
+        runCatching { handler.removeCallbacksAndMessages(null) }
+    }
+
 }

@@ -161,8 +161,7 @@ class WebActivity : AppCompatActivity() {
                 if (u.isNotBlank()) {
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(u)))
                 }
-            } catch (e2: Throwable) {
-            }
+            } catch (e2: Throwable) { Err.ignore(e2, "startActivity(Intent(Intent.ACTION_VIEW, Uri.parse") }
             Toast.makeText(this, "内置浏览器不可用，已改用外部浏览器", Toast.LENGTH_SHORT).show()
             finish()
             return
@@ -200,8 +199,7 @@ class WebActivity : AppCompatActivity() {
             // 2) 允许第三方 cookie（登录态需要）
             try {
                 CookieManager.getInstance().setAcceptThirdPartyCookies(web, true)
-            } catch (t: Throwable) {
-            }
+            } catch (t: Throwable) { Err.ignore(t, "CookieManager.getInstance().setAcceptThirdPartyCoo") }
             // 3) 移动端 UA + 标识
             userAgentString = WebSettings.getDefaultUserAgent(this@WebActivity)
                 .replace("; wv)", ")") + " ModMigrator/" + versionName()
@@ -251,8 +249,7 @@ class WebActivity : AppCompatActivity() {
                     !u.startsWith("http://") && !u.startsWith("https://") -> {
                         try {
                             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(u)))
-                        } catch (e: Throwable) {
-                        }
+                        } catch (e: Throwable) { Err.ignore(e, "startActivity(Intent(Intent.ACTION_VIEW, Uri.parse") }
                         true
                     }
                     else -> false
@@ -332,12 +329,10 @@ class WebActivity : AppCompatActivity() {
                         ok = true
                         break
                     }
-                } catch (t: Throwable) {
-                }
+                } catch (t: Throwable) { Err.ignore(t, "break") }
                 try {
                     Thread.sleep(1500)
-                } catch (t: Throwable) {
-                }
+                } catch (t: Throwable) { Err.ignore(t, "Thread.sleep(1500)") }
                 // 页面已经关了就别查了
                 if (isFinishing || isDestroyed) break
             }
@@ -358,8 +353,7 @@ class WebActivity : AppCompatActivity() {
         runCatching { setResult(RESULT_OK) }
         try {
             finish()
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "finish()") }
     }
 
     private fun versionName(): String {
@@ -389,8 +383,7 @@ class WebActivity : AppCompatActivity() {
                     Toast.LENGTH_SHORT
                 ).show()
             }
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, ").show()") }
     }
 
     private fun looksLikeDownload(u: String): Boolean {
@@ -422,8 +415,7 @@ class WebActivity : AppCompatActivity() {
             1 -> {
                 try {
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(web.url)))
-                } catch (t: Throwable) {
-                }
+                } catch (t: Throwable) { Err.ignore(t, "startActivity(Intent(Intent.ACTION_VIEW, Uri.parse") }
             }
             2 -> web.reload()
             3 -> {
@@ -478,8 +470,7 @@ class WebActivity : AppCompatActivity() {
                 web.clearCache(true)
                 web.destroy()
             }
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "web.destroy()") }
         super.onDestroy()
     }
 
@@ -491,8 +482,7 @@ class WebActivity : AppCompatActivity() {
                 web.pauseTimers()
                 web.onPause()
             }
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "web.onPause()") }
     }
 
     override fun onResume() {
@@ -502,7 +492,6 @@ class WebActivity : AppCompatActivity() {
                 web.resumeTimers()
                 web.onResume()
             }
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "web.onResume()") }
     }
 }

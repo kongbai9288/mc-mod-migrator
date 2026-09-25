@@ -74,7 +74,8 @@ object SiteFeed {
                 out.addAll(fetchOne(s))
             } catch (t: Throwable) {
                 // 这个源挂了，跳过，继续下一个
-            }
+                     Err.ignore(t, "这个源挂了，跳过，继续下一个")
+                 }
         }
         if (out.isNotEmpty()) {
             cache = out

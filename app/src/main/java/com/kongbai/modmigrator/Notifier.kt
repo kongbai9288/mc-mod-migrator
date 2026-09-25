@@ -21,6 +21,7 @@ object Notifier {
             nm.notify(seq++, n)
         } catch (t: Throwable) {
             // ignore
-        }
+                 Err.ignore(t, "ignore")
+             }
     }
 }

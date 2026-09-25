@@ -51,8 +51,7 @@ object InstanceCreator {
                     dst.createDirectory(d)
                     made.add(d)
                 }
-            } catch (t: Throwable) {
-            }
+            } catch (t: Throwable) { Err.ignore(t, "made.add(d)") }
         }
         return made
     }

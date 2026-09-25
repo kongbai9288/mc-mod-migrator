@@ -73,16 +73,14 @@ object OfflineTranslate {
                 val i = line.indexOf('\t')
                 if (i > 0) m[line.substring(0, i)] = line.substring(i + 1)
             }
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "if (i > 0) m[line.substring(0, i)] = line.substrin") }
         return m
     }
 
     private fun saveCache(ctx: Context, key: String, value: String) {
         try {
             cacheFile(ctx).appendText("$key\t$value\n")
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "cacheFile(ctx).appendText(\"key\tvalue\n\")") }
     }
 
     /** 离线可用：先查缓存，再查内置词典，最后整句里逐词替换 */
@@ -104,7 +102,7 @@ object OfflineTranslate {
         var total = 0
         val out = words.map { w ->
             if (w.isBlank()) return@map w
-            if (w.length < 2 || !w[0].isLetter()) return@map w
+            if (w.length < 2 || !w.first().isLetter()) return@map w
             total++
             val zh = DICT[w.lowercase(Locale.ROOT)]
             if (zh != null) {

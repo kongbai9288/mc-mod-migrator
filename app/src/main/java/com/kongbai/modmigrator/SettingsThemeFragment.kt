@@ -52,8 +52,7 @@ class SettingsThemeFragment : Fragment() {
                     .setPositiveButton(R.string.ok) { _, _ ->
                         try {
                             activity?.recreate()
-                        } catch (e: Throwable) {
-                        }
+                        } catch (e: Throwable) { Err.ignore(e, "activity?.recreate()") }
                     }
                     .show()
             }

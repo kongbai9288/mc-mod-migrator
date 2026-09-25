@@ -85,9 +85,10 @@ object UpdateInstaller {
                     val id = intent?.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
                     if (id == null || id != lastId) return
                     try {
-                        install(c ?: app, id!!)
-                    } catch (t: Throwable) {
-                    }
+                        // id 为空就跳过，不能 !! 崩掉
+                        val pid = id
+                        if (pid != null) install(c ?: app, pid)
+                    } catch (t: Throwable) { Err.ignore(t, "install(c ?: app, id!!)") }
                 }
             }
             val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
@@ -97,8 +98,7 @@ object UpdateInstaller {
                 app.registerReceiver(r, filter)
             }
             receiver = r
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "receiver = r") }
     }
 
     /** 调起系统安装界面 */

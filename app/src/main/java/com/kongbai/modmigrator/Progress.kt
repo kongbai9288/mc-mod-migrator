@@ -137,8 +137,7 @@ object Progress {
         for (h in hooks) {
             try {
                 h(state)
-            } catch (t: Throwable) {
-            }
+            } catch (t: Throwable) { Err.ignore(t, "h(state)") }
         }
     }
 }

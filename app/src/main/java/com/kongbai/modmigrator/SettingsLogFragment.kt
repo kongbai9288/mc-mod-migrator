@@ -70,4 +70,11 @@ class SettingsLogFragment : Fragment() {
         val lines = s.split("\n")
         return if (lines.size > 400) lines.takeLast(400).joinToString("\n") else s
     }
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // 清理 Handler：页面销毁后若还有未执行的 post，
+        // 回调里访问已销毁的 View 会直接崩。
+        runCatching { handler.removeCallbacksAndMessages(null) }
+    }
+
 }

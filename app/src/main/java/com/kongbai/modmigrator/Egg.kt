@@ -50,7 +50,8 @@ object Egg {
                 runCatching { tg.release() }
             } catch (t: Throwable) {
                 // 播不出也要弹调色板，不能卡在"点了没反应"
-            }
+                     Err.ignore(t, "播不出也要弹调色板，不能卡在\"点了没反应\"")
+                 }
             handler.post {
                 playing = false
                 showPalette(ctx)
@@ -157,8 +158,7 @@ object Egg {
                     ).show()
                     try {
                         (ctx as? android.app.Activity)?.recreate()
-                    } catch (t: Throwable) {
-                    }
+                    } catch (t: Throwable) { Err.ignore(t, "(ctx as? android.app.Activity)?.recreate()") }
                 }
                 .setNegativeButton(R.string.cancel, null)
                 .create()

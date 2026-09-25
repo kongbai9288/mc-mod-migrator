@@ -642,4 +642,11 @@ class ToolsFragment : Fragment() {
         if (size < 1024 * 1024) return "${size / 1024}KB"
         return String.format(java.util.Locale.ROOT, "%.1fMB", size / 1024.0 / 1024.0)
     }
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // 清理 Handler：页面销毁后若还有未执行的 post，
+        // 回调里访问已销毁的 View 会直接崩。
+        runCatching { handler.removeCallbacksAndMessages(null) }
+    }
+
 }

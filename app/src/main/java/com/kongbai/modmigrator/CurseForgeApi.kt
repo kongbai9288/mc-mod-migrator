@@ -41,9 +41,10 @@ object CurseForgeApi {
             var fileId = ""
             var fileName = ""
             val lf = Json.a(d, "latestFiles")
+            // 先判空再取 [0]：之前直接 lf[0]，空数组时 IndexOutOfBounds 直接崩
             if (lf != null && lf.size() > 0) {
-                fileId = Json.s(lf[0], "id")
-                fileName = Json.s(lf[0], "fileName")
+                fileId = Json.s(lf.get(0), "id")
+                fileName = Json.s(lf.get(0), "fileName")
             }
             out.add(
                 MarketMod(

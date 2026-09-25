@@ -90,8 +90,7 @@ object Store {
                 .putString(K.LAST_VIEW_TITLE, title)
                 .putLong(K.LAST_VIEW_AT, System.currentTimeMillis())
                 .apply()
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, ".apply()") }
     }
 
     /** 上次查看的位置，没有则返回 null */
@@ -111,8 +110,7 @@ object Store {
             Prefs.get(ctx).edit()
                 .remove(K.LAST_VIEW_KEY).remove(K.LAST_VIEW_TITLE).remove(K.LAST_VIEW_AT)
                 .apply()
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, ".apply()") }
     }
 
     fun clear(c: Context) {

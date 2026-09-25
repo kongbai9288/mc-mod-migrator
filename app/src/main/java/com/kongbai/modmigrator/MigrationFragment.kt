@@ -438,7 +438,8 @@ class MigrationFragment : Fragment() {
                 context?.let { android.widget.Toast.makeText(it, s, android.widget.Toast.LENGTH_SHORT).show() }
             } catch (t: Throwable) {
                 // 界面已销毁，不弹
-            }
+                     Err.ignore(t, "界面已销毁，不弹")
+                 }
         }
     }
 
@@ -490,7 +491,7 @@ class MigrationFragment : Fragment() {
             var loader = "auto"
             val ls = Json.a(mcObj, "modLoaders")
             if (ls != null && ls.size() > 0) {
-                val idv = Json.s(ls[0], "id")
+                val idv = if (ls.size() > 0) Json.s(ls.get(0), "id") else ""
                 loader = when {
                     idv.startsWith("forge") -> "forge"
                     idv.startsWith("neoforge") -> "neoforge"
@@ -996,8 +997,7 @@ class MigrationFragment : Fragment() {
             pool.shutdown()
             try {
                 pool.awaitTermination(30, java.util.concurrent.TimeUnit.MINUTES)
-            } catch (t: Throwable) {
-            }
+            } catch (t: Throwable) { Err.ignore(t, "pool.awaitTermination(30, java.util.concurrent.Tim") }
 
             val ok = okCnt.get()
             val total = todo.size
@@ -1034,4 +1034,11 @@ class MigrationFragment : Fragment() {
             }
         }
     }
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // 清理 Handler：页面销毁后若还有未执行的 post，
+        // 回调里访问已销毁的 View 会直接崩。
+        runCatching { handler.removeCallbacksAndMessages(null) }
+    }
+
 }

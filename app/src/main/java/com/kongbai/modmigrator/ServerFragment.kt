@@ -161,8 +161,7 @@ class ServerFragment : Fragment() {
                 android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
                     android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             )
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, ")") }
         Prefs.get(ctx).edit().putString(K.PANEL_OUT_DIR, uri.toString()).apply()
         refreshOutDirLabel()
         toast("已设置存放位置")
@@ -340,7 +339,8 @@ class ServerFragment : Fragment() {
                 context?.let { android.widget.Toast.makeText(it, s, android.widget.Toast.LENGTH_SHORT).show() }
             } catch (t: Throwable) {
                 // 界面已销毁，不弹
-            }
+                     Err.ignore(t, "界面已销毁，不弹")
+                 }
         }
     }
 
@@ -560,4 +560,11 @@ class ServerFragment : Fragment() {
             toast("完成 $ok/${pend.size}")
         }
     }
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // 清理 Handler：页面销毁后若还有未执行的 post，
+        // 回调里访问已销毁的 View 会直接崩。
+        runCatching { handler.removeCallbacksAndMessages(null) }
+    }
+
 }

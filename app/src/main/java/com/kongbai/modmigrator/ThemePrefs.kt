@@ -61,8 +61,7 @@ object ThemePrefs {
         }
         try {
             AppCompatDelegate.setDefaultNightMode(m)
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "AppCompatDelegate.setDefaultNightMode(m)") }
     }
 
     /** 启动时调用一次 */

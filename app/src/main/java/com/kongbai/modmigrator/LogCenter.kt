@@ -17,14 +17,23 @@ object LogCenter {
     /** 内存里最多保留多少条（用于顶部展示） */
     private const val MAX_MEM = 300
 
-    /** 内存里的日志（最新的在前，最多保留 N 条用于顶部展示） */
-    private val lines = ArrayList<LogLine>(MAX_MEM)
+    /**
+     * 内存里的日志（最新的在前，最多保留 N 条用于顶部展示）。
+     *
+     * 这三个集合会被**多个线程同时访问**：日志可能从任意后台线程写入，
+     * 而监听器由 UI 线程注册/反注册。
+     * 之前用的是普通 ArrayList，并发下会 ConcurrentModificationException，
+     * 或者读到半改状态——这正是"崩溃日志莫名其妙丢内容"的原因。
+     * 现在统一换成线程安全的 CopyOnWriteArrayList
+     * （读远多于写，COW 在这个场景下开销可以接受）。
+     */
+    private val lines = java.util.concurrent.CopyOnWriteArrayList<LogLine>()
 
     /** 监听器：页面用来刷新顶部条数与预览 */
-    private val listeners = ArrayList<(List<LogLine>) -> Unit>()
+    private val listeners = java.util.concurrent.CopyOnWriteArrayList<(List<LogLine>) -> Unit>()
 
     /** 严重错误监听：页面用来弹窗 */
-    private val errorHooks = ArrayList<(LogLine) -> Unit>()
+    private val errorHooks = java.util.concurrent.CopyOnWriteArrayList<(LogLine) -> Unit>()
 
     data class LogLine(
         val time: String,
@@ -68,16 +77,14 @@ object LogCenter {
         for (l in listeners) {
             try {
                 l(ArrayList(lines))
-            } catch (t: Throwable) {
-            }
+            } catch (t: Throwable) { Err.ignore(t, "l(ArrayList(lines))") }
         }
         // 失败弹窗
         if (level == "E") {
             for (h in errorHooks) {
                 try {
                     h(line)
-                } catch (t: Throwable) {
-                }
+                } catch (t: Throwable) { Err.ignore(t, "h(line)") }
             }
         }
     }
@@ -99,8 +106,7 @@ object LogCenter {
         for (l in listeners) {
             try {
                 l(ArrayList(lines))
-            } catch (t: Throwable) {
-            }
+            } catch (t: Throwable) { Err.ignore(t, "l(ArrayList(lines))") }
         }
     }
 
@@ -116,7 +122,8 @@ object LogCenter {
             }
         } catch (t: Throwable) {
             // 落盘失败不能影响主流程
-        }
+                 Err.ignore(t, "落盘失败不能影响主流程")
+             }
     }
 
     /** 读出磁盘上的完整日志，供「设置 → 日志」查看 */
@@ -135,8 +142,7 @@ object LogCenter {
     fun clearFile(ctx: Context) {
         try {
             WorkDir.logs(ctx)?.findFile("app.log")?.delete()
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "WorkDir.logs(ctx)?.findFile(\"app.log\")?.delete()") }
         clear()
     }
 }

@@ -35,8 +35,7 @@ class WebCookies : CookieJar {
                 cm.setCookie(url.toString(), c.toString())
             }
             flush()
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "flush()") }
     }
 
     override fun loadForRequest(url: HttpUrl): List<Cookie> {
@@ -57,8 +56,7 @@ class WebCookies : CookieJar {
     private fun flush() {
         try {
             manager?.flush()
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "manager?.flush()") }
     }
 
     companion object {
@@ -75,16 +73,14 @@ class WebCookies : CookieJar {
                     }
                 }
                 cm.flush()
-            } catch (t: Throwable) {
-            }
+            } catch (t: Throwable) { Err.ignore(t, "cm.flush()") }
         }
 
         /** 预热：在主线程调用一次，避免首次使用时初始化慢 */
         fun warmUp() {
             try {
                 CookieManager.getInstance()
-            } catch (t: Throwable) {
-            }
+            } catch (t: Throwable) { Err.ignore(t, "CookieManager.getInstance()") }
         }
 
         /**
@@ -95,8 +91,7 @@ class WebCookies : CookieJar {
         fun flushAll() {
             try {
                 CookieManager.getInstance().flush()
-            } catch (t: Throwable) {
-            }
+            } catch (t: Throwable) { Err.ignore(t, "CookieManager.getInstance().flush()") }
         }
     }
 }

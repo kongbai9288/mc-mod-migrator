@@ -104,16 +104,14 @@ class DownloadService : Service() {
         private fun savePos(ctx: Context, task: Task, pos: Long) {
             try {
                 resumeFile(ctx, task).writeText(pos.toString())
-            } catch (t: Throwable) {
-            }
+            } catch (t: Throwable) { Err.ignore(t, "resumeFile(ctx, task).writeText(pos.toString())") }
         }
 
         fun clearPos(ctx: Context, task: Task) {
             try {
                 resumeFile(ctx, task).delete()
                 tempFile(ctx, task).delete()
-            } catch (t: Throwable) {
-            }
+            } catch (t: Throwable) { Err.ignore(t, "tempFile(ctx, task).delete()") }
         }
     }
 
@@ -212,8 +210,7 @@ class DownloadService : Service() {
             try {
                 stopForeground(true)
                 stopSelf()
-            } catch (e: Throwable) {
-            }
+            } catch (e: Throwable) { Err.ignore(e, "stopSelf()") }
         }
     }
 
@@ -256,15 +253,13 @@ class DownloadService : Service() {
                     task.total <= 0)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
             startForeground(9001, nb.build())
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "startForeground(9001, nb.build())") }
     }
 
     override fun onDestroy() {
         try {
             exec.shutdownNow()
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "exec.shutdownNow()") }
         super.onDestroy()
     }
 }

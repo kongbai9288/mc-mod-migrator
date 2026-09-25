@@ -24,8 +24,7 @@ object Favorites {
                 ctx.contentResolver.openInputStream(f.uri)?.use {
                     return it.readBytes().toString(Charsets.UTF_8)
                 }
-            } catch (t: Throwable) {
-            }
+            } catch (t: Throwable) { Err.ignore(t, "return it.readBytes().toString(Charsets.UTF_8)") }
         }
         return try {
             val f = java.io.File(ctx.filesDir, FILE)
@@ -52,13 +51,11 @@ object Favorites {
                     wrote = true
                 }
             }
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "") }
         try {
             java.io.File(ctx.filesDir, FILE).writeText(txt)
             wrote = true
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "wrote = true") }
         if (!wrote) {
             android.widget.Toast.makeText(ctx, "收藏保存失败", android.widget.Toast.LENGTH_SHORT).show()
         }
@@ -109,7 +106,8 @@ object Favorites {
             writeText(ctx, sb.toString())
         } catch (t: Throwable) {
             // 存不进去也不该崩
-        }
+                 Err.ignore(t, "存不进去也不该崩")
+             }
     }
 
     fun add(ctx: Context, m: MarketMod): Boolean {

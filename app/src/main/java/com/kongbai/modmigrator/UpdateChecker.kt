@@ -143,7 +143,7 @@ object UpdateChecker {
             // jsdelivr data API：{ "tags": {...}, "versions": [{"version":"1.1.0"}] }
             val versions = Json.a(root, "versions")
             if (versions != null && versions.size() > 0) {
-                val v = Json.s(versions[0], "version")
+                val v = if (versions.size() > 0) Json.s(versions.get(0), "version") else ""
                 if (v.isNotBlank()) {
                     return Release(
                         tag = v,
@@ -195,7 +195,8 @@ object UpdateChecker {
                 }
             } catch (t: Throwable) {
                 // 换下一个镜像
-            }
+                     Err.ignore(t, "换下一个镜像")
+                 }
         }
         return urls.last()
     }

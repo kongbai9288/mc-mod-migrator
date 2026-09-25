@@ -64,7 +64,8 @@ class MainActivity : AppCompatActivity() {
             SyncManager.schedule(this)
         } catch (t: Throwable) {
             // WorkManager 初始化失败也不能让主界面打不开
-        }
+                 Err.ignore(t, "WorkManager 初始化失败也不能让主界面打不开")
+             }
 
         CrashReport.showIfAny(this)
     }
@@ -77,16 +78,14 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         try {
             buildNav()
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "buildNav()") }
     }
 
     /** 供设置页改动导航栏后调用重建 */
     fun rebuildNav() {
         try {
             buildNav()
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "buildNav()") }
     }
 
     private fun buildNav() {
@@ -184,8 +183,7 @@ class MainActivity : AppCompatActivity() {
                 .replace(R.id.fragment_container, f)
                 .addToBackStack("settings:$page")
                 .commit()
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, ".commit()") }
     }
 
     /**
@@ -223,8 +221,7 @@ class MainActivity : AppCompatActivity() {
                         }
                         .setCancelable(true)
                         .show()
-                } catch (t: Throwable) {
-                }
+                } catch (t: Throwable) { Err.ignore(t, ".show()") }
             }
         }.start()
     }
@@ -289,7 +286,6 @@ class MainActivity : AppCompatActivity() {
             }
             tx.replace(R.id.fragment_container, f)
             tx.commit()
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "tx.commit()") }
     }
 }

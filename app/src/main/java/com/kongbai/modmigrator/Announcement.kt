@@ -112,7 +112,8 @@ object Announcement {
                 if (n != null) return n
             } catch (t: Throwable) {
                 // 换下一个镜像
-            }
+                     Err.ignore(t, "换下一个镜像")
+                 }
         }
         return null
     }

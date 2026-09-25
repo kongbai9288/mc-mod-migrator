@@ -55,7 +55,7 @@ class ModPageActivity : AppCompatActivity() {
     private fun safePostA(h: android.os.Handler, block: () -> Unit) {
         h.post {
             if (isFinishing || isDestroyed) return@post
-            try { block() } catch (t: Throwable) { }
+            try { block() } catch (t: Throwable) { Err.ignore(t, "try { block() }") }
         }
     }
 
@@ -66,7 +66,8 @@ class ModPageActivity : AppCompatActivity() {
                 android.widget.Toast.makeText(this, s, android.widget.Toast.LENGTH_SHORT).show()
             } catch (t: Throwable) {
                 // 界面已销毁，不弹
-            }
+                     Err.ignore(t, "界面已销毁，不弹")
+                 }
         }
     }
 
@@ -199,7 +200,8 @@ class ModPageActivity : AppCompatActivity() {
                     view.evaluateJavascript(sc, null)
                 } catch (t: Throwable) {
                     // 注入失败不影响页面显示
-                }
+                         Err.ignore(t, "注入失败不影响页面显示")
+                     }
                 pendingScript = null
                 return
             }
@@ -290,7 +292,8 @@ class ModPageActivity : AppCompatActivity() {
 
             } catch (t: Throwable) {
                 // 后台异常不崩进程
-            }
+                     Err.ignore(t, "后台异常不崩进程")
+                 }
         }
     }
 
@@ -326,11 +329,15 @@ class ModPageActivity : AppCompatActivity() {
                             android.net.Uri.parse(web.url)
                         )
                     )
-                } catch (t: Throwable) {
-                }
+                } catch (t: Throwable) { Err.ignore(t, ")") }
             }
         }
         return true
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        runCatching { handler.removeCallbacksAndMessages(null) }
     }
 
 }

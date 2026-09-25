@@ -102,15 +102,13 @@ class ProgressDialog private constructor(
                 lastAt = now
                 lastDone = done
             }
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "lastDone = done") }
     }
 
     fun dismiss() {
         try {
             dlg?.dismiss()
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "dlg?.dismiss()") }
     }
 
     private fun mb(b: Long): String {

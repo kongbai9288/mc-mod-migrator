@@ -81,8 +81,7 @@ object DelayedDownload {
                 try {
                     if (url != null) onGot(url)
                     else onFail("等待超时，没等到下载地址")
-                } catch (t: Throwable) {
-                }
+                } catch (t: Throwable) { Err.ignore(t, "else onFail(\"等待超时，没等到下载地址\")") }
                 cleanup(web)
             }
         }
@@ -178,8 +177,7 @@ object DelayedDownload {
                 (parent as? android.view.ViewGroup)?.removeView(this)
                 destroy()
             }
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "destroy()") }
         activeWebView = null
         busy = false
     }

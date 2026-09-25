@@ -66,7 +66,9 @@ class EditorActivity : AppCompatActivity() {
                 val df = androidx.documentfile.provider.DocumentFile.fromSingleUri(
                     this, android.net.Uri.parse(uri)
                 )
-                contentResolver.openInputStream(df!!.uri)?.bufferedReader()?.readText() ?: ""
+                // df 为空时安静返回空串，不能 !!（会 NPE 直接崩）
+                val u = df?.uri ?: return@let ""
+                contentResolver.openInputStream(u)?.bufferedReader()?.readText() ?: ""
             } catch (t: Throwable) {
                 "读取失败：${t.message}"
             }

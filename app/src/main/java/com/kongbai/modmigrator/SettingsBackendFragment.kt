@@ -102,8 +102,7 @@ class SettingsBackendFragment : Fragment() {
                     android.net.Uri.parse("https://github.com/settings/developers")
                 )
             )
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, ")") }
     }
 
     private fun probe() {
@@ -119,7 +118,15 @@ class SettingsBackendFragment : Fragment() {
 
             } catch (t: Throwable) {
                 // 后台异常不崩进程
-            }
+                     Err.ignore(t, "后台异常不崩进程")
+                 }
         }
     }
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // 清理 Handler：页面销毁后若还有未执行的 post，
+        // 回调里访问已销毁的 View 会直接崩。
+        runCatching { handler.removeCallbacksAndMessages(null) }
+    }
+
 }

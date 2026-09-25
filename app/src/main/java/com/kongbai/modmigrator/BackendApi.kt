@@ -48,7 +48,8 @@ object BackendApi {
                 return Http.get(b + path)
             } catch (t: Throwable) {
                 // 换下一个兜底地址
-            }
+                     Err.ignore(t, "换下一个兜底地址")
+                 }
         }
         return null
     }
@@ -60,7 +61,8 @@ object BackendApi {
                 return Pair(b, Http.get(b + path))
             } catch (t: Throwable) {
                 // 换下一个兜底地址
-            }
+                     Err.ignore(t, "换下一个兜底地址")
+                 }
         }
         return null
     }
@@ -146,8 +148,7 @@ object BackendApi {
     fun logout(ctx: Context) {
         try {
             Http.get(authBase() + "/api/auth/logout")
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "Http.get(authBase() + \"/api/auth/logout\")") }
     }
 
     /** 后端搜索（CurseForge 代理）。全部地址都失败返回 emptyList。 */

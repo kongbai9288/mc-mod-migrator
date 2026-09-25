@@ -72,8 +72,7 @@ class SettingsLangFragment : Fragment() {
                     .setPositiveButton(R.string.ok) { _, _ ->
                         try {
                             activity?.recreate()
-                        } catch (t: Throwable) {
-                        }
+                        } catch (t: Throwable) { Err.ignore(t, "activity?.recreate()") }
                     }
                     .show()
             }
@@ -95,8 +94,7 @@ class SettingsLangFragment : Fragment() {
                 if (u.isNotBlank()) {
                     WebActivity.open(requireContext(), u, "")
                 }
-            } catch (t: Throwable) {
-            }
+            } catch (t: Throwable) { Err.ignore(t, "WebActivity.open(requireContext(), u, \"\")") }
         })
         return scroll
     }
@@ -142,10 +140,8 @@ class SettingsLangFragment : Fragment() {
                 resources.updateConfiguration(cfg, resources.displayMetrics)
                 try {
                     activity?.recreate()
-                } catch (t: Throwable) {
-                }
+                } catch (t: Throwable) { Err.ignore(t, "activity?.recreate()") }
             }
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "") }
     }
 }

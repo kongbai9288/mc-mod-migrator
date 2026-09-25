@@ -190,7 +190,7 @@ object InstanceScanner {
             info.mcVersion = Json.s(mcObj, "version")
             val ls = Json.a(mcObj, "modLoaders")
             if (ls != null && ls.size() > 0) {
-                val idv = Json.s(ls[0], "id")
+                val idv = if (ls.size() > 0) Json.s(ls.get(0), "id") else ""
                 info.loader = Loaders.normalize(idv)
             }
             info.kind = "CurseForge"
@@ -378,7 +378,7 @@ object InstanceScanner {
             info.mcVersion = Json.s(mcObj, "version")
             val ls = Json.a(mcObj, "modLoaders")
             if (ls != null && ls.size() > 0) {
-                val idv = Json.s(ls[0], "id")
+                val idv = if (ls.size() > 0) Json.s(ls.get(0), "id") else ""
                 info.loader = Loaders.normalize(idv)
             }
             info.kind = "CurseForge"

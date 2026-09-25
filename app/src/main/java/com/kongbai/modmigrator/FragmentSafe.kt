@@ -30,7 +30,8 @@ fun Fragment.safePost(handler: Handler, block: () -> Unit) {
             block()
         } catch (t: Throwable) {
             // 界面已经不在了，静默吞掉，避免崩溃
-        }
+                 Err.ignore(t, "界面已经不在了，静默吞掉，避免崩溃")
+             }
     }
 }
 

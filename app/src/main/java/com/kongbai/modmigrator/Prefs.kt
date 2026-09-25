@@ -40,7 +40,54 @@ object Prefs {
                 ctx.getSharedPreferences("mm_plain", Context.MODE_PRIVATE)
             }
         }
-        return prefs!!
+        // prefs 为 null 说明 init 没跑到（极端情况，比如进程被杀后重建）。
+        // 不能 !!（会 NPE 崩），退化到一个内存里的空实现：
+        // 读不到配置只会用默认值，不会让应用起不来。
+        return prefs ?: fallback(ctx)
+    }
+
+    @Volatile
+    private var fallbackPrefs: SharedPreferences? = null
+
+    private fun fallback(ctx: Context): SharedPreferences {
+        fallbackPrefs?.let { return it }
+        val p = try {
+            ctx.getSharedPreferences("mm_fallback", Context.MODE_PRIVATE)
+        } catch (t: Throwable) {
+            // 连 SharedPreferences 都拿不到时，用一个纯内存实现兜底
+            object : SharedPreferences {
+                private val m = HashMap<String, Any?>()
+                override fun getAll(): Map<String, *> = m
+                override fun getString(k: String, d: String?): String? = m[k] as? String ?: d
+                override fun getStringSet(k: String, d: MutableSet<String>?): MutableSet<String>? =
+                    @Suppress("UNCHECKED_CAST") (m[k] as? MutableSet<String> ?: d)
+                override fun getInt(k: String, d: Int): Int = m[k] as? Int ?: d
+                override fun getLong(k: String, d: Long): Long = m[k] as? Long ?: d
+                override fun getFloat(k: String, d: Float): Float = m[k] as? Float ?: d
+                override fun getBoolean(k: String, d: Boolean): Boolean = m[k] as? Boolean ?: d
+                override fun contains(k: String): Boolean = m.containsKey(k)
+                override fun edit(): SharedPreferences.Editor = object : SharedPreferences.Editor {
+                    override fun putString(k: String, v: String?): SharedPreferences.Editor { m[k] = v; return this }
+                    override fun putStringSet(k: String, v: MutableSet<String>?): SharedPreferences.Editor { m[k] = v; return this }
+                    override fun putInt(k: String, v: Int): SharedPreferences.Editor { m[k] = v; return this }
+                    override fun putLong(k: String, v: Long): SharedPreferences.Editor { m[k] = v; return this }
+                    override fun putFloat(k: String, v: Float): SharedPreferences.Editor { m[k] = v; return this }
+                    override fun putBoolean(k: String, v: Boolean): SharedPreferences.Editor { m[k] = v; return this }
+                    override fun remove(k: String): SharedPreferences.Editor { m.remove(k); return this }
+                    override fun clear(): SharedPreferences.Editor { m.clear(); return this }
+                    override fun commit(): Boolean = true
+                    override fun apply() {}
+                }
+                override fun registerOnSharedPreferenceChangeListener(
+                    l: SharedPreferences.OnSharedPreferenceChangeListener?
+                ) {}
+                override fun unregisterOnSharedPreferenceChangeListener(
+                    l: SharedPreferences.OnSharedPreferenceChangeListener?
+                ) {}
+            }
+        }
+        fallbackPrefs = p
+        return p
     }
 }
 

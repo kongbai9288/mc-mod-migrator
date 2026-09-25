@@ -26,8 +26,7 @@ object CrashReport {
     fun clear(ctx: Context) {
         try {
             file(ctx).delete()
-        } catch (t: Throwable) {
-        }
+        } catch (t: Throwable) { Err.ignore(t, "file(ctx).delete()") }
     }
 
     /** 有崩溃记录就弹窗；只在 Activity 里调，且整体包了 try 防止二次崩溃 */
@@ -52,6 +51,7 @@ object CrashReport {
                 .show()
         } catch (t: Throwable) {
             // 弹窗本身出错也不能把应用搞崩
-        }
+                 Err.ignore(t, "弹窗本身出错也不能把应用搞崩")
+             }
     }
 }

@@ -128,7 +128,8 @@ object MrpackExport {
             zos.closeEntry()
         } catch (t: Throwable) {
             // 单个文件失败不影响整个包
-        }
+                 Err.ignore(t, "单个文件失败不影响整个包")
+             }
     }
 
     /** 极简 JSON 构造：不引第三方库，字段固定可控 */
