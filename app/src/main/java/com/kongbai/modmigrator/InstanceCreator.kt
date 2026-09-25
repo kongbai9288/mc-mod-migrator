@@ -90,7 +90,7 @@ object InstanceCreator {
      */
     fun writeMmcPack(ctx: Context, dst: DocumentFile, name: String, mc: String, loader: String): Boolean {
         return try {
-            val comps = ArrayList<String>()
+            val comps = ArrayList<org.json.JSONObject>()
             when (loader.lowercase()) {
                 "fabric" -> comps.add(comp("net.fabricmc.intermediary", mc))
                 "quilt" -> comps.add(comp("org.quiltmc.intermediary", mc))
