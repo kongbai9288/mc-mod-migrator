@@ -65,7 +65,8 @@ fun search(query: String, mc: String, loader: String, limit: Int = 20, offset: I
  */
 fun search(
     query: String, mc: String, loader: String,
-    limit: Int = 20, offset: Int = 0, side: Environ.Side? = null
+    limit: Int = 20, offset: Int = 0, side: Environ.Side? = null,
+    index: String = "downloads"
 ): List<MarketMod> {
         val filters = ArrayList<String>()
         filters.add("""project_types=["mod"]""")
@@ -79,8 +80,12 @@ fun search(
         val envFilter = if (side == null) null else Environ.filterFor(side)
         if (!envFilter.isNullOrBlank()) filters.add(envFilter)
         val nf = filters.joinToString(" AND ")
+        // index 是排序方式：downloads（下载量）/ newest（最新发布）/
+        // updated（最近更新）/ follows / relevance。
+        // 之前写死 downloads，资讯页想看"最新模组"时只能按下载量排，
+        // 出来的全是老牌热门模组，没有新东西。
         val url = "${base()}/search?query=${Http.enc(query)}" +
-            "&limit=$limit&offset=$offset&index=downloads&new_filters=${Http.enc(nf)}"
+            "&limit=$limit&offset=$offset&index=$index&new_filters=${Http.enc(nf)}"
         val root = Json.obj(Http.get(url)) ?: return emptyList()
         val hits = Json.a(root, "hits") ?: return emptyList()
         val out = mutableListOf<MarketMod>()

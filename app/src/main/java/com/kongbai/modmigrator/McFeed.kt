@@ -65,11 +65,14 @@ object McFeed {
             "a[href*='/schematic/']",
             "投影（schematic）下载"
         ),
+        // ⚠️ 原站点是 `https://www.redstoneplan.com/`，**无法核实**（连接失败），
+        //    且"红石计划"本身是一个 MOD 名（ProjectRed 的非官方续作）而非站点。
+        //    换成确实存在、且有红石/生电内容的入口。
         Zone(
-            REDSTONE, "红石", "红石计划",
-            "https://www.redstoneplan.com/",
-            "a[href*='/post/'], a[href*='/article/']",
-            "红石机械与生电"
+            REDSTONE, "红石与生电", "CurseForge 存档",
+            "https://www.curseforge.com/minecraft/worlds",
+            "a[href*='/worlds/'], a[href*='/minecraft/worlds/']",
+            "生电存档与红石机械"
         )
     )
 
@@ -108,6 +111,22 @@ object McFeed {
         // 抓不到才退回 Jsoup 抓 Wiki
         if (key == OFFICIAL) {
             val viaApi = officialVersions(ctx)
+            if (viaApi.isNotEmpty()) {
+                put(key, viaApi)
+                return viaApi
+            }
+        }
+
+        // ── "最新模组"改用 Modrinth 的**接口**，不再抓网页 ──
+        // 之前是 Jsoup 抓 `https://modrinth.com/mods?g=1.20.1`：
+        //  1. **Modrinth 是 SPA**（前端渲染），Jsoup 拿到的静态 HTML 里
+        //     根本没有模组列表 → 这一块永远空着，只会显示"暂时没抓到内容"。
+        //     同一个坑在 PageParser 那边已经踩过一次。
+        //  2. 版本**写死 1.20.1**，用户在 1.21 看到的还是 1.20.1 的模组。
+        // 改成走 /v3/search 并按 newest 排序（之前 index 写死 downloads，
+        // 排出来全是老牌热门，没有新模组）。
+        if (key == MODS) {
+            val viaApi = latestMods(ctx)
             if (viaApi.isNotEmpty()) {
                 put(key, viaApi)
                 return viaApi
@@ -210,6 +229,37 @@ object McFeed {
             }
             out
         } catch (t: Throwable) {
+            emptyList()
+        }
+    }
+
+    /**
+     * 最新模组：走 Modrinth 的搜索接口，按**发布时间**倒序。
+     *
+     * 用设置里的默认 MC 版本/加载器过滤；没填版本就不过滤，
+     * 至少能看到东西，而不是空白。
+     */
+    private fun latestMods(ctx: android.content.Context): List<Item> {
+        return try {
+            val p = Prefs.get(ctx)
+            val mc = p.getString(K.DEF_VERSION, "") ?: ""
+            val ld = p.getString(K.DEF_LOADER, "auto") ?: "auto"
+            val hits = ModrinthApi.search("", mc, ld, PER_ZONE, 0, null, "newest")
+            val out = ArrayList<Item>()
+            for (h in hits) {
+                val page = h.pageUrl.ifBlank { "https://modrinth.com/mod/${h.slug}" }
+                out.add(
+                    Item(
+                        title = h.name.take(60),
+                        url = page,
+                        source = "Modrinth",
+                        extra = h.summary.take(30)
+                    )
+                )
+            }
+            out
+        } catch (t: Throwable) {
+            Err.ignore(t, "抓最新模组（Modrinth 接口）")
             emptyList()
         }
     }
