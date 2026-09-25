@@ -301,8 +301,18 @@ class ModManagerFragment : Fragment() {
             val list = if (dir == null) emptyList()
             else try {
                 Fs.children(dir).filter {
-                    it.isFile && (it.name?.endsWith(".jar", true) == true ||
-                        it.name?.endsWith(".zip", true) == true)
+                    // ── 必须把"已禁用"的也列出来 ──────────────────
+                    // 禁用的做法是把 x.jar 改名成 x.jar.disabled（见 ModToggle）。
+                    // 之前只认 .jar / .zip，于是禁用后的文件
+                    // **从列表里彻底消失** —— 用户再也看不到它、
+                    // 也就没法点「启用」把它变回来。
+                    // 表现为：禁用成功 → 模组不见了 → 只能自己去文件管理器改后缀。
+                    // 现在两种后缀都收进来，界面上用"已禁用"标记区分。
+                    if (!it.isFile) return@filter false
+                    val n = it.name ?: return@filter false
+                    n.endsWith(".jar", true) || n.endsWith(".zip", true) ||
+                        n.endsWith("${ModToggle.SUFFIX}", true) ||
+                        n.endsWith(".zip.disabled", true)
                 }
             } catch (t: Throwable) {
                 emptyList()
@@ -348,8 +358,11 @@ class ModManagerFragment : Fragment() {
                     if (disabled) append(" · 已禁用")
                     append(" · 点击查看信息，长按删除")
                 },
-                "详情"
-            ) { showInfo(f) }
+                // 已禁用的卡片上直接给"启用"，不用先去勾选再点批量按钮
+                if (disabled) "启用" else "详情"
+            ) {
+                if (disabled) toggleOne(f, false) else showInfo(f)
+            }
             card.setOnLongClickListener { confirmDelete(f) }
 
             // 勾选框 + 卡片，支持批量
@@ -381,6 +394,18 @@ class ModManagerFragment : Fragment() {
             }
         }
         syncBatchBar()
+    }
+
+    /** 单个模组启用 / 禁用 */
+    private fun toggleOne(f: DocumentFile, disable: Boolean) {
+        val ctx = context ?: return
+        exec.execute {
+            val r = if (disable) ModToggle.disable(f) else ModToggle.enable(f)
+            safePost(handler) {
+                toast(if (r == null) "操作失败" else if (disable) "已禁用" else "已启用")
+                if (r != null) load()
+            }
+        }
     }
 
     /** 详情：读 jar 里的清单文件 */
@@ -497,9 +522,16 @@ class ModManagerFragment : Fragment() {
         return true
     }
 
-    /** 撤销提示 */
+    /**
+     * 撤销提示。
+     *
+     * 之前用 `it.name == name` 找刚删的那条 —— 但回收站里的 `name`
+     * 在同名时是**带序号**的（`sodium(1).jar`），跟原始文件名对不上，
+     * 于是 `firstOrNull` 返回 null 直接 return，**撤销入口根本不出现**。
+     * 现在按 `restoreName`（原始文件名）匹配。
+     */
     private fun showUndo(ctx: android.content.Context, name: String) {
-        val item = Trash.items(ctx).firstOrNull { it.name == name } ?: return
+        val item = Trash.items(ctx).firstOrNull { it.restoreName == name } ?: return
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
             // 用对话框给撤销机会
             try {
