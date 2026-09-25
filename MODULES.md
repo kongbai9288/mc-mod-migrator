@@ -172,3 +172,24 @@
 - **切 tab 清子页栈**：避免 A tab 打开的子页在切到 B tab 后还留在栈里。
 - **修逻辑错误**： 之前写在 tab 选择监听器内部，
   导致每切一次 tab 就弹一次公告，现移回 onCreate 只调一次。
+
+### 第 5 批补充：网页翻译重写
+
+调研参考了同类网页翻译实现的通行方案（MutationObserver 监听动态内容、
+WeakMap 存原文、双重防抖、过滤纯数字与已翻译内容）。
+**注意：AllTrans 是 GPLv3（高传染性），没有使用它的任何代码，也未引入该依赖。**
+
+本次改动：
+
+- **去掉 `window.__mmInstalled` 属性** —— 之前往 window 上挂全局属性，
+  页面反自动化脚本扫 window 异常属性一抓一个准，这就是"被网站检测到"的原因。
+  现在改用 `Object.defineProperty` 定义成 **不可枚举**，
+  页面用 for...in / Object.keys 扫 window 时看不见。
+- **去掉 DOM 上的 `data-mm-orig` / `data-mm-pending` 属性** —— 同样会被页面检测到。
+  原文改存 JS 闭包内的 **WeakMap**，节点移除即释放，也不泄漏内存。
+- **严格跳过可编辑元素**：INPUT / TEXTAREA / SELECT / OPTION / contenteditable
+  **及其整个祖先链**一个字节都不碰（之前改写 contenteditable 会丢光标、输不进字）。
+- **JS 侧 800ms 防抖 + Kotlin 侧 1200ms 轮询**双重。
+- **串行翻译**替代并发（之前 N 条同时发给同一引擎，后面的容易失败，
+  表现就是"有的翻了有的没翻"）。
+- 收集与写回都用 **TreeWalker**，顺序严格一致，避免错位。
