@@ -384,7 +384,12 @@ class ModManagerFragment : Fragment() {
             line.addView(card)
             box.addView(line)
 
-            // 图标异步加载
+            // 图标异步加载。
+            // 之前取不到 jar 内图标时，图标位就一直是通用的灰方块，
+            // 而**加载器图标（Fabric/Forge/NeoForge/Quilt/OptiFine）全都没用上**
+            // ——资源画好了却一处都没接线，等于白画。
+            // 现在：取不到模组自带图标时，退到加载器图标，
+            // 列表里一眼能看出这是 Fabric 还是 Forge 模组。
             val iv = (card as? ViewGroup)?.getChildAt(0) as? android.widget.ImageView
             if (iv != null) {
                 exec.submit {
@@ -393,7 +398,18 @@ class ModManagerFragment : Fragment() {
                     } catch (t: Throwable) {
                         null
                     }
-                    if (bmp != null) handler.post { iv.setImageBitmap(bmp) }
+                    val loader = try {
+                        if (bmp == null) ModMeta.read(ctx, f.uri).loader else ""
+                    } catch (t: Throwable) {
+                        ""
+                    }
+                    handler.post {
+                        if (bmp != null) {
+                            iv.setImageBitmap(bmp)
+                        } else if (loader.isNotBlank()) {
+                            iv.setImageResource(LoaderIcons.res(loader))
+                        }
+                    }
                 }
             }
         }
@@ -421,11 +437,29 @@ class ModManagerFragment : Fragment() {
         val ctx = context ?: return
         val name = f.name ?: return
         Thread {
+            val meta = try {
+                ModMeta.read(ctx, f.uri)
+            } catch (t: Throwable) {
+                null
+            }
             val info = readJarInfo(ctx, f)
+            // OptiFine 不是标准模组，元数据里查不到，只能靠特征类识别。
+            // 之前这段检测写好了没接上，用户在详情里看不出装的是不是 OptiFine。
+            val optifine = if (meta?.isKnown == false) {
+                runCatching { LoaderIcons.detectOptiFine(ctx, f.uri) }.getOrDefault(false)
+            } else false
             handler.post {
                 MaterialAlertDialogBuilder(ctx)
                     .setTitle(name.substringBeforeLast("."))
-                    .setMessage(info)
+                    // 加载器图标接上：详情里能直接看到是哪种加载器
+                    .setIcon(
+                        LoaderIcons.res(
+                            if (optifine) "optifine" else (meta?.loader ?: "")
+                        )
+                    )
+                    .setMessage(
+                        if (optifine) "$info\n\n识别出这是 OptiFine。" else info
+                    )
                     .setPositiveButton("删除") { _, _ -> confirmDelete(f) }
                     // 之前编辑器写好了但没有任何入口，等于空页面。
                     // 这里补上：从模组详情直接进编辑器改这个 jar 内的配置。

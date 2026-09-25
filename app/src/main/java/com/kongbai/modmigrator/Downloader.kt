@@ -73,6 +73,18 @@ object Downloader {
         if (tmp == null || !tmp.exists() || tmp.length() <= 0L) {
             return null
         }
+        // ── 流量统计：下载才是这个应用最大的流量来源 ──────────────
+        // 之前只在 `Http.get`（小 API 响应）里计数，而下载走的是
+        // `Http.call` + 直接读 body 流，**从来没被统计过**。
+        // 结果：下了几百 MB 模组，流量提醒纹丝不动，
+        // 用户提的"用流量时提醒"对下载完全失效。
+        // 这里按实际落盘体积补记一次。
+        try {
+            val bytes = tmp.length()
+            if (bytes > 0) Traffic.record(ctx, bytes)
+        } catch (t: Throwable) {
+            Err.ignore(t, "记录下载流量")
+        }
         return try {
             val existing = dir.findFile(name)
             if (existing != null) existing.delete()
