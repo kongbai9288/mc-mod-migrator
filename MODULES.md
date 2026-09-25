@@ -73,7 +73,7 @@
 
 | 模块 | 文件 | 关键函数 | 状态 |
 |---|---|---|---|
-| 文件 | `Fs.kt` | `tree` `find` `copyInto` `sha1` `ensureDir` | 待重写（子目录缓存） |
+| 文件 | `Fs.kt` | `tree` `find` `copyInto` `sha1` `ensureDir` | 已重写（子目录缓存） |
 | 下载 | `Downloader.kt` `DownloadService.kt` | `download` | 待重写（原子提交 .part） |
 | 延迟下载 | `DelayedDownload.kt` | CF 读秒页后台捕获 | 已重写 |
 | 实例扫描 | `InstanceScanner.kt` | `scanFiles` `scanFrom` | 待重写 |

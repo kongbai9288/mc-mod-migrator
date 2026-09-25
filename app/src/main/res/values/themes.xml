@@ -7,6 +7,10 @@
         <item name="android:windowBackground">@color/bg</item>
         <item name="android:statusBarColor">@color/primaryDark</item>
         <item name="preferenceTheme">@style/PreferenceThemeOverlay</item>
+        <!-- 让布局里所有原生 <Button> 都渲染成 MaterialButton 并跟主题色。
+             不设这个的话，XML 里的 <Button> 会用系统默认灰色，
+             换主题色完全不跟着变（"按钮是灰的"就是这个原因）。 -->
+        <item name="materialButtonStyle">@style/AppButton</item>
     </style>
 
     <style name="Theme.ModMigrator.Green" parent="Theme.ModMigrator" />

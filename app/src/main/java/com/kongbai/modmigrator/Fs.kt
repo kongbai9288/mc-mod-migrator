@@ -41,10 +41,29 @@ object Fs {
         return null
     }
 
+    // ---- 子目录缓存 ----
+    // DocumentFile.findFile() 在树授权下是**跨进程调用**，
+    // 迁移几十个文件时会被反复调用上百次，既慢又让人觉得"一直在请求授权"。
+    // 这里按 uri 缓存解析结果，同一进程内同一目录只解析一次。
+    private val dirCache = java.util.Collections.synchronizedMap(
+        LinkedHashMap<String, DocumentFile>(64, 0.75f, true)
+    )
+
+    /** 切换工作目录时必须调这个，否则会拿到旧目录的缓存 */
+    fun clearCache() {
+        synchronized(dirCache) { dirCache.clear() }
+    }
+
     fun ensureDir(root: DocumentFile, name: String): DocumentFile {
+        val key = root.uri.toString() + "#" + name
+        dirCache[key]?.let { return it }
         val hit = find(root, name, 0)
-        if (hit != null && hit.isDirectory) return hit
-        return root.createDirectory(name) ?: root
+        val out = if (hit != null && hit.isDirectory) hit else (root.createDirectory(name) ?: root)
+        synchronized(dirCache) {
+            if (dirCache.size > 200) dirCache.clear()
+            dirCache[key] = out
+        }
+        return out
     }
 
     fun readText(ctx: Context, file: DocumentFile): String {
