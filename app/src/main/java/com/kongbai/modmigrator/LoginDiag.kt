@@ -86,6 +86,25 @@ object LoginDiag {
         }
         add("2. 获取 GitHub 授权地址", loginUrl.contains("github.com"), urlDetail)
 
+        // ---- 第 2.5 步：state cookie 有没有真的写进浏览器 ----
+        // 后端 /api/auth/callback 要拿它做 CSRF 校验（见后端源码），
+        // 缺了它，用户会在 GitHub 上授权成功、然后回调报 "state 校验失败"。
+        // 这一步专门抓这个失败模式，否则现象会非常迷惑。
+        if (loginUrl.contains("github.com")) {
+            try {
+                val raw = CookieManager.getInstance()?.getCookie(base) ?: ""
+                val hasState = raw.contains("mm_oauth_state")
+                add(
+                    "2.5 浏览器里的 state cookie",
+                    hasState,
+                    if (hasState) "已写入 mm_oauth_state，回调校验能通过"
+                    else "缺少 mm_oauth_state —— 授权成功后回调会报 state 校验失败"
+                )
+            } catch (t: Throwable) {
+                add("2.5 浏览器里的 state cookie", false, "读不到：${t.message?.take(60)}")
+            }
+        }
+
         // ---- 第 3 步：会话 cookie 是否存在（WebView 侧） ----
         var hasCookie = false
         var cookieDetail = ""

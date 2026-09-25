@@ -44,18 +44,22 @@ class SettingsMainFragment : Fragment() {
         onLoginReturned()
     }
 
-    /** 从登录页返回：刷 cookie → 取 token → 刷新界面 */
+    /**
+     * 从登录页返回：刷 cookie → 刷新界面。
+     *
+     * 之前这里还会调 BackendApi.fetchToken() 去"自动取回 token"，
+     * 但后端根本没有 /api/auth/token 这个接口（详见 docs/接口对照-后端.md），
+     * 那个请求必然 404，属于凭空编造。现在去掉这一步。
+     *
+     * 后端把 Client Secret 托管在服务端，本来也不该把 GitHub token 下发给客户端，
+     * 所以这里只负责确认登录态并展示用户信息。
+     */
     private fun onLoginReturned() {
         val ctx = context ?: return
         toast("正在完成登录…")
         exec.execute {
             // cookie 落盘后再查，否则可能读到旧快照
             runCatching { WebCookies.flushAll() }
-            // 后端有 token 接口就自动取回，不用用户手填
-            val t = runCatching { BackendApi.fetchToken(ctx) }.getOrNull()
-            if (!t.isNullOrBlank()) {
-                Prefs.get(ctx).edit().putString(K.TOKEN, t).apply()
-            }
             handler.post {
                 if (!isAdded) return@post
                 refreshAccount()
@@ -189,41 +193,51 @@ class SettingsMainFragment : Fragment() {
         val ctx = requireContext()
         toast("正在打开授权页…")
         exec.execute {
-            val url = try {
+            val start = try {
                 BackendApi.loginUrl(ctx)
             } catch (t: Throwable) {
-                ""
+                // loginUrl 内部已兜住网络异常，这里只是最后一道保险
+                BackendApi.LoginStart(error = Http.describeError(t))
             }
             handler.post {
                 if (!isAdded) return@post
-                if (url.isBlank()) {
-                    tvConnState.text = getString(R.string.conn_blocked_hint)
-                    // 之前只说"连不上"，用户不知道是网络问题还是后端没配好。
-                    // 现在直接把诊断入口摆出来，点一下就知道卡在哪。
+                if (start.url.isBlank()) {
+                    // 之前不管什么情况都显示同一句"连不上"，
+                    // 用户分不清是网络问题还是后端没配好。
+                    // 现在把后端返回的真实原因直接摆出来。
+                    val reason = start.error.ifBlank { "未知原因" }
+                    tvConnState.text = reason
                     MaterialAlertDialogBuilder(ctx)
                         .setTitle("拿不到登录地址")
                         .setMessage(
-                            "后端没返回 GitHub 授权地址。\n\n" +
-                                "可能是网络不通（workers.dev 国内常不稳），" +
-                                "也可能是后端还没配好 OAuth。\n\n" +
-                                "要现在看一下是哪一步的问题吗？"
+                            "$reason\n\n" +
+                                "常见原因：\n" +
+                                "· workers.dev 在国内访问不稳定\n" +
+                                "· 后端还没配好 OAuth（GH_OAUTH_CLIENT_ID 未设置）\n\n" +
+                                "要现在看一下卡在哪一步吗？"
                         )
                         .setPositiveButton("诊断") { _, _ -> runLoginDiag() }
                         .setNegativeButton("离线使用", null)
                         .show()
                     return@post
                 }
+                if (!start.stateCookieOk) {
+                    // 后端回调时要拿这个 cookie 做 CSRF 校验，
+                    // 缺了它授权成功后仍会失败。提前讲清楚，别让用户白跑一趟。
+                    toast("注意：state cookie 未写入，授权后可能报校验失败")
+                }
                 try {
                     // 用内置浏览器登录：cookie 存在 WebView 里，
                     // OkHttp 通过 cookie 桥能读到，登录状态才对得上。
                     // 用结果回调启动，登录完成后会自动回到这里刷新状态。
                     val i = Intent(requireContext(), WebActivity::class.java)
-                    i.putExtra("url", url)
+                    i.putExtra("url", start.url)
                     i.putExtra("title", "登录 GitHub")
                     i.putExtra("login", true)
                     loginLauncher.launch(i)
                     toast("在页面里完成授权即可，完成后会自动刷新")
                 } catch (t: Throwable) {
+                    Err.ignore(t, "打不开内置浏览器")
                     toast("打不开浏览器")
                 }
             }

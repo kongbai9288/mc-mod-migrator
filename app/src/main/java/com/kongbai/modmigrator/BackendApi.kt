@@ -11,6 +11,24 @@ import android.content.Context
  *
  * 地址不写死：主地址 + 兜底地址依次尝试。后端 wrangler.toml 里
  * 保留了 workers.dev 降级入口，这里只做 App 侧兼容，不改后端任何配置。
+ *
+ * ── 接口清单（依据后端 src/index.js 实际路由核对，不是猜的）──
+ *   GET /api/config                 → {githubClientId, gameId, curseforgeReady}
+ *   GET /api/auth/login             → {url} + 种 mm_oauth_state cookie
+ *   GET /api/auth/callback          → 校验 state 后种 mm_session，302 → /?login=ok
+ *   GET /api/auth/me                → {user} 或 {user:null}
+ *   GET /api/auth/logout            → 清 mm_session
+ *   GET /api/mods                   → {mods:[slimMod], pagination}
+ *   GET /api/mods/:id               → {mod}
+ *   GET /api/mods/:id/files         → {files:[...]}
+ *   GET /api/download?modId&fileId  → 文件流
+ *   GET /api/categories             → {categories:[...]}
+ *
+ * 后端**没有** /api/auth/token，也**没有** /recommend。
+ * 这两个路径之前被凭空调用过，必然 404，详见 docs/接口对照-后端.md。
+ *
+ * 另外：后端 readSession() 只在 /api/auth/me 里被调用过一次，
+ * 也就是除查询登录态外，所有业务接口都不要求登录。
  */
 object BackendApi {
 
@@ -96,21 +114,63 @@ object BackendApi {
      */
     fun authBase(): String = WORKERS_BASE
 
-    fun loginUrl(ctx: Context): String {
-        // 登录必须打 workers.dev，否则回调地址对不上
-        val o = Json.obj(Http.get(authBase() + "/api/auth/login")) ?: return ""
-        return Json.s(o, "url")
+    /** 发起登录的结果：要么拿到授权地址，要么拿到一句人话错误 */
+    data class LoginStart(
+        val url: String = "",
+        val error: String = "",
+        /** 后端的 state cookie 是否真的写进了 CookieManager */
+        val stateCookieOk: Boolean = false
+    )
+
+    /**
+     * 取 GitHub 授权地址。
+     *
+     * 后端 /api/auth/login 一次干两件事（见后端源码）：
+     *   1. 返回 `{url}` —— GitHub 授权页地址
+     *   2. 在响应头里种 `mm_oauth_state` cookie
+     *
+     * 而 /api/auth/callback 会拿这个 state 做 CSRF 校验，
+     * **对不上就直接返回 "state 校验失败，请重新登录"**。
+     *
+     * 也就是说：如果第 2 步的 cookie 没落到 WebView 的 cookie 存储里，
+     * 用户会一路点到 GitHub、授权成功、然后回调失败 —— 全程没有任何提示，
+     * 看起来就是"登录一点都登不了"。
+     *
+     * 所以这里拿到地址后立刻自检，把结果记进日志，让失败变得可诊断。
+     */
+    fun loginUrl(ctx: Context): LoginStart {
+        val b = authBase()
+        val body = try {
+            Http.get(b + "/api/auth/login")
+        } catch (t: Throwable) {
+            return LoginStart(error = "连不上后端（${short(b)}）：${Http.describeError(t)}")
+        }
+        val o = Json.obj(body) ?: return LoginStart(error = "后端返回的内容不是 JSON")
+        val url = Json.s(o, "url")
+        if (url.isBlank()) return LoginStart(error = "后端没返回 GitHub 授权地址")
+        if (!url.contains("github.com")) return LoginStart(error = "授权地址异常：$url")
+
+        val ok = WebCookies.hasCookie(b, "mm_oauth_state")
+        if (!ok) {
+            LogCenter.w(
+                "Backend",
+                "mm_oauth_state 没写进 CookieManager" +
+                    "（该域名下现有：${WebCookies.cookieNames(b)}），" +
+                    "回调时很可能报 state 校验失败"
+            )
+        }
+        return LoginStart(url = url, stateCookieOk = ok)
     }
 
-    /** 已通过 GitHub 授权后，向后端换取可用的 GitHub token（自动填充，无需手填） */
-    fun fetchToken(ctx: Context): String {
-        return try {
-            val o = Json.obj(Http.get(authBase() + "/api/auth/token")) ?: return ""
-            Json.s(o, "token")
-        } catch (t: Throwable) {
-            ""
-        }
-    }
+    /**
+     * 这里原来有个 fetchToken()，请求 /api/auth/token 想自动取回 GitHub token。
+     *
+     * 但后端源码的路由表里**根本没有这个路径**（见 docs/接口对照-后端.md），
+     * 请求只会拿到 404 {"error":"not found"}，于是"自动获取 token"从来没成功过。
+     * 而且后端把 Client Secret 托管在服务端，本来也不该把 token 下发给客户端。
+     *
+     * 现在删除。登录只作为"身份展示 + 将来可能的鉴权"，不再承诺能拿到 token。
+     */
 
     /** 是否已经通过后端完成 GitHub 授权 */
     fun authed(ctx: Context): Boolean = me(ctx) != null
@@ -152,12 +212,21 @@ object BackendApi {
     }
 
     /** 后端搜索（CurseForge 代理）。全部地址都失败返回 emptyList。 */
+    /**
+     * 后端搜索（CurseForge 代理）。全部地址都失败返回 emptyList。
+     *
+     * @param offset **0 基起始偏移**，不是页码。
+     *   后端源码：cf.searchParams.set('index', page)
+     *   即把我们的 page 参数**原样透传**给 CurseForge 的 index，
+     *   而 CF 的 index 是 0 基偏移。之前这里传的是 offset/20（0,1,2…），
+     *   导致第 2 页取到 1..20 —— 和第 1 页几乎完全重复。现在传真实偏移。
+     */
     fun search(
         ctx: Context, query: String, mc: String, loader: String,
-        page: Int = 0, pageSize: Int = 20, sort: String = "popularity"
+        offset: Int = 0, pageSize: Int = 20, sort: String = "popularity"
     ): List<MarketMod> {
         for (b in candidates(ctx)) {
-            var url = "$b/api/mods?q=${Http.enc(query)}&page=$page&pageSize=$pageSize&sort=$sort"
+            var url = "$b/api/mods?q=${Http.enc(query)}&page=$offset&pageSize=$pageSize&sort=$sort"
             if (mc.isNotBlank()) url = "$url&version=${Http.enc(mc)}"
             val body = try {
                 Http.get(url)
@@ -179,6 +248,9 @@ object BackendApi {
                         iconUrl = Json.s(d, "thumb"),
                         pageUrl = "https://www.curseforge.com/minecraft/mc-mods/$slug",
                         downloads = Json.l(d, "downloads"),
+                        // slimMod 里有 dateModified，之前没解析，
+                        // 导致"按更新时间排序"时后端来源的项永远排在最后。
+                        updated = Json.s(d, "dateModified"),
                         source = "backend"
                     )
                 )
@@ -236,34 +308,22 @@ object BackendApi {
 
     /**
      * 后端推荐榜。
-     * 后端没这个接口时返回 null，调用方会自动跳过这个源，不会报错。
+     *
+     * 之前请求的是 `${base}/recommend` —— 后端源码里 recommend **一次都没出现过**，
+     * 这个路径根本不存在。请求只会拿到 404，异常被 catch 吞掉返回 null，
+     * 上层跳过这个源。结果就是：推荐功能从来没出过任何内容，而且毫无提示。
+     *
+     * 现在改用真实存在的 `/api/mods`：空关键词 + 按热度排序，拿到的就是热门榜单。
+     *
+     * 注意：后端 /api/mods 只支持 version 和 categoryId，**不支持按加载器过滤**，
+     * 所以这里只能过滤游戏版本，加载器需要在客户端再筛一道（或直接不过滤）。
      */
     fun recommend(ctx: Context, mc: String, loader: String): List<MarketMod>? {
-        val b = base(ctx)
-        if (b.isBlank()) return null
-        val q = ArrayList<String>()
-        if (mc.isNotBlank()) q.add("mc=" + Http.enc(mc))
-        if (loader.isNotBlank() && loader != "auto") q.add("loader=" + Http.enc(loader))
-        val url = b + "/recommend" + if (q.isEmpty()) "" else "?" + q.joinToString("&")
         return try {
-            val arr = Json.arr(Http.get(url)) ?: return null
-            val out = ArrayList<MarketMod>()
-            for (e in arr) {
-                out.add(
-                    MarketMod(
-                        id = Json.s(e, "id"),
-                        slug = Json.s(e, "slug"),
-                        name = Json.s(e, "name").ifBlank { Json.s(e, "title") },
-                        summary = Json.s(e, "summary").ifBlank { Json.s(e, "description") },
-                        iconUrl = Json.s(e, "iconUrl").ifBlank { Json.s(e, "icon_url") },
-                        pageUrl = Json.s(e, "pageUrl").ifBlank { Json.s(e, "url") },
-                        downloads = Json.l(e, "downloads"),
-                        source = "curseforge"
-                    )
-                )
-            }
-            if (out.isEmpty()) null else out
+            val list = search(ctx, "", mc, "", 0, 30, "popularity")
+            if (list.isEmpty()) null else list
         } catch (t: Throwable) {
+            Err.ignore(t, "后端推荐（走 /api/mods 热门榜）")
             null
         }
     }

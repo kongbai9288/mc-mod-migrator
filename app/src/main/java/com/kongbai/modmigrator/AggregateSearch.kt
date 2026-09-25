@@ -166,7 +166,10 @@ object AggregateSearch {
 
         // CurseForge 后端代理
         if ((aggregate || mode == "后端") && useBackend) {
-            out.add("后端" to { BackendApi.search(ctx, q, mc, loader, offset / 20, limit) })
+            // 后端 /api/mods 的 page 参数会被原样透传给 CurseForge 的 index，
+            // 而 index 是 0 基偏移。所以这里直接传 offset，
+            // 不能除以页大小（那样第二页会取到和第一页几乎相同的内容）。
+            out.add("后端" to { BackendApi.search(ctx, q, mc, loader, offset, limit) })
         }
 
         // CurseForge 镜像 / 官方直连

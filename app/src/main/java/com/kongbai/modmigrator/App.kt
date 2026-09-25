@@ -28,8 +28,10 @@ class App : Application() {
         // 主题必须在任何 Activity 创建前定好，否则深色模式要重启才生效
         runCatching { ThemePrefs.init(this) }
         Store.init(this)
-        // 预热 CookieManager，避免首次登录时初始化卡顿
-        runCatching { WebCookies.warmUp() }
+        // 预热 CookieManager + 真实 WebView 实例。
+        // 只调 getInstance() 不够，很多设备上必须先创建过 WebView，
+        // cookie 存储才会真正可用，否则登录时 state cookie 写不进去。
+        runCatching { WebCookies.warmUp(this) }
         runCatching { LangPack.load(this) }
         runCatching { UpdateWorker.schedule(this) }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

@@ -76,11 +76,62 @@ class WebCookies : CookieJar {
             } catch (t: Throwable) { Err.ignore(t, "cm.flush()") }
         }
 
-        /** 预热：在主线程调用一次，避免首次使用时初始化慢 */
-        fun warmUp() {
+        /**
+         * 预热：必须在 Application.onCreate 里调一次。
+         *
+         * 光调 `CookieManager.getInstance()` 是不够的 ——
+         * 在不少设备上，必须**真正创建过一个 WebView 实例**，
+         * CookieManager 的底层存储才会就绪。在那之前调 setCookie()
+         * 会被静默丢弃，表现就是：登录页跳到 GitHub、回调回来报
+         * "state 校验失败"（因为 state cookie 根本没写进去）。
+         *
+         * 所以这里在主线程创建一个 WebView 再销毁，把 cookie 存储带起来。
+         */
+        fun warmUp(ctx: android.content.Context) {
             try {
-                CookieManager.getInstance()
-            } catch (t: Throwable) { Err.ignore(t, "CookieManager.getInstance()") }
+                val cm = CookieManager.getInstance()
+                cm.setAcceptCookie(true)
+            } catch (t: Throwable) {
+                Err.ignore(t, "预热 CookieManager")
+            }
+            try {
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    try {
+                        // 用 applicationContext，绝不持有 Activity
+                        android.webkit.WebView(ctx.applicationContext).destroy()
+                    } catch (t: Throwable) {
+                        Err.ignore(t, "预热 WebView 实例以激活 cookie 存储")
+                    }
+                }
+            } catch (t: Throwable) {
+                Err.ignore(t, "投递 WebView 预热任务")
+            }
+        }
+
+        /**
+         * 检查某个 cookie 是否真的写进去了。
+         * 用于登录前自检：state cookie 没写进去的话，
+         * 后面回调必然失败，与其让用户看到莫名其妙的错误，
+         * 不如在这里就把问题记进日志。
+         */
+        fun hasCookie(url: String, name: String): Boolean {
+            return try {
+                val raw = CookieManager.getInstance().getCookie(url) ?: return false
+                raw.split(";").any { it.trim().substringBefore("=") == name }
+            } catch (t: Throwable) {
+                Err.ignore(t, "检查 cookie $name")
+                false
+            }
+        }
+
+        /** 列出某 URL 下所有 cookie 名，给诊断用 */
+        fun cookieNames(url: String): List<String> {
+            return try {
+                val raw = CookieManager.getInstance().getCookie(url) ?: return emptyList()
+                raw.split(";").map { it.trim().substringBefore("=") }.filter { it.isNotBlank() }
+            } catch (t: Throwable) {
+                emptyList()
+            }
         }
 
         /**
