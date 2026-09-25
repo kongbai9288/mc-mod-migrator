@@ -81,7 +81,16 @@ object BatchModOps {
 
     /**
      * 批量下载（按 url → 文件名 的映射）。
-     * 并发数受设置里的「下载并发」限制，避免把网占满。
+     *
+     * 之前注释写着"并发数受设置里的下载并发限制"，但**实现是完全串行的**
+     * —— `forEachIndexed` 一个一个下，而且声明的 `out`（同步列表）和 `done`
+     * 两个变量根本没用上。装 20 个模组就是 20 次排队等待。
+     * 现在改成真正的多文件并发。
+     *
+     * 并发度怎么定：`Downloader.download` 内部**已经会按 DOWNLOAD_PARALLEL
+     * 把一个文件切成多块并发**。如果这里再开同样多的文件并发，
+     * 总连接数 = 文件数 × 块数，很容易把网打满、反而全变慢。
+     * 所以文件并发取 DOWNLOAD_PARALLEL 的一半，上限 4。
      */
     fun download(
         ctx: Context,
@@ -89,24 +98,49 @@ object BatchModOps {
         tasks: List<Pair<String, String>>,   // url to name
         onProgress: Progress? = null
     ): List<Result> {
-        val out = java.util.Collections.synchronizedList(ArrayList<Result>())
-        var done = 0
         val total = tasks.size
-        val results = ArrayList<Result>()
-        tasks.forEachIndexed { i, (url, name) ->
-            onProgress?.on(i + 1, total, "下载 $name")
-            val f = try {
-                Downloader.download(ctx, url, dir, name)
-            } catch (t: Throwable) {
-                null
+        if (total == 0) return emptyList()
+
+        val results = java.util.Collections.synchronizedList(ArrayList<Result>(total))
+        val finished = java.util.concurrent.atomic.AtomicInteger(0)
+
+        val configured = Prefs.get(ctx).getInt(K.DOWNLOAD_PARALLEL, 3).coerceIn(1, 8)
+        val fileParallel = (configured / 2).coerceIn(1, 4).coerceAtMost(total)
+
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(fileParallel)
+        return try {
+            val futures = ArrayList<java.util.concurrent.Future<*>>()
+            for ((url, name) in tasks) {
+                futures.add(
+                    pool.submit {
+                        val f = try {
+                            Downloader.download(ctx, url, dir, name)
+                        } catch (t: Throwable) {
+                            null
+                        }
+                        results.add(
+                            if (f != null) Result.ok(name, "已下载")
+                            else Result.fail(name, "下载失败")
+                        )
+                        val n = finished.incrementAndGet()
+                        onProgress?.on(n, total, "下载 $name")
+                    }
+                )
             }
-            results.add(
-                if (f != null) Result.ok(name, "已下载")
-                else Result.fail(name, "下载失败")
-            )
-            done++
+            // 等全部结束；中断时要取消，不能把线程挂着
+            try {
+                for (fu in futures) fu.get()
+            } catch (t: Throwable) {
+                for (fu in futures) fu.cancel(true)
+            }
+            // 按原任务顺序输出，结果顺序稳定
+            val byName = results.associateBy { it.name }
+            tasks.map { (_, name) ->
+                byName[name] ?: Result.fail(name, "未执行")
+            }
+        } finally {
+            pool.shutdownNow()
         }
-        return results
     }
 
     /** 把结果汇总成一段话 */

@@ -34,6 +34,11 @@ object CloudBackup {
 
     fun setUploadUrl(ctx: Context, url: String) {
         Prefs.get(ctx).edit().putString(K.CLOUD_UPLOAD_URL, url.trim()).apply()
+        // 必须重新注册：enabled() 要求"地址非空 + 间隔>0"两个条件。
+        // 用户第一次填地址时，间隔可能早就设好了（默认 24 小时），
+        // 但此前因为地址为空、任务是没注册的。不在这里 schedule 的话，
+        // 填完地址自动备份依然不会跑，要等下次改间隔才碰巧生效。
+        schedule(ctx)
     }
 
     fun intervalHours(ctx: Context): Int =
