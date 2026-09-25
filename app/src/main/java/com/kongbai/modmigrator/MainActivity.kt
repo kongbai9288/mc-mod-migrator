@@ -42,9 +42,12 @@ class MainActivity : AppCompatActivity() {
 
         nav?.setOnItemSelectedListener { item ->
             switchTo(item.itemId)
-        checkAnnouncement()
             true
         }
+
+        // 公告只在启动时检查一次。
+        // 之前这句写在了 tab 选择监听器里，导致每切一次 tab 就弹一次公告。
+        checkAnnouncement()
 
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
@@ -100,7 +103,36 @@ class MainActivity : AppCompatActivity() {
             .setIcon(R.drawable.ic_filter_list)
     }
 
+    /**
+     * tab 切换历史。
+     *
+     * 之前底部导航切换**不进返回栈**，而设置子页**进栈**，两者混在一起导致：
+     * 从设置子页一路返回后，会直接跳过一级页面退出 Activity，
+     * 或者返回后底部高亮还停在别的 tab 上——用户看到的"返回到别的页面""卡住了"。
+     *
+     * 现在按官方 BottomNavigationView 的做法：
+     *   - 一级 tab 切换不进 FragmentManager 栈，而是记进这里的历史
+     *   - 返回时先弹子页栈（栈里有东西的话）
+     *   - 子页栈空了，再按历史退回上一个 tab
+     *   - 都没有了才真的退出
+     * 并且每次切换都同步底部导航的选中项，视觉和状态始终一致。
+     */
+    private val tabHistory = ArrayList<Int>()
+    private var currentTabId: Int = -1
+
     private fun switchTo(id: Int) {
+        // 记录切换历史（去重：连续点同一个不算）
+        if (id != currentTabId) {
+            tabHistory.remove(id)   // 已存在就先移除，再放到末尾，保持最近优先
+            tabHistory.add(id)
+            if (tabHistory.size > 12) tabHistory.removeAt(0)
+        }
+        currentTabId = id
+        // 切 tab 时把子页栈清掉：从"迁移"切到"市场"，
+        // 之前在"迁移"里打开的二级页面不应该还留在栈里
+        clearChildStack()
+        syncNavSelection(id)
+
         if (id == ID_MORE) {
             replace(MoreFragment())
             return
@@ -195,6 +227,55 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }.start()
+    }
+
+    /** 同步底部导航的选中项，避免"内容变了但高亮还在别处" */
+    private fun syncNavSelection(id: Int) {
+        val n = nav ?: return
+        runCatching {
+            // 先取消监听再设置，防止 setSelectedItemId 反过来触发 switchTo 造成循环
+            n.setOnItemSelectedListener(null)
+            val item = n.menu.findItem(id)
+            if (item != null) item.isChecked = true
+            n.setOnItemSelectedListener { it2 ->
+                switchTo(it2.itemId)
+                true
+            }
+        }
+    }
+
+    /** 清空子页栈（切 tab 时用） */
+    private fun clearChildStack() {
+        runCatching {
+            val fm = supportFragmentManager
+            while (fm.backStackEntryCount > 0) {
+                fm.popBackStackImmediate()
+            }
+        }
+    }
+
+    /**
+     * 返回键处理。
+     *
+     * 顺序：子页栈 → tab 历史 → 真的退出。
+     * 每一步都同步底部高亮，保证"看到的就是所在的"。
+     */
+    override fun onBackPressed() {
+        // 1. 有子页（设置二级页等）先退子页
+        val fm = supportFragmentManager
+        if (fm.backStackEntryCount > 0) {
+            runCatching { fm.popBackStack() }
+            return
+        }
+        // 2. 子页没了，看还有没有上一个 tab
+        if (tabHistory.size > 1) {
+            tabHistory.removeAt(tabHistory.size - 1)   // 移除当前
+            val prev = tabHistory.removeAt(tabHistory.size - 1)
+            switchTo(prev)
+            return
+        }
+        // 3. 都没有，真的退出
+        super.onBackPressed()
     }
 
     private fun replace(f: Fragment) {
