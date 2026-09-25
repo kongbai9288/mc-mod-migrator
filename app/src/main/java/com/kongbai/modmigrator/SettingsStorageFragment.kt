@@ -70,12 +70,18 @@ class SettingsStorageFragment : Fragment() {
             )
             val cur = CloudBackup.intervalHours(ctx)
             val idx = CloudBackup.INTERVALS.indexOfFirst { it.first == cur }
+            // Spinner 的 onItemSelected **在设置监听器时就会自动触发一次**，
+            // 用户根本没操作。不设守卫的话，每次进这个页面都会执行一次
+            // setIntervalHours → schedule（注册周期任务）。
+            // 本页就是"一进设置就白跑一次"，这里按其他设置页同样加守卫。
+            var spinLoading = true
             sp.setSelection(if (idx >= 0) idx else 3)
             sp.onItemSelectedListener =
                 object : android.widget.AdapterView.OnItemSelectedListener {
                     override fun onItemSelected(
                         p: android.widget.AdapterView<*>?, vv: View?, pos: Int, id: Long
                     ) {
+                        if (spinLoading) { spinLoading = false; return }
                         val h = CloudBackup.INTERVALS.getOrNull(pos)?.first ?: 24
                         CloudBackup.setIntervalHours(ctx, h)
                         if (tv != null) tv.text = CloudBackup.describe(ctx)
@@ -94,6 +100,13 @@ class SettingsStorageFragment : Fragment() {
         }
 
         v.findViewById<Button>(R.id.btnBackupNow)?.setOnClickListener {
+            // ⚠️ 之前直接读 `CloudBackup.uploadUrl(ctx)`（已存的配置）。
+            // 但地址框只在**失去焦点**时才保存——用户填完地址直接点「立即备份」，
+            // 焦点可能还没丢，配置里仍是空的 → 弹"请先填写地址"，
+            // 用户明明刚填完，看着像功能坏了。
+            // 这里先把输入框的内容落盘再读，避免依赖焦点时序。
+            val typed = etUrl?.text?.toString()?.trim() ?: ""
+            CloudBackup.setUploadUrl(ctx, typed)
             val u = CloudBackup.uploadUrl(ctx)
             if (u.isBlank()) {
                 Toast.makeText(ctx, "请先填写云盘上传地址", Toast.LENGTH_SHORT).show()

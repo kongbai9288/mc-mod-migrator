@@ -143,15 +143,26 @@ class SettingsFragment : Fragment() {
         if (i >= 0) sp.setSelection(i)
     }
 
+    /**
+     * 监听输入变化并保存，带 400ms 防抖。
+     *
+     * 之前是**每敲一个字符就 saveAll() 一次**，而 Token 这类字段
+     * 要连续输入几十个字符 → 几十次 SharedPreferences 写入。
+     * 输入长字符串时会有明显卡顿（apply 虽异步，但每次都会调度一次落盘）。
+     */
     private fun watch(et: EditText) {
         et.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                if (!loading) saveAll()
+                if (loading) return
+                handler.removeCallbacks(saveRunnable)
+                handler.postDelayed(saveRunnable, 400)
             }
         })
     }
+
+    private val saveRunnable = Runnable { runCatching { if (isAdded) saveAll() } }
 
     private fun saveAll() {
         val p = Prefs.get(requireContext())
@@ -213,13 +224,21 @@ class SettingsFragment : Fragment() {
 
     private fun showCrash() {
         val ctx = requireContext()
-        val f = java.io.File(ctx.filesDir, "crash.log")
-        val txt = if (f.exists()) f.readText().take(6000) else "暂无崩溃记录"
+        // ⚠️ 之前只读 `filesDir/crash.log` 这一个文件。
+        // 而 CrashHandler 每次崩溃写的是 **dir(ctx)/crash-<时间戳>.log**
+        // （dir() 优先 externalFilesDir/crash），根本不写 crash.log。
+        // → 崩过很多次，这里永远显示"暂无崩溃记录"，
+        //   用户想给我看日志却什么都拿不出来。
+        val txt = CrashHandler.readAll(ctx).ifBlank { "暂无崩溃记录" }.take(6000)
         MaterialAlertDialogBuilder(ctx)
             .setTitle(R.string.cfg_crash_log)
             .setMessage(txt)
             .setPositiveButton(R.string.ok, null)
-            .setNeutralButton("清空") { _, _ -> f.delete(); toast("已清空") }
+            .setNeutralButton("清空") { _, _ ->
+                // 同样要清两处：filesDir/crash.log + crash-<时间戳>.log
+                CrashHandler.clear(ctx)
+                toast("已清空")
+            }
             .show()
     }
 
@@ -238,6 +257,9 @@ class SettingsFragment : Fragment() {
             .show()
     }
     override fun onDestroyView() {
+        // 防抖的先落一次盘：否则用户在敲完最后一个字符后立刻退出，
+        // 那次输入还在 400ms 的等待里，会被下面的 removeCallbacks 一起清掉。
+        runCatching { saveAll() }
         super.onDestroyView()
         // 清理 Handler：页面销毁后若还有未执行的 post，
         // 回调里访问已销毁的 View 会直接崩。
