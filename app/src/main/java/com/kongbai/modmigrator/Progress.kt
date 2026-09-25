@@ -84,7 +84,11 @@ object Progress {
     }
 
     private var state = State()
-    private val hooks = ArrayList<(State) -> Unit>()
+    // 后台下载线程会并发调 update()（触发遍历 hooks），
+    // 而界面在主线程 addHook/removeHook。用普通 ArrayList 会
+    // ConcurrentModificationException，进度更新就此中断、界面再也不动。
+    // 改成并发容器（和 LogCenter 同一个问题同一套修法）。
+    private val hooks = java.util.concurrent.CopyOnWriteArrayList<(State) -> Unit>()
 
     fun addHook(h: (State) -> Unit) {
         hooks.add(h)

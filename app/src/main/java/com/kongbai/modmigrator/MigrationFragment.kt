@@ -731,8 +731,12 @@ class MigrationFragment : Fragment() {
         }
     }
 
-    /** 只重下"下载失败"的项，成功的不再动 */
-    private fun retryDownloads(count: Int) {
+    /**
+     * 只重下"下载失败"的项，成功的不再动。
+     * （原来有个 `count` 参数，从没被用到——失败项是从 mods 里现筛的，
+     *   传进来的数字既不信也不准。删掉，避免误导。）
+     */
+    private fun retryDownloads() {
         val ctx = context ?: return
         val todo = mods.filter { it.status.startsWith("下载失败") }
         if (todo.isEmpty()) {
@@ -821,7 +825,14 @@ class MigrationFragment : Fragment() {
             } else {
                 ModrinthApi.latestForHashes(recognized.map { it.sha1 }, mc, loader)
             }
-            ModrinthApi.refreshAll(recognized.map { it.projectId })
+            // 和 scan() 里踩过的是同一个坑：这里也不能用 `it.projectId`。
+            // 重试的这批正是因为网络失败才进来的，它们的 projectId
+            // **从来没被赋值过**（全为空），传下去同样取不到名字。
+            ModrinthApi.refreshAll(
+                todo.mapNotNull { found[it.sha1.lowercase()]?.projectId }
+                    .filter { it.isNotBlank() }
+                    .distinct()
+            )
 
             for (e in todo) {
                 val key = e.sha1.lowercase()
@@ -1093,7 +1104,7 @@ class MigrationFragment : Fragment() {
                                 append("可以点「重试」只重下失败的，其余不受影响。")
                             }
                         )
-                        .setPositiveButton("重试失败的") { _, _ -> retryDownloads(bad.size) }
+                        .setPositiveButton("重试失败的") { _, _ -> retryDownloads() }
                         .setNegativeButton(R.string.ok, null)
                         .show()
                 }
