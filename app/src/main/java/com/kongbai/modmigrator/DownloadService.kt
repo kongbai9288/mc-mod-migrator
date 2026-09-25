@@ -150,17 +150,28 @@ class DownloadService : Service() {
             task.total = total
             task.done = start
 
-            val mode = if (start > 0 && total > start) "rw" else "rw"
-            java.io.RandomAccessFile(out, mode).use { raf ->
+            java.io.RandomAccessFile(out, "rw").use { raf ->
                 raf.seek(start)
                 val headers = if (start > 0) mapOf("Range" to "bytes=$start-") else emptyMap()
                 val resp = Http.call(task.url, headers)
-                if (!resp.isSuccessful && start > 0) {
-                    // 服务端不接受续传或文件已变，从头下
+
+                // ── 续传必须校验服务端真的返回了 206 ──────────────
+                // 这是个会**静默损坏文件**的 bug：
+                // 发了 Range 头，但服务端不支持续传时会**忽略它并返回 200 + 完整内容**。
+                // 200 也是 isSuccessful，于是代码会走到 copyLoop(resp, raf, start)，
+                // 在 start 偏移处追加一份**完整文件** ——
+                // 得到的 jar = 上次残留的半截 + 一整个新文件，直接变成坏包，
+                // 装进 mods 目录就是"下载完成了但模组加载不了"。
+                // 只有 206 Partial Content 才表示服务端真的从指定位置开始给。
+                val canResume = start > 0 && resp.code == 206
+
+                if (!canResume && start > 0) {
+                    // 服务端不认 Range（返回 200），或者续传请求失败 → 从头下
                     resp.close()
                     start = 0
                     task.done = 0
                     raf.setLength(0)
+                    raf.seek(0)
                     val r2 = Http.call(task.url)
                     if (!r2.isSuccessful) {
                         r2.close()

@@ -146,8 +146,13 @@ class TrashFragment : Fragment() {
             line.addView(
                 UiCards.infoCard(
                     ctx, R.drawable.ic_delete,
-                    item.name,
-                    "删除于 ${fmt.format(Date(item.at))} · ${item.size / 1024} KB",
+                    // 显示原始文件名；回收站里那份如果带序号，在副行说明，
+                    // 否则用户会看到 sodium(1).jar 却不知道它还原出来叫什么
+                    item.restoreName,
+                    buildString {
+                        append("删除于 ${fmt.format(Date(item.at))} · ${item.size / 1024} KB")
+                        if (item.name != item.restoreName) append(" · 回收站内名：${item.name}")
+                    },
                     "还原"
                 ) { doRestore(item) }.also { card ->
                     card.setOnLongClickListener { doDelete(item) }

@@ -20,12 +20,16 @@ import org.json.JSONObject
 object Trash {
 
     data class Item(
-        var name: String = "",        // 文件名
+        var name: String = "",        // 在回收站里的文件名（同名时带序号）
+        var origName: String = "",    // 原始文件名（还原回原目录时用）
         var from: String = "",        // 原父目录 URI
         var trashUri: String = "",    // 在回收站里的 URI
         var at: Long = 0L,            // 删除时间
         var size: Long = 0L
-    )
+    ) {
+        /** 还原时应该用的文件名 */
+        val restoreName: String get() = origName.ifBlank { name }
+    }
 
     private fun indexFile(ctx: Context): java.io.File =
         java.io.File(ctx.filesDir, "trash_index.json")
@@ -41,6 +45,8 @@ object Trash {
                 out.add(
                     Item(
                         name = o.optString("name"),
+                        // 旧数据没有 origName，用 name 兜底，保证老记录也能还原
+                        origName = o.optString("origName", o.optString("name")),
                         from = o.optString("from"),
                         trashUri = o.optString("trashUri"),
                         at = o.optLong("at"),
@@ -60,6 +66,7 @@ object Trash {
             for (it in list) {
                 val o = JSONObject()
                 o.put("name", it.name)
+                o.put("origName", it.origName)
                 o.put("from", it.from)
                 o.put("trashUri", it.trashUri)
                 o.put("at", it.at)
@@ -83,10 +90,27 @@ object Trash {
     fun moveToTrash(ctx: Context, file: DocumentFile): Boolean {
         return try {
             val dir = WorkDir.trash(ctx) ?: return false
-            val name = file.name ?: return false
-            // 同名加时间戳，避免覆盖
-            val target = dir.findFile(name)
-            if (target != null) target.delete()
+            val rawName = file.name ?: return false
+
+            // ── 同名必须改名，不能直接覆盖 ────────────────────────
+            // 之前的做法是"有同名就先删掉旧的"：
+            //   删 sodium.jar → 回收站存 sodium.jar
+            //   装回来再删一次 → **把回收站里那份删了**，再存一份新的
+            // 结果：第一次删的那份再也还原不回来，回收站形同虚设。
+            // 现在改成同名自动加序号（sodium.jar → sodium(1).jar），
+            // 两份都留着，各自都能还原。
+            var name = rawName
+            var seq = 1
+            while (dir.findFile(name) != null && seq < 100) {
+                val dot = rawName.lastIndexOf('.')
+                name = if (dot > 0) {
+                    "${rawName.substring(0, dot)}($seq).${rawName.substring(dot + 1)}"
+                } else {
+                    "$rawName($seq)"
+                }
+                seq++
+            }
+
             val dst = dir.createFile(Fs.mimeOf(name), name) ?: return false
 
             ctx.contentResolver.openInputStream(file.uri)?.use { input ->
@@ -103,7 +127,11 @@ object Trash {
             list.add(
                 0,
                 Item(
+                    // name 存**回收站里的名字**（可能带序号），
+                    // 还原时要按这个名字在回收站里找到文件；
+                    // 原文件名另存 origName，还原回目录时用。
                     name = name,
+                    origName = rawName,
                     from = parentUri,
                     trashUri = dst.uri.toString(),
                     at = System.currentTimeMillis(),
@@ -133,8 +161,11 @@ object Trash {
                 DocumentFile.fromTreeUri(ctx, android.net.Uri.parse(item.from))
             } ?: return false
 
-            val dst = parent.createFile(Fs.mimeOf(item.name), item.name)
-                ?: parent.findFile(item.name)
+            // ── 还原时用**原始文件名**，不是回收站里那个带序号的名字 ──
+            // 否则还原出来的是 sodium(1).jar，模组加载器认不出。
+            val restoreName = item.restoreName
+            val dst = parent.createFile(Fs.mimeOf(restoreName), restoreName)
+                ?: parent.findFile(restoreName)
                 ?: return false
             ctx.contentResolver.openInputStream(src.uri)?.use { input ->
                 ctx.contentResolver.openOutputStream(dst.uri, "wt")?.use { o ->
@@ -238,8 +269,20 @@ object Trash {
                     if (!f.isFile) continue
                     val n = f.name ?: continue
                     val base = baseName(n)
-                    // 配置名能对应到某个已安装模组 → 在用，跳过
-                    if (installed.any { base.contains(it, true) || it.contains(base, true) }) continue
+
+                    // ── 只认"看起来像模组配置"的文件 ──────────────
+                    // 之前没有任何扩展名过滤：config 目录下的**所有**文件
+                    // 只要匹配不到已装模组就一律算残留 —— 包括
+                    // options.txt、服务器配置、用户手写的设置文件。
+                    // 这个功能会**误删正在用的配置**，风险太高。
+                    // 现在只处理常见的模组配置扩展名。
+                    val lower = n.lowercase()
+                    if (!RESIDUE_EXT.any { lower.endsWith(it) }) continue
+                    if (base.length() < 3) continue   // 太短的名字不猜
+
+                    // 配置名能对应到某个已安装模组 → 在用，跳过。
+                    // 用**词边界**匹配，避免 "sodium" 命中 "sodiumextra" 这类无关项。
+                    if (installed.any { matchesWord(base, it) }) continue
                     out.add(f)
                 }
             }
@@ -249,8 +292,31 @@ object Trash {
         }
     }
 
+    /** 只把这些扩展名视为可能的模组配置残留，避免误删用户自己的设置 */
+    private val RESIDUE_EXT = listOf(
+        ".toml", ".cfg", ".json", ".properties", ".yml", ".yaml"
+    )
+
     private fun baseName(n: String): String =
         n.substringBeforeLast(".")
             .lowercase()
             .replace(Regex("[^a-z0-9]"), "")
+
+    /**
+     * 词边界匹配。
+     *
+     * 之前用双向 contains：`base.contains(it) || it.contains(base)`
+     * —— 装了 "jei" 就会把 "jeiintegration"、"projecte" 之类
+     * 全都当成"在用"而跳过（漏清理）；
+     * 反过来短名字也会命中一堆无关文件（误清理）。
+     * 改成：相等，或以分隔符（.-_）为边界的前缀关系。
+     */
+    private fun matchesWord(a: String, b: String): Boolean {
+        if (a.isBlank() || b.isBlank()) return false
+        if (a == b) return true
+        val (long, short) = if (a.length >= b.length) a to b else b to a
+        if (!long.startsWith(short)) return false
+        val next = long[short.length]
+        return next == '-' || next == '_' || next == '.'
+    }
 }
