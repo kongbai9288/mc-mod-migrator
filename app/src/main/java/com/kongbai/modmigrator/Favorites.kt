@@ -14,28 +14,10 @@ object Favorites {
     private const val FILE = "favorites.json"
 
     /**
-     * 读：优先读工作目录（换设备能带走），读不到再读应用私有目录。
-     * 之前只认工作目录，用户没设工作目录时 list() 直接返回空、
-     * add() 静默失败——表现就是「收藏点了没反应」。
-     */
-    private fun readText(ctx: Context): String? {
-        WorkDir.data(ctx)?.findFile(FILE)?.let { f ->
-            try {
-                ctx.contentResolver.openInputStream(f.uri)?.use {
-                    return it.readBytes().toString(Charsets.UTF_8)
-                }
-            } catch (t: Throwable) { Err.ignore(t, "return it.readBytes().toString(Charsets.UTF_8)") }
-        }
-        return try {
-            val f = java.io.File(ctx.filesDir, FILE)
-            if (f.exists()) f.readText() else null
-        } catch (t: Throwable) {
-            null
-        }
-    }
-
-    /**
-     * 写：能写工作目录就两个地方都写；写不了就至少保证本地可用。
+     * 写：能写工作目录就写，同时写应用私有目录做兜底。
+     *
+     * 两处都写的原因：工作目录那份方便换设备带走，
+     * 私有目录那份保证"没授权工作目录"时功能依然可用。
      */
     private fun writeText(ctx: Context, txt: String) {
         var wrote = false
@@ -51,63 +33,122 @@ object Favorites {
                     wrote = true
                 }
             }
-        } catch (t: Throwable) { Err.ignore(t, "") }
+        } catch (t: Throwable) { Err.ignore(t, "写收藏到工作目录") }
         try {
             java.io.File(ctx.filesDir, FILE).writeText(txt)
             wrote = true
-        } catch (t: Throwable) { Err.ignore(t, "wrote = true") }
+        } catch (t: Throwable) { Err.ignore(t, "写收藏到私有目录") }
         if (!wrote) {
-            android.widget.Toast.makeText(ctx, "收藏保存失败", android.widget.Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    fun list(ctx: Context): List<MarketMod> {
-        return try {
-            val txt = readText(ctx) ?: return emptyList()
-            val arr = Json.arr(txt) ?: return emptyList()
-            val out = mutableListOf<MarketMod>()
-            for (e in arr) {
-                out.add(
-                    MarketMod(
-                        id = Json.s(e, "id"),
-                        slug = Json.s(e, "slug"),
-                        name = Json.s(e, "name"),
-                        summary = Json.s(e, "summary"),
-                        iconUrl = Json.s(e, "iconUrl"),
-                        pageUrl = Json.s(e, "pageUrl"),
-                        downloads = Json.l(e, "downloads"),
-                        source = Json.s(e, "source", "modrinth")
-                    )
-                )
+            // 这里可能在后台线程被调用。直接 Toast 会抛
+            // "Can't toast on a thread that has not called Looper.prepare()"，
+            // 所以统一切到主线程再弹。
+            LogCenter.e("Favorites", "收藏保存失败：两个位置都写不进去")
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                runCatching {
+                    android.widget.Toast.makeText(
+                        ctx, "收藏保存失败", android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
-            out
-        } catch (t: Throwable) {
-            emptyList()
         }
     }
 
+    /**
+     * 读收藏列表。
+     *
+     * 读工作目录时如果内容解析失败，要**继续试应用私有目录**——
+     * 工作目录里那份可能是早期版本写坏的，而私有目录那份还是好的。
+     * 之前只认第一份，一旦坏掉就整个收藏夹变空。
+     */
+    fun list(ctx: Context): List<MarketMod> {
+        // 先试工作目录（换设备能带走）
+        WorkDir.data(ctx)?.findFile(FILE)?.let { f ->
+            val parsed = parseList(readFrom(ctx, f.uri))
+            if (parsed != null) return parsed
+            LogCenter.w("Favorites", "工作目录里的收藏解析失败，改用本地那份")
+        }
+        // 再试应用私有目录
+        return parseList(runCatching {
+            val f = java.io.File(ctx.filesDir, FILE)
+            if (f.exists()) f.readText() else null
+        }.getOrNull()) ?: emptyList()
+    }
+
+    private fun readFrom(ctx: Context, uri: android.net.Uri): String? =
+        try {
+            ctx.contentResolver.openInputStream(uri)?.use {
+                it.readBytes().toString(Charsets.UTF_8)
+            }
+        } catch (t: Throwable) {
+            Err.ignore(t, "读收藏文件")
+            null
+        }
+
+    /**
+     * 解析收藏 JSON。解析不出内容返回 null（让调用方去试下一份），
+     * 而不是返回空列表把"文件坏了"和"确实没收藏"混为一谈。
+     */
+    private fun parseList(txt: String?): List<MarketMod>? {
+        if (txt.isNullOrBlank()) return null
+        val arr = Json.arr(txt) ?: return null
+        val out = mutableListOf<MarketMod>()
+        for (e in arr) {
+            out.add(
+                MarketMod(
+                    id = Json.s(e, "id"),
+                    slug = Json.s(e, "slug"),
+                    name = Json.s(e, "name"),
+                    summary = Json.s(e, "summary"),
+                    iconUrl = Json.s(e, "iconUrl"),
+                    pageUrl = Json.s(e, "pageUrl"),
+                    downloads = Json.l(e, "downloads"),
+                    source = Json.s(e, "source", "modrinth"),
+                    // 这几个字段之前没存：CurseForge 的模组从收藏夹重新加载后
+                    // 丢了 fileId/fileName，下载只能退回读秒页；
+                    // updated 丢了会导致"按更新时间排序"时收藏项全排最后。
+                    fileId = Json.s(e, "fileId"),
+                    fileName = Json.s(e, "fileName"),
+                    updated = Json.s(e, "updated")
+                )
+            )
+        }
+        return out
+    }
+
+    /**
+     * 写收藏列表。
+     *
+     * **必须用真正的 JSON 序列化，不能手工拼字符串。**
+     * 之前是手写 `esc()` 只转义了反斜杠和引号 —— 没转义换行、制表符等控制字符，
+     * 而这些在模组简介里非常常见（Modrinth / CurseForge 的 summary 经常带换行）。
+     * 结果是：收藏一个带换行的模组 → favorites.json 变成非法 JSON →
+     * 下次 list() 解析失败返回空 → **整个收藏夹凭空消失**。
+     * 这正是"收藏点了没反应""收藏夹打不开"的根因。
+     */
     private fun save(ctx: Context, items: List<MarketMod>) {
         try {
-            val sb = StringBuilder("[")
-            items.forEachIndexed { i, m ->
-                if (i > 0) sb.append(",")
-                sb.append("{")
-                    .append("\"id\":\"").append(esc(m.id)).append("\",")
-                    .append("\"slug\":\"").append(esc(m.slug)).append("\",")
-                    .append("\"name\":\"").append(esc(m.name)).append("\",")
-                    .append("\"summary\":\"").append(esc(m.summary)).append("\",")
-                    .append("\"iconUrl\":\"").append(esc(m.iconUrl)).append("\",")
-                    .append("\"pageUrl\":\"").append(esc(m.pageUrl)).append("\",")
-                    .append("\"downloads\":").append(m.downloads).append(",")
-                    .append("\"source\":\"").append(esc(m.source)).append("\"")
-                    .append("}")
+            val arr = org.json.JSONArray()
+            for (m in items) {
+                arr.put(
+                    org.json.JSONObject().apply {
+                        put("id", m.id)
+                        put("slug", m.slug)
+                        put("name", m.name)
+                        put("summary", m.summary)
+                        put("iconUrl", m.iconUrl)
+                        put("pageUrl", m.pageUrl)
+                        put("downloads", m.downloads)
+                        put("source", m.source)
+                        put("fileId", m.fileId)
+                        put("fileName", m.fileName)
+                        put("updated", m.updated)
+                    }
+                )
             }
-            sb.append("]")
-            writeText(ctx, sb.toString())
+            writeText(ctx, arr.toString())
         } catch (t: Throwable) {
-            // 存不进去也不该崩
-                 Err.ignore(t, "存不进去也不该崩")
-             }
+            LogCenter.e("Favorites", "保存失败：${t.message}")
+        }
     }
 
     fun add(ctx: Context, m: MarketMod): Boolean {
@@ -139,5 +180,7 @@ object Favorites {
         }
     }
 
-    private fun esc(s: String) = s.replace("\\", "\\\\").replace("\"", "\\\"")
+    // 这里原来有个手写的 esc() 用来拼 JSON 字符串，
+    // 它只转义了反斜杠和引号，漏掉换行等控制字符，会把收藏文件写坏。
+    // 现在改用 org.json 序列化，这个函数已删除，不要再手写 JSON。
 }

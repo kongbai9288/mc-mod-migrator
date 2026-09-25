@@ -65,10 +65,19 @@ object CurseForgeApi {
         return out
     }
 
+    /**
+     * 取模组图标。
+     *
+     * CurseForge 的 logo 对象同时有 `url`（**原图**，动辄几百 KB 甚至几 MB）
+     * 和 `thumbnailUrl`（256px 缩略图）。
+     * 之前取的是 `url`：列表里 20 条同时加载原图，流量和内存都吃不消，
+     * 列表滑动会卡。列表场景必须用缩略图。
+     */
     private fun logo(e: JsonElement?): String {
         if (e == null || !e.isJsonObject) return ""
         val l = e.asJsonObject.get("logo") ?: return ""
-        return Json.s(l, "url")
+        val thumb = Json.s(l, "thumbnailUrl")
+        return thumb.ifBlank { Json.s(l, "url") }
     }
 
     /** CDN 路径规则：files/{fileId 前 4 位}/{剩余}/{文件名} */
