@@ -37,8 +37,8 @@
 
 | 模块 | 文件 | 关键函数/定义 | 依赖 | 状态 |
 |---|---|---|---|---|
-| 模组元数据 | `ModMeta.kt` | `read(uri)` / `readFile` / `parse` | **Gson + tomlj** | 待重写（正则 → 标准解析） |
-| 模组图标 | `ModIcons.kt` | `of(ctx, file)` | ZipFile + BitmapFactory | 待重写（加采样，防 OOM） |
+| 模组元数据 | `ModMeta.kt` | `read(uri)` / `readFile` / `parse` | **Gson + tomlj** | 已重写（Gson + tomlj） |
+| 模组图标 | `ModIcons.kt` | `of(ctx, file)` | ZipFile + BitmapFactory | 已重写（ZipFile+采样+LRU） |
 | 加载器图标 | `LoaderIcons.kt` | `res(loader)` / `imageLoader` | Coil + SVG/GIF | 已重写 |
 | 依赖图 | `ModDepGraph.kt` | `analyze` / `resolveDeep` / `topoSort` | ModMeta | 已重写 |
 | 启停 | `ModToggle.kt` | `disable/enable/toggle` | — | 已重写 |
