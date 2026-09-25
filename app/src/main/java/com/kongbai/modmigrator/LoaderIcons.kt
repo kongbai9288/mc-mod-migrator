@@ -60,7 +60,10 @@ object LoaderIcons {
             return
         }
         try {
-            coil.ImageLoader(ctx).enqueue(
+            // 用带 SVG / GIF 解码器的 ImageLoader：
+            // Modrinth 的图标有 WebP 也有 SVG，默认 loader 遇到 SVG 会直接失败，
+            // 结果就是只能显示首字母占位图。
+            imageLoader(ctx).enqueue(
                 coil.request.ImageRequest.Builder(ctx)
                     .data(url)
                     .target(iv)
@@ -76,6 +79,27 @@ object LoaderIcons {
         } catch (t: Throwable) {
             placeholder?.let { iv.setImageDrawable(it) }
         }
+    }
+
+    /** 全局共用的 ImageLoader：注册了 SVG 与 GIF 解码器 */
+    @Volatile
+    private var loader: coil.ImageLoader? = null
+
+    private fun imageLoader(ctx: Context): coil.ImageLoader {
+        loader?.let { return it }
+        val l = coil.ImageLoader.Builder(ctx)
+            .components {
+                add(coil.decode.SvgDecoder.Factory())
+                if (android.os.Build.VERSION.SDK_INT >= 28) {
+                    add(coil.decode.ImageDecoderDecoder.Factory())
+                } else {
+                    add(coil.decode.GifDecoder.Factory())
+                }
+            }
+            .crossfade(true)
+            .build()
+        loader = l
+        return l
     }
 
     /** 判断某地址是不是 WebP（用于日志与提示） */

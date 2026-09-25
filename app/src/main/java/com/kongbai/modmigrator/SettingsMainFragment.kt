@@ -13,6 +13,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import coil.load
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.switchmaterial.SwitchMaterial
 import java.util.concurrent.Executors
 
@@ -158,6 +159,26 @@ class SettingsMainFragment : Fragment() {
                     btnAccount.text = getString(R.string.account_login)
                     btnAccount.setOnClickListener { login() }
                     tvConnState.text = getString(R.string.account_hint_logged_out)
+
+                    // 登不上时给两条后路：先看诊断，再不行就手动填 token。
+                    // 之前只会反复重试同一个流程，失败了也没别的办法。
+                    tvConnState.append("\n登不上？点「登录诊断」看卡在哪一步")
+                    btnAccount.setOnLongClickListener {
+                        MaterialAlertDialogBuilder(ctx)
+                            .setTitle("登录")
+                            .setItems(
+                                arrayOf("重新登录", "登录诊断（看卡在哪）", "手动填 GitHub Token")
+                            ) { _, w ->
+                                when (w) {
+                                    0 -> login()
+                                    1 -> runLoginDiag()
+                                    2 -> manualToken()
+                                }
+                            }
+                            .setNegativeButton(R.string.cancel, null)
+                            .show()
+                        true
+                    }
                 }
             }
         }
@@ -176,7 +197,19 @@ class SettingsMainFragment : Fragment() {
                 if (!isAdded) return@post
                 if (url.isBlank()) {
                     tvConnState.text = getString(R.string.conn_blocked_hint)
-                    toast("连不上后端，可先离线使用")
+                    // 之前只说"连不上"，用户不知道是网络问题还是后端没配好。
+                    // 现在直接把诊断入口摆出来，点一下就知道卡在哪。
+                    MaterialAlertDialogBuilder(ctx)
+                        .setTitle("拿不到登录地址")
+                        .setMessage(
+                            "后端没返回 GitHub 授权地址。\n\n" +
+                                "可能是网络不通（workers.dev 国内常不稳），" +
+                                "也可能是后端还没配好 OAuth。\n\n" +
+                                "要现在看一下是哪一步的问题吗？"
+                        )
+                        .setPositiveButton("诊断") { _, _ -> runLoginDiag() }
+                        .setNegativeButton("离线使用", null)
+                        .show()
                     return@post
                 }
                 try {
@@ -194,6 +227,74 @@ class SettingsMainFragment : Fragment() {
                 }
             }
         }
+    }
+
+    /**
+     * 登录诊断：逐步测、逐个报。
+     * 之前"登录不了"只能靠猜，因为链路有多个环节，断了的表现都一样。
+     */
+    private fun runLoginDiag() {
+        val ctx = context ?: return
+        val tv = android.widget.TextView(ctx).apply {
+            text = "正在检查…\n"
+            textSize = 13f
+            setPadding(24, 16, 24, 16)
+            setTextIsSelectable(true)
+        }
+        val sv = android.widget.ScrollView(ctx).apply { addView(tv) }
+        val dlg = MaterialAlertDialogBuilder(ctx)
+            .setTitle("登录诊断")
+            .setView(sv)
+            .setPositiveButton("重新登录") { _, _ -> login() }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+
+        exec.execute {
+            val r = LoginDiag.run(ctx) { step ->
+                handler.post {
+                    if (!isAdded) return@post
+                    tv.append(
+                        "${if (step.ok) "✓" else "✗"} ${step.name}\n    ${step.detail}\n"
+                    )
+                }
+            }
+            handler.post {
+                if (!isAdded) return@post
+                val full = LoginDiag.format(r)
+                val tip = full.substringAfter("建议：", "")
+                if (tip.isNotBlank()) tv.append("\n建议：$tip")
+                if (r.loggedIn) refreshAccount()
+            }
+        }
+    }
+
+    /** 手动填 GitHub Token 兜底：后端这条路走不通时仍能使用相关功能 */
+    private fun manualToken() {
+        val ctx = context ?: return
+        val et = android.widget.EditText(ctx).apply {
+            hint = "ghp_xxxx 或 github_pat_xxxx"
+            setSingleLine(true)
+        }
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("手动填写 GitHub Token")
+            .setMessage(
+                "后端登录走不通时可以先这样用。\n\n" +
+                    "Token 只存在本机，用于访问 GitHub API。\n" +
+                    "建议只勾必要的只读权限。"
+            )
+            .setView(et)
+            .setPositiveButton("保存") { _, _ ->
+                val t = et.text.toString().trim()
+                if (t.isBlank()) {
+                    toast("没填内容")
+                    return@setPositiveButton
+                }
+                Prefs.get(ctx).edit().putString(K.GH_TOKEN_BACKEND, t).apply()
+                toast("已保存")
+                refreshAccount()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     private fun doLogout() {

@@ -10,6 +10,14 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // 统一日志：之前各处是静默 catch + 零散 println，
+        // 出问题完全查不到。Timber 会把日志接到崩溃报告里一起带出来。
+        runCatching {
+            if (BuildConfig.DEBUG) {
+                timber.log.Timber.plant(timber.log.Timber.DebugTree())
+            }
+            timber.log.Timber.plant(CrashTree())
+        }
         CrashHandler.install(this)
         Prefs.init(this)
         // 主题必须在任何 Activity 创建前定好，否则深色模式要重启才生效
@@ -31,4 +39,26 @@ class App : Application() {
     }
 }
 
-
+/**
+ * 把 Timber 的日志同时写进崩溃日志缓冲。
+ * 这样用户分享崩溃日志时，能看到崩之前发生了什么，
+ * 而不只是最后那一行堆栈。
+ */
+private class CrashTree : timber.log.Timber.Tree() {
+    override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
+        val p = when (priority) {
+            android.util.Log.ERROR -> "E"
+            android.util.Log.WARN -> "W"
+            else -> "I"
+        }
+        runCatching {
+            val line = "$p/${tag ?: "app"}: $message"
+            when (p) {
+                "E" -> LogCenter.e(tag ?: "app", message)
+                "W" -> LogCenter.w(tag ?: "app", message)
+                else -> LogCenter.i(tag ?: "app", message)
+            }
+            if (t != null) LogCenter.e(tag ?: "app", t.message ?: t.toString())
+        }
+    }
+}

@@ -77,28 +77,6 @@ class MarketFragment : Fragment() {
         rvLinks.adapter = linkAdapter
         rvLinks.isNestedScrollingEnabled = false
 
-        // 中文热门词快捷入口：点一下就填进搜索框并搜
-        val hotBox = v.findViewById<LinearLayout>(R.id.hotBox)
-        for (w in ModAliases.hotWords()) {
-            hotBox.addView(
-                com.google.android.material.button.MaterialButton(
-                    requireContext(),
-                    null,
-                    com.google.android.material.R.attr.materialButtonOutlinedStyle
-                ).apply {
-                    text = w
-                    textSize = 11f
-                    minWidth = 0
-                    minimumWidth = 0
-                    setPadding(12, 0, 12, 0)
-                    setOnClickListener {
-                        etQuery.setText(w)
-                        search()
-                    }
-                }
-            )
-        }
-
         tvListTitle = v.findViewById(R.id.tvListTitle)
         spSort = v.findViewById(R.id.spSort)
         btnFav = v.findViewById(R.id.btnFavorites)

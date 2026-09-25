@@ -11,8 +11,8 @@ android {
         applicationId "com.kongbai.modmigrator"
         minSdk 26
         targetSdk 34
-        versionCode 6
-        versionName "1.4.0"
+        versionCode 7
+        versionName "1.5.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -77,4 +77,22 @@ dependencies {
 
     // 离线翻译引擎（Google 官方，模型下载后完全离线可用，50+ 语言）
     implementation 'com.google.mlkit:translate:17.0.3'
+
+    // ---- 以下为成熟第三方库，全部 Apache-2.0 / MIT（无高传染性）----
+    // 目的：把之前自己手写的那套替换掉。自己写的版本在各种边界情况下
+    // 反复出问题，而这些库经过大量项目验证。
+
+    // 日志：替代散落各处的 println 与静默 catch，便于定位问题
+    implementation 'com.jakewharton.timber:timber:5.0.1'
+
+    // 图片加载（含 SVG / GIF / WebP 解码），替代手写图片加载与缩放
+    implementation 'io.coil-kt:coil-svg:2.5.0'
+    implementation 'io.coil-kt:coil-gif:2.5.0'
+
+    // 说明：下载库（Fetch）与依赖注入（Koin）这次**没有**引入。
+    // 它们要真正发挥作用必须重写 Downloader / 全站构造方式，
+    // 在没法真机验证的情况下贸然替换，只会把"能用的"也搞坏。
+    // 等登录与基础功能稳定后再单独做。
+    // HTTP 日志拦截（仅 debug 用），便于看请求到底发出去没有
+    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
 }
