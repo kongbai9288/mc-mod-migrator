@@ -33,7 +33,15 @@ class EditorActivity : AppCompatActivity() {
         path = intent.getStringExtra("path") ?: ""
         originUri = intent.getStringExtra("uri")
 
-        title = if (path.isBlank()) "编辑器" else File(path).name
+        // 标题优先用传入的显示名，没有再退回文件名。
+        // 从 SAF 进来的只有 uri（拿不到真实路径），
+        // 不这样处理标题会一直是"编辑器"，用户不知道在编辑哪个文件。
+        val displayName = intent.getStringExtra("name") ?: ""
+        title = when {
+            displayName.isNotBlank() -> displayName
+            path.isNotBlank() -> File(path).name
+            else -> "编辑器"
+        }
 
         val text = loadText()
         original = text
@@ -156,4 +164,20 @@ class EditorActivity : AppCompatActivity() {
             super.onBackPressed()
         }
     }
+    companion object {
+        /**
+         * 打开编辑器。
+         *
+         * 之前这个类**完全没有入口**——功能写好了但用户点不到，等于空页面。
+         * 现在提供统一的启动方法，模组管理页的"编辑配置"会调它。
+         */
+        fun open(ctx: android.content.Context, uri: android.net.Uri, name: String) {
+            val i = android.content.Intent(ctx, EditorActivity::class.java)
+            i.putExtra("uri", uri.toString())
+            i.putExtra("name", name)
+            if (ctx !is android.app.Activity) i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            ctx.startActivity(i)
+        }
+    }
+
 }

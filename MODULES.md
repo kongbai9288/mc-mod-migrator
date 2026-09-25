@@ -66,7 +66,7 @@
 | 服务器 | `ServerFragment.kt` | `connect` `scanFiles` `browseDir` `checkUpdates` | 已重写（目录浏览器+本地存放） |
 | 工具箱 | `ToolsFragment.kt` | `doctor` `diff` `depCheck` `crossLoader` 等 | 已重写（用 ModMeta） |
 | 回收站页 | `TrashFragment.kt` | `render` `doRestore` 批量 | 已重写 |
-| 设置 | `SettingsMainFragment.kt` 等 | 分层设置 | 待重写（返回栈） |
+| 设置 | `SettingsMainFragment.kt` 等 | 分层设置 + 账号行整行可点 | 已重写 |
 | 登录 | `LoginDiag.kt` | `run`（4 步诊断） | 已重写 |
 
 ### 5. 工具层
@@ -123,3 +123,39 @@
 8. `fabric.mod.json` 的 `icon` 可能是 string 也可能是 object
 9. Forge 的 `mods.toml` 实际路径是 `META-INF/mods.toml`，不是根目录
 10. CurseForge 的 `index` 是**基于 0 的偏移量**，不是页码
+
+---
+
+## 六、可达性审计（防止有代码没入口）
+
+用户反馈的核心问题：功能写了代码但界面上没入口，用户拿到手就是这个功能是空的。
+这类问题编译能过、也不崩，只有实际点才发现。
+
+仓库内自带审计脚本：
+
+=== 1. 孤儿界面（定义了但没人实例化，用户永远看不到）===
+  无
+
+=== 2. 孤儿布局（写了 xml 但没人 inflate）===
+  无
+
+=== 3. 未绑定控件（布局有 id，代码没 findViewById，点了可能没反应）===
+  无
+
+合计可疑点：0
+说明：以上需要人工确认——有些是刻意的（如纯代码构建 UI 的页面），
+      但每一个都应该有明确理由，不能是忘了接。
+
+它检查三类问题：
+
+1. **孤儿界面** —— 定义了 Fragment/Activity 但没有任何地方实例化
+2. **孤儿布局** —— 写了 .xml 但没有任何代码 inflate
+3. **未绑定控件** —— 布局有 id 但代码没 findViewById（按钮摆着点了没反应）
+
+**每批改完必须跑一次，保持 0 可疑点。**
+
+本次修复结果：
+- （内置配置编辑器）之前完全没有入口 → 在模组详情页补「编辑」按钮
+-  没人 inflate（DevsFragment 是纯代码构建 UI）→ 删除冗余布局
+- （迁移页扫描提示）未绑定 → 绑定并动态显示扫描状态
+- （设置页账号行）未绑定 → 绑定，整行可点/长按出登录菜单

@@ -398,6 +398,11 @@ class ModManagerFragment : Fragment() {
                     .setTitle(name.substringBeforeLast("."))
                     .setMessage(info)
                     .setPositiveButton("删除") { _, _ -> confirmDelete(f) }
+                    // 之前编辑器写好了但没有任何入口，等于空页面。
+                    // 这里补上：从模组详情直接进编辑器改这个 jar 内的配置。
+                    .setNeutralButton("编辑") { _, _ ->
+                        runCatching { EditorActivity.open(ctx, f.uri, name) }
+                    }
                     .setNegativeButton(R.string.cancel, null)
                     .show()
             }

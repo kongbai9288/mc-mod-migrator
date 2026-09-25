@@ -20,6 +20,7 @@ import java.util.concurrent.Executors
 class SettingsMainFragment : Fragment() {
 
     private lateinit var ivAvatar: ImageView
+    private lateinit var rowAccount: android.view.View
     private lateinit var tvAccount: TextView
     private lateinit var tvConnState: TextView
     private lateinit var btnAccount: Button
@@ -73,6 +74,7 @@ class SettingsMainFragment : Fragment() {
     ): View {
         val v = inflater.inflate(R.layout.fragment_settings_main, container, false)
         ivAvatar = v.findViewById(R.id.ivAvatar)
+        rowAccount = v.findViewById(R.id.rowAccount)
         tvAccount = v.findViewById(R.id.tvAccount)
         tvConnState = v.findViewById(R.id.tvConnState)
         btnAccount = v.findViewById(R.id.btnAccount)
@@ -163,20 +165,18 @@ class SettingsMainFragment : Fragment() {
                     // 登不上时给两条后路：先看诊断，再不行就手动填 token。
                     // 之前只会反复重试同一个流程，失败了也没别的办法。
                     tvConnState.append("\n登不上？点「登录诊断」看卡在哪一步")
+
+                    // 整行账号区域也可点：之前只有按钮能点，
+                    // 用户点昵称/头像那一大片没反应，会以为点不动。
+                    runCatching {
+                        rowAccount.setOnClickListener { login() }
+                        rowAccount.setOnLongClickListener {
+                            showLoginMenu()
+                            true
+                        }
+                    }
                     btnAccount.setOnLongClickListener {
-                        MaterialAlertDialogBuilder(ctx)
-                            .setTitle("登录")
-                            .setItems(
-                                arrayOf("重新登录", "登录诊断（看卡在哪）", "手动填 GitHub Token")
-                            ) { _, w ->
-                                when (w) {
-                                    0 -> login()
-                                    1 -> runLoginDiag()
-                                    2 -> manualToken()
-                                }
-                            }
-                            .setNegativeButton(R.string.cancel, null)
-                            .show()
+                        showLoginMenu()
                         true
                     }
                 }
@@ -292,6 +292,24 @@ class SettingsMainFragment : Fragment() {
                 Prefs.get(ctx).edit().putString(K.GH_TOKEN_BACKEND, t).apply()
                 toast("已保存")
                 refreshAccount()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    /** 登录相关操作的菜单：重新登录 / 诊断 / 手动 Token。整行和按钮长按都能出。 */
+    private fun showLoginMenu() {
+        val ctx = context ?: return
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("登录")
+            .setItems(
+                arrayOf("重新登录", "登录诊断（看卡在哪）", "手动填 GitHub Token")
+            ) { _, w ->
+                when (w) {
+                    0 -> login()
+                    1 -> runLoginDiag()
+                    2 -> manualToken()
+                }
             }
             .setNegativeButton(R.string.cancel, null)
             .show()

@@ -25,6 +25,7 @@ import java.util.concurrent.Executors
 class MigrationFragment : Fragment() {
 
     private lateinit var tvSource: TextView
+    private lateinit var tvScanHint: android.widget.TextView
     private lateinit var tvTarget: TextView
     private lateinit var etVersion: EditText
     private lateinit var spLoader: Spinner
@@ -116,6 +117,7 @@ class MigrationFragment : Fragment() {
     ): View {
         val v = inflater.inflate(R.layout.fragment_migration, container, false)
         tvSource = v.findViewById(R.id.tvSource)
+        tvScanHint = v.findViewById(R.id.tvScanHint)
         tvTarget = v.findViewById(R.id.tvTarget)
         etVersion = v.findViewById(R.id.etTargetVersion)
         spLoader = v.findViewById(R.id.spLoader)
@@ -306,6 +308,7 @@ class MigrationFragment : Fragment() {
                     toast("该目录下没找到版本，可手动选择目录")
                 } else {
                     toast("找到 ${found.size} 个版本")
+                if (::tvScanHint.isInitialized) tvScanHint.text = "找到 ${found.size} 个版本，可点上面的框选择"
                     showInstancePicker()
                 }
             }
@@ -335,6 +338,7 @@ class MigrationFragment : Fragment() {
     private fun scanLocal() {
         val ctx = requireContext()
         toast("扫描中…")
+        if (::tvScanHint.isInitialized) tvScanHint.text = "正在扫描…"
         bg {
             // 主力路径：直接扫文件系统（能进 Android/data），SAF 只能作为补充
             var list = mutableListOf<InstanceInfo>()
