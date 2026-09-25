@@ -64,23 +64,59 @@ object OfflineTranslate {
         return File(d, "cache.tsv")
     }
 
+    /**
+     * 内存缓存。
+     *
+     * 之前 `lookup()` **每次调用都把整个 cache.tsv 读一遍**，
+     * 而翻译是逐段调用的（网页翻译一轮就上百段），等于
+     * 每翻一段就做一次全文件 IO —— 页面越大越卡，最后像死掉一样。
+     * 现在只在第一次加载，之后走内存；写缓存时同步更新内存。
+     */
+    @Volatile
+    private var memCache: HashMap<String, String>? = null
+
+    /** 缓存条数上限，超过就重写一次文件（丢掉最早的一半） */
+    private const val MAX_CACHE = 2000
+
     private fun loadCache(ctx: Context): HashMap<String, String> {
+        memCache?.let { return it }
         val m = HashMap<String, String>()
         try {
             val f = cacheFile(ctx)
-            if (!f.exists()) return m
-            f.readLines().forEach { line ->
-                val i = line.indexOf('\t')
-                if (i > 0) m[line.substring(0, i)] = line.substring(i + 1)
+            if (f.exists()) {
+                f.readLines().forEach { line ->
+                    val i = line.indexOf('\t')
+                    if (i > 0) m[line.substring(0, i)] = line.substring(i + 1)
+                }
             }
-        } catch (t: Throwable) { Err.ignore(t, "if (i > 0) m[line.substring(0, i)] = line.substrin") }
+        } catch (t: Throwable) {
+            Err.ignore(t, "读取翻译缓存")
+        }
+        memCache = m
         return m
     }
 
     private fun saveCache(ctx: Context, key: String, value: String) {
+        val m = loadCache(ctx)
+        // 已存在就不重复追加：之前每次都 append，
+        // 同一个词翻多少次文件里就有多少行，无限增长。
+        if (m[key] == value) return
+        m[key] = value
         try {
-            cacheFile(ctx).appendText("$key\t$value\n")
-        } catch (t: Throwable) { Err.ignore(t, "cacheFile(ctx).appendText(\"key\tvalue\n\")") }
+            if (m.size > MAX_CACHE) {
+                // 超限：保留较新的一半，整体重写一次
+                val keep = m.entries.toList().takeLast(MAX_CACHE / 2)
+                m.clear()
+                for (e in keep) m[e.key] = e.value
+                val sb = StringBuilder()
+                for (e in m) sb.append(e.key).append('\t').append(e.value).append('\n')
+                cacheFile(ctx).writeText(sb.toString())
+            } else {
+                cacheFile(ctx).appendText("$key\t$value\n")
+            }
+        } catch (t: Throwable) {
+            Err.ignore(t, "写入翻译缓存")
+        }
     }
 
     /** 离线可用：先查缓存，再查内置词典，最后整句里逐词替换 */
@@ -146,7 +182,18 @@ object OfflineTranslate {
 
     /** 网页离线翻译：注入 JS 做词级替换，页面不出网也能看个大概 */
     fun webScript(ctx: Context): String {
-        val pairs = DICT.entries.joinToString(",") { "\"${it.key}\":\"${it.value}\"" }
+        // 必须转义：词典里一旦出现引号或反斜杠（比如以后加中文词条、
+        // 或值为 "Iris + Sodium" 这类含特殊字符的内容），
+        // 直接拼进 JS 字符串字面量会**破坏整段脚本**
+        // —— 脚本解析失败，翻译一个字都不会生效，而且没有任何报错。
+        fun esc(s: String) = s
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+            .replace("\n", "\\n")
+            .replace("\r", "")
+        val pairs = DICT.entries.joinToString(",") {
+            "\"${esc(it.key)}\":\"${esc(it.value)}\""
+        }
         return """
         (function(){
           var D = {$pairs};

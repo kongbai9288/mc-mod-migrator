@@ -210,11 +210,25 @@ object WebTranslate {
           }
         }
         attach();
-      } catch (e) { Err.ignore(t, "attach();") }
+      } catch (e) { }
     })();
     """.trimIndent()
 
-    /** 收集待翻译文本。返回 JSON 数组。 */
+    /**
+     * 收集待翻译文本。返回 JSON 数组。
+     *
+     * ⚠️ 关键：**必须严格按 document 顺序（TreeWalker）遍历**，
+     * 与 applyJs 写回时的遍历方式**完全一致**，否则两段对不上、译文张冠李戴。
+     *
+     * 之前的写法先扫 `MM.pending`（MutationObserver 记录的新增节点，
+     * 顺序是**变动发生的先后**，不是文档顺序），再补扫全量兜底；
+     * 而写回端用的是 TreeWalker 的**文档顺序**。
+     * 只要 pending 非空且顺序与文档顺序不同，译文就会错位——
+     * 表现为「翻是翻了，但文字跑到了别的段落上」。
+     *
+     * 现在两端都只用 TreeWalker 从头走一遍，顺序天然一致；
+     * MutationObserver 只用来触发重新轮询，不再参与收集。
+     */
     private val COLLECT_JS = """
     (function(){
       try {
@@ -222,48 +236,24 @@ object WebTranslate {
         if (!MM || !MM.on) return [];
         var out = [];
         var seen = {};
-        var nodes = [];
+        // 清掉积压的变动记录：它只起"有新内容了"的信号作用
+        if (MM.pending) MM.pending.length = 0;
+        if (!document.body) return [];
 
-        // 优先处理 MutationObserver 记录的新增节点，再全量扫一遍兜底
-        if (MM.pending && MM.pending.length) {
-          for (var i = 0; i < MM.pending.length && nodes.length < 300; i++) {
-            var p = MM.pending[i];
-            if (!p) continue;
-            if (p.nodeType === 3) nodes.push(p);
-            else if (p.nodeType === 1 && p.querySelectorAll) {
-              var sub = p.querySelectorAll('*');
-              for (var k = 0; k < sub.length && nodes.length < 300; k++) {
-                if (sub[k].childNodes && sub[k].childNodes.length) nodes.push(sub[k]);
-              }
-            }
-          }
-          MM.pending.length = 0;
-        }
-        if (nodes.length < 60 && document.body) {
-          var all = document.body.getElementsByTagName('*');
-          for (var z = 0; z < all.length && nodes.length < 400; z++) nodes.push(all[z]);
-        }
-
-        for (var i2 = 0; i2 < nodes.length && out.length < 120; i2++) {
-          var el = nodes[i2];
-          if (!el || !el.childNodes) continue;
-          for (var c = 0; c < el.childNodes.length; c++) {
-            var n = el.childNodes[c];
-            // 只处理文本节点
-            if (n.nodeType !== 3) continue;
-            if (MM.done.has(n)) continue;
-            var t = n.nodeValue;
-            if (!MM.worth || !MM.worth(t)) continue;
-            if (MM.inEditable && MM.inEditable(n)) continue;
-            var s = t.trim();
-            // 同一个文本只提交一次
-            if (seen[s]) continue;
-            seen[s] = 1;
-            // 记原文（WeakMap，不写 DOM 属性）
-            if (!MM.orig.has(n)) MM.orig.set(n, t);
-            out.push(s);
-            if (out.length >= 120) break;
-          }
+        var walker = document.createTreeWalker(
+          document.body, NodeFilter.SHOW_TEXT, null, false);
+        var n;
+        while ((n = walker.nextNode()) && out.length < 120) {
+          if (MM.done.has(n)) continue;
+          var t = n.nodeValue;
+          if (!t) continue;
+          if (!MM.worth || !MM.worth(t)) continue;
+          if (MM.inEditable && MM.inEditable(n)) continue;
+          var s = t.trim();
+          if (seen[s]) continue;
+          seen[s] = 1;
+          if (!MM.orig.has(n)) MM.orig.set(n, t);
+          out.push(s);
         }
         return out;
       } catch (e) { return []; }
@@ -284,6 +274,7 @@ object WebTranslate {
             var arr = JSON.parse('$escaped');
             if (!arr || !arr.length) return;
             var idx = 0;
+            var seen = {};   // 必须与 COLLECT_JS 的去重规则完全一致
             var walker = document.createTreeWalker(
               document.body, NodeFilter.SHOW_TEXT, null, false);
             var n;
@@ -292,7 +283,11 @@ object WebTranslate {
               var t = n.nodeValue;
               if (!t || !MM.worth(t)) continue;
               if (MM.inEditable(n)) continue;
-              // 顺序必须与 COLLECT_JS 提交的顺序一致，否则会错位
+              var s = t.trim();
+              // 收集时相同文本只提交一次，这里也必须跳过，
+              // 否则重复的第二处会吃掉下一条译文，导致后面全部错位
+              if (seen[s]) continue;
+              seen[s] = 1;
               var want = arr[idx];
               if (!want) { idx++; continue; }
               if (!MM.orig.has(n)) MM.orig.set(n, t);
@@ -300,7 +295,7 @@ object WebTranslate {
               MM.done.add(n);
               idx++;
             }
-          } catch (e) { Err.ignore(t, "idx++;") }
+          } catch (e) { }
         })();
         """.trimIndent()
     }
