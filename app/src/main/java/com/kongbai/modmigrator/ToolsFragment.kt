@@ -96,6 +96,17 @@ class ToolsFragment : Fragment() {
             "按 Modrinth 格式导出，可分享给别人或自己备份", "导出"
         ) { exportMrpack() })
 
+        // ---------- 跨设备传输 ----------
+        // QuickTransfer.shareFiles() 一直**没有任何调用方**——
+        // 打包分享的代码写好了，界面上却点不到，等于没做。
+        // 这里补入口：把 mods 打成 zip 走系统分享面板（蓝牙/附近分享/微信均可）。
+        root.addView(UiCards.sectionTitle(ctx, "跨设备传输"))
+
+        root.addView(UiCards.infoCard(
+            ctx, R.drawable.ic_bolt, "打包发送到别的设备",
+            "把 mods 目录打包，走系统分享（蓝牙、附近分享、微信、网盘都行）", "发送"
+        ) { shareMods() })
+
         // ---------- 开发者 ----------
         root.addView(UiCards.sectionTitle(ctx, "开发者"))
 
@@ -516,6 +527,58 @@ class ToolsFragment : Fragment() {
             lp.bottomMargin = (8 * resources.displayMetrics.density).toInt()
             layoutParams = lp
             setOnClickListener { act() }
+        }
+    }
+
+    /**
+     * 打包 mods 目录并走系统分享面板发送到别的设备。
+     *
+     * 打包必须在**后台线程**做：mods 目录动辄几百 MB，
+     * 在主线程压缩会直接 ANR（界面卡死）。
+     * 但分享（startActivity）必须在主线程，所以压缩完再切回来。
+     */
+    private fun shareMods() {
+        val ctx = context ?: return
+        bg {
+            val dir = Targets.modsDir(ctx) ?: WorkDir.modsDir(ctx)
+            if (dir == null) {
+                toast("没有可用的 mods 目录")
+                return@bg
+            }
+            val files = dir.listFiles().filter {
+                (it.name ?: "").endsWith(".jar", true)
+            }
+            if (files.isEmpty()) {
+                toast("mods 目录里没有模组")
+                return@bg
+            }
+            toast("正在打包 ${files.size} 个模组…")
+
+            // DocumentFile 不能直接给 ZipOutputStream，先落到本地缓存再打包
+            val tmp = java.io.File(ctx.cacheDir, "share_mods").apply {
+                if (exists()) deleteRecursively()
+                mkdirs()
+            }
+            val locals = ArrayList<java.io.File>()
+            for (f in files) {
+                val out = java.io.File(tmp, f.name ?: continue)
+                try {
+                    ctx.contentResolver.openInputStream(f.uri)?.use { i ->
+                        out.outputStream().use { i.copyTo(it, 1 shl 16) }
+                    }
+                    if (out.exists() && out.length() > 0) locals.add(out)
+                } catch (t: Throwable) {
+                    Err.ignore(t, "复制 ${f.name} 到临时目录")
+                }
+            }
+            if (locals.isEmpty()) {
+                toast("没有可打包的文件（可能读不到）")
+                return@bg
+            }
+            handler.post {
+                if (!isAdded) return@post
+                QuickTransfer.shareFiles(ctx, locals, "mods.zip")
+            }
         }
     }
 

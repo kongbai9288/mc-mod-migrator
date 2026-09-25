@@ -55,9 +55,16 @@ object QuickTransfer {
      * 打包并分享。
      * @param files 要打包的文件
      */
+    /**
+     * 打包并分享。
+     *
+     * **必须在后台线程调用**：打包是磁盘密集操作，
+     * mods 目录动辄几百 MB，在主线程会 ANR。
+     * 内部的 Toast 与 startActivity 会自动切回主线程。
+     */
     fun shareFiles(ctx: Context, files: List<File>, zipName: String = "modmigrator-share.zip") {
         if (files.isEmpty()) {
-            Toast.makeText(ctx, "没有可发送的文件", Toast.LENGTH_SHORT).show()
+            main(ctx) { Toast.makeText(ctx, "没有可发送的文件", Toast.LENGTH_SHORT).show() }
             return
         }
         var err = ""
@@ -68,10 +75,21 @@ object QuickTransfer {
             null
         }
         if (zip == null) {
-            Toast.makeText(ctx, "打包失败：$err", Toast.LENGTH_SHORT).show()
+            main(ctx) { Toast.makeText(ctx, "打包失败：$err", Toast.LENGTH_SHORT).show() }
             return
         }
-        shareOne(ctx, zip, "迁移包")
+        // shareOne 里要 startActivity，必须回主线程
+        main(ctx) { shareOne(ctx, zip, "迁移包") }
+    }
+
+    private fun main(ctx: Context, block: () -> Unit) {
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            try {
+                block()
+            } catch (t: Throwable) {
+                Err.ignore(t, "分享回调")
+            }
+        }
     }
 
     /** 分享单个文件 */

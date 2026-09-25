@@ -43,10 +43,13 @@ object DelayedDownload {
     @Volatile
     private var activeWebView: WebView? = null
 
-    private val finishTimeout = Runnable {
-        // 超时：强制收尾
-        cleanup(null)
-    }
+    // 注意：这里**不能**放一个 object 级别共享的 Runnable。
+    // 之前就放了一个，它只能调 cleanup(null)，
+    // 而 cleanup 只是销毁 WebView、并不会回调 onFail ——
+    // 于是「等待超时」这条路径上，调用方**永远收不到任何回调**：
+    // 界面停在"正在后台获取真实地址…"，进度条一直转，用户不知道该怎么办。
+    // 超时必须走 finish(null)，让 onFail 真的被调用。
+    // 所以改成每次 capture 现场创建一个（要闭包捕获 finish），见下面。
 
     /**
      * 在后台打开页面，等真实下载地址出现。
@@ -74,9 +77,13 @@ object DelayedDownload {
         var web: WebView? = null
         val done = AtomicBoolean(false)
 
+        // 先声明后赋值：finish 要移除它，它又要捕获 finish，
+        // 两者互相依赖，只能用一个可空变量把它们拆开。
+        var timeoutTask: Runnable? = null
+
         fun finish(url: String?) {
             if (!done.compareAndSet(false, true)) return
-            mainHandler.removeCallbacks(finishTimeout)
+            timeoutTask?.let { mainHandler.removeCallbacks(it) }
             mainHandler.post {
                 try {
                     if (url != null) onGot(url)
@@ -85,6 +92,10 @@ object DelayedDownload {
                 cleanup(web)
             }
         }
+
+        // 超时任务必须在这里创建：它要闭包捕获 finish，
+        // 才能在超时时真正调用 onFail（否则调用方永远等不到结果）。
+        timeoutTask = Runnable { finish(null) }
 
         mainHandler.post {
             try {
@@ -141,10 +152,12 @@ object DelayedDownload {
                     }
                 }
                 web?.loadUrl(pageUrl)
-                // 硬超时兜底：无论如何都要收尾，不能把 WebView 挂着
-                mainHandler.postDelayed(finishTimeout, timeoutMs)
+                // 硬超时兜底：无论如何都要收尾，不能把 WebView 挂着。
+                // 到点走 finish(null) → 调用方的 onFail 会被调用，
+                // 进而走"改用直连试试"的兜底，不会干等。
+                mainHandler.postDelayed(timeoutTask!!, timeoutMs)
             } catch (t: Throwable) {
-                mainHandler.removeCallbacks(finishTimeout)
+                timeoutTask?.let { mainHandler.removeCallbacks(it) }
                 mainHandler.post {
                     onFail("后台页面创建失败：${t.message}")
                     busy = false
