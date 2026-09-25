@@ -557,84 +557,112 @@ class MigrationFragment : Fragment() {
             }
             val files = Fs.children(dir).filter { it.isFile && (it.name ?: "").endsWith(".jar", true) }
             log("发现 ${files.size} 个 jar")
-            var idx = 0
             // 统计：区分"真的没收录"和"网络问题没查成"
             var netFail = 0
             val netFailNames = ArrayList<String>()
             var notFound = 0
+
+            if (files.isEmpty()) {
+                log("这个目录里没有 jar 文件")
+            }
+
+            // ── 第 1 步：本地算指纹（纯 IO，不需要联网）──────────────
+            // 之前这一步和网络请求交错在一个循环里，一个慢全部慢。
+            // 先把所有指纹算完，网络请求就能合并成整批发出去。
+            val entries = ArrayList<ModEntry>(files.size)
+            var idx = 0
             for (f in files) {
                 idx++
-                Progress.update("正在识别模组 ${f.name}", idx, files.size)
+                Progress.update("计算文件指纹（$idx/${files.size}）", idx, files.size)
                 val e = ModEntry(fileName = f.name ?: "mod.jar", uri = f.uri.toString())
                 e.sha1 = Fs.sha1(ctx, f)
-                val info = ModrinthApi.lookupHash(e.sha1)
-                if (!info.found) {
-                    // 网络问题 ≠ 没收录。之前这两种情况都显示"未识别"，
-                    // 用户根本分不清是该重试还是这个模组确实查不到。
-                    if (info.netError) {
-                        netFail++
-                        netFailNames.add(e.fileName)
-                        e.status = "网络问题未能识别（${info.msg}）"
-                        e.netError = true
-                        log("× ${e.fileName}：${info.msg}，已跳过")
-                    } else {
-                        notFound++
-                        e.status = "Modrinth 未收录（可去市场手动标记链接）"
-                    }
+                if (e.sha1.isBlank()) {
+                    // 打不开的文件（权限/损坏）：单独标出来，
+                    // 不能让空哈希混进批量请求里污染结果。
+                    e.status = "读不出文件内容（权限或损坏）"
+                    e.netError = true
+                    notFound++
+                    log("× ${e.fileName}：无法读取")
+                }
+                entries.add(e)
+            }
+            val hashes = entries.map { it.sha1.lowercase() }
+
+            // ── 第 2 步：一次批量反查（替代 N 次逐个请求）──────────
+            Progress.update("正在识别 ${entries.size} 个模组…", 1, 3)
+            log("批量识别 ${entries.size} 个模组…")
+            val found = ModrinthApi.lookupHashes(hashes)
+
+            // ── 第 3 步：一次批量取目标版本 ────────────────────────
+            // /version_files/update 本身就返回"该 MC 版本 + 加载器下的最新版"，
+            // 不必先反查再逐个拉版本列表。
+            val recognized = entries.filter { found[it.sha1.lowercase()]?.found == true }
+            Progress.update("正在获取目标版本…", 2, 3)
+            val latests = if (recognized.isEmpty()) {
+                emptyMap()
+            } else {
+                ModrinthApi.latestForHashes(recognized.map { it.sha1 }, mc, loader)
+            }
+
+            // ── 第 4 步：一次批量取标题与 slug ─────────────────────
+            Progress.update("正在取模组名称…", 3, 3)
+            ModrinthApi.refreshAll(recognized.map { it.projectId })
+
+            // ── 第 5 步：回填每个条目的状态（不再有网络请求）────────
+            for (e in entries) {
+                if (e.sha1.isBlank()) {
                     safePost(handler) {
                         mods.add(e)
                         adapter.notifyItemInserted(mods.size - 1)
                     }
                     continue
                 }
-                run {
-                    e.projectId = info.projectId
-                    e.currentVersion = info.version
-                    e.slug = info.slug
-                    e.name = ModrinthApi.title(info.projectId).ifBlank { e.fileName }
-                    // 记录页面地址，列表里点整行就能打开模组详情页
-                    e.pageUrl = if (e.slug.isNotBlank()) {
-                        "https://modrinth.com/mod/${e.slug}"
-                    } else {
-                        "https://modrinth.com/mod/${e.projectId}"
+                val key = e.sha1.lowercase()
+                val info = found[key]
+                when {
+                    info == null -> {
+                        // 批量接口里查不到的哈希根本不返回，这就是"确实没收录"
+                        notFound++
+                        e.status = "Modrinth 未收录（可去市场手动标记链接）"
                     }
-                    val vers = try {
-                        ModrinthApi.versions(info.projectId, mc, loader)
-                    } catch (t: Throwable) {
-                        // 查版本这一步也可能网络失败，同样要跳过并说明
+                    info.netError -> {
                         netFail++
                         netFailNames.add(e.fileName)
-                        e.status = "查版本失败（${Http.describeError(t)}）"
+                        e.status = "网络问题未能识别（${info.msg}）"
                         e.netError = true
-                        log("× ${e.name}：查版本失败，${Http.describeError(t)}")
-                        emptyList<ModFile>()
+                        log("× ${e.fileName}：${info.msg}，已跳过")
                     }
-                    if (e.status.startsWith("查版本失败")) {
-                        safePost(handler) {
-                            mods.add(e)
-                            adapter.notifyItemInserted(mods.size - 1)
+                    else -> {
+                        e.projectId = info.projectId
+                        e.currentVersion = info.version
+                        e.slug = ModrinthApi.slug(info.projectId)
+                        e.name = ModrinthApi.title(info.projectId).ifBlank { e.fileName }
+                        // 记录页面地址，列表里点整行就能打开模组详情页
+                        e.pageUrl = if (e.slug.isNotBlank()) {
+                            "https://modrinth.com/mod/${e.slug}"
+                        } else {
+                            "https://modrinth.com/mod/${e.projectId}"
                         }
-                        return@run
-                    }
-                    val v0 = vers.firstOrNull()
-                    if (v0 == null) {
-                        // 目标加载器上没有构建时，查已知平替（如 Sodium → Embeddium）
-                        val alt = Loaders.equivalent(e.name.ifBlank { e.fileName }, loader)
-                        e.status = when {
-                            alt == null -> "「迁移后」的版本无可用文件"
-                            alt.isBlank() -> "该加载器下不需要此组件"
-                            else -> "建议改用：$alt"
+                        val v0 = latests[key]
+                        if (v0 == null) {
+                            // 目标加载器上没有构建时，查已知平替（如 Sodium → Embeddium）
+                            val alt = Loaders.equivalent(e.name.ifBlank { e.fileName }, loader)
+                            e.status = when {
+                                alt == null -> "「迁移后」的版本无可用文件"
+                                alt.isBlank() -> "该加载器下不需要此组件"
+                                else -> "建议改用：$alt"
+                            }
+                            if (!alt.isNullOrBlank()) {
+                                // 把替代名也写进去，方便用户照着去搜
+                                e.targetFileName = alt
+                                log("${e.name} 在 ${Loaders.label(loader)} 上无构建，平替：${alt}")
+                            }
+                        } else {
+                            e.targetVersion = v0.version
+                            e.targetUrl = v0.url
+                            e.targetFileName = v0.fileName
+                            e.status = "可迁移"
                         }
-                        if (!alt.isNullOrBlank()) {
-                            // 把替代名也写进去，方便用户照着去搜
-                            e.targetFileName = alt
-                            log("${e.name} 在 ${Loaders.label(loader)} 上无构建，平替：${alt}")
-                        }
-                    } else {
-                        e.targetVersion = v0.version
-                        e.targetUrl = v0.url
-                        e.targetFileName = v0.fileName
-                        e.status = "可迁移"
                     }
                 }
                 safePost(handler) {
@@ -642,7 +670,7 @@ class MigrationFragment : Fragment() {
                     adapter.notifyItemInserted(mods.size - 1)
                 }
             }
-            log("扫描完成")
+            log("扫描完成（网络请求：识别 1 次 + 取版本 1 次 + 取名 1 次）")
             val nf = netFail
             val nfNames = ArrayList(netFailNames)
             val nfound = notFound
@@ -754,36 +782,53 @@ class MigrationFragment : Fragment() {
         val loader = pp.getString(K.DEF_LOADER, "auto") ?: "auto"
         bg {
             var fixed = 0
+            // 重试同样走批量接口：之前是逐个请求，
+            // 失败项可能有几十个，逐个重试又会慢到像死机。
+            val hashes = todo.map { it.sha1.lowercase() }
+            val found = ModrinthApi.lookupHashes(hashes)
+            val recognized = todo.filter { found[it.sha1.lowercase()]?.found == true }
+            val latests = if (recognized.isEmpty()) {
+                emptyMap()
+            } else {
+                ModrinthApi.latestForHashes(recognized.map { it.sha1 }, mc, loader)
+            }
+            ModrinthApi.refreshAll(recognized.map { it.projectId })
+
             for (e in todo) {
-                val info = ModrinthApi.lookupHash(e.sha1)
-                if (!info.found) {
-                    safePost(handler) {
-                        e.status = if (info.netError) "仍连不上（${info.msg}）" else "Modrinth 未收录"
-                        adapter.notifyDataSetChanged()
+                val key = e.sha1.lowercase()
+                val info = found[key]
+                when {
+                    info == null -> {
+                        safePost(handler) {
+                            e.status = "Modrinth 未收录"
+                            adapter.notifyDataSetChanged()
+                        }
                     }
-                    continue
-                }
-                val vers = try {
-                    ModrinthApi.versions(info.projectId, mc, loader)
-                } catch (t: Throwable) {
-                    emptyList<ModFile>()
-                }
-                val v0 = vers.firstOrNull()
-                safePost(handler) {
-                    if (v0 != null) {
-                        e.projectId = info.projectId
-                        e.name = ModrinthApi.title(info.projectId).ifBlank { e.fileName }
-                        e.targetVersion = v0.version
-                        e.targetUrl = v0.url
-                        e.targetFileName = v0.fileName
-                        e.status = "可迁移"
-                        e.netError = false
-                        fixed++
-                    } else {
-                        e.status = "重试后仍无可用文件"
-                        e.netError = false
+                    info.netError -> {
+                        safePost(handler) {
+                            e.status = "仍连不上（${info.msg}）"
+                            adapter.notifyDataSetChanged()
+                        }
                     }
-                    adapter.notifyDataSetChanged()
+                    else -> {
+                        val v0 = latests[key]
+                        safePost(handler) {
+                            if (v0 != null) {
+                                e.projectId = info.projectId
+                                e.name = ModrinthApi.title(info.projectId).ifBlank { e.fileName }
+                                e.targetVersion = v0.version
+                                e.targetUrl = v0.url
+                                e.targetFileName = v0.fileName
+                                e.status = "可迁移"
+                                e.netError = false
+                                fixed++
+                            } else {
+                                e.status = "重试后仍无可用文件"
+                                e.netError = false
+                            }
+                            adapter.notifyDataSetChanged()
+                        }
+                    }
                 }
             }
             safePost(handler) {

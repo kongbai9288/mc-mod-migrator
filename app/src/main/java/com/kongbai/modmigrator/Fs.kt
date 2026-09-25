@@ -77,7 +77,14 @@ object Fs {
     fun sha1(ctx: Context, file: DocumentFile): String {
         return try {
             val md = MessageDigest.getInstance("SHA-1")
-            ctx.contentResolver.openInputStream(file.uri)?.use { input ->
+            val stream = ctx.contentResolver.openInputStream(file.uri)
+            // 打不开时必须返回空串。
+            // 之前写成 `?.use { ... }`：流为 null 时 lambda 不执行，
+            // 但 md.digest() 照常跑，于是返回的是「空内容的 SHA-1」
+            // (da39a3ee...)。这个哈希会被当成真实指纹提交给 Modrinth，
+            // 表现就是"文件明明打不开，却显示识别成功或结果错乱"。
+            if (stream == null) return ""
+            stream.use { input ->
                 val buf = ByteArray(1 shl 16)
                 while (true) {
                     val n = input.read(buf)
@@ -87,6 +94,7 @@ object Fs {
             }
             md.digest().joinToString("") { "%02x".format(it) }
         } catch (t: Throwable) {
+            Err.ignore(t, "计算 SHA-1：${file.name}")
             ""
         }
     }
