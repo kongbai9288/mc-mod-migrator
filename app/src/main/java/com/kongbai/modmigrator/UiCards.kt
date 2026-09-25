@@ -27,7 +27,16 @@ object UiCards {
     private fun dp(ctx: Context, v: Int): Int =
         (v * ctx.resources.displayMetrics.density).toInt()
 
-    /** 主题色（跟随用户选的主题） */
+    /**
+     * 主题色（跟随用户选的主题）。
+     *
+     * ⚠️ 之前的 catch 分支写的是 `primary(ctx)` —— **递归调用自己**。
+     * 一旦 `resolveAttribute` 持续抛异常（比如 Activity 的 theme 还没设好、
+     * 或某些 ROM 上的主题异常），就会无限递归直到 StackOverflowError。
+     * 而这个函数被每张卡片的图标染色、分组标题、头像底色调用，
+     * 一崩就是整个页面打不开，且堆栈几千行几乎没法读。
+     * 兜底必须是**一个固定的颜色值**，绝不能再调自己。
+     */
     private fun primary(ctx: Context): Int {
         val tv = TypedValue()
         return try {
@@ -37,9 +46,13 @@ object UiCards {
                 else @Suppress("DEPRECATION") ctx.resources.getColor(tv.resourceId)
             } else tv.data
         } catch (t: Throwable) {
-            primary(ctx)   // 跟随主题主色，不再是写死的绿色
+            Err.ignore(t, "解析主题主色")
+            FALLBACK_PRIMARY
         }
     }
+
+    /** 主题色解析失败时的兜底值（不会再触发任何解析，避免递归） */
+    private const val FALLBACK_PRIMARY = 0xFF4CAF50.toInt()
 
     /** 圆角白底卡片背景 */
     private fun cardBg(ctx: Context, radiusDp: Int = 12): GradientDrawable =
@@ -186,7 +199,10 @@ object UiCards {
 
         if (avatarUrl.isNotBlank()) {
             try {
-                coil.ImageLoader(ctx).enqueue(
+                // 走**全局** ImageLoader（App 里注册了 SVG / GIF 解码器），
+                // 不能 `coil.ImageLoader(ctx)` 现建一个——新建的没有那些解码器，
+                // 头像只要是非 PNG/JPG（比如 SVG）就加载失败、只剩首字母。
+                coil.Coil.imageLoader(ctx).enqueue(
                     coil.request.ImageRequest.Builder(ctx)
                         .data(avatarUrl)
                         .target(avatar)   // 直接替换同一个 View，不新增

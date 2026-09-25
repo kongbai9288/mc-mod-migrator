@@ -75,6 +75,9 @@ class WebActivity : AppCompatActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
+        // 必须在 super 之前 setTheme，否则这个页面用的是 Manifest 里的默认主题，
+        // 用户在设置里选的配色**在这里不生效** —— 表现为「有些页面不跟主题色」。
+        setTheme(ThemePrefs.styleRes(this))
         super.onCreate(savedInstanceState)
 
         val root = LinearLayout(this).apply {
