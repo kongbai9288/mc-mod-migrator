@@ -254,9 +254,17 @@ class ToolsFragment : Fragment() {
                 toast("没有可用的 mods 目录")
                 return@bg
             }
-            val files = dir.listFiles().filter { (it.name ?: "").endsWith(".jar", true) }
+            val files = dir.listFiles().filter {
+                // 必须排除"已禁用"的（x.jar.disabled）。
+                // 禁用的模组**不会被加载器装载**，它既不提供依赖、
+                // 也不参与冲突，算进去只会让体检报告出现一堆
+                // 根本不存在的"缺失依赖"和"加载器冲突"——
+                // 用户照着去补装，白忙一场。
+                val n = it.name ?: return@filter false
+                n.endsWith(".jar", true) && !ModToggle.isDisabled(it)
+            }
             if (files.isEmpty()) {
-                toast("mods 目录是空的")
+                toast("mods 目录是空的（或全部被禁用）")
                 return@bg
             }
             val mods = ArrayList<ModDepGraph.Mod>()

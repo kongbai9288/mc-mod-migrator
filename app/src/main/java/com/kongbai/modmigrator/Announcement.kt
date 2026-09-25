@@ -106,7 +106,11 @@ object Announcement {
                 .replace("{repo}", repo)
                 .replace("{branch}", branch)
             try {
-                val text = Http.get(url)
+                // 必须用短超时：这里要依次试 7 个镜像。
+                // 用默认超时的话（读取 120 秒），前面两三个不通就要等好几分钟，
+                // 公告迟迟弹不出来，用户只会觉得"公告功能没做"。
+                // 单个镜像快速失败，7 个试完也就十几秒。
+                val text = Http.get(url, timeout = Http.SHORT)
                 if (text.isBlank()) continue
                 val n = parse(text)
                 if (n != null) return n
@@ -137,7 +141,4 @@ object Announcement {
 
     /** 标记这条已读（用户关掉弹窗后调用） */
     fun dismiss(ctx: Context, id: String) = markClosed(ctx, id)
-
-    /** 本地兜底公告：仓库里没文件时用（不至于永远弹不出来） */
-    fun fallback(): Notice? = null
 }
