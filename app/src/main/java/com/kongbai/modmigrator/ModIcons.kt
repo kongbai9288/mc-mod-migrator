@@ -38,8 +38,16 @@ object ModIcons {
         "assets/logo.png",
         "mod_icon.png",
         "pack.png",          // 资源包常见
+        // 有些模组的图标是 GIF（fabric.mod.json 的 icon 字段允许写 .gif），
+        // 之前候选里只有 png，这类模组一律取不到图标、只能显示首字母。
+        "icon.gif",
+        "logo.gif",
+        "assets/icon.gif",
         "icon.svg"           // 少数模组用矢量图标
     )
+
+    /** 兜底扫描时也要认的扩展名 */
+    private val ICON_EXT = listOf(".png", ".gif", ".jpg", ".jpeg", ".webp")
 
     /**
      * 取图标。返回 null 表示取不到，调用方应显示首字母占位图。
@@ -117,9 +125,11 @@ object ModIcons {
         for (c in FALLBACKS) {
             if (zf.getEntry(c) != null) return c
         }
-        // 最后兜底：根目录里第一个 .png
+        // 最后兜底：根目录里第一个看起来像图标的图片。
+        // 之前只找 .png，GIF 图标的模组在这里会漏掉。
         val e = zf.entries().asSequence().firstOrNull {
-            !it.isDirectory && it.name.endsWith(".png", true) && !it.name.contains('/')
+            !it.isDirectory && !it.name.contains('/') &&
+                ICON_EXT.any { ext -> it.name.endsWith(ext, true) }
         }
         return e?.name ?: ""
     }
@@ -136,6 +146,11 @@ object ModIcons {
         // SVG 无法用 BitmapFactory 解码，直接放弃（界面会退回首字母占位）
         if (path.endsWith(".svg", true)) return null
 
+        // GIF：BitmapFactory 只能解出**第一帧**（静态图），
+        // 本地 jar 里的图标本来也不需要在列表里播放动画，
+        // 取首帧即可。网络图标（Modrinth 的动图）由 Coil 的 GifDecoder 处理。
+        val isGif = path.endsWith(".gif", true)
+
         // 第一遍：只取尺寸
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         zf.getInputStream(entry).use {
@@ -145,8 +160,10 @@ object ModIcons {
         val h = bounds.outHeight
         if (w <= 0 || h <= 0) return null
 
-        // 第二遍：按采样率真解码
-        val sample = calculateInSampleSize(w, h, targetPx)
+        // 第二遍：按采样率真解码。
+        // GIF 不采样：inJustDecodeBounds 对部分 GIF 拿到的尺寸不可靠，
+        // 采样后反而可能解不出来，首帧本来就小，直接解即可。
+        val sample = if (isGif) 1 else calculateInSampleSize(w, h, targetPx)
         val opts = BitmapFactory.Options().apply {
             inSampleSize = sample
             inPreferredConfig = Bitmap.Config.ARGB_8888
