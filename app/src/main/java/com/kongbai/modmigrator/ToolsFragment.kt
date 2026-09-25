@@ -169,12 +169,14 @@ class ToolsFragment : Fragment() {
                 toast("没有可用的 mods 目录")
                 return@bg
             }
+            // 排除已禁用的（x.jar.disabled）：禁用的没被装载，
+            // 给它做跨加载器替换没有意义，还会多下载一堆装不上的文件
             val names = dir.listFiles()
+                .filter { (it.name ?: "").endsWith(".jar", true) && !ModToggle.isDisabled(it) }
                 .map { it.name ?: "" }
-                .filter { it.endsWith(".jar", true) }
 
             if (names.isEmpty()) {
-                toast("mods 目录是空的")
+                toast("mods 目录是空的（或全部被禁用）")
                 return@bg
             }
 

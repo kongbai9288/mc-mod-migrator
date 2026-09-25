@@ -141,8 +141,28 @@ object CrossLoader {
                 continue
             }
 
-            // 取第一个匹配的项目的版本文件，只留目标加载器 + 目标 MC 版本
-            val proj = hits.first()
+            // 取第一个匹配的项目的版本文件，只留目标加载器 + 目标 MC 版本。
+            //
+            // 之前直接 `hits.first()`：搜索是**模糊匹配**，
+            // 搜 "sodium" 可能第一个返回的是 "Sodium Extra"、
+            // 搜 "jei" 可能返回 "JEI Integration"。
+            // 直接拿去替换，等于把用户的模组换成了**另一个东西**，
+            // 而且报告里还写着"可替换为 xxx"，用户看名字差不多就点了确认。
+            // 这里先核对名字是否真的对得上，对不上就不给地址、如实说明。
+            val proj = pickProject(hits, name)
+            if (proj == null) {
+                out.add(
+                    Plan(
+                        fileName = raw, modName = name,
+                        fromLoader = norm(fromLoader), toLoader = to,
+                        mcVersion = mc, targetVersion = "", url = "",
+                        note = "搜到 ${hits.size} 个候选，但没有一个名字对得上" +
+                            "（最接近的是「${hits.first().name}」）。" +
+                            "为避免换错模组，这里不自动替换，请手动到市场确认。"
+                    )
+                )
+                continue
+            }
             val files = try {
                 ModrinthApi.versions(proj.id, mc, to)
             } catch (t: Throwable) {
@@ -174,6 +194,39 @@ object CrossLoader {
         }
         return out
     }
+
+    /**
+     * 从搜索结果里挑出**确实是同一个模组**的项目。
+     *
+     * 搜索是模糊匹配，只看"第一个"会换错东西。
+     * 判定标准（任一命中即可）：
+     *   - 项目名 / slug 归一化后与模组名**完全相同**
+     *   - 项目名以模组名开头（允许带后缀，如 "Sodium Extra"）
+     *     但**反过来不算**——搜 "sodium" 匹配到 "Sodium Extra" 就是典型误伤
+     * 都不匹配就返回 null，让调用方如实告诉用户"没匹配上"。
+     */
+    private fun pickProject(hits: List<MarketMod>, modName: String): MarketMod? {
+        if (hits.isEmpty()) return null
+        val key = normKey(modName)
+        if (key.isBlank()) return hits.first()
+
+        // 1) 完全一致：最可靠，优先
+        for (h in hits) {
+            if (normKey(h.name) == key || normKey(h.slug) == key) return h
+        }
+        // 2) 项目名以模组名开头（"sodium extra" 以 "sodium" 开头）
+        //    但只有**一个**候选时才敢这么用，多个就说明有歧义
+        val prefixed = hits.filter {
+            normKey(it.name).startsWith(key) || normKey(it.slug).startsWith(key)
+        }
+        if (prefixed.size == 1) return prefixed.first()
+        return null
+    }
+
+    /** 归一化：小写、非字母数字去掉，用于名字比对 */
+    private fun normKey(s: String): String =
+        s.lowercase(Locale.ROOT)
+            .replace(Regex("[^a-z0-9]"), "")
 
     /** 汇总报告 */
     fun report(plans: List<Plan>): String {
