@@ -199,17 +199,38 @@ class DownloadService : Service() {
 
             savePos(this, task, task.done)
 
+            // ── 校验实际大小 ──────────────────────────────────────
+            // copyLoop 是靠 read() 返回 -1 判断结束的。连接中途被掐断时
+            // 也可能正常返回 -1，于是循环平顺结束、没有任何异常，
+            // 但文件其实是**半截**的。之前不做校验就标"完成"，
+            // 一个截断的 jar 会被装进 mods 目录 —— 表现正是
+            // "下载显示完成了，模组却加载不了"。
+            if (task.total > 0 && task.done < task.total) {
+                task.state = "失败（文件不完整：${task.done}/${task.total}）"
+                notifyProgress(task)
+                return
+            }
+
             // 落到目标目录
             val targetDir = if (task.dir.isBlank()) WorkDir.modsDir(this)
             else WorkDir.sub(this, task.dir)
-            if (targetDir != null) {
-                targetDir.findFile(task.name)?.delete()
-                val df = targetDir.createFile(Fs.mimeOf(task.name), task.name)
-                if (df != null) {
-                    contentResolver.openOutputStream(df.uri, "wt")?.use { o ->
-                        out.inputStream().use { it.copyTo(o, 1 shl 16) }
-                    }
-                }
+            if (targetDir == null) {
+                // 之前这里静默跳过、仍标"完成"：
+                // 目标目录不可用时，临时文件被清掉、什么都没落地，
+                // 用户却看到"下载完成"。这不是完成，必须如实报失败。
+                task.state = "失败（目标目录不可用）"
+                notifyProgress(task)
+                return
+            }
+            targetDir.findFile(task.name)?.delete()
+            val df = targetDir.createFile(Fs.mimeOf(task.name), task.name)
+            if (df == null) {
+                task.state = "失败（无法在目标目录创建文件）"
+                notifyProgress(task)
+                return
+            }
+            contentResolver.openOutputStream(df.uri, "wt")?.use { o ->
+                out.inputStream().use { it.copyTo(o, 1 shl 16) }
             }
             clearPos(this, task)
             task.state = "完成"
