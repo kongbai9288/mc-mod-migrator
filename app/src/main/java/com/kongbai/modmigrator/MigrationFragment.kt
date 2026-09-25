@@ -557,10 +557,15 @@ class MigrationFragment : Fragment() {
             }
             val files = Fs.children(dir).filter { it.isFile && (it.name ?: "").endsWith(".jar", true) }
             log("发现 ${files.size} 个 jar")
-            // 统计：区分"真的没收录"和"网络问题没查成"
+            // 统计：区分"真的没收录"和"网络问题没查成"。
+            // 另外把"文件根本读不出来"单独记一项——它和"没收录"不是一回事，
+            // 混在一起会让最后的提示文案说错话（告诉用户"没收录"，
+            // 实际是权限/损坏，用户就会白白去重试）。
             var netFail = 0
             val netFailNames = ArrayList<String>()
             var notFound = 0
+            var unreadable = 0
+            val unreadableNames = ArrayList<String>()
 
             if (files.isEmpty()) {
                 log("这个目录里没有 jar 文件")
@@ -580,8 +585,11 @@ class MigrationFragment : Fragment() {
                     // 打不开的文件（权限/损坏）：单独标出来，
                     // 不能让空哈希混进批量请求里污染结果。
                     e.status = "读不出文件内容（权限或损坏）"
-                    e.netError = true
-                    notFound++
+                    // 不是网络问题，重试（重新联网查）也没用，
+                    // 所以 **不能** 标 netError，否则会被算进"重试失败项"
+                    e.netError = false
+                    unreadable++
+                    unreadableNames.add(e.fileName)
                     log("× ${e.fileName}：无法读取")
                 }
                 entries.add(e)
@@ -606,7 +614,16 @@ class MigrationFragment : Fragment() {
 
             // ── 第 4 步：一次批量取标题与 slug ─────────────────────
             Progress.update("正在取模组名称…", 3, 3)
-            ModrinthApi.refreshAll(recognized.map { it.projectId })
+            // 必须**从 found 里取 projectId**，不能用 `recognized.map { it.projectId }`：
+            // e.projectId 要到第 5 步回填时才被赋值，这里还是空字符串。
+            // 传一堆空 id 给 refreshAll，等于什么都没取 ——
+            // 于是下面的 title()/slug() 全为空，模组名只能退化成文件名显示，
+            // 页面地址也拼不出 slug。这就是"扫描出来了但名字不对"的原因。
+            val recognizedPids = entries
+                .mapNotNull { found[it.sha1.lowercase()]?.projectId }
+                .filter { it.isNotBlank() }
+                .distinct()
+            ModrinthApi.refreshAll(recognizedPids)
 
             // ── 第 5 步：回填每个条目的状态（不再有网络请求）────────
             for (e in entries) {
@@ -674,22 +691,34 @@ class MigrationFragment : Fragment() {
             val nf = netFail
             val nfNames = ArrayList(netFailNames)
             val nfound = notFound
+            val nUnread = unreadable
+            val unreadNames = ArrayList(unreadableNames)
             safePost(handler) {
                 pb.visibility = View.GONE
                 val ok = mods.count { it.targetUrl.isNotBlank() }
                 toast("可迁移 $ok / ${mods.size}")
 
                 // 连不上的必须明确告诉用户，而不是混在"未识别"里糊过去
-                if (nf > 0) {
-                    log("⚠ $nf 个因网络问题没能识别，其余已正常处理")
+                if (nf > 0 || nUnread > 0) {
+                    if (nf > 0) log("⚠ $nf 个因网络问题没能识别，其余已正常处理")
+                    if (nUnread > 0) log("⚠ $nUnread 个文件读不出来（权限或损坏），与网络无关")
                     MaterialAlertDialogBuilder(ctx)
-                        .setTitle("$nf 个模组没识别成功")
+                        .setTitle("有 ${nf + nUnread} 个模组没识别成功")
                         .setMessage(
                             buildString {
-                                append("这些是因为**网络问题**没查到（不是没收录）：\n\n")
-                                nfNames.take(10).forEach { append("  · $it\n") }
-                                if (nf > 10) append("  …等 $nf 个\n")
-                                append("\n另外有 $nfound 个是 Modrinth 确实没收录，")
+                                if (nf > 0) {
+                                    append("因**网络问题**没查到（可重试）：\n\n")
+                                    nfNames.take(10).forEach { append("  · $it\n") }
+                                    if (nf > 10) append("  …等 $nf 个\n")
+                                    append("\n")
+                                }
+                                if (nUnread > 0) {
+                                    append("**读不出内容**（权限或文件损坏，重试没用）：\n\n")
+                                    unreadNames.take(10).forEach { append("  · $it\n") }
+                                    if (nUnread > 10) append("  …等 $nUnread 个\n")
+                                    append("\n")
+                                }
+                                append("另外有 $nfound 个是 Modrinth 确实没收录，")
                                 append("这类重试也没用，需手动标记链接。\n\n")
                                 append("建议：换个网络或稍后再「重试失败项」。")
                             }
