@@ -404,98 +404,67 @@ class ModManagerFragment : Fragment() {
         }.start()
     }
 
-    /** 从 jar 里读 fabric.mod.json / mods.toml / mcmod.info */
+    /**
+     * 读 jar 元数据。
+     *
+     * 之前用正则去 grep JSON/TOML，遇到嵌套结构、数组、多行值就解析不出来，
+     * 详情页经常只显示"文件/大小"两行。
+     * 现在统一走 ModMeta（Gson 解 JSON、tomlj 解 TOML），按 sentinel 文件判定加载器。
+     */
     private fun readJarInfo(ctx: android.content.Context, f: DocumentFile): String {
+        val meta = ModMeta.read(ctx, f.uri)
         val sb = StringBuilder()
         sb.appendLine("文件：${f.name}")
         sb.appendLine("大小：${f.length() / 1024} KB")
-        try {
-            ctx.contentResolver.openInputStream(f.uri)?.use { input ->
-                java.util.zip.ZipInputStream(input).use { zip ->
-                    var e: java.util.zip.ZipEntry?
-                    var count = 0
-                    while (zip.nextEntry.also { e = it } != null && count < 120) {
-                        val en = e ?: break
-                        count++
-                        val n = en.name
-                        when {
-                            n.equals("fabric.mod.json", true) -> {
-                                val t = String(zip.readBytes(), Charsets.UTF_8)
-                                sb.appendLine()
-                                sb.appendLine("【Fabric 模组】")
-                                grepJson(t, sb, "id", "名称 ID")
-                                grepJson(t, sb, "version", "版本")
-                                grepJson(t, sb, "name", "名称")
-                                grepJson(t, sb, "description", "说明")
-                                grepAuthors(t, sb)
-                                grepDeps(t, sb)
-                            }
-                            n.equals("quilt.mod.json", true) -> {
-                                val t = String(zip.readBytes(), Charsets.UTF_8)
-                                sb.appendLine()
-                                sb.appendLine("【Quilt 模组】")
-                                grepJson(t, sb, "version", "版本")
-                                grepJson(t, sb, "description", "说明")
-                            }
-                            n.equals("META-INF/mods.toml", true) -> {
-                                val t = String(zip.readBytes(), Charsets.UTF_8)
-                                sb.appendLine()
-                                sb.appendLine("【Forge 模组】")
-                                grepToml(t, sb, "modId", "ID")
-                                grepToml(t, sb, "displayName", "名称")
-                                grepToml(t, sb, "version", "版本")
-                                grepToml(t, sb, "description", "说明")
-                            }
-                            n.equals("mcmod.info", true) -> {
-                                val t = String(zip.readBytes(), Charsets.UTF_8)
-                                sb.appendLine()
-                                sb.appendLine("【旧版 Forge】")
-                                grepJson(t, sb, "modid", "ID")
-                                grepJson(t, sb, "name", "名称")
-                                grepJson(t, sb, "version", "版本")
-                                grepJson(t, sb, "description", "说明")
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (t: Throwable) {
+        sb.appendLine()
+
+        if (!meta.isKnown) {
+            sb.appendLine("没识别到加载器元数据：")
+            sb.appendLine("包里没有 fabric.mod.json / mods.toml / mcmod.info。")
             sb.appendLine()
-            sb.appendLine("（读取 jar 内容失败：${t.message}）")
+            sb.appendLine("可能不是模组（比如资源包或光影），或者是损坏的 jar。")
+            if (meta.warnings.isNotEmpty()) {
+                sb.appendLine()
+                meta.warnings.forEach { sb.appendLine("· $it") }
+            }
+            return sb.toString()
         }
-        if (sb.length < 60) sb.appendLine("\n没有读到模组清单信息。")
+
+        sb.appendLine("加载器：${ModMeta.loaderLabel(meta.loader)}")
+        if (meta.name.isNotBlank()) sb.appendLine("名称：${meta.name}")
+        if (meta.id.isNotBlank()) sb.appendLine("Mod ID：${meta.id}")
+        if (meta.version.isNotBlank()) sb.appendLine("版本：${meta.version}")
+        if (meta.mcRange.isNotBlank()) sb.appendLine("MC 版本：${meta.mcRange}")
+        if (meta.authors.isNotEmpty()) sb.appendLine("作者：${meta.authors.joinToString("、")}")
+        if (meta.license.isNotBlank()) sb.appendLine("许可：${meta.license}")
+        if (meta.description.isNotBlank()) {
+            sb.appendLine()
+            sb.appendLine("简介：${meta.description}")
+        }
+        if (meta.depends.isNotEmpty()) {
+            sb.appendLine()
+            sb.appendLine("必需依赖：")
+            meta.depends.forEach { (k, v) ->
+                sb.appendLine("  · $k${if (v.isNotBlank()) " ($v)" else ""}")
+            }
+        }
+        if (meta.breaks.isNotEmpty()) {
+            sb.appendLine()
+            sb.appendLine("会冲突（同时装会崩）：")
+            meta.breaks.forEach { (k, _) -> sb.appendLine("  · $k") }
+        }
+        if (meta.provides.isNotEmpty()) {
+            sb.appendLine()
+            sb.appendLine("提供的 ID：${meta.provides.joinToString("、")}")
+        }
+        if (meta.warnings.isNotEmpty()) {
+            sb.appendLine()
+            sb.appendLine("解析提示：")
+            meta.warnings.forEach { sb.appendLine("  · $it") }
+        }
         return sb.toString()
     }
 
-    private fun grepJson(t: String, sb: StringBuilder, key: String, label: String) {
-        val m = Regex("\"$key\"\\s*:\\s*\"([^\"]+)\"").find(t)
-        if (m != null) sb.appendLine("$label：${m.groupValues[1]}")
-    }
-
-    private fun grepToml(t: String, sb: StringBuilder, key: String, label: String) {
-        val m = Regex("$key\\s*=\\s*\"([^\"]+)\"").find(t)
-        if (m != null) sb.appendLine("$label：${m.groupValues[1]}")
-    }
-
-    private fun grepAuthors(t: String, sb: StringBuilder) {
-        val m = Regex("\"authors\"\\s*:\\s*\\[(.*?)\\]", RegexOption.DOT_MATCHES_ALL).find(t)
-        if (m != null) {
-            val names = Regex("\"([^\"]+)\"").findAll(m.groupValues[1]).map { it.groupValues[1] }
-                .filter { !it.startsWith("$") }.toList()
-            if (names.isNotEmpty()) sb.appendLine("作者：${names.joinToString("、")}")
-        }
-    }
-
-    private fun grepDeps(t: String, sb: StringBuilder) {
-        val deps = Regex("\"depends\"\\s*:\\s*\\{(.*?)\\}", RegexOption.DOT_MATCHES_ALL).find(t)
-        if (deps != null) {
-            val keys = Regex("\"([^\"]+)\"\\s*:").findAll(deps.groupValues[1])
-                .map { it.groupValues[1] }.toList()
-            if (keys.isNotEmpty()) sb.appendLine("依赖：${keys.joinToString("、")}")
-        }
-    }
-
-    /** 确认删除 → 进回收站 */
     private fun confirmDelete(f: DocumentFile): Boolean {
         val ctx = context ?: return false
         val name = f.name ?: return false

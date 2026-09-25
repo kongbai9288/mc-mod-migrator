@@ -39,6 +39,18 @@ class MarketFragment : Fragment() {
 
     /** 当前页签：search=搜索结果 / fav=收藏夹 */
     private var currentTab = "search"
+
+    // ---- 分页 ----
+    // 之前只能拿第一页（默认 10~20 条），翻不到后面，
+    // 而 Modrinth/CurseForge 都支持 offset。这里记录当前偏移，
+    // 滑到底自动再拉一页，直到源返回空为止。
+    private var searchOffset = 0
+    private val PAGE_SIZE = 20
+    private var hasMore = false
+    private var loadingMore = false
+    private var lastQuery = ""
+    private var lastMc = ""
+    private var lastLoader = ""
     private lateinit var tvListTitle: android.widget.TextView
     private lateinit var spSort: Spinner
     private lateinit var btnFav: Button
@@ -81,6 +93,17 @@ class MarketFragment : Fragment() {
         spSort = v.findViewById(R.id.spSort)
         btnFav = v.findViewById(R.id.btnFavorites)
 
+        // 滑到列表底部自动加载下一页
+        rvMods.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            override fun onScrolled(rv: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
+                if (dy <= 0) return   // 只在上滑时触发
+                val lm = rv.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager ?: return
+                val last = lm.findLastVisibleItemPosition()
+                val total = lm.itemCount
+                // 距底部还剩 3 条时就开始预取，别等用户真的滑到底
+                if (last >= total - 3) loadMore()
+            }
+        })
         v.findViewById<Button>(R.id.btnSearch).setOnClickListener { search() }
         v.findViewById<Button>(R.id.btnRecommend)?.setOnClickListener { recommend() }
         v.findViewById<Button>(R.id.btnAddLink).setOnClickListener { addLinkDialog() }
@@ -180,6 +203,12 @@ class MarketFragment : Fragment() {
         // 结果存在 searchResults 里，切到收藏夹再回来依然在。
         searchResults.clear()
         currentTab = "search"
+        // 新一轮搜索：偏移归零，并记录这次的查询条件供"加载更多"复用
+        searchOffset = 0
+        hasMore = true
+        lastQuery = q
+        lastMc = mc
+        lastLoader = ld
         refreshList()
         AggregateSearch.searchStreaming(ctx, q, mc, ld) { batch, source, finished ->
             if (!isAdded) return@searchStreaming
@@ -194,10 +223,57 @@ class MarketFragment : Fragment() {
                 if (searchResults.isEmpty()) {
                     toast("没有结果${if (routes.isNotBlank()) "（$routes）" else ""}")
                 } else {
-                    toast("共 ${searchResults.size} 个${if (routes.isNotBlank()) " · $routes" else ""}")
+                    // 这一页如果一条都没返回，说明后面也没有了
+                    if (batch.isEmpty()) hasMore = false
+                    else searchOffset += PAGE_SIZE
+                    val moreHint = if (hasMore) "，下滑加载更多" else "（已全部加载）"
+                    toast("共 ${searchResults.size} 个${moreHint}${if (routes.isNotBlank()) " · $routes" else ""}")
+                    updateLoadMoreHint()
                 }
             }
         }
+    }
+
+    /**
+     * 加载下一页。
+     *
+     * 用 offset 翻页，而不是重新搜一遍——重新搜会把已有结果冲掉。
+     * 各源独立返回，和首次搜索走同一条流式通道。
+     */
+    private fun loadMore() {
+        if (loadingMore || !hasMore) return
+        if (lastQuery.isBlank()) return
+        loadingMore = true
+        val ctx = context ?: run { loadingMore = false; return }
+        AggregateSearch.searchStreaming(
+            ctx, lastQuery, lastMc, lastLoader, searchOffset, PAGE_SIZE
+        ) { batch, source, finished ->
+            if (!isAdded) return@searchStreaming
+            if (batch.isNotEmpty()) {
+                searchResults.addAll(batch)
+                refreshList()
+                toast("$source 又返回 ${batch.size} 个（共 ${searchResults.size}）")
+                autoTranslate(batch)
+            }
+            if (finished) {
+                loadingMore = false
+                if (batch.isEmpty()) hasMore = false
+                else searchOffset += PAGE_SIZE
+                updateLoadMoreHint()
+            }
+        }
+    }
+
+    /** 列表底部提示：还有更多 / 已全部加载 / 加载中 */
+    private fun updateLoadMoreHint() {
+        if (!::tvListTitle.isInitialized) return
+        if (currentTab != "search") return
+        val suffix = when {
+            loadingMore -> " · 加载中…"
+            hasMore -> " · 下滑加载更多"
+            else -> ""
+        }
+        tvListTitle.text = getString(R.string.tab_search_results) + "（${results.size}）$suffix"
     }
 
     /** 已安装模组名（小写），用于推荐时过滤掉装过的 */

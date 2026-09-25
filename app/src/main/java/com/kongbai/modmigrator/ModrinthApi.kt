@@ -20,7 +20,7 @@ object ModrinthApi {
  *     写成 `project_types=["mod"] AND game_versions=["1.20.1"]`，
  *     继续传 facets 在新接口上会被忽略，导致过滤失效（比如不限版本）。
  */
-fun search(query: String, mc: String, loader: String, limit: Int = 20): List<MarketMod> {
+fun search(query: String, mc: String, loader: String, limit: Int = 20, offset: Int = 0): List<MarketMod> {
         val filters = ArrayList<String>()
         filters.add("""project_types=["mod"]""")
         if (mc.isNotBlank()) filters.add("""game_versions=["$mc"]""")
@@ -30,7 +30,7 @@ fun search(query: String, mc: String, loader: String, limit: Int = 20): List<Mar
         if (loader.isNotBlank() && loader != "auto") filters.add("""loaders=["$loader"]""")
         val nf = filters.joinToString(" AND ")
         val url = "${base()}/search?query=${Http.enc(query)}" +
-            "&limit=$limit&index=downloads&new_filters=${Http.enc(nf)}"
+            "&limit=$limit&offset=$offset&index=downloads&new_filters=${Http.enc(nf)}"
         val root = Json.obj(Http.get(url)) ?: return emptyList()
         val hits = Json.a(root, "hits") ?: return emptyList()
         val out = mutableListOf<MarketMod>()

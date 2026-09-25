@@ -49,7 +49,7 @@
 
 | 模块 | 文件 | 关键函数 | 端点 | 状态 |
 |---|---|---|---|---|
-| Modrinth | `ModrinthApi.kt` | `search` `versions` `lookupHash` `title` | **/v3/search + new_filters** | 待重写（v2 facets 已废弃） |
+| Modrinth | `ModrinthApi.kt` | `search` `versions` `lookupHash` `title` | **/v3/search + new_filters** | 已重写（v3 + new_filters + offset + loaders 字段） |
 | CurseForge | `CurseForgeApi.kt` | `search` `files` | CF API，需补 `index` | 待重写 |
 | 聚合 | `AggregateSearch.kt` | `search` `recommend` | 上述两者 | 待重写 |
 | 后端（用户自有） | `BackendApi.kt` | `me/loginUrl/fetchToken/search` | modmarket workers | 待重写 |

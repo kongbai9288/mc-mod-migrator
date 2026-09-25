@@ -51,6 +51,23 @@ object AggregateSearch {
         mc: String,
         loader: String,
         onBatch: (batch: List<MarketMod>, source: String, finished: Boolean) -> Unit
+    ) = searchStreaming(ctx, q, mc, loader, 0, 20, onBatch)
+
+    /**
+     * 分批搜索（带分页）。
+     *
+     * @param offset 起始偏移。Modrinth 用 `offset`，CurseForge 用 `index`，
+     *               两者都是**基于 0** 的，传错会拿到重复或错位的结果。
+     * @param limit  每页条数
+     */
+    fun searchStreaming(
+        ctx: Context,
+        q: String,
+        mc: String,
+        loader: String,
+        offset: Int,
+        limit: Int,
+        onBatch: (batch: List<MarketMod>, source: String, finished: Boolean) -> Unit
     ) {
         val p = Prefs.get(ctx)
         if (p.getBoolean(K.OFFLINE, false)) {
@@ -144,7 +161,7 @@ object AggregateSearch {
 
         // Modrinth：免费无 Key，最稳，始终优先
         if (aggregate || mode == "Modrinth" || mode == "聚合") {
-            out.add("Modrinth" to { ModrinthApi.search(q, mc, loader, 20) })
+            out.add("Modrinth" to { ModrinthApi.search(q, mc, loader, limit, offset) })
         }
 
         // CurseForge 后端代理
@@ -157,7 +174,7 @@ object AggregateSearch {
             val canOfficial = useOfficial && key.isNotBlank()
             val label = if (canOfficial) "CurseForge官方" else "CurseForge镜像"
             out.add(
-                Pair(label, { CurseForgeApi.search(q, mc, loader, if (canOfficial) key else "", 20) })
+                Pair(label, { CurseForgeApi.search(q, mc, loader, if (canOfficial) key else "", limit, offset) })
             )
             logCf(if (canOfficial) "CurseForge 走官方直连" else "CurseForge 走国内镜像")
         }
