@@ -100,7 +100,7 @@ object AggregateSearch {
         }
 
         // 收集本次要查的源
-        val tasks = buildSources(ctx, q, mc, loader)
+        val tasks = buildSources(ctx, q, mc, loader, limit, offset)
         if (tasks.isEmpty()) {
             onBatch(emptyList(), "没有可用的搜索源", true)
             return
@@ -149,7 +149,8 @@ object AggregateSearch {
      * 每个源是 (显示名, 查询函数)，互相独立。
      */
     private fun buildSources(
-        ctx: Context, q: String, mc: String, loader: String
+        ctx: Context, q: String, mc: String, loader: String,
+        limit: Int = 20, offset: Int = 0
     ): List<Pair<String, () -> List<MarketMod>>> {
         val p = Prefs.get(ctx)
         val mode = p.getString(K.SOURCE, "聚合") ?: "聚合"
@@ -166,7 +167,7 @@ object AggregateSearch {
 
         // CurseForge 后端代理
         if ((aggregate || mode == "后端") && useBackend) {
-            out.add("后端" to { BackendApi.search(ctx, q, mc, loader, 0, 20) })
+            out.add("后端" to { BackendApi.search(ctx, q, mc, loader, offset / 20, limit) })
         }
 
         // CurseForge 镜像 / 官方直连
