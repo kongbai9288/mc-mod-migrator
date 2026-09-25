@@ -269,7 +269,7 @@ class ServerFragment : Fragment() {
         etPass.visibility = if (useKey) View.GONE else View.VISIBLE
     }
 
-    /** 收集当前凭据：账号密码模式会先登录换 token */
+    /** 收集当前凭据 */
     private fun cred(): ServerPanelApi.Cred {
         val p = Prefs.get(requireContext())
         val c = ServerPanelApi.Cred(
@@ -373,10 +373,29 @@ class ServerFragment : Fragment() {
             toast("请填写 Client API Key")
             return
         }
+        // 提前校验 Key 形态：填成应用 Key（ptla_）会直接 403，
+        // 而面板返回的 403 信息对用户等于天书，这里先拦下来说明白
+        if (c.mode == ServerPanelApi.Mode.KEY) {
+            val hint = ServerPanelApi.keyHint(c.key)
+            if (hint != null) {
+                log("Key 检查：$hint")
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("API Key 可能不对")
+                    .setMessage(hint)
+                    .setPositiveButton("仍然连接") { _, _ -> doConnect(c) }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
+                return
+            }
+        }
         if (c.mode == ServerPanelApi.Mode.LOGIN && (c.user.isBlank() || c.pass.isBlank())) {
             toast("请填写面板账号和密码")
             return
         }
+        doConnect(c)
+    }
+
+    private fun doConnect(c: ServerPanelApi.Cred) {
         toast("正在连接面板…")
         bg {
             val token = try {

@@ -27,10 +27,40 @@ data class PanelFile(
 
 object ServerPanelApi {
 
+    /**
+     * Pterodactyl 客户端 API 的鉴权头。
+     *
+     * Accept 用官方推荐的 `Application/vnd.pterodactyl.v1+json`
+     * （官方示例与各集成文档都是这个值），比 `application/json` 稳妥。
+     */
     fun auth(key: String) = mapOf(
-        "Authorization" to "Bearer $key",
-        "Accept" to "application/json"
+        "Authorization" to "Bearer ${key.trim()}",
+        "Accept" to "Application/vnd.pterodactyl.v1+json",
+        "Content-Type" to "application/json"
     )
+
+    /**
+     * 校验 key 形态，提前给出人话提示。
+     *
+     * 官方明确区分两类 key：
+     *   - **Client API key**：`ptlc_`（Pterodactyl）/ `plcn_`（Pelican），
+     *     用户在 `/account/api` 自己创建，客户端 API **只认这种**
+     *   - **Application API key**：`ptla_` / `peli_`，管理员用，
+     *     拿它访问 `/api/client/...` 会直接 403
+     * 用户常常填错，而 403 的返回体对用户等于天书，这里提前拦下来。
+     */
+    fun keyHint(key: String): String? {
+        val k = key.trim()
+        if (k.isBlank()) return "还没填 API Key"
+        if (k.startsWith("ptla_") || k.startsWith("peli_")) {
+            return "这是**应用 API Key**（${k.take(5)}…），客户端接口不接受它。" +
+                "请到面板 /account/api 创建**客户端** API Key（以 ptlc_ 开头）"
+        }
+        if (!k.startsWith("ptlc_") && !k.startsWith("plcn_")) {
+            return "这个 Key 不以 ptlc_ / plcn_ 开头，可能不是客户端 API Key"
+        }
+        return null
+    }
 
     fun servers(base: String, key: String): List<PanelServer> {
         val url = "${trim(base)}/api/client"
@@ -38,8 +68,21 @@ object ServerPanelApi {
         val data = Json.a(root, "data") ?: return emptyList()
         val out = mutableListOf<PanelServer>()
         for (d in data) {
-            val attrs = d.asJsonObject.get("attributes")
-            val uuid = Json.s(attrs, "uuid").ifBlank { Json.s(d, "identifier") }
+            val attrNode = d.asJsonObject.get("attributes")
+            val attrs = if (attrNode != null && attrNode.isJsonObject) attrNode.asJsonObject else null
+
+            // ── 关键修正：identifier 在 **attributes 里**，不在对象顶层 ──
+            // 之前写的是 Json.s(d, "identifier")（读对象顶层），
+            // 而 Pterodactyl 的返回是
+            // { object:"server", attributes:{ identifier:"abcd1234", uuid:"...", name:"...", node:"..." } }
+            // → 顶层没有 identifier，取到空串；uuid 若也没有，
+            //   最终 id = "" → 拼出 /api/client/servers//files/list
+            //   → 404，表现为"服务器列表出来了，但点进去什么都加载不了"。
+            val identifier = Json.s(attrs, "identifier")
+            val uuid = Json.s(attrs, "uuid")
+            // URL 里用短 id 或 uuid 都可以，优先短 id
+            val id = identifier.ifBlank { uuid }
+
             val eggName = Json.s(attrs, "name")
             var eggKind = ""
             val rel = d.asJsonObject.get("relationships")
@@ -49,8 +92,8 @@ object ServerPanelApi {
             }
             out.add(
                 PanelServer(
-                    id = Json.s(d, "identifier").ifBlank { uuid },
-                    uuid = uuid,
+                    id = id,
+                    uuid = uuid.ifBlank { identifier },
                     name = eggName,
                     node = Json.s(attrs, "node"),
                     egg = eggKind
@@ -60,11 +103,13 @@ object ServerPanelApi {
         return out
     }
 
-    fun listFiles(base: String, key: String, uuid: String, dir: String): List<PanelFile> {
+    fun listFiles(
+        base: String, key: String, uuid: String, dir: String, timeout: Int = Http.NORMAL
+    ): List<PanelFile> {
         val b = trim(base)
         val url = "$b/api/client/servers/${Http.enc(uuid)}/files/list?directory=${Http.enc(dir)}"
         return try {
-            val root = Json.obj(Http.get(url, auth(key))) ?: return emptyList()
+            val root = Json.obj(Http.get(url, auth(key), timeout)) ?: return emptyList()
             val data = Json.a(root, "data") ?: return emptyList()
             val out = mutableListOf<PanelFile>()
             for (d in data) {
@@ -122,44 +167,31 @@ object ServerPanelApi {
     )
 
     /**
-     * 账号 + 密码登录 → 换取 Client API token。
-     * Pterodactyl 的登录端点在各版本略有差异，这里依次尝试常见路径，
-     * 并从返回体/响应头里尽力取出 token。
+     * 关于「账号 + 密码登录」。
+     *
+     * ⚠️ 之前这里依次 POST `/api/auth/login`、`/api/client/login`、`/auth/login`，
+     * 然后从返回体里找 `token` —— **这条路走不通**：
+     *
+     * 1. Pterodactyl 客户端 API **只认 `ptlc_` 开头的 Client API Key**，
+     *    官方文档明确：Client API Key 由用户在 **`/account/api`** 页面手动创建，
+     *    **没有任何 API 能用账号密码换出一把 ptlc_ key**。
+     * 2. 面板的 `/auth/login` 是 **Web 登录路由**（Laravel/Sanctum 会话）：
+     *    要先 GET `/sanctum/csrf-cookie` 拿 XSRF-TOKEN，再带
+     *    `X-XSRF-TOKEN` / `Referer` / `X-Pterodactyl-Route: 1` 提交
+     *    `{"user":..., "password":...}`，返回的是 **会话 Cookie**，
+     *    不是 token —— 而 OkHttp 的 Cookie 又和面板的 API 鉴权不是一回事，
+     *    照样访问不了 `/api/client/...`。
+     *
+     * 所以这个功能以前只是"点了没反应然后报一句登录失败"。
+     * 现在如实说明，把用户引到真正能用的做法上，不再假装能登。
      */
     fun login(base: String, user: String, pass: String): String {
-        val b = trim(base)
-        val body = """{"user":"${esc(user)}","username":"${esc(user)}","password":"${esc(pass)}"}"""
-        val candidates = listOf(
-            "$b/api/auth/login",
-            "$b/api/client/login",
-            "$b/auth/login"
-        )
-        var lastErr = ""
-        for (u in candidates) {
-            try {
-                val res = Http.postJson(u, body, mapOf("Accept" to "application/json"))
-                val o = Json.obj(res)
-                if (o == null) continue
-                // 常见返回：data.token / token / attributes.token
-                var t = Json.s(o, "token")
-                if (t.isBlank()) {
-                    val d = o.asJsonObject.get("data")
-                    if (d != null) {
-                        t = Json.s(d, "token")
-                        if (t.isBlank()) t = Json.s(if (d.isJsonObject) d.asJsonObject.get("attributes") else null, "token")
-                    }
-                }
-                if (t.isBlank()) {
-                    val at = o.asJsonObject.get("attributes")
-                    if (at != null) t = Json.s(at, "token")
-                }
-                if (t.isNotBlank()) return t
-            } catch (e: Throwable) {
-                lastErr = e.message ?: ""
-            }
-        }
         throw RuntimeException(
-            if (lastErr.isNotBlank()) "登录失败：$lastErr" else "登录失败：面板未返回 token（可能版本不支持账号密码直登，请改用 API Key）"
+            "无法用账号密码登录。\n\n" +
+                "Pterodactyl 的客户端接口只接受 **Client API Key**：\n" +
+                "登录面板 → 右上角账号 → API 凭证（/account/api）→ 创建，\n" +
+                "复制那把以 ptlc_ 开头的 Key，填回这里即可。\n\n" +
+                "（注意：以 ptla_ 开头的是应用 API Key，客户端接口不接受。）"
         )
     }
 
@@ -181,11 +213,17 @@ object ServerPanelApi {
         "/"
     )
 
-    /** 自动探测：逐个试候选目录，返回第一个有 jar 的 */
+    /**
+     * 自动探测：逐个试候选目录，返回有 jar 的那些。
+     *
+     * 探测是**串行**的且要试十来个目录，之前用默认超时（读取 120 秒），
+     * 面板地址填错或网络不通时要等上好几分钟才出结果，
+     * 看起来就是"点连接没反应"。改成短超时快速失败。
+     */
     fun probeDirs(base: String, key: String, uuid: String): List<String> {
         val found = LinkedHashMap<String, Int>()
         for (d in DIR_CANDIDATES) {
-            val fs = listFiles(base, key, uuid, d)
+            val fs = listFiles(base, key, uuid, d, Http.SHORT)
             if (fs.isNotEmpty()) found[d] = fs.size
         }
         return found.keys.toList()
@@ -195,13 +233,19 @@ object ServerPanelApi {
     fun listRaw(base: String, key: String, uuid: String, dir: String): List<Pair<String, Boolean>> {
         val b = trim(base)
         val url = "$b/api/client/servers/${Http.enc(uuid)}/files/list?directory=${Http.enc(dir)}"
-        val root = Json.obj(Http.get(url, auth(key))) ?: return emptyList()
+        val root = Json.obj(Http.get(url, auth(key), Http.SHORT)) ?: return emptyList()
         val data = Json.a(root, "data") ?: return emptyList()
         val out = mutableListOf<Pair<String, Boolean>>()
         for (d in data) {
             val attrs = d.asJsonObject.get("attributes")
             val name = Json.s(attrs, "name")
-            val isDir = Json.b(attrs, "is_directory") ||
+            // ── 官方字段是 is_file，不是 is_directory ──
+            // Pterodactyl 文件对象 attributes 实际为：
+            //   name / mode / mode_bits / size / **is_file** / is_symlink / mimetype
+            // 没有 is_directory 这个字段。之前靠它判定，
+            // 恒为 false → 文件夹被当成文件，目录树点不进去。
+            // 现在以 is_file 为主，mimetype 兜底。
+            val isDir = !Json.b(attrs, "is_file", true) ||
                 Json.s(attrs, "mimetype") == "inode/directory"
             out.add(Pair(name, isDir))
         }
