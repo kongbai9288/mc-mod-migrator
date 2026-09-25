@@ -28,6 +28,7 @@ class ServerFragment : Fragment() {
     private lateinit var etDir: EditText
     private lateinit var etVersion: EditText
     private lateinit var spLoader: Spinner
+    private lateinit var spSide: Spinner
     private lateinit var tvServer: TextView
     private lateinit var tvLog: TextView
     private lateinit var rv: RecyclerView
@@ -54,6 +55,7 @@ class ServerFragment : Fragment() {
         etDir = v.findViewById(R.id.etPanelDir)
         etVersion = v.findViewById(R.id.etVersion)
         spLoader = v.findViewById(R.id.spLoader)
+        spSide = v.findViewById(R.id.spSide)
         tvServer = v.findViewById(R.id.tvServer)
         tvLog = v.findViewById(R.id.tvLog)
         rv = v.findViewById(R.id.rvUpdates)
@@ -477,13 +479,25 @@ class ServerFragment : Fragment() {
         }
         val mc = etVersion.text.toString().trim()
         val loader = spLoader.selectedItem?.toString() ?: "auto"
+        val ctx = requireContext()
         if (mc.isBlank()) {
             toast("请填写服务器 MC 版本，用于匹配更新")
             return
         }
-        log("开始检测更新（MC $mc / $loader）")
+        log("开始检测更新（MC $mc / $loader / ${sideLabel()}）")
         bg {
-            var found = 0
+            // ── 三个问题一起修 ──────────────────────────────
+            // 1) `res.firstOrNull()`：搜索是模糊匹配，装的是 sodium
+            //    可能匹配到 Sodium Extra，然后把它的版本当成本项目的更新
+            //    → 给出**错误的下载地址**，用户下载到的是另一个模组。
+            //    改用 CrossLoader.pickProject 做名称核对，对不上就如实跳过。
+            // 2) 不看运行环境：服务端场景会把纯客户端模组（Mod Menu）
+            //    也列成"可更新"。Modrinth 官方 environment 字段
+            //    （client_side/server_side 已废弃）能区分，这里按端过滤并标注。
+            // 3) 串行逐个请求：几十个文件就是几十次排队等待。
+            //    改成并发（受下载并发设置约束的一半，上限 4）。
+            val side = currentSide()
+            val targets = ArrayList<PanelFile>()
             for (f in files) {
                 val q = f.name
                     .replace(Regex("\\.jar$", RegexOption.IGNORE_CASE), "")
@@ -491,40 +505,82 @@ class ServerFragment : Fragment() {
                     .replace(Regex("[-_]mc1?[._-]?\\d+.*$", RegexOption.IGNORE_CASE), "")
                     .replace(Regex("[._-]"), " ")
                     .trim()
-                val res = try {
-                    ModrinthApi.search(q, mc, loader, 5)
-                } catch (t: Throwable) {
-                    emptyList<MarketMod>()
-                }
-                val hit = res.firstOrNull()
-                if (hit == null) {
-                    f.status = "未匹配到项目（可手动搜索下载）"
-                } else {
-                    val vers = try {
-                        ModrinthApi.versions(hit.id, mc, loader)
+                if (q.isBlank()) continue
+                targets.add(f)
+                f.status = "检测中…"
+            }
+            safePost(handler) { adapter.notifyDataSetChanged() }
+
+            val pool = java.util.concurrent.Executors.newFixedThreadPool(
+                (Prefs.get(ctx).getInt(K.DOWNLOAD_PARALLEL, 4) / 2).coerceIn(1, 4)
+            )
+            val latch = java.util.concurrent.CountDownLatch(targets.size)
+            for (f in targets) {
+                pool.execute {
+                    try {
+                        val q = f.name
+                            .replace(Regex("\\.jar$", RegexOption.IGNORE_CASE), "")
+                            .replace(Regex("[-_](fabric|forge|neoforge|quilt)$", RegexOption.IGNORE_CASE), "")
+                            .replace(Regex("[-_]mc1?[._-]?\\d+.*$", RegexOption.IGNORE_CASE), "")
+                            .replace(Regex("[._-]"), " ")
+                            .trim()
+                        val res = try {
+                            ModrinthApi.search(q, mc, loader, 8, 0, side)
+                        } catch (t: Throwable) {
+                            emptyList<MarketMod>()
+                        }
+                        val hit = CrossLoader.pickProject(res, q)
+                        if (hit == null) {
+                            f.status = if (res.isEmpty()) "平台上没搜到（可手动搜）" else "搜到但名字对不上，已跳过"
+                        } else if (!Environ.okFor(hit.environment, side)) {
+                            f.status = "「${Environ.label(hit.environment)}」，不适用于${sideLabel()}"
+                        } else {
+                            val vers = try {
+                                ModrinthApi.versions(hit.id, mc, loader)
+                            } catch (t: Throwable) {
+                                emptyList<ModFile>()
+                            }
+                            val v0 = vers.firstOrNull { Environ.okFor(it.environment, side) }
+                                ?: vers.firstOrNull()
+                            if (v0 == null) {
+                                f.status = "无 ${mc} 版本"
+                            } else {
+                                f.projectId = hit.id
+                                f.latestVersion = v0.version
+                                f.latestUrl = v0.url
+                                f.latestName = v0.fileName.ifBlank { Downloader.guessName(v0.url) }
+                                f.status = "可更新 → ${v0.version}"
+                                if (Environ.isClientOnly(v0.environment)) {
+                                    f.status += "（仅客户端）"
+                                }
+                            }
+                        }
                     } catch (t: Throwable) {
-                        emptyList<ModFile>()
-                    }
-                    val v0 = vers.firstOrNull()
-                    if (v0 == null) {
-                        f.status = "无 ${mc} 版本"
-                    } else {
-                        f.projectId = hit.id
-                        f.latestVersion = v0.version
-                        f.latestUrl = v0.url
-                        f.latestName = v0.fileName.ifBlank { Downloader.guessName(v0.url) }
-                        f.status = "可更新 → ${v0.version}"
-                        found++
+                        Err.ignore(t, "检测服务器模组更新")
+                        f.status = "检测失败"
+                    } finally {
+                        latch.countDown()
                     }
                 }
             }
+            latch.await()
+            pool.shutdown()
+
+            val found = files.count { it.latestUrl.isNotBlank() }
             safePost(handler) {
                 adapter.notifyDataSetChanged()
-                toast("可更新 $found / ${files.size}")
+                toast("可更新 $found / ${files.size}（${sideLabel()}）")
             }
-            log("检测完成：可更新 $found")
+            log("检测完成：可更新 $found（${sideLabel()}）")
         }
     }
+
+    /** 当前要按哪一端来匹配：服务端 or 客户端 */
+    private fun currentSide(): Environ.Side =
+        if (spSide.selectedItemPosition == 0) Environ.Side.SERVER else Environ.Side.CLIENT
+
+    private fun sideLabel(): String =
+        if (currentSide() == Environ.Side.SERVER) "服务端" else "客户端"
 
     private fun downloadOne(f: PanelFile) {
         if (f.latestUrl.isBlank()) {

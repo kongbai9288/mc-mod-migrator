@@ -7,6 +7,13 @@
         <item>neoforge</item>
         <item>quilt</item>
     </string-array>
+    <!-- 运行环境：用它过滤"这个版本能不能装到服务端"。
+         对应 Modrinth 的 environment 字段（client_side/server_side 已废弃）。
+         注意顺序：第 0 项必须是「服务端」，ServerFragment.currentSide() 按位置取值。 -->
+    <string-array name="sides">
+        <item>服务端</item>
+        <item>客户端</item>
+    </string-array>
     <string-array name="sources">
         <item>Modrinth</item>
         <item>CurseForge</item>

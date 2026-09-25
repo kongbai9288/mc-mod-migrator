@@ -149,6 +149,12 @@
             android:layout_height="wrap_content"
             android:entries="@array/loaders" />
 
+        <Spinner
+            android:id="@+id/spSide"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:entries="@array/sides" />
+
         <Button
             android:id="@+id/btnCheckUpdates"
             android:layout_width="wrap_content"

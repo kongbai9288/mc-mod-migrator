@@ -46,7 +46,27 @@ object ModrinthApi {
  *     写成 `project_types=["mod"] AND game_versions=["1.20.1"]`，
  *     继续传 facets 在新接口上会被忽略，导致过滤失效（比如不限版本）。
  */
-fun search(query: String, mc: String, loader: String, limit: Int = 20, offset: Int = 0): List<MarketMod> {
+fun search(query: String, mc: String, loader: String, limit: Int = 20, offset: Int = 0): List<MarketMod> =
+    search(query, mc, loader, limit, offset, null)
+
+/**
+ * 搜索（可带运行环境过滤）。
+ *
+ * 两处关键修正（对照 Modrinth 官方 v3 文档）：
+ *  1. **端点版本**：原来用的是 `/v2/search`，该端点已迁移到 v3。
+ *     继续打 v2 会拿不到结果或返回旧结构——这是"商店搜不出东西"的根因之一。
+ *  2. **过滤语法**：v2 的 `facets` 已废弃，v3 用 MeiliSearch 语法的 `new_filters`。
+ *     写成 `project_types=["mod"] AND game_versions=["1.20.1"]`，
+ *     继续传 facets 在新接口上会被忽略，导致过滤失效（比如不限版本）。
+ *
+ * @param side 运行环境过滤，取值见 [Environ]，null 表示不过滤。
+ *             查服务器模组时传 SERVER，可以把纯客户端模组（Mod Menu 之类）
+ *             直接排除掉——这类装到服务端上既没用也可能报错。
+ */
+fun search(
+    query: String, mc: String, loader: String,
+    limit: Int = 20, offset: Int = 0, side: Environ.Side? = null
+): List<MarketMod> {
         val filters = ArrayList<String>()
         filters.add("""project_types=["mod"]""")
         if (mc.isNotBlank()) filters.add("""game_versions=["$mc"]""")
@@ -54,6 +74,10 @@ fun search(query: String, mc: String, loader: String, limit: Int = 20, offset: I
         // 官方 v3 文档里两者是不同字段：categories 是内容分类（optimization 等），
         // loaders 才是 fabric/forge/quilt。之前写成 categories 导致加载器过滤无效。
         if (loader.isNotBlank() && loader != "auto") filters.add("""loaders=["$loader"]""")
+        // 运行环境：官方 v3 的 filter 字段是 **environment**，
+        // 且 client_side / server_side 两个旧字段**已废弃**。
+        val envFilter = if (side == null) null else Environ.filterFor(side)
+        if (!envFilter.isNullOrBlank()) filters.add(envFilter)
         val nf = filters.joinToString(" AND ")
         val url = "${base()}/search?query=${Http.enc(query)}" +
             "&limit=$limit&offset=$offset&index=downloads&new_filters=${Http.enc(nf)}"
@@ -74,7 +98,8 @@ fun search(query: String, mc: String, loader: String, limit: Int = 20, offset: I
                     pageUrl = "https://modrinth.com/mod/${Json.s(h, "slug")}",
                     downloads = Json.l(h, "downloads"),
                     source = "modrinth",
-                    updated = Json.s(h, "date_modified").ifBlank { Json.s(h, "date_created") }
+                    updated = Json.s(h, "date_modified").ifBlank { Json.s(h, "date_created") },
+                    environment = Environ.read(h)
                 )
             )
         }
@@ -104,7 +129,8 @@ fun search(query: String, mc: String, loader: String, limit: Int = 20, offset: I
                     name = Json.s(v, "name").ifBlank { Json.s(v, "version_number") },
                     version = Json.s(v, "version_number"),
                     url = mirrorUrl(Json.s(chosen, "url")),
-                    fileName = Json.s(chosen, "filename")
+                    fileName = Json.s(chosen, "filename"),
+                    environment = Environ.read(v)
                 )
             )
         }
