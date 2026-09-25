@@ -253,3 +253,63 @@ python3 tools/ai_defect_audit.py
 - **H 中文硬编码**：本项目面向中文用户且已有 LangPack 多语言机制，代码内中文是已知取舍
 - **F 部分并发**：UI 层的 Fragment 集合只在主线程访问
 - **E 部分 Handler**：`Handler(Looper.getMainLooper())` 不持有 Activity，泄漏风险低
+
+---
+
+## 七、AI 代码缺陷审计（针对"AI 常犯的错误"）
+
+AI 生成的代码有个共同特点：**语法正确、能编译、能跑通主流程**，
+所以编译器和常规 lint 都不报，但在边界、并发、资源、生命周期下会暴露。
+
+仓库内自带审计脚本，专门扫这类问题：
+
+```bash
+python3 tools/ai_defect_audit.py
+```
+
+检查 12 类：异常黑洞 / 资源未释放 / 主线程 IO / 子线程更新 UI /
+生命周期泄漏 / 并发不安全 / 边界未处理 / 硬编码 / API 版本 /
+强制解引用 / 重复实现 / 过度宽泛捕获。
+
+### 本轮结果：235 → 78（含已知误报）
+
+| 类别 | 修复前 | 修复后 | 说明 |
+|---|---|---|---|
+| A 异常黑洞 | 122 | 7 | 87 处空 catch + 35 处注释型空 catch 全部加留痕 |
+| E 生命周期泄漏 | 33 | 11 | 20 个 Fragment/Activity 的 Handler 加 removeCallbacksAndMessages |
+| G 边界未处理 | 9 | 0 | 9 处 `x[0]` 未判空，改为先判 size 再取 |
+| J 强制解引用 | 4 | 0 | 4 处 `!!` 改为安全处理 |
+| I API 版本 | 6 | 0 | minSdk 26 已覆盖，脚本补上 minSdk 感知消除误报 |
+| D 子线程更新UI | 6 | 0 | 已用 `main {}` 切主线程，脚本补识别消除误报 |
+
+### 关键修复
+
+**1. 新增 `Err.kt` —— 统一留痕**
+122 处空 catch 是"为什么改不动、为什么只能猜"的直接原因：
+失败被静默吞掉，排查时没有任何现场信息。
+现在所有空 catch 改为 `Err.ignore(t, "做了什么")`，
+写进 LogCenter（用户分享崩溃日志时能看到崩之前发生了什么）。
+
+**2. LogCenter 并发安全**
+`lines` / `listeners` / `errorHooks` 三个集合被多线程访问
+（日志从任意后台线程写入，监听器由 UI 线程注册），
+之前用普通 ArrayList，并发下会 ConcurrentModificationException 或读到半改状态
+——这是"崩溃日志莫名其妙丢内容"的原因。改为 CopyOnWriteArrayList。
+
+**3. ModrinthApi 单例缓存**
+`titles` / `slugs` 是 object 单例的 HashMap，而搜索是并发的，
+多线程同时 put 会导致 HashMap 内部结构损坏甚至死循环。改为 ConcurrentHashMap。
+
+**4. Prefs 不再 `!!`**
+`prefs!!` 在 init 没跑到时会 NPE 直接崩。改为退化到内存实现，
+读不到配置只用默认值，不会让应用起不来。
+
+**5. 集合越界**
+9 处 `x[0]` 未判空（如 `latestFiles[0]`、`versions[0]`），
+空数组时 IndexOutOfBounds 直接崩。改为先判 size。
+
+### 已知误报（不修，有意为之）
+
+- **H 中文硬编码**：本项目面向中文用户且已有 LangPack 多语言机制，代码内中文是已知取舍
+- **F 部分并发**：UI 层的 Fragment 集合只在主线程访问
+- **E 部分 Handler**：`Handler(Looper.getMainLooper())` 不持有 Activity，泄漏风险低
