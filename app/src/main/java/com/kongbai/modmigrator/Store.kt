@@ -53,23 +53,38 @@ object Store {
         }
     }
 
-    fun saveLinks(c: Context, list: List<MarkedLink>) {
-        val arr = JSONArray()
-        for (l in list) {
-            val o = JSONObject()
-            o.put("title", l.title)
-            o.put("url", l.url)
-            arr.put(o)
+    /**
+     * 保存标记链接。
+     *
+     * 之前这里没有 try，而 `writeText` 是**磁盘写入**，磁盘满/权限变化时会抛异常。
+     * 调用方 `Store.addLink()` 又是在**主线程**（长按链接直接调）里执行的，
+     * 一抛就是未捕获异常 → 应用直接崩。
+     * 改成返回是否成功，让调用方能如实告知用户"没存上"。
+     *
+     * @return 是否写入成功
+     */
+    fun saveLinks(c: Context, list: List<MarkedLink>): Boolean {
+        return try {
+            val arr = JSONArray()
+            for (l in list) {
+                val o = JSONObject()
+                o.put("title", l.title)
+                o.put("url", l.url)
+                arr.put(o)
+            }
+            file(c).writeText(arr.toString())
+            true
+        } catch (t: Throwable) {
+            Err.ignore(t, "保存标记链接")
+            false
         }
-        file(c).writeText(arr.toString())
     }
 
     fun addLink(c: Context, link: MarkedLink): Boolean {
         val list = links(c)
         if (list.any { it.url == link.url }) return false
         list.add(0, link)
-        saveLinks(c, list)
-        return true
+        return saveLinks(c, list)
     }
 
     fun removeLink(c: Context, url: String) {

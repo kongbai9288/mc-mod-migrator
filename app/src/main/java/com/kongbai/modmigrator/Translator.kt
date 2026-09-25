@@ -37,7 +37,28 @@ object Translator {
     @Volatile
     private var downloading = false
 
-    private val cache = LinkedHashMap<String, String>(500)
+    // ── 翻译结果缓存 ────────────────────────────────────────────
+    // 两个问题一起修：
+    //
+    // ① **并发不安全**：翻译在后台线程跑（市场页批量翻译、网页翻译），
+    //    而这个 HashMap 会被多线程同时读写 → 可能 ConcurrentModificationException，
+    //    或读到写坏的结构。和 LogCenter、ModrinthApi 是同一类问题。
+    //
+    // ② **会无限增长**：`LinkedHashMap(500)` 里的 500 是**初始容量**，
+    //    不是上限——LinkedHashMap 只有重写 removeEldestEntry 才会淘汰。
+    //    之前那样写等于没有上限，翻多少条就存多少条，长时间用下来
+    //    缓存越攒越多（每条还是整段译文），白白占内存。
+    //
+    // 现在用带上限的 LRU：超过 MAX_CACHE 条就丢掉最久没用的。
+    private const val MAX_CACHE = 500
+
+    private val cache = object : LinkedHashMap<String, String>(
+        MAX_CACHE, 0.75f, true
+    ) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean {
+            return size > MAX_CACHE
+        }
+    }
 
     private fun options(): TranslatorOptions =
         TranslatorOptions.Builder()
@@ -65,8 +86,7 @@ object Translator {
             return
         }
         if (downloading) {
-            // 已在下载， 등 它完成即可（这里简单起见直接告知未就绪，
-            // 调用方下次再问，避免并发下载）
+            // 已在下载：直接告知未就绪，调用方下次再问，避免并发重复下载
             onDone(false)
             return
         }
@@ -109,7 +129,7 @@ object Translator {
             onResult(null)
             return
         }
-        cache[t]?.let {
+        synchronized(cache) { cache[t] }?.let {
             onResult(it)
             return
         }
@@ -117,7 +137,7 @@ object Translator {
         // ML Kit 单条有长度限制，长文本先切段
         if (t.length > 450) {
             translateLong(ctx, t) { r ->
-                if (r != null) cache[t] = r
+                if (r != null) synchronized(cache) { cache[t] = r }
                 onResult(r)
             }
             return
@@ -127,7 +147,7 @@ object Translator {
             if (!ready) {
                 // 模型不可用 → 在线兜底
                 val online = fallbackTranslate(t)
-                if (online != null) cache[t] = online
+                if (online != null) synchronized(cache) { cache[t] = online }
                 onResult(online)
                 return@ensureModel
             }
@@ -141,13 +161,13 @@ object Translator {
                     if (out.isBlank()) {
                         onResult(fallbackTranslate(t))
                     } else {
-                        cache[t] = out
+                        synchronized(cache) { cache[t] = out }
                         onResult(out)
                     }
                 }
                 .addOnFailureListener {
                     val online = fallbackTranslate(t)
-                    if (online != null) cache[t] = online
+                    if (online != null) synchronized(cache) { cache[t] = online }
                     onResult(online)
                 }
         }
@@ -179,7 +199,7 @@ object Translator {
 
     /** 单段翻译（不再递归切分） */
     private fun toZhShort(ctx: Context, text: String, onResult: (String?) -> Unit) {
-        cache[text]?.let {
+        synchronized(cache) { cache[text] }?.let {
             onResult(it)
             return
         }
@@ -195,7 +215,7 @@ object Translator {
             }
             tr.translate(text)
                 .addOnSuccessListener { r ->
-                    if (!r.isNullOrBlank()) cache[text] = r
+                    if (!r.isNullOrBlank()) synchronized(cache) { cache[text] = r }
                     onResult(r)
                 }
                 .addOnFailureListener { onResult(fallbackTranslate(text)) }
@@ -252,16 +272,23 @@ object Translator {
         modelReady = false
     }
 
-    /** 删除已下载的模型（设置里省空间用） */
+    /**
+     * 删除已下载的模型（设置里省空间用）。
+     *
+     * 之前这里第一行是 `downloadModelIfNeeded()` ——
+     * 用户点的是"删除模型省空间"，代码却**先去下载模型**，
+     * 完全反了：想省空间反而先花 30MB 流量把模型拉回来。
+     * 已删掉这一行。
+     */
     fun deleteModel(ctx: Context, onDone: (Boolean) -> Unit) {
-        val t = client ?: Translation.getClient(options()).also { client = it }
-        t.downloadModelIfNeeded() // 确保 client 有效
         try {
-            // ML Kit 没有直接的 deleteModel，通过重新下载来"重置"不现实，
-            // 这里只是断开引用让系统可回收
+            // ML Kit 没有直接的 deleteModel API，
+            // 只能断开引用让系统回收，并清空状态让下次重新判断。
             close()
+            synchronized(cache) { cache.clear() }
             onDone(true)
         } catch (e: Throwable) {
+            Err.ignore(e, "删除翻译模型")
             onDone(false)
         }
     }
