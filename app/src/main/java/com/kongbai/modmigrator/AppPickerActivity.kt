@@ -97,6 +97,11 @@ class AppPickerActivity : AppCompatActivity() {
         setResult(RESULT_OK)
         finish()
     }
+    override fun onDestroy() {
+        super.onDestroy()
+        // 页面销毁后若还有未执行的 post，回调里访问已销毁的 View 会崩
+        runCatching { handler.removeCallbacksAndMessages(null) }
+    }
 }
 
 class AppAdapter(
@@ -125,11 +130,6 @@ class AppAdapter(
         else h.icon.setImageResource(R.drawable.ic_extension)
         h.itemView.setOnClickListener { onPick(a) }
     }
-    override fun onDestroy() {
-        super.onDestroy()
-        // 页面销毁后若还有未执行的 post，回调里访问已销毁的 View 会崩
-        runCatching { handler.removeCallbacksAndMessages(null) }
-    }
-
 }
+
 
