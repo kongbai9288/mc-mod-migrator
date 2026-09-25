@@ -6,38 +6,45 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 
-/**
- * 实现 Coil 的 SingletonImageLoader.Factory，给**全局默认** ImageLoader
- * 注册解码器。
- *
- * 为什么必须在这里注册：
- * 界面里大量用的是 `imageView.load(url)` 这种扩展函数，它走的是
- * Coil 的**全局单例 loader**，不是我们另外 new 的那个。
- * 之前只在一个自建 ImageLoader 上注册了 SVG/GIF 解码器，
- * 于是列表里的 `.load()` 拿不到解码器 ——
- *   · Modrinth 有些图标是 SVG → 解码失败 → 只剩首字母占位
- *   · 有些模组用的是 **GIF 动图图标** → 没有 GifDecoder → 不动或显示不出
- * 现在全局注册，所有 `.load()` 都生效。
- */
-class App : Application(), coil.SingletonImageLoader.Factory {
+class App : Application() {
 
-    override fun newImageLoader(context: android.content.Context): coil.ImageLoader {
-        return coil.ImageLoader.Builder(context)
-            .components {
-                // SVG：Modrinth 图标有相当一部分是矢量图
-                add(coil.decode.SvgDecoder.Factory())
-                // GIF：部分模组用动图当图标
-                // API 28+ 用系统的 ImageDecoder（支持动图且更省内存），
-                // 低版本用 Coil 自带的 GifDecoder。
-                if (android.os.Build.VERSION.SDK_INT >= 28) {
-                    add(coil.decode.ImageDecoderDecoder.Factory())
-                } else {
-                    add(coil.decode.GifDecoder.Factory())
+    /**
+     * 给 Coil 的**全局默认** ImageLoader 注册解码器。
+     *
+     * 为什么必须在这里注册：
+     * 界面里大量用的是 `imageView.load(url)` 这种扩展函数，它走的是
+     * Coil 的**全局单例 loader**，不是我们另外 new 的那个。
+     * 之前只在一个自建 ImageLoader 上注册了 SVG/GIF 解码器，
+     * 于是列表里的 `.load()` 拿不到解码器 ——
+     *   · Modrinth 有些图标是 SVG → 解码失败 → 只剩首字母占位
+     *   · 有些模组用的是 **GIF 动图图标** → 没有 GifDecoder → 不动或显示不出
+     * 现在全局注册，所有 `.load()` 都生效。
+     *
+     * 注意：本项目用的是 Coil **2.x**，全局单例通过 `Coil.setImageLoader()`
+     * 设置（`SingletonImageLoader` 是 Coil 3.x 的 API，这里用不了）。
+     */
+    private fun installCoil() {
+        try {
+            val loader = coil.ImageLoader.Builder(this)
+                .components {
+                    // SVG：Modrinth 图标有相当一部分是矢量图
+                    add(coil.decode.SvgDecoder.Factory())
+                    // GIF：部分模组用动图当图标
+                    // API 28+ 用系统的 ImageDecoder（支持动图且更省内存），
+                    // 低版本用 Coil 自带的 GifDecoder。
+                    if (android.os.Build.VERSION.SDK_INT >= 28) {
+                        add(coil.decode.ImageDecoderDecoder.Factory())
+                    } else {
+                        add(coil.decode.GifDecoder.Factory())
+                    }
                 }
-            }
-            .crossfade(true)
-            // 内存紧张时自动清理，长时间浏览市场不容易 OOM
-            .build()
+                .crossfade(true)
+                .build()
+            coil.Coil.setImageLoader(loader)
+        } catch (t: Throwable) {
+            // 注册失败也不能拖垮启动，退化为 Coil 默认 loader
+            timber.log.Timber.w(t, "全局图片解码器注册失败")
+        }
     }
 
     override fun onCreate() {
@@ -55,6 +62,8 @@ class App : Application(), coil.SingletonImageLoader.Factory {
             }
             timber.log.Timber.plant(CrashTree())
         }
+        // 必须在任何界面创建前设置好，否则先加载的图片拿不到解码器
+        installCoil()
         CrashHandler.install(this)
         Prefs.init(this)
         // 主题必须在任何 Activity 创建前定好，否则深色模式要重启才生效
