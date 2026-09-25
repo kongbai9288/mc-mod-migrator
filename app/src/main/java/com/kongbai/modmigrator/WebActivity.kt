@@ -191,24 +191,8 @@ class WebActivity : AppCompatActivity() {
             loadWithOverviewMode = true
             useWideViewPort = true
             builtInZoomControls = true
-            // 混合内容：部分模组站的图片/脚本还是 http，
-            // 不开这个会直接白块（用户看到的"网页出问题"有一部分就是这个）
-            mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-            // 第三方 Cookie：登录态（GitHub/Modrinth）依赖跨站 cookie，
-            // 不开会导致登录页反复跳回登录（见下面 setAcceptThirdPartyCookies）
-            // 文件访问：下载页面有时需要
-            allowFileAccess = true
-            // 缩放控件隐藏但保留手势缩放
-            displayZoomControls = false
             // 自动适配图片
             loadsImagesAutomatically = true
-            // 缓存：弱网下也能出内容
-            cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
-            // 无痕模式下部分站点拒绝加载，这里明确用普通模式
-            if (android.os.Build.VERSION.SDK_INT >= 21) {
-                android.webkit.CookieManager.getInstance()
-                    .setAcceptThirdPartyCookies(this@apply, true)
-            }
             displayZoomControls = false
             cacheMode = WebSettings.LOAD_DEFAULT
             // 1) 允许 https 页面加载 http 子资源（否则很多老站点图片全裂）
