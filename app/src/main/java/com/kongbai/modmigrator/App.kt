@@ -69,6 +69,10 @@ class App : Application() {
         // 主题必须在任何 Activity 创建前定好，否则深色模式要重启才生效
         runCatching { ThemePrefs.init(this) }
         Store.init(this)
+        // 开机/启动后重新注册自动备份。
+        // WorkManager 的任务在重启后虽然会恢复，但用户改过间隔或地址后
+        // 需要按最新设置重新 enqueue，这里统一兜一次。
+        runCatching { CloudBackup.schedule(this) }
         // 预热 CookieManager + 真实 WebView 实例。
         // 只调 getInstance() 不够，很多设备上必须先创建过 WebView，
         // cookie 存储才会真正可用，否则登录时 state cookie 写不进去。

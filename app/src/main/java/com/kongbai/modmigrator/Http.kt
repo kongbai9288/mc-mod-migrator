@@ -109,4 +109,34 @@ object Http {
             return s
         }
     }
+
+    /**
+     * 以 multipart/form-data 上传一个文件。
+     *
+     * 用于云盘备份：上传地址是用户自己在网盘上拿到的，
+     * 各家网盘接受的字段名各不相同（file / upload / upfile…），
+     * 这里按最常见的 `file` 提交；返回 false 时调用方提示用户重新取地址。
+     *
+     * @return 服务端返回 2xx 视为成功
+     */
+    fun postFile(
+        url: String, file: java.io.File, fileName: String,
+        field: String = "file", headers: Map<String, String> = emptyMap()
+    ): Boolean {
+        val body = okhttp3.MultipartBody.Builder()
+            .setType(okhttp3.MultipartBody.FORM)
+            .addFormDataPart(
+                field, fileName,
+                file.asRequestBody("application/zip".toMediaType())
+            )
+            .build()
+        val b = Request.Builder().url(url).header("User-Agent", UA)
+        for ((k, v) in headers) b.header(k, v)
+        b.post(body)
+        val r = client.newCall(b.build()).execute()
+        r.use {
+            runCatching { Prefs.appCtx()?.let { c -> Traffic.record(c, file.length()) } }
+            return it.isSuccessful
+        }
+    }
 }

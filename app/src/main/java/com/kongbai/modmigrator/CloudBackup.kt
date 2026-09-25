@@ -41,6 +41,8 @@ object CloudBackup {
 
     fun setIntervalHours(ctx: Context, h: Int) {
         Prefs.get(ctx).edit().putInt(K.AUTO_BACKUP_HOURS, h).apply()
+        // 改完间隔要立刻重新注册，否则新间隔要等旧任务结束才生效
+        schedule(ctx)
     }
 
     fun enabled(ctx: Context): Boolean =
@@ -63,6 +65,68 @@ object CloudBackup {
         val last = lastBackupAt(ctx)
         if (last <= 0L) return true
         return System.currentTimeMillis() - last >= h * 3600L * 1000L
+    }
+
+    /**
+     * 注册/取消自动备份的周期任务。
+     *
+     * 之前这个方法根本不存在——`intervalHours()`、`due()` 都写好了，
+     * 但没有任何地方把它们接起来，所以自动备份**从不执行**。
+     *
+     * WorkManager 的周期任务最小间隔是 15 分钟，
+     * 我们选的都是小时级（6/12/24/72/168），不会触发这个下限。
+     */
+    fun schedule(ctx: Context) {
+        try {
+            val wm = androidx.work.WorkManager.getInstance(ctx)
+            val h = intervalHours(ctx)
+            if (h <= 0 || uploadUrl(ctx).isBlank()) {
+                wm.cancelUniqueWork(WORK_NAME)
+                return
+            }
+            val req = androidx.work.PeriodicWorkRequestBuilder<CloudBackupWorker>(
+                h.toLong(), java.util.concurrent.TimeUnit.HOURS
+            ).build()
+            wm.enqueueUniquePeriodicWork(
+                WORK_NAME, androidx.work.ExistingPeriodicWorkPolicy.UPDATE, req
+            )
+        } catch (t: Throwable) {
+            Err.ignore(t, "注册云盘自动备份")
+        }
+    }
+
+    private const val WORK_NAME = "mm_cloud_backup"
+
+    /**
+     * 执行一次备份：打包当前工作目录里的用户数据，POST 到用户填的上传地址。
+     *
+     * 上传地址是用户自己在云盘网页上拿到的（本应用不持有任何网盘凭据），
+     * 所以这里只做最通用的 multipart/form-data 上传。
+     * 成功与否都返回一句能直接显示给用户的话。
+     */
+    fun run(ctx: Context): String {
+        val url = uploadUrl(ctx)
+        if (url.isBlank()) return "还没设置云盘上传地址"
+
+        val zip = java.io.File(ctx.cacheDir, "backup.zip")
+        return try {
+            // 打包：收藏、标记链接、回收站清单这些用户数据
+            val dataDir = WorkDir.data(ctx)
+            val packed = BundleManager.zipData(ctx, dataDir, zip)
+            if (!packed || !zip.exists() || zip.length() <= 0L) {
+                return "没有可备份的数据"
+            }
+            val ok = Http.postFile(url, zip, "backup.zip")
+            if (ok) {
+                "备份成功（${zip.length() / 1024}KB）"
+            } else {
+                "备份失败：上传地址没响应（可到设置里重新拿一次）"
+            }
+        } catch (t: Throwable) {
+            "备份失败：${Http.describeError(t)}"
+        } finally {
+            runCatching { zip.delete() }
+        }
     }
 
     /** 给用户的状态描述 */

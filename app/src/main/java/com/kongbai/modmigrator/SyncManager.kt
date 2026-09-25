@@ -45,18 +45,40 @@ object SyncManager {
         val mods = JSONArray()
         val modDir = if (src == null) null else Fs.find(src, "mods")
         if (modDir != null) {
-            for (f in Fs.children(modDir)) {
-                if (!f.isFile) continue
+            // ── 先本地算完所有指纹，再一次性批量反查 ──────────────
+            // 之前是在循环里逐个调 lookupHashSimple：
+            // 50 个模组 = 50 次串行网络请求，同步一次要等好几分钟，
+            // 期间界面像卡死。这和迁移页之前踩的是同一个坑。
+            val jars = Fs.children(modDir).filter {
+                it.isFile && (it.name ?: "").endsWith(".jar", true)
+            }
+            val entries = ArrayList<Pair<String, String>>()   // (文件名, sha1)
+            for (f in jars) {
                 val n = f.name ?: continue
-                if (!n.endsWith(".jar", true)) continue
                 val sha1 = Fs.sha1(ctx, f)
-                val info = ModrinthApi.lookupHashSimple(sha1)
+                if (sha1.isBlank()) {
+                    // 读不出来的也要记进清单，只是没有 projectId
+                    entries.add(n to "")
+                    continue
+                }
+                entries.add(n to sha1)
+            }
+            val hashes = entries.map { it.second.lowercase() }
+            val found = ModrinthApi.lookupHashes(hashes)
+            ModrinthApi.refreshAll(found.values.map { it.projectId })
+
+            for ((n, sha1) in entries) {
+                val info = if (sha1.isBlank()) null else found[sha1.lowercase()]
                 val o = JSONObject()
                 o.put("file", n)
                 o.put("sha1", sha1)
-                o.put("projectId", info?.first ?: "")
-                o.put("slug", info?.third ?: "")
-                o.put("name", if (info == null) n else ModrinthApi.title(info.first).ifBlank { n })
+                o.put("projectId", info?.projectId ?: "")
+                o.put("slug", if (info == null) "" else ModrinthApi.slug(info.projectId))
+                o.put(
+                    "name",
+                    if (info == null) n
+                    else ModrinthApi.title(info.projectId).ifBlank { n }
+                )
                 mods.put(o)
             }
         }
@@ -154,6 +176,14 @@ object SyncManager {
                 val loader = o.optString("loader", "auto").ifBlank { "auto" }
                 val arr = o.optJSONArray("mods") ?: JSONArray()
                 val dir = Fs.ensureDir(dst, "mods")
+                // ── 同样改批量 ──────────────────────────────────
+                // 之前每个可识别模组调一次 /project/{id}/version：
+                // 恢复 30 个模组就是 30 次串行请求，界面像卡死。
+                // /version_files/update 一次就能拿到全部的最新兼容版本，
+                // 而且它按**哈希**匹配，比按 projectId 查更准
+                // （能区分同一个项目下的不同文件）。
+                val pids = ArrayList<String>()
+                val metas = ArrayList<Pair<String, String>>()   // (sha1, 显示名)
                 for (i in 0 until arr.length()) {
                     val m = arr.optJSONObject(i) ?: continue
                     val pid = m.optString("projectId", "")
@@ -161,14 +191,24 @@ object SyncManager {
                         log("跳过（无法识别）：${m.optString("file")}")
                         continue
                     }
-                    val files = try {
-                        ModrinthApi.versions(pid, mc, loader)
-                    } catch (t: Throwable) {
-                        emptyList<ModFile>()
-                    }
-                    val f = files.firstOrNull()
+                    pids.add(pid)
+                    metas.add(
+                        m.optString("sha1", "") to
+                            m.optString("name", m.optString("file"))
+                    )
+                }
+                ModrinthApi.refreshAll(pids)
+                val allHashes = metas.map { it.first }.filter { it.isNotBlank() }
+                val latest = if (allHashes.isEmpty()) {
+                    emptyMap<String, ModFile>()
+                } else {
+                    ModrinthApi.latestForHashes(allHashes, mc, loader)
+                }
+
+                for ((sha1, display) in metas) {
+                    val f = if (sha1.isBlank()) null else latest[sha1.lowercase()]
                     if (f == null) {
-                        log("无可用版本：${m.optString("name")}")
+                        log("无可用版本：$display")
                         continue
                     }
                     val name = f.fileName.ifBlank { Downloader.guessName(f.url) }
