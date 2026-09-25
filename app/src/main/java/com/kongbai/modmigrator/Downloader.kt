@@ -149,8 +149,26 @@ object Downloader {
 
     private data class Probe(val length: Long, val acceptRange: Boolean)
 
-    /** 探测文件长度与是否支持 Range */
+    /**
+     * 探测文件长度与是否支持 Range。
+     *
+     * 同样优先 HEAD：只需要响应头。
+     * 拿不到长度（部分服务器 HEAD 不给 Content-Length）时
+     * 才用 1 字节 Range 请求再确认一次。
+     */
     private fun probe(url: String, headers: Map<String, String>): Probe? {
+        // 1) HEAD
+        try {
+            val r = Http.head(url, headers)
+            val len = r.header("Content-Length")?.toLongOrNull()
+                ?: r.header("Content-Range")?.substringAfter("/")?.toLongOrNull()
+            val ar = r.header("Accept-Ranges")?.equals("bytes", true) == true
+            r.close()
+            if (len != null && len > 0) return Probe(len, ar)
+        } catch (t: Throwable) {
+            // 不支持 HEAD，走回退
+        }
+        // 2) 回退：GET 只取 1 字节，同时能确认是否支持续传
         return try {
             val r = Http.call(url, headers + mapOf("Range" to "bytes=0-0"))
             val len = r.header("Content-Range")?.substringAfter("/")?.toLongOrNull()
@@ -196,7 +214,22 @@ object Downloader {
                         r.close(); f.delete(); failed.set(true); return@submit
                     }
                     r.body?.byteStream()?.use { input ->
-                        f.outputStream().use { input.copyTo(it, 1 shl 16) }
+                        f.outputStream().use { o ->
+                            val buf = ByteArray(1 shl 16)
+                            var n: Int
+                            while (input.read(buf).also { n = it } > 0) {
+                                // 别的块已经失败就立刻停手。
+                                // 只在提交时检查一次 failed 是不够的：
+                                // 那之后已启动的块仍会把整块下完才收尾，
+                                // 一个失败导致其余几块白白把流量跑满。
+                                if (failed.get()) {
+                                    r.close()
+                                    f.delete()
+                                    return@submit
+                                }
+                                o.write(buf, 0, n)
+                            }
+                        }
                     }
                     r.close()
                     parts[i] = f
@@ -265,14 +298,33 @@ object Downloader {
         }
     }
 
-    /** 只探测文件长度，不下载。服务里用来算进度。失败返回 -1。 */
+    /**
+     * 只探测文件长度，不下载。服务里用来算进度。失败返回 -1。
+     *
+     * 之前用 `Http.call(url)` 发 **GET** —— 服务器会把整个文件发过来，
+     * 而这里只需要一个 Content-Length。后台下载服务每次开下前都调它，
+     * 等于**每个模组都先白下载一遍**，流量翻倍、还拖慢开始时间。
+     * 现在优先 HEAD（只要响应头），服务器不支持 HEAD 才回退到
+     * 只取 1 字节的 Range 请求。
+     */
     fun probeLength(url: String): Long {
-        return try {
-            val r = Http.call(url)
+        // 1) HEAD：零流量拿到长度
+        try {
+            val r = Http.head(url, timeout = Http.SHORT)
             val len = r.header("Content-Length")?.toLongOrNull()
-                ?: r.body?.contentLength()?.takeIf { it > 0 }
+                ?: r.header("Content-Range")?.substringAfter("/")?.toLongOrNull()
             r.close()
-            len ?: -1L
+            if (len != null && len > 0) return len
+        } catch (t: Throwable) {
+            // 服务器不支持 HEAD（405 等），走下面的回退
+        }
+        // 2) 回退：GET 但只请求第 1 个字节，不拉整个文件
+        return try {
+            val r = Http.call(url, mapOf("Range" to "bytes=0-0"), Http.SHORT)
+            val len = r.header("Content-Range")?.substringAfter("/")?.toLongOrNull()
+                ?: r.header("Content-Length")?.toLongOrNull()
+            r.close()
+            if (len != null && len > 0) len else -1L
         } catch (t: Throwable) {
             -1L
         }

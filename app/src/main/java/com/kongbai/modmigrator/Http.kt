@@ -72,6 +72,21 @@ object Http {
         return c.newCall(b.build()).execute()
     }
 
+    /**
+     * HEAD 请求：只取响应头，不下载正文。
+     *
+     * 探测文件长度、是否支持断点续传这类场景必须用 HEAD ——
+     * 之前全用 GET，服务器会把整个文件发过来再被丢弃，
+     * 等于**每下一个模组前先白下载一遍**，流量和时间都翻倍。
+     * 部分服务器不支持 HEAD（返回 405），调用方要准备回退。
+     */
+    fun head(url: String, headers: Map<String, String> = emptyMap(), timeout: Int = NORMAL): Response {
+        val c = if (timeout == SHORT) shortClient else client
+        val b = Request.Builder().url(url).head().header("User-Agent", UA)
+        for ((k, v) in headers) b.header(k, v)
+        return c.newCall(b.build()).execute()
+    }
+
     fun get(url: String, headers: Map<String, String> = emptyMap(), timeout: Int = NORMAL): String {
         val r = call(url, headers, timeout)
         r.use {
