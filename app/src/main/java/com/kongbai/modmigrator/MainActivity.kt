@@ -100,6 +100,15 @@ class MainActivity : AppCompatActivity() {
         }
         menu.add(0, ID_MORE, pages.size, getString(R.string.tab_more))
             .setIcon(R.drawable.ic_filter_list)
+
+        // ── 重建后必须把高亮补回去 ────────────────────────────────
+        // menu.clear() 会连同"当前选中项"一起清掉。
+        // 而 buildNav() 在 onResume 里每次都调——从内置浏览器、
+        // 登录页、文件选择器等任何 Activity 返回主界面都会走这里。
+        // 结果就是：**回到主界面后底部导航没有任何一项是亮的**，
+        // 用户看着内容在"设置"，底下却像没选中任何页。
+        // 这也是"点了设置，返回后界面不对"的一部分成因。
+        if (currentTabId > 0) syncNavSelection(currentTabId)
     }
 
     /**
