@@ -73,6 +73,7 @@ class SettingsAboutFragment : Fragment() {
         // 授权状态
         v.findViewById<Button>(R.id.btnPerms)?.setOnClickListener { showPerms() }
 
+        fillAbout(v)
         return v
     }
 
@@ -231,6 +232,26 @@ class SettingsAboutFragment : Fragment() {
                     .show()
             }
         }
+    }
+
+
+    /**
+     * 底部那行版本说明。
+     *
+     * ⚠️ 之前 strings.xml 里把版本号**写死**成了 "v1.0.0"，
+     * 于是 App 已经是 2.0.1 了，设置页最底下还写着 v1.0.0 ——
+     * 每次发版都得记得手动改，忘了就一直错。
+     * 现在改成运行时从 PackageInfo 里取真实版本，永远不会和安装包不一致。
+     */
+    protected fun fillAbout(v: View) {
+        val tv = v.findViewById<android.widget.TextView>(R.id.tvAbout) ?: return
+        val ctx = v.context
+        val ver = try {
+            val pi = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
+            pi.versionName ?: ""
+        } catch (t: Throwable) { "" }
+        tv.text = if (ver.isBlank()) getString(R.string.about)
+        else "模组迁移助手 v$ver · 开源自用工具"
     }
 
     private fun openInfo(file: String, title: String) {

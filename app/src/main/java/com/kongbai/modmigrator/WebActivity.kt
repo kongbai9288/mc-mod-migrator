@@ -211,6 +211,15 @@ class WebActivity : AppCompatActivity() {
             // 允许文件访问（本地预览用）
             allowFileAccess = true
             allowContentAccess = true
+            // ⚠️ 这两个之前都没开：
+            //   javaScriptCanOpenWindowsAutomatically —— 站点用 window.open()
+            //   打开的登录/授权弹窗、以及 target="_blank" 的链接，
+            //   都需要它加上 WebChromeClient.onCreateWindow 才有去处。
+            //   没开的话点这类链接**什么都不发生**；
+            //   更糟的是部分站点把跳转做在 window.open 里，
+            //   结果就是你点着点着页面变成空白（跳转没落地，原页面又被清了）。
+            javaScriptCanOpenWindowsAutomatically = true
+            setSupportMultipleWindows = true
         }
 
         web.webChromeClient = object : WebChromeClient() {
@@ -222,6 +231,38 @@ class WebActivity : AppCompatActivity() {
 
             override fun onReceivedTitle(view: WebView?, t: String?) {
                 if (!t.isNullOrBlank()) title = t
+            }
+
+            /**
+             * 新窗口（window.open / target="_blank"）。
+             *
+             * 不实现这个的话，这类跳转没有去处：
+             * 有的站点点了没反应，有的则把当前页面清掉后跳转落空，
+             * 表现就是「页面点着点着变成空白」。
+             *
+             * 这里不真的开第二个窗口（那需要再嵌一个 WebView 容器），
+             * 而是用一个**临时的、未附着**的 WebView 接住这次请求，
+             * 从它手里拿到目标地址，再交给主 WebView 打开。
+             * 这是官方推荐的兜底做法，用户体感就是"在当前页打开了"。
+             */
+            override fun onCreateWindow(
+                view: WebView?, isDialog: Boolean, isUserGesture: Boolean, resultMsg: android.os.Message?
+            ): Boolean {
+                val msg = resultMsg ?: return false
+                val transport = msg.obj as? WebView.WebViewTransport ?: return false
+                val tmp = WebView(this@WebActivity)
+                tmp.webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(
+                        v: WebView?, request: WebResourceRequest?
+                    ): Boolean {
+                        val u = request?.url?.toString()
+                        if (!u.isNullOrBlank()) web.loadUrl(u)
+                        return true
+                    }
+                }
+                transport.webView = tmp
+                msg.sendToTarget()
+                return true
             }
         }
 

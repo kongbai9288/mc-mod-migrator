@@ -134,6 +134,16 @@ class SettingsFragment : Fragment() {
         v.findViewById<Button>(R.id.btnCrash).setOnClickListener { showCrash() }
         v.findViewById<Button>(R.id.btnClear).setOnClickListener { clearData() }
 
+        // 底部版本说明：运行时取真实版本，不再写死在 strings.xml 里
+        v.findViewById<android.widget.TextView>(R.id.tvAbout)?.let { tv ->
+            val ver = try {
+                requireContext().packageManager
+                    .getPackageInfo(requireContext().packageName, 0).versionName ?: ""
+            } catch (t: Throwable) { "" }
+            tv.text = if (ver.isBlank()) getString(R.string.about)
+            else "模组迁移助手 v$ver · 开源自用工具"
+        }
+
         loading = false
         return v
     }

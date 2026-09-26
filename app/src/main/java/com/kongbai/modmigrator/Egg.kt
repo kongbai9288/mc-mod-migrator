@@ -136,22 +136,35 @@ object Egg {
             }
             val themes = ThemePrefs.themes()
             val cur = ThemePrefs.index(ctx)
-            val size = (52 * ctx.resources.displayMetrics.density).toInt()
+            // ⚠️ 之前是 52dp，手指点的时候太小、容易点偏到隔壁颜色。
+            // 现在 64dp，并把最小触摸尺寸显式设上去。
+            val size = (64 * ctx.resources.displayMetrics.density).toInt()
             val gap = (8 * ctx.resources.displayMetrics.density).toInt()
             themes.forEachIndexed { i, t ->
+                val dark = ColorUtils.calculateLuminance(t.seedColor) < 0.4
                 val swatch = TextView(ctx).apply {
                     text = if (i == cur) "✓" else ""
                     gravity = Gravity.CENTER
-                    setTextColor(Color.WHITE)
-                    textSize = 18f
+                    // ⚠️ 之前「✓」**固定用白色**：遇到浅色/白色系配色
+                    // （比如米白、浅黄），白勾画在浅底上**根本看不见**，
+                    // 看起来就像"没选中"。现在按底色明暗选对比色。
+                    setTextColor(if (dark) Color.WHITE else Color.BLACK)
+                    textSize = 22f
+                    minWidth = size
+                    minHeight = size
                     background = android.graphics.drawable.GradientDrawable().apply {
                         setColor(t.seedColor)
                         cornerRadius = (10 * ctx.resources.displayMetrics.density)
-                        val dark = ColorUtils.calculateLuminance(t.seedColor) < 0.4
+                        // ⚠️ 选中态的描边之前**固定用白色**：换到浅色系配色时，
+                        // 白描边压在浅底上几乎看不见，看不出哪个是当前选中的。
+                        // 现在改成按底色明暗取对比色，浅底用深色描边。
                         setStroke(
                             if (i == cur) (3 * ctx.resources.displayMetrics.density).toInt() else 1,
-                            if (i == cur) Color.WHITE else
-                                if (dark) 0x40FFFFFF else 0x30000000
+                            if (i == cur) {
+                                if (dark) Color.WHITE else Color.BLACK
+                            } else {
+                                if (dark) 0x40FFFFFF.toInt() else 0x30000000
+                            }
                         )
                     }
                     layoutParams = GridLayout.LayoutParams().apply {
@@ -226,12 +239,17 @@ object Egg {
                         for (j in 0 until grid.childCount) {
                             val v = grid.getChildAt(j) as TextView
                             v.text = if (j == i) "✓" else ""
-                            val bg = v.background as? android.graphics.drawable.GradientDrawable
+                            // 「✓」的颜色也要跟着底色走，否则浅色块上看不见
                             val dark = ColorUtils.calculateLuminance(themes[j].seedColor) < 0.4
+                            v.setTextColor(if (dark) Color.WHITE else Color.BLACK)
+                            val bg = v.background as? android.graphics.drawable.GradientDrawable
                             bg?.setStroke(
                                 if (j == i) (3 * ctx.resources.displayMetrics.density).toInt() else 1,
-                                if (j == i) Color.WHITE else
-                                    if (dark) 0x40FFFFFF else 0x30000000
+                                if (j == i) {
+                                    if (dark) Color.WHITE else Color.BLACK
+                                } else {
+                                    if (dark) 0x40FFFFFF.toInt() else 0x30000000
+                                }
                             )
                         }
                         tvName.text = themes[i].name

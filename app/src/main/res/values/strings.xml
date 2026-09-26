@@ -137,7 +137,7 @@
     <string name="cfg_clear">清除本机标记与缓存</string>
     <string name="privacy_title">隐私说明</string>
     <string name="license_title">第三方开源许可</string>
-    <string name="about">模组迁移助手 v1.0.0 · 开源自用工具</string>
+    <string name="about">模组迁移助手 · 开源自用工具</string>
     <string name="notification_channel">下载与同步</string>
     <string name="downloading">正在下载</string>
     <string name="mark_link_title">标记为下载链接？</string>

@@ -48,21 +48,53 @@ class MigrationFragment : Fragment() {
 
     /**
      * 进度回调。
-     * 注意：这个 lambda 在 onResume 注册后可能立刻被回调一次，
-     * 所以里面用到的 lateinit 字段必须先判断有没有初始化，否则会崩。
+     *
+     * 注意两件事：
+     * 1. 这个 lambda 在 onResume 注册后可能立刻被回调一次，
+     *    所以里面用到的 lateinit 字段必须先判断有没有初始化，否则会崩。
+     * 2. ⚠️ 扫描是在 `bg {}`（后台线程）里跑的，`Progress.update()` 每处理一个
+     *    文件就调一次，而 `fire()` **在调用方线程上直接执行 hook** ——
+     *    也就是说这个 lambda 是在**后台线程**上改 View。
+     *    Android 不允许非 UI 线程操作 View，会抛
+     *    CalledFromWrongThreadException；而 Progress.fire() 里是
+     *    `catch { Err.ignore }`，**异常被静默吞掉、没有任何提示**。
+     *    表现就是：进度数字走到某个点突然停住不再变化，界面却一切正常，
+     *    看上去像"卡住了"。文件越多越容易撞上。
+     *    现在改成 post 到主线程执行。
+     * 3. 另外扫描上千个文件时会连续触发上千次 UI 更新，
+     *    这里加一个节流：同一个任务内最多每 120ms 刷新一次界面，
+     *    最后一次（done/percent 到 100）必定刷新，不会丢最终状态。
      */
+    private var lastProgressFlushAt = 0L
+
     private val progressHook: (Progress.State) -> Unit = { st ->
         if (::pb.isInitialized && ::tvProgress.isInitialized) {
-            pb.visibility = if (st.running) View.VISIBLE else View.GONE
-            pb.isIndeterminate = st.total <= 0
-            if (st.total > 0) pb.progress = st.percent
-            // 主行：正在做什么（第几个/共几个）
-            // 副行：百分比 + 已用 + 预计剩余 + 速度
-            val main = st.text
-            val det = st.detail
-            tvProgress.text = if (det.isBlank()) main else "$main\n$det"
-            tvProgress.visibility = if (st.running && main.isNotBlank()) View.VISIBLE else View.GONE
+            val now = android.os.SystemClock.uptimeMillis()
+            val isFinal = !st.running || st.percent >= 100
+            if (isFinal || now - lastProgressFlushAt >= 120) {
+                lastProgressFlushAt = now
+                applyProgress(st)
+            }
         }
+    }
+
+    /** 真正更新进度 UI，必须在主线程调用 */
+    private fun applyProgress(st: Progress.State) {
+        val doIt = {
+            if (::pb.isInitialized && ::tvProgress.isInitialized && isAdded) {
+                pb.visibility = if (st.running) View.VISIBLE else View.GONE
+                pb.isIndeterminate = st.total <= 0
+                if (st.total > 0) pb.progress = st.percent
+                // 主行：正在做什么（第几个/共几个）
+                // 副行：百分比 + 已用 + 预计剩余 + 速度
+                val main = st.text
+                val det = st.detail
+                tvProgress.text = if (det.isBlank()) main else "$main\n$det"
+                tvProgress.visibility =
+                    if (st.running && main.isNotBlank()) View.VISIBLE else View.GONE
+            }
+        }
+        if (Looper.myLooper() == Looper.getMainLooper()) doIt() else handler.post { doIt() }
     }
 
     private val logHook: (List<LogCenter.LogLine>) -> Unit = {

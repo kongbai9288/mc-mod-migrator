@@ -418,22 +418,45 @@ class ServerFragment : Fragment() {
                 servers.addAll(list)
                 if (list.isEmpty()) {
                     toast("没读到服务器，请检查地址与 Key（需 Client API Key）")
-                } else {
-                    val names = list.map { "${it.name}（${it.id}）" }.toTypedArray()
-                    MaterialAlertDialogBuilder(requireContext())
-                        .setTitle("选择服务器")
-                        .setItems(names) { _, w ->
-                            chosen = list[w]
-                            tvServer.text = "服务器：${list[w].name} · ${list[w].id}"
-                            log("已选择 ${list[w].name}")
-                            // 选完服务器立刻找目录，省得用户自己去猜路径
-                            probeDirs()
-                        }
-                        .show()
-                    toast("找到 ${list.size} 台服务器")
+                    return@safePost
                 }
+
+                // ⚠️ 之前**无论如何都要弹窗让用户选一台**：
+                // 面板上明明只有一台服务器，也要用户多点一次；
+                // 而且每次重新连接都要再选一遍，很烦。
+                // 现在：只有一台就直接选上，不再弹窗。
+                val saved = Prefs.get(requireContext()).getString(K.PANEL_SERVER_ID, "") ?: ""
+                val remembered = list.firstOrNull { it.id == saved }
+                val auto = remembered ?: if (list.size == 1) list[0] else null
+                if (auto != null) {
+                    pickServer(auto)
+                    toast("已选择 ${auto.name}")
+                    return@safePost
+                }
+
+                val names = list.map { "${it.name}（${it.id}）" }.toTypedArray()
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("选择服务器")
+                    .setItems(names) { _, w ->
+                        pickServer(list[w])
+                        log("已选择 ${list[w].name}")
+                    }
+                    .show()
+                toast("找到 ${list.size} 台服务器")
             }
         }
+    }
+
+    /**
+     * 选中一台服务器并立刻去找目录。
+     * 选完就记住 id，下次连接自动选回同一台，不用每次都点。
+     */
+    private fun pickServer(s: PanelServer) {
+        chosen = s
+        tvServer.text = "服务器：${s.name} · ${s.id}"
+        Prefs.get(requireContext()).edit().putString(K.PANEL_SERVER_ID, s.id).apply()
+        // 选完立刻找目录，省得用户自己去猜路径
+        probeDirs()
     }
 
     private fun scanFiles() {

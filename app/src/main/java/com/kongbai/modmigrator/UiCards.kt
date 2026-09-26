@@ -206,6 +206,13 @@ object UiCards {
                     coil.request.ImageRequest.Builder(ctx)
                         .data(avatarUrl)
                         .target(avatar)   // 直接替换同一个 View，不新增
+                        // ⚠️ 必须显式给 size。之前没给，Coil 会按图片的
+                        // **原始尺寸**解码 —— 而 Modrinth / CurseForge 的图标里
+                        // 有大量 **SVG**，SVG 没有固有尺寸，会按一个很大的默认
+                        // 值栅格化（几百到上千 px），再塞进 44dp 的头像框。
+                        // 列表一屏几十张，光栅化开销直接把列表拖慢，
+                        // 内存也跟着涨。指定 size 后就只解码到实际显示大小。
+                        .size(size)
                         .crossfade(false)
                         .placeholder(avatarDrawable(ctx, name))
                         .error(avatarDrawable(ctx, name))

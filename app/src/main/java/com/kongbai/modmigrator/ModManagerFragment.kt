@@ -407,6 +407,13 @@ class ModManagerFragment : Fragment() {
                         if (bmp != null) {
                             iv.setImageBitmap(bmp)
                         } else if (loader.isNotBlank()) {
+                            // ⚠️ `UiCards.infoCard` 给图标位加了一层
+                            // `setColorFilter(primary(ctx))`（统一染成主题色）。
+                            // 这对普通线稿图标没问题，但加载器图标是**彩色品牌图**，
+                            // 被整片染成主题色之后 Fabric / Forge / Quilt 长得一模一样，
+                            // 看起来就跟没换过图一样 —— 这正是"还是没看到加载器图标"。
+                            // 设之前先把染色清掉，让它显示原本的颜色。
+                            iv.clearColorFilter()
                             iv.setImageResource(LoaderIcons.res(loader))
                         }
                     }

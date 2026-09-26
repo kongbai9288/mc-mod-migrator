@@ -63,7 +63,7 @@ object BackendApi {
     private fun getAny(ctx: Context, path: String): String? {
         for (b in candidates(ctx)) {
             try {
-                return Http.get(b + path)
+                return Http.get(b + path, timeout = Http.SHORT)
             } catch (t: Throwable) {
                 // 换下一个兜底地址
                      Err.ignore(t, "换下一个兜底地址")
@@ -76,7 +76,7 @@ object BackendApi {
     private fun getAnyWithBase(ctx: Context, path: String): Pair<String, String>? {
         for (b in candidates(ctx)) {
             try {
-                return Pair(b, Http.get(b + path))
+                return Pair(b, Http.get(b + path, timeout = Http.SHORT))
             } catch (t: Throwable) {
                 // 换下一个兜底地址
                      Err.ignore(t, "换下一个兜底地址")

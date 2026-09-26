@@ -86,7 +86,12 @@ fun search(
         // 出来的全是老牌热门模组，没有新东西。
         val url = "${base()}/search?query=${Http.enc(query)}" +
             "&limit=$limit&offset=$offset&index=$index&new_filters=${Http.enc(nf)}"
-        val root = Json.obj(Http.get(url)) ?: return emptyList()
+        // ⚠️ 搜索必须走**短超时**（连接 6s / 读取 12s），不能走默认 120s。
+        // 商店是聚合搜索，一次并发发多个源，线程数是固定的：
+        // 某个源卡住会一直占着线程，连搜几次线程池就被占满，
+        // 后面的搜索只能排队 —— 表现就是"越搜越慢"。
+        // 搜索本来就该是交互级的，慢的源直接放弃，让先回来的源显示出来。
+        val root = Json.obj(Http.get(url, timeout = Http.SHORT)) ?: return emptyList()
         val hits = Json.a(root, "hits") ?: return emptyList()
         val out = mutableListOf<MarketMod>()
         for (h in hits) {

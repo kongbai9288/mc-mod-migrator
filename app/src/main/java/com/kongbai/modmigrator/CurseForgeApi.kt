@@ -33,7 +33,7 @@ object CurseForgeApi {
         if (mc.isNotBlank()) url = "$url&gameVersion=${Http.enc(mc)}"
         val lt = loaderType(loader)
         if (lt != 0) url = "$url&modLoaderType=$lt"
-        val root = Json.obj(Http.get(url, headers)) ?: return emptyList()
+        val root = Json.obj(Http.get(url, headers, timeout = Http.SHORT)) ?: return emptyList()
         val data = Json.a(root, "data") ?: return emptyList()
         val out = mutableListOf<MarketMod>()
         for (d in data) {
