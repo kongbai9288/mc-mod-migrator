@@ -82,8 +82,15 @@ class SettingsNavFragment : Fragment() {
         val ctx = context ?: return
         val bottom = NavConfig.bottom(ctx)
         val more = NavConfig.more(ctx)
+        // ⚠️ 之前这里写死"底部最多 5 项"，而 `NavConfig.MAX_CUSTOM` 实际是 **4**
+        // （因为主界面还会固定加一个「更多」，加起来才是 Material 的 5 项上限）。
+        // 两处数字对不上：用户看到底部只放了 4 个就被拒绝，
+        // 提示却说"最多 5 个"，会以为还能再加一个，反复点都是失败。
+        // 改成直接取常量，不再写死。
         tvTip.text =
-            "底部最多 5 项（Material 限制）。当前底部 ${bottom.size} 个、更多 ${more.size} 个。"
+            "底部最多 ${NavConfig.MAX_CUSTOM} 个自定义项（另有一个固定的「更多」，"
+                .plus("合计不超过 Material 的 5 项上限）。")
+                .plus("\n当前底部 ${bottom.size} 个、更多 ${more.size} 个。")
 
         boxBottom.removeAllViews()
         for ((i, key) in bottom.withIndex()) {
@@ -143,7 +150,7 @@ class SettingsNavFragment : Fragment() {
             add.text = "移到底部"
             add.setOnClickListener {
                 if (!NavConfig.moveToBottom(ctx, page.key)) {
-                    toast("底部最多 5 个，先从上面移一个出来")
+                    toast("底部自定义项已满（${NavConfig.MAX_CUSTOM} 个），先从上面移一个出来")
                 } else {
                     toast("已移到底部导航栏")
                     (activity as? MainActivity)?.rebuildNav()

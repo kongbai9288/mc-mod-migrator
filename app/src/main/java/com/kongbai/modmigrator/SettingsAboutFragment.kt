@@ -10,10 +10,8 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -36,9 +34,32 @@ class SettingsAboutFragment : Fragment() {
         }
         v.findViewById<Button>(R.id.btnCrash).setOnClickListener { showCrash() }
         v.findViewById<Button>(R.id.btnClear).setOnClickListener {
-            Store.clear(requireContext())
-            val c = requireContext().cacheDir
-            if (c.exists()) c.listFiles()?.forEach { it.deleteRecursively() }
+            // ⚠️ 两个问题：
+            //  ① `Store.clear` + 遍历删除 cacheDir 都是**磁盘 IO**，
+            //     却在**主线程**跑 —— 缓存多了会明显卡顿。
+            //  ② **完全没有反馈**：点完按钮什么提示都没有，
+            //     用户不知道清没清掉，只会以为这个按钮是坏的。
+            val ctx = requireContext()
+            Toast.makeText(ctx, "正在清理…", Toast.LENGTH_SHORT).show()
+            exec.execute {
+                var ok = true
+                try {
+                    Store.clear(ctx)
+                    val c = ctx.cacheDir
+                    if (c.exists()) c.listFiles()?.forEach { it.deleteRecursively() }
+                } catch (t: Throwable) {
+                    Err.ignore(t, "清理缓存")
+                    ok = false
+                }
+                handler.post {
+                    if (!isAdded) return@post
+                    Toast.makeText(
+                        ctx,
+                        if (ok) "已清理标记链接与缓存" else "清理未全部完成，可稍后重试",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
         }
 
         // 版本信息与更新
@@ -173,27 +194,43 @@ class SettingsAboutFragment : Fragment() {
     /** 授权状态一览 */
     private fun showPerms() {
         val ctx = requireContext()
-        val list = Perms.describe(ctx)
-        val sb = StringBuilder()
-        for ((k, v) in list) {
-            sb.append("$k：$v\n")
-        }
-        sb.append("\n如果某个目录显示「已失效」，到对应页面重新选一次即可。")
-        sb.append("\n授权占用接近上限时会自动回收不再使用的旧授权。")
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("授权状态")
-            .setMessage(sb.toString())
-            .setPositiveButton(R.string.ok, null)
-            .setNeutralButton("清理失效授权") { _, _ ->
-                val n = Perms.granted(ctx).count { !Perms.usable(ctx, it.uri.toString()) }
-                for (up in Perms.granted(ctx)) {
-                    if (!Perms.usable(ctx, up.uri.toString())) {
-                        Perms.release(ctx, up.uri.toString())
-                    }
+        // ⚠️ `Perms.describe()` 内部会对每个已保存的目录调 `usable()`
+        // 去 ContentResolver 查可用性 —— 是 IPC/IO，之前在**主线程**跑。
+        // 而且清理时 `Perms.granted(ctx)` 被调了**两次**
+        // （一次 count、一次循环），每次都重新拉一遍系统授权列表，
+        // 中间还对每个 URI 各查一次可用性。
+        Toast.makeText(ctx, "正在检查…", Toast.LENGTH_SHORT).show()
+        exec.execute {
+            val list = Perms.describe(ctx)
+            handler.post {
+                if (!isAdded) return@post
+                val sb = StringBuilder()
+                for ((k, v) in list) {
+                    sb.append("$k：$v\n")
                 }
-                Toast.makeText(ctx, "已清理 $n 条失效授权", Toast.LENGTH_SHORT).show()
+                if (list.isEmpty()) sb.append("（还没有授权任何目录）\n")
+                sb.append("\n如果某个目录显示「已失效」，到对应页面重新选一次即可。")
+                sb.append("\n授权占用接近上限时会自动回收不再使用的旧授权。")
+                MaterialAlertDialogBuilder(ctx)
+                    .setTitle("授权状态")
+                    .setMessage(sb.toString())
+                    .setPositiveButton(R.string.ok, null)
+                    .setNeutralButton("清理失效授权") { _, _ ->
+                        exec.execute {
+                            val all = Perms.granted(ctx)
+                            val dead = all.filter { !Perms.usable(ctx, it.uri.toString()) }
+                            for (up in dead) Perms.release(ctx, up.uri.toString())
+                            handler.post {
+                                if (!isAdded) return@post
+                                Toast.makeText(
+                                    ctx, "已清理 ${dead.size} 条失效授权", Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+                    .show()
             }
-            .show()
+        }
     }
 
     private fun openInfo(file: String, title: String) {
@@ -211,26 +248,37 @@ class SettingsAboutFragment : Fragment() {
      */
     private fun showCrash() {
         val ctx = requireContext()
-        val txt = CrashHandler.readAll(ctx)
-        if (txt.isBlank()) {
-            AlertDialog.Builder(ctx)
-                .setTitle(R.string.cfg_crash_log)
-                .setMessage("暂无崩溃记录")
-                .setPositiveButton(R.string.ok, null)
-                .show()
-            return
+        // ⚠️ `CrashHandler.readAll` 是**读磁盘文件**（可能好几个 .log），
+        // 之前在**主线程**调 —— 日志大时点一下就卡住。
+        // 另外这里用的是系统 `AlertDialog.Builder`，不认 Material 的
+        // materialAlertDialogTheme，按钮和标题不跟主题色，
+        // 看起来像另一个应用弹出来的（CrashReport 那次已改，这里漏了）。
+        Toast.makeText(ctx, "正在读取…", Toast.LENGTH_SHORT).show()
+        exec.execute {
+            val txt = CrashHandler.readAll(ctx)
+            handler.post {
+                if (!isAdded) return@post
+                if (txt.isBlank()) {
+                    MaterialAlertDialogBuilder(ctx)
+                        .setTitle(R.string.cfg_crash_log)
+                        .setMessage("暂无崩溃记录")
+                        .setPositiveButton(R.string.ok, null)
+                        .show()
+                    return@post
+                }
+                MaterialAlertDialogBuilder(ctx)
+                    .setTitle(R.string.cfg_crash_log)
+                    .setMessage(txt.take(4000))
+                    .setPositiveButton(R.string.ok, null)
+                    .setNeutralButton("保存") { _, _ ->
+                        CrashShare.save(ctx, txt)
+                    }
+                    .setNegativeButton("分享") { _, _ ->
+                        CrashShare.share(ctx, txt, "ModMigrator 崩溃日志")
+                    }
+                    .show()
+            }
         }
-        AlertDialog.Builder(ctx)
-            .setTitle(R.string.cfg_crash_log)
-            .setMessage(txt.take(4000))
-            .setPositiveButton(R.string.ok, null)
-            .setNeutralButton("保存") { _, _ ->
-                CrashShare.save(ctx, txt)
-            }
-            .setNegativeButton("分享") { _, _ ->
-                CrashShare.share(ctx, txt, "ModMigrator 崩溃日志")
-            }
-            .show()
     }
     override fun onDestroyView() {
         super.onDestroyView()

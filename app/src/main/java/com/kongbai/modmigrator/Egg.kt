@@ -2,7 +2,6 @@ package com.kongbai.modmigrator
 
 import android.content.Context
 import android.graphics.Color
-import android.media.ToneGenerator
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
@@ -20,7 +19,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
  * 内容：先播一小段本应用自己的旋律，放完弹出调色板——
  *   11 套配色 + 深色/浅色切换，选完实时应用。
  *
- * 旋律用 ToneGenerator 合成，不依赖任何音频文件，
+ * 旋律用 AudioTrack 按真实频率合成正弦波，不依赖任何音频文件，
  * 不会因为缺资源而"点了没反应"。
  */
 object Egg {
@@ -41,22 +40,78 @@ object Egg {
         playing = true
         Thread {
             try {
-                val tg = ToneGenerator(android.media.AudioManager.STREAM_MUSIC, 70)
-                for ((freq, dur) in MELODY) {
-                    tg.startTone(freqToTone(freq), dur)
-                    Thread.sleep((dur + 40).toLong())
-                }
-                Thread.sleep(250)
-                runCatching { tg.release() }
+                playMelody()
             } catch (t: Throwable) {
                 // 播不出也要弹调色板，不能卡在"点了没反应"
-                     Err.ignore(t, "播不出也要弹调色板，不能卡在\"点了没反应\"")
-                 }
+                Err.ignore(t, "播不出也要弹调色板，不能卡在\"点了没反应\"")
+            }
             handler.post {
                 playing = false
                 showPalette(ctx)
             }
         }.start()
+    }
+
+    /**
+     * 播旋律。
+     *
+     * ⚠️ 之前用 `ToneGenerator.startTone(freqToTone(523), dur)`，
+     * 并把 523Hz 换算成 **MIDI 音高编号 72** 传进去。
+     * 但联网核对后可以确认：**ToneGenerator 只能播放它预设的几十种音调**
+     * （TONE_DTMF_* / TONE_SUP_* / TONE_CDMA_*），
+     * 参数不是频率也不是 MIDI 编号，传 72 **播出来的根本不是 C5**，
+     * 而是落在 CDMA 区间里的某个系统提示音。
+     * 也就是说"本应用自己的旋律"从来没被正确播出过——
+     * 只是一串听起来毫无旋律感的系统提示音。
+     *
+     * 要播**指定频率**必须用 AudioTrack 自己算 PCM 正弦波。
+     * 这里用 16bit / 单声道 / 44100Hz，每个音符单独生成，
+     * 并加淡入淡出包络（不加的话每个音首尾都会"啪"一声爆音）。
+     */
+    fun playMelody() {
+        val sr = 44100
+        val minBuf = android.media.AudioTrack.getMinBufferSize(
+            sr,
+            android.media.AudioFormat.CHANNEL_OUT_MONO,
+            android.media.AudioFormat.ENCODING_PCM_16BIT
+        )
+        if (minBuf <= 0) return
+        val track = android.media.AudioTrack(
+            android.media.AudioManager.STREAM_MUSIC,
+            sr,
+            android.media.AudioFormat.CHANNEL_OUT_MONO,
+            android.media.AudioFormat.ENCODING_PCM_16BIT,
+            minBuf * 2,
+            android.media.AudioTrack.MODE_STREAM
+        )
+        try {
+            track.play()
+            // 音量别拉满，突然一声大响很吓人
+            val amp = (Short.MAX_VALUE * 0.35).toInt()
+            for ((freq, durMs) in MELODY) {
+                val n = sr * durMs / 1000
+                val pcm = ShortArray(n)
+                val fadeIn = (n * 0.05).toInt().coerceAtLeast(1)
+                val fadeOut = (n * 0.15).toInt().coerceAtLeast(1)
+                for (i in 0 until n) {
+                    val env = when {
+                        i < fadeIn -> i.toDouble() / fadeIn
+                        i > n - fadeOut -> (n - i).toDouble() / fadeOut
+                        else -> 1.0
+                    }
+                    val s = kotlin.math.sin(2.0 * Math.PI * freq * i / sr)
+                    pcm[i] = (amp * env * s).toInt().toShort()
+                }
+                // MODE_STREAM 的 write 是阻塞的，大致写完就是播完
+                track.write(pcm, 0, n)
+                // 音符之间留一点间隙，不然会连成一片
+                Thread.sleep(40)
+            }
+            Thread.sleep(200)
+        } finally {
+            runCatching { track.stop() }
+            runCatching { track.release() }
+        }
     }
 
     /** 直接弹调色板（不播旋律，设置里也能进） */
@@ -195,9 +250,9 @@ object Egg {
         }
     }
 
-    /** 频率转 ToneGenerator 的 tone type（Bellcore 编号） */
-    private fun freqToTone(freq: Int): Int {
-        val n = (12.0 * kotlin.math.ln(freq / 16.35) / kotlin.math.ln(2.0)).toInt()
-        return n.coerceIn(1, 100)
-    }
+    // 这里原来有个 freqToTone()：把 523Hz 换算成 MIDI 编号再传给
+    // ToneGenerator.startTone()。ToneGenerator 的参数不是频率也不是 MIDI 编号，
+    // 它只认 TONE_DTMF_* / TONE_SUP_* / TONE_CDMA_* 这些预设常量，
+    // 所以那个换算是错的，播出来的不是我们写的旋律。
+    // 现在直接用 AudioTrack 按真实频率合成，这个函数已删除。
 }

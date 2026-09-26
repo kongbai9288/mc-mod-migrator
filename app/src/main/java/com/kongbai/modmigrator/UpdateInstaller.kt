@@ -101,7 +101,15 @@ object UpdateInstaller {
         } catch (t: Throwable) { Err.ignore(t, "receiver = r") }
     }
 
-    /** 调起系统安装界面 */
+    /**
+     * 调起系统安装界面。
+     *
+     * 两个必须同时满足的条件，缺一个都会"下载完了装不上"：
+     *  1. Android 8.0（API 26）起要 `REQUEST_INSTALL_PACKAGES` 权限
+     *     **且用户手动打开**"允许来自此来源的应用"开关（下面会引导去开）。
+     *  2. Android 7.0（API 24）起给出去的 URI 必须是 `content://`，
+     *     `file://` 会直接 FileUriExposedException。
+     */
     private fun install(ctx: Context, id: Long) {
         try {
             val dm = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
@@ -137,10 +145,30 @@ object UpdateInstaller {
                 }
             }
 
+            // ⚠️ Android 7.0（API 24）起，把 URI 传给其它应用**只认 content://**，
+            // 传 `file://` 会直接抛 FileUriExposedException。
+            // 而 `dm.getUriForDownloadedFile(id)` 并不保证返回 content:// ——
+            // 下载到公共目录时它完全可能给出 `file://`
+            // （取决于该文件有没有被 MediaProvider 收录）。
+            // 一旦是 file://，到这一步就会崩，
+            // 表现为"下载完了，点安装直接闪退/没反应"。
+            // 这里按 scheme 判断，是 file 就用已配置好的 FileProvider 转一次。
+            val target = if (uri.scheme == "file") {
+                val p = uri.path ?: return
+                FileProvider.getUriForFile(
+                    ctx, "${ctx.packageName}.fileprovider", File(p)
+                )
+            } else uri
+
             val i = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/vnd.android.package-archive")
+                setDataAndType(target, "application/vnd.android.package-archive")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            // 没有能处理安装的应用时别硬跳（某些精简 ROM 会直接抛 ActivityNotFound）
+            if (i.resolveActivity(ctx.packageManager) == null) {
+                Toast.makeText(ctx, "没有找到可处理安装的应用", Toast.LENGTH_LONG).show()
+                return
             }
             ctx.startActivity(i)
         } catch (t: Throwable) {

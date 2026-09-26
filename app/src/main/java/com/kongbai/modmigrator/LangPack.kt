@@ -134,13 +134,23 @@ object LangPack {
         return o.toString()
     }
 
-    fun writeTemplate(ctx: Context) {
-        try {
-            val dir = WorkDir.sub(ctx, "lang") ?: return
-            val f = dir.createFile("application/json", "template.json") ?: return
-            ctx.contentResolver.openOutputStream(f.uri)?.use {
-                it.write(template(ctx).toByteArray(Charsets.UTF_8))
-            }
-        } catch (t: Throwable) { Err.ignore(t, "it.write(template(ctx).toByteArray(Charsets.UTF_8)") }
+    /**
+     * 导出模板。返回是否真的写出去了。
+     *
+     * 之前返回 Unit：写失败时（工作目录没授权、createFile 返回 null、
+     * openOutputStream 返回 null）**全部直接 return，调用方毫无察觉**，
+     * 界面照样弹"已生成 lang/template.json"，用户去目录里找却找不到。
+     */
+    fun writeTemplate(ctx: Context): Boolean {
+        return try {
+            val dir = WorkDir.sub(ctx, "lang") ?: return false
+            val f = dir.createFile("application/json", "template.json") ?: return false
+            val os = ctx.contentResolver.openOutputStream(f.uri) ?: return false
+            os.use { it.write(template(ctx).toByteArray(Charsets.UTF_8)) }
+            true
+        } catch (t: Throwable) {
+            Err.ignore(t, "写语言包模板")
+            false
+        }
     }
 }

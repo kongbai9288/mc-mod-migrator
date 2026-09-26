@@ -36,6 +36,8 @@ class SettingsLabFragment : Fragment() {
     private val exec = Executors.newSingleThreadExecutor()
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var root: LinearLayout
+    /** 「清理卸载残留」按钮：数量要后台读，先占位后更新文字 */
+    private lateinit var residueBtn: Button
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -95,7 +97,17 @@ class SettingsLabFragment : Fragment() {
         // ---------- 存储与清理 ----------
         section("存储与清理")
         root.addView(button("回收站保留天数：${Trash.days(ctx)} 天") { pickTrashDays() })
-        root.addView(button("清理卸载残留（${Trash.count(ctx)} 项在回收站）") { cleanResidue() })
+        // ⚠️ `Trash.count(ctx)` 是**读磁盘 JSON 索引**，而 build() 在主线程跑，
+        // 每次 refresh() 都要重读一遍。改成先占位，后台取到再更新文字。
+        residueBtn = button("清理卸载残留（… 项在回收站）") { cleanResidue() }
+        root.addView(residueBtn)
+        exec.execute {
+            val n = runCatching { Trash.count(ctx) }.getOrDefault(0)
+            handler.post {
+                if (!isAdded) return@post
+                (residueBtn as? android.widget.TextView)?.text = "清理卸载残留（$n 项在回收站）"
+            }
+        }
 
         // ---------- 公告 ----------
         section("公告")
@@ -283,38 +295,45 @@ class SettingsLabFragment : Fragment() {
         Toast.makeText(ctx, "已清除全部公告", Toast.LENGTH_SHORT).show()
     }
 
-    private fun viewCrash() {
+    /**
+     * 读崩溃日志。
+     *
+     * ⚠️ `CrashShare.read(ctx)` 是**读磁盘上多个 .log 文件**，
+     * 而 viewCrash / shareCrash / saveCrash 三个入口都直接在**主线程**调，
+     * 日志多时点一下就卡住。统一改成后台读，读完再按用途分发。
+     */
+    private fun withCrashLog(act: (android.content.Context, String) -> Unit) {
         val ctx = requireContext()
-        val log = CrashShare.read(ctx)
-        if (log.isBlank()) {
-            Toast.makeText(ctx, "没有崩溃记录", Toast.LENGTH_SHORT).show()
-            return
+        Toast.makeText(ctx, "正在读取…", Toast.LENGTH_SHORT).show()
+        exec.execute {
+            val log = CrashShare.read(ctx)
+            handler.post {
+                if (!isAdded) return@post
+                if (log.isBlank()) {
+                    Toast.makeText(ctx, "没有崩溃记录", Toast.LENGTH_SHORT).show()
+                    return@post
+                }
+                act(ctx, log)
+            }
         }
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("崩溃日志（${log.length} 字符）")
-            .setMessage(log.takeLast(3000))
-            .setPositiveButton(R.string.ok, null)
-            .show()
+    }
+
+    private fun viewCrash() {
+        withCrashLog { ctx, log ->
+            MaterialAlertDialogBuilder(ctx)
+                .setTitle("崩溃日志（${log.length} 字符）")
+                .setMessage(log.takeLast(3000))
+                .setPositiveButton(R.string.ok, null)
+                .show()
+        }
     }
 
     private fun shareCrash() {
-        val ctx = requireContext()
-        val log = CrashShare.read(ctx)
-        if (log.isBlank()) {
-            Toast.makeText(ctx, "没有崩溃记录", Toast.LENGTH_SHORT).show()
-            return
-        }
-        CrashShare.share(ctx, log)
+        withCrashLog { ctx, log -> CrashShare.share(ctx, log) }
     }
 
     private fun saveCrash() {
-        val ctx = requireContext()
-        val log = CrashShare.read(ctx)
-        if (log.isBlank()) {
-            Toast.makeText(ctx, "没有崩溃记录", Toast.LENGTH_SHORT).show()
-            return
-        }
-        CrashShare.save(ctx, log)
+        withCrashLog { ctx, log -> CrashShare.save(ctx, log) }
     }
 
     private fun showTraffic() {
