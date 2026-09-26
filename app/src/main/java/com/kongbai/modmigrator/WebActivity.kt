@@ -219,7 +219,8 @@ class WebActivity : AppCompatActivity() {
             //   更糟的是部分站点把跳转做在 window.open 里，
             //   结果就是你点着点着页面变成空白（跳转没落地，原页面又被清了）。
             javaScriptCanOpenWindowsAutomatically = true
-            setSupportMultipleWindows = true
+            // 注意：这是方法不是属性，写成 `setSupportMultipleWindows = true` 编译不过
+            setSupportMultipleWindows(true)
         }
 
         web.webChromeClient = object : WebChromeClient() {
