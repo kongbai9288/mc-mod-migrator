@@ -118,8 +118,16 @@ object AggregateSearch {
                         logCf("$name 没有新结果")
                     }
                 } catch (t: Throwable) {
-                    // 单个源失败只记提示，不影响其他源
-                    logCf("$name 不可用")
+                    // 单个源失败只记提示，不影响其他源。
+                    // 但限流（429）要单独说清楚：它和"源挂了"是两回事，
+                    // 挂了是修不好，限流是等一会就好。都写成"不可用"的话，
+                    // 用户只会以为功能坏了。
+                    val m = t.message ?: ""
+                    if (m.contains("429") || m.contains("过于频繁")) {
+                        logCf("$name 请求过于频繁（429），等约 1 分钟再试")
+                    } else {
+                        logCf("$name 不可用")
+                    }
                 } finally {
                     if (pending.decrementAndGet() == 0) {
                         main { onBatch(emptyList(), "完成", true) }
@@ -265,7 +273,12 @@ object AggregateSearch {
                     val fresh = push(call())
                     if (fresh.isNotEmpty()) main { onBatch(fresh, name, false) }
                 } catch (t: Throwable) {
-                    logCf("$name 不可用")
+                    val m = t.message ?: ""
+                    if (m.contains("429") || m.contains("过于频繁")) {
+                        logCf("$name 请求过于频繁（429），等约 1 分钟再试")
+                    } else {
+                        logCf("$name 不可用")
+                    }
                 } finally {
                     if (pending.decrementAndGet() == 0) {
                         main { onBatch(emptyList(), "完成", true) }

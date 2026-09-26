@@ -225,6 +225,12 @@ object BackendApi {
         ctx: Context, query: String, mc: String, loader: String,
         offset: Int = 0, pageSize: Int = 20, sort: String = "popularity"
     ): List<MarketMod> {
+        // 后端对 /api/mods 有每 IP 每分钟 120 次的限流，超限返回 429
+        // （响应体是中文"请求过于频繁"，头里带 retry-after）。
+        // 之前 429 和"地址不通"一样被 continue 掉，最后返回空列表，
+        // 上层当成"没结果"——用户只看到搜不出东西，
+        // 既不知道是限流，也不知道等一会儿就好。这里单独识别。
+        var rateLimited = false
         for (b in candidates(ctx)) {
             var url = "$b/api/mods?q=${Http.enc(query)}&page=$offset&pageSize=$pageSize&sort=$sort"
             if (mc.isNotBlank()) url = "$url&version=${Http.enc(mc)}"
@@ -236,6 +242,7 @@ object BackendApi {
                 // 之前没传 timeout，用的是默认 120 秒。
                 Http.get(url, timeout = Http.SHORT)
             } catch (t: Throwable) {
+                if ((t.message ?: "").contains("429")) rateLimited = true
                 continue
             }
             val root = Json.obj(body) ?: continue
@@ -261,6 +268,11 @@ object BackendApi {
                 )
             }
             return out
+        }
+        // 所有候选地址都因限流失败：抛出去让上层显示"请求过于频繁"，
+        // 不能静默返回空列表 —— 那会被当成"没搜到"，用户处理方式完全不同。
+        if (rateLimited) {
+            throw RuntimeException("后端限流（429）：请求过于频繁，等约 1 分钟再试")
         }
         return emptyList()
     }
