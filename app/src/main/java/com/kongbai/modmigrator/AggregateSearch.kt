@@ -173,7 +173,12 @@ object AggregateSearch {
         }
 
         // CurseForge 镜像 / 官方直连
-        if (aggregate || mode == "CurseForge" || mode == "后端") {
+        // ⚠️ 原来这里把 "后端" 也算进去，导致**单源选了"后端"时，
+        // 直连 CurseForge 也被加进来一起查**。
+        // 后端本身就是 CurseForge 数据的代理，两者同时返回
+        // 既重复又和"单源"的语义矛盾（后端与官方直连本应互斥）。
+        // 单源模式下只有显式选 "CurseForge" 才走直连。
+        if (aggregate || mode == "CurseForge") {
             val canOfficial = useOfficial && key.isNotBlank()
             val label = if (canOfficial) "CurseForge官方" else "CurseForge镜像"
             out.add(

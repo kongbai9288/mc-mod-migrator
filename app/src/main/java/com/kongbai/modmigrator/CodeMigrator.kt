@@ -34,9 +34,19 @@ object CodeMigrator {
     )
 
     // ---------- Forge → Fabric ----------
+    //
+    // ⚠️ 入口类（主类）的转换**不能用文本替换完成**，已从规则表里移除：
+    //   - 原来写的是 Rule("@Mod(", "@Mod(", ...) —— from 和 to 完全一样，
+    //     命中后 replace 出来是原文，代码一行没变，
+    //     但报告里把它算进"已改动"，用户以为处理过了。
+    //   - 反向的 FABRIC_TO_FORGE 里写的是
+    //     Rule("ModInitializer", "@Mod 主类", ...)，
+    //     在 `implements ModInitializer` 上替换会得到
+    //     `implements @Mod 主类` —— **语法非法的 Java**，比不换更糟。
+    // Forge 的 @Mod 注解 ↔ Fabric 的 fabric.mod.json entrypoints +
+    // implements ModInitializer，是结构性改动，交给人工处理。
     private val FORGE_TO_FABRIC = listOf(
         Rule("net.minecraftforge", "net.fabricmc", "包名更换", "*.java"),
-        Rule("@Mod(", "@Mod(", "模组主类注解（Fabric 用 ModInitializer）", "*.java"),
         Rule("FMLJavaModLoadingContext", "FabricLoader", "加载上下文", "*.java"),
         Rule("Mod.EventBusSubscriber", "FabricLoader", "事件注册", "*.java"),
         Rule("IEventBus", "FabricLoader", "事件总线", "*.java"),
@@ -50,7 +60,8 @@ object CodeMigrator {
     // ---------- Fabric → Forge ----------
     private val FABRIC_TO_FORGE = listOf(
         Rule("net.fabricmc", "net.minecraftforge", "包名更换", "*.java"),
-        Rule("ModInitializer", "@Mod 主类", "入口类", "*.java"),
+        // 见 FORGE_TO_FABRIC 的说明：入口类转换不能靠文本替换，
+        // 原来这条会把 `implements ModInitializer` 换成 `implements @Mod 主类`（非法语法）
         Rule("FabricLoader", "FMLJavaModLoadingContext", "加载上下文", "*.java"),
         Rule("Registry.register", "DeferredRegister", "注册方式", "*.java"),
         Rule("fabric-loom", "forgeGradle", "构建插件", "build.gradle"),

@@ -101,7 +101,6 @@ object BatchModOps {
         val total = tasks.size
         if (total == 0) return emptyList()
 
-        val results = java.util.Collections.synchronizedList(ArrayList<Result>(total))
         val finished = java.util.concurrent.atomic.AtomicInteger(0)
 
         val configured = Prefs.get(ctx).getInt(K.DOWNLOAD_PARALLEL, 3).coerceIn(1, 8)
@@ -110,7 +109,17 @@ object BatchModOps {
         val pool = java.util.concurrent.Executors.newFixedThreadPool(fileParallel)
         return try {
             val futures = ArrayList<java.util.concurrent.Future<*>>()
+            // ⚠️ 结果按**任务下标**收集，不能再按文件名。
+            // 两个任务下载同名文件（不同 URL）时，
+            // 原来的 `results.associateBy { it.name }` 后写的覆盖先写的，
+            // 两个位置最终显示同一个结果 ——
+            // 可能一个成功一个失败，报告里却两个都显示成功。
+            // results 是并发容器，并发 add 后顺序不保证，
+            // 所以这里按下标回填，保证"第几个任务"对上"第几个结果"。
+            val slot = java.util.concurrent.ConcurrentHashMap<Int, Result>()
+            var idx = 0
             for ((url, name) in tasks) {
+                val myIdx = idx++
                 futures.add(
                     pool.submit {
                         val f = try {
@@ -118,10 +127,8 @@ object BatchModOps {
                         } catch (t: Throwable) {
                             null
                         }
-                        results.add(
-                            if (f != null) Result.ok(name, "已下载")
-                            else Result.fail(name, "下载失败")
-                        )
+                        slot[myIdx] = if (f != null) Result.ok(name, "已下载")
+                        else Result.fail(name, "下载失败")
                         val n = finished.incrementAndGet()
                         onProgress?.on(n, total, "下载 $name")
                     }
@@ -134,9 +141,8 @@ object BatchModOps {
                 for (fu in futures) fu.cancel(true)
             }
             // 按原任务顺序输出，结果顺序稳定
-            val byName = results.associateBy { it.name }
-            tasks.map { (_, name) ->
-                byName[name] ?: Result.fail(name, "未执行")
+            tasks.mapIndexed { i, (_, name) ->
+                slot[i] ?: Result.fail(name, "未执行")
             }
         } finally {
             pool.shutdownNow()

@@ -116,7 +116,12 @@ jobs:
         with:
           name: ModMigrator-debug
           path: app/build/outputs/apk/*/*.apk
-          retention-days: 30
+          # 每次构建留一个 68MB 的 debug APK。之前设 30 天，
+          # 一天内触发多次构建就堆到 200+ 个、十几 GB，
+          # 直接把仓库存储配额吃满（GitHub 会提示存储空间不足）。
+          # debug 产物只是临时验证用，正式包在 Release 里，
+          # 保留 2 天足够，过期自动清理。
+          retention-days: 2
 
       - name: Generate real changelog from commits
         id: changelog

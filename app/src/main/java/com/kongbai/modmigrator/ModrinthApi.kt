@@ -68,24 +68,48 @@ fun search(
     limit: Int = 20, offset: Int = 0, side: Environ.Side? = null,
     index: String = "downloads"
 ): List<MarketMod> {
-        val filters = ArrayList<String>()
-        filters.add("""project_types=["mod"]""")
-        if (mc.isNotBlank()) filters.add("""game_versions=["$mc"]""")
-        // 加载器字段是 loaders，不是 categories。
-        // 官方 v3 文档里两者是不同字段：categories 是内容分类（optimization 等），
-        // loaders 才是 fabric/forge/quilt。之前写成 categories 导致加载器过滤无效。
-        if (loader.isNotBlank() && loader != "auto") filters.add("""loaders=["$loader"]""")
-        // 运行环境：官方 v3 的 filter 字段是 **environment**，
-        // 且 client_side / server_side 两个旧字段**已废弃**。
-        val envFilter = if (side == null) null else Environ.filterFor(side)
-        if (!envFilter.isNullOrBlank()) filters.add(envFilter)
-        val nf = filters.joinToString(" AND ")
+        // ⚠️ 官方和镜像用的**不是同一版 API**，过滤语法也不同，必须分开拼。
+        //   - 官方：v3，`new_filters` 用 MeiliSearch 语法，
+        //     字段是 project_types / game_versions / loaders
+        //   - 镜像（MCIM）：路径是 /modrinth/**v2**，用 `facets` 数组语法，
+        //     字段是 project_type / versions / categories
+        // 之前统一用 v3 的 new_filters 打到 v2 路径上：
+        // v2 不认这个参数，会**静默丢弃**（不报错），
+        // 于是 MC 版本和加载器过滤全部失效 ——
+        // 搜出来的模组和用户填的目标版本对不上，而且完全看不出原因。
+        // 更麻烦的是 USE_MIRROR 默认值是 true，也就是说这是**默认路径**。
+        val useMirror = Prefs.mirror()
+        val filterPart: String
+        val searchBase: String
+        if (useMirror) {
+            // v2 facets：外层数组是 AND，内层是 OR
+            val groups = ArrayList<String>()
+            groups.add("""["project_type:mod"]""")
+            if (mc.isNotBlank()) groups.add("""["versions:$mc"]""")
+            // v2 里加载器属于 categories（fabric/forge/quilt 都是分类名）
+            if (loader.isNotBlank() && loader != "auto") groups.add("""["categories:$loader"]""")
+            filterPart = "&facets=${Http.enc("[" + groups.joinToString(",") + "]")}"
+            searchBase = MIRROR
+        } else {
+            val filters = ArrayList<String>()
+            filters.add("""project_types=["mod"]""")
+            if (mc.isNotBlank()) filters.add("""game_versions=["$mc"]""")
+            // 加载器字段是 loaders，不是 categories。
+            // 官方 v3 文档里两者是不同字段：categories 是内容分类（optimization 等），
+            // loaders 才是 fabric/forge/quilt。之前写成 categories 导致加载器过滤无效。
+            if (loader.isNotBlank() && loader != "auto") filters.add("""loaders=["$loader"]""")
+            // 运行环境不在这里过滤：官方可过滤字段清单里没有 environment，
+            // 且官方前端源码里 environment 过滤器明确标注不支持否定过滤。
+            // 运行环境改为拿到结果后本地筛（Environ.okFor），不依赖 API 支持。
+            filterPart = "&new_filters=${Http.enc(filters.joinToString(" AND "))}"
+            searchBase = OFFICIAL
+        }
         // index 是排序方式：downloads（下载量）/ newest（最新发布）/
         // updated（最近更新）/ follows / relevance。
         // 之前写死 downloads，资讯页想看"最新模组"时只能按下载量排，
         // 出来的全是老牌热门模组，没有新东西。
-        val url = "${base()}/search?query=${Http.enc(query)}" +
-            "&limit=$limit&offset=$offset&index=$index&new_filters=${Http.enc(nf)}"
+        val url = "$searchBase/search?query=${Http.enc(query)}" +
+            "&limit=$limit&offset=$offset&index=$index$filterPart"
         // ⚠️ 搜索必须走**短超时**（连接 6s / 读取 12s），不能走默认 120s。
         // 商店是聚合搜索，一次并发发多个源，线程数是固定的：
         // 某个源卡住会一直占着线程，连搜几次线程池就被占满，

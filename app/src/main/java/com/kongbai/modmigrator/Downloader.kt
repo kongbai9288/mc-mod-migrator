@@ -89,12 +89,24 @@ object Downloader {
             val existing = dir.findFile(name)
             if (existing != null) existing.delete()
             val out = dir.createFile(Fs.mimeOf(name), name) ?: return null
-            ctx.contentResolver.openOutputStream(out.uri, "wt")?.use { o ->
-                tmp.inputStream().use { it.copyTo(o, 1 shl 16) }
+            // ⚠️ openOutputStream 返回 null 时，`?.use {}` 整块被跳过，
+            // 但下面的 tmp.delete() 和 return out **照常执行**。
+            // 调用方拿到一个非 null 的 DocumentFile，以为下载成功，
+            // 实际是个 0 字节空 jar —— 装进 mods 目录直接坏包。
+            // 必须把 null 当成失败返回。
+            val os = ctx.contentResolver.openOutputStream(out.uri, "wt")
+            if (os == null) {
+                out.delete()
+                // 保留 tmp，下次可直接重试，不必重新下载
+                return null
             }
+            os.use { o -> tmp.inputStream().use { it.copyTo(o, 1 shl 16) } }
             tmp.delete()
             out
         } catch (t: Throwable) {
+            // 失败时 tmp 留在 cache 里，每次失败残留一个完整文件，
+            // 长期下来会吃掉几百 MB。这里必须清掉。
+            try { tmp.delete() } catch (_: Throwable) { }
             null
         }
     }

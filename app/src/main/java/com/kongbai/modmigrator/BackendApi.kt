@@ -229,7 +229,12 @@ object BackendApi {
             var url = "$b/api/mods?q=${Http.enc(query)}&page=$offset&pageSize=$pageSize&sort=$sort"
             if (mc.isNotBlank()) url = "$url&version=${Http.enc(mc)}"
             val body = try {
-                Http.get(url)
+                // ⚠️ 必须走短超时（连接 6s / 读取 12s）。
+                // 聚合搜索并发发多个源、线程池固定，
+                // 后端卡住会一直占着线程，连搜几次池子就被占满，
+                // 后面的搜索只能排队 —— 表现就是"越搜越慢"。
+                // 之前没传 timeout，用的是默认 120 秒。
+                Http.get(url, timeout = Http.SHORT)
             } catch (t: Throwable) {
                 continue
             }
@@ -276,7 +281,12 @@ object BackendApi {
             if (loader.isNotBlank() && loader != "auto") qs.add("loader=${Http.enc(loader)}")
             if (qs.isNotEmpty()) url = "$url?${qs.joinToString("&")}"
             val body = try {
-                Http.get(url)
+                // ⚠️ 必须走短超时（连接 6s / 读取 12s）。
+                // 聚合搜索并发发多个源、线程池固定，
+                // 后端卡住会一直占着线程，连搜几次池子就被占满，
+                // 后面的搜索只能排队 —— 表现就是"越搜越慢"。
+                // 之前没传 timeout，用的是默认 120 秒。
+                Http.get(url, timeout = Http.SHORT)
             } catch (t: Throwable) {
                 continue
             }

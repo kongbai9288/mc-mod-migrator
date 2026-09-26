@@ -25,9 +25,15 @@ class CloudBackupWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, pa
             if (!CloudBackup.due(c)) return Result.success()
 
             val msg = CloudBackup.run(c)
-            CloudBackup.markBackedUp(c)
-            Notifier.show(c, "自动备份", msg)
-            Result.success()
+            // ⚠️ 之前不管成败都调 markBackedUp：
+            // 失败的备份也会刷新 last_backup_at，于是 due() 在整个间隔内
+            // 都不再成立 —— 这次失败永远不会重试，用户却以为备份过了。
+            // 而且最后返回 Result.success()，WorkManager 也不会重试。
+            // 现在只有真的成功才更新时间戳，失败交给 WorkManager 退避重试。
+            val done = CloudBackup.ok(msg)
+            if (done) CloudBackup.markBackedUp(c)
+            Notifier.show(c, if (done) "自动备份" else "自动备份未成功", msg)
+            if (done) Result.success() else Result.retry()
         } catch (t: Throwable) {
             Err.ignore(t, "云盘自动备份")
             // 网络类失败才重试；配置问题重试也没用，直接结束

@@ -11,7 +11,25 @@ object Fs {
     fun tree(ctx: Context, uriStr: String?): DocumentFile? {
         if (uriStr.isNullOrBlank()) return null
         return try {
-            DocumentFile.fromTreeUri(ctx, Uri.parse(uriStr))
+            val u = Uri.parse(uriStr)
+            // ⚠️ file:// URI 不能用 fromTreeUri 解析。
+            // InstanceScanner 用 File API 扫实例时生成的是
+            // "file://" + absolutePath，而 fromTreeUri 只认
+            // content://.../tree/... 这种 SAF 树 URI，
+            // 拿到 file:// 会直接返回 null。
+            // 后果：授权"所有文件访问"后能扫到实例，
+            // 但选中之后扫描 mods / 算 SHA-1 / 复制配置全部报
+            // "目录不可访问" —— 因为下游统统走 Fs.tree。
+            // 这里按 scheme 分流：file:// 走 fromFile。
+            if ("file".equals(u.scheme, true)) {
+                val p = u.path
+                if (p.isNullOrBlank()) return null
+                val f = java.io.File(p)
+                if (!f.exists()) return null
+                DocumentFile.fromFile(f)
+            } else {
+                DocumentFile.fromTreeUri(ctx, u)
+            }
         } catch (t: Throwable) {
             null
         }
@@ -54,16 +72,33 @@ object Fs {
         synchronized(dirCache) { dirCache.clear() }
     }
 
-    fun ensureDir(root: DocumentFile, name: String): DocumentFile {
+    /**
+     * 在 root 下确保存在名为 name 的子目录。
+     * 创建失败时返回 **null**（调用方自行决定降级策略）。
+     */
+    fun ensureDir(root: DocumentFile, name: String): DocumentFile? {
         val key = root.uri.toString() + "#" + name
         dirCache[key]?.let { return it }
         val hit = find(root, name, 0)
-        val out = if (hit != null && hit.isDirectory) hit else (root.createDirectory(name) ?: root)
+        if (hit != null && hit.isDirectory) {
+            synchronized(dirCache) {
+                if (dirCache.size > 200) dirCache.clear()
+                dirCache[key] = hit
+            }
+            return hit
+        }
+        // ⚠️ 原来是 `(root.createDirectory(name) ?: root)`：
+        // 创建失败时返回**父目录本身**，还把它缓存成 name 的结果。
+        // 之后每次取这个"子目录"都拿到父目录，
+        // 往子目录里写文件实际写到了父目录根下 —— 文件位置全错。
+        // 失败必须返回 null，且**不能**把失败结果写进缓存。
+        val made = try { root.createDirectory(name) } catch (t: Throwable) { null }
+        if (made == null) return null
         synchronized(dirCache) {
             if (dirCache.size > 200) dirCache.clear()
-            dirCache[key] = out
+            dirCache[key] = made
         }
-        return out
+        return made
     }
 
     fun readText(ctx: Context, file: DocumentFile): String {

@@ -176,7 +176,8 @@ class MigrationFragment : Fragment() {
         v.findViewById<Button>(R.id.btnPickSource).setOnClickListener { pickDir(11) }
         v.findViewById<Button>(R.id.btnPickTarget).setOnClickListener { pickDir(12) }
         v.findViewById<Button>(R.id.btnScan).setOnClickListener { scan() }
-        v.findViewById<Button>(R.id.btnDownloadAll)?.setOnClickListener { downloadAll() }
+        // 原来这里重复写了两遍（复制粘贴残留），第二遍覆盖第一遍。
+        // 保留一行。
         v.findViewById<Button>(R.id.btnDownloadAll)?.setOnClickListener { downloadAll() }
         v.findViewById<Button>(R.id.btnRun).setOnClickListener { runMigration() }
         v.findViewById<Button>(R.id.btnDoctor).setOnClickListener { runDoctor() }

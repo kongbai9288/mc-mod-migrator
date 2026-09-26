@@ -182,6 +182,13 @@ object SyncManager {
                 val loader = o.optString("loader", "auto").ifBlank { "auto" }
                 val arr = o.optJSONArray("mods") ?: JSONArray()
                 val dir = Fs.ensureDir(dst, "mods")
+                // ensureDir 失败返回 null 时不能继续往下走，
+                // 否则 Downloader.download 收到 null 目录会失败，
+                // 却照样计入"成功"（见 BatchModOps 的计数修正）。
+                if (dir == null) {
+                    log("目标 mods 目录不可用，已中止本次恢复")
+                    return
+                }
                 // ── 同样改批量 ──────────────────────────────────
                 // 之前每个可识别模组调一次 /project/{id}/version：
                 // 恢复 30 个模组就是 30 次串行请求，界面像卡死。

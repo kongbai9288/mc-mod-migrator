@@ -134,6 +134,21 @@ object CloudBackup {
         }
     }
 
+    /**
+     * 判断一次备份是否**真的成功**。
+     *
+     * `run()` 和 `SyncManager.upload()` 都是用返回文案表达结果，
+     * 调用方之前一律当成成功处理（见 CloudBackupWorker 的注释）。
+     * 失败时也更新时间戳的后果是：`due()` 在整个间隔内都不再为真，
+     * 失败的备份**不会重试**，而界面上显示的时间却像是刚备份过。
+     *
+     * 这里把"成功"的判定收在一处，避免各处各自写 startsWith。
+     */
+    fun ok(msg: String?): Boolean {
+        val m = msg?.trim() ?: return false
+        return m.startsWith("备份成功") || m.startsWith("清单已上传")
+    }
+
     /** 给用户的状态描述 */
     fun describe(ctx: Context): String {
         val url = uploadUrl(ctx)

@@ -120,8 +120,21 @@ object BundleManager {
         var cur = root
         for (seg in path.split('/')) {
             if (seg.isBlank()) continue
-            val next = cur.findFile(seg) ?: cur.createDirectory(seg)
-            if (next != null) cur = next
+            // ⚠️ 挡掉 "." / ".." 这类相对段。
+            // 说明一下真实风险等级：写文件走的是 SAF 的
+            // DocumentFile.createFile()，本身被限制在授权目录内，
+            // 所以**不是**能写到任意目录的越权漏洞。
+            // 真正的问题是 `..` 会让路径解析产生歧义 ——
+            // 同一个解压目标可能落到错误的子目录里，
+            // 表现是"还原出来的文件位置不对"，而且很难排查。
+            // 这里直接跳过相对段，保证解压结果落在预期位置。
+            if (seg == "." || seg == "..") continue
+            // 挡掉 Windows 风格的反斜杠分隔，避免 "a\b" 被当成一个文件名
+            for (part in seg.split('\\')) {
+                if (part.isBlank() || part == "." || part == "..") continue
+                val next = cur.findFile(part) ?: cur.createDirectory(part)
+                if (next != null) cur = next
+            }
         }
         return cur
     }

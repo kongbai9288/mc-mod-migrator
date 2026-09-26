@@ -229,9 +229,17 @@ class DownloadService : Service() {
                 notifyProgress(task)
                 return
             }
-            contentResolver.openOutputStream(df.uri, "wt")?.use { o ->
-                out.inputStream().use { it.copyTo(o, 1 shl 16) }
+            // 同 Downloader：openOutputStream 返回 null 时 ?.use 整块跳过，
+            // 但后面照样把状态设成"完成"——用户看到下载成功，
+            // 实际 mods 目录里是个 0 字节的空文件。必须判空。
+            val os = contentResolver.openOutputStream(df.uri, "wt")
+            if (os == null) {
+                df.delete()
+                task.state = "失败（无法写入目标文件）"
+                notifyProgress(task)
+                return
             }
+            os.use { o -> out.inputStream().use { it.copyTo(o, 1 shl 16) } }
             clearPos(this, task)
             task.state = "完成"
         } catch (t: Throwable) {

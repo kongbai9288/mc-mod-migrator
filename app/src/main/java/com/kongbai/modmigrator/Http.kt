@@ -119,6 +119,48 @@ object Http {
         }
     }
 
+    /**
+     * POST JSON，并**保留完整响应元信息**（状态码 + 响应头）。
+     *
+     * 给 Groq 这类带配额接口的调用用：它的限速信息全在响应头里
+     * （`x-ratelimit-remaining-requests` / `x-ratelimit-remaining-tokens` /
+     * `retry-after`），普通 `postJson` 一失败就抛异常，头信息全丢，
+     * 调用方既不知道还剩多少配额，也不知道 429 之后该等多久。
+     *
+     * 注意：这里**不抛异常**，由调用方按 code 自行判断。
+     */
+    fun postDetailed(
+        url: String, json: String, headers: Map<String, String>,
+        timeout: Int = NORMAL
+    ): Detailed {
+        val b = Request.Builder().url(url).header("User-Agent", UA)
+        for ((k, v) in headers) b.header(k, v)
+        val body = json.toRequestBody("application/json; charset=utf-8".toMediaType())
+        b.post(body)
+        val c = if (timeout == SHORT) shortClient else client
+        val r = c.newCall(b.build()).execute()
+        r.use {
+            val s = try { it.body?.string() ?: "" } catch (t: Throwable) { "" }
+            runCatching {
+                Prefs.appCtx()?.let { ctx -> Traffic.record(ctx, s.length.toLong() + 512) }
+            }
+            return Detailed(it.code, s, it.headers)
+        }
+    }
+
+    /** 一次 POST 的完整结果 */
+    class Detailed(
+        val code: Int,
+        val body: String,
+        private val headers: okhttp3.Headers
+    ) {
+        /** 取响应头，取不到返回 null（不要返回 ""，那和"空值"分不清） */
+        fun header(name: String): String? =
+            try { headers[name] } catch (t: Throwable) { null }
+
+        fun isOk(): Boolean = code in 200..299
+    }
+
     fun put(url: String, json: String, headers: Map<String, String>): String {
         val b = Request.Builder().url(url).header("User-Agent", UA)
         for ((k, v) in headers) b.header(k, v)

@@ -208,7 +208,11 @@ object CrossLoader {
     fun pickProject(hits: List<MarketMod>, modName: String): MarketMod? {
         if (hits.isEmpty()) return null
         val key = normKey(modName)
-        if (key.isBlank()) return hits.first()
+        // ⚠️ 原来文件名解析不出有效模组名时直接 `return hits.first()`：
+        // 不做任何名字核对就拿模糊搜索的第一个结果当目标模组，
+        // 搜出来什么就换什么 —— 可能把用户的模组换成完全不相关的另一个，
+        // 而且不报错。宁可返回 null，让上层提示"无法识别模组名"。
+        if (key.isBlank()) return null
 
         // 1) 完全一致：最可靠，优先
         for (h in hits) {

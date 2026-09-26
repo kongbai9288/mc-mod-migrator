@@ -7,8 +7,17 @@ import androidx.security.crypto.MasterKey
 
 object Prefs {
 
+    // ⚠️ 必须 @Volatile + 双重检查。
+    // get() 会被任意后台线程调用（下载、搜索、备份、WorkManager），
+    // 原来的 `if (prefs == null) prefs = ...` 没有同步：
+    // 两个线程同时首次调用会各自创建一个 EncryptedSharedPreferences 实例，
+    // 之后读写的可能不是同一份 —— 配置改动丢失、设置看起来"没生效"。
+    @Volatile
     private var prefs: SharedPreferences? = null
-    private lateinit var app: Context
+    private val lock = Any()
+
+    @Volatile
+    private var app: Context? = null
 
     fun init(ctx: Context) {
         app = ctx.applicationContext
@@ -16,35 +25,38 @@ object Prefs {
     }
 
     /** 可能还没 init，返回 null 而不是崩 */
-    fun appCtx(): Context? = if (::app.isInitialized) app else null
+    fun appCtx(): Context? = app
 
     fun mirror(): Boolean {
-        if (!::app.isInitialized) return true
-        return get(app).getBoolean(K.USE_MIRROR, true)
+        val c = app ?: return true
+        return get(c).getBoolean(K.USE_MIRROR, true)
     }
 
     fun get(ctx: Context): SharedPreferences {
-        if (prefs == null) {
-            prefs = try {
-                val key = MasterKey.Builder(ctx)
-                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                    .build()
-                EncryptedSharedPreferences.create(
-                    ctx,
-                    "mm_secure",
-                    key,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-                )
-            } catch (t: Throwable) {
-                ctx.getSharedPreferences("mm_plain", Context.MODE_PRIVATE)
-            }
+        // 双重检查锁定：第一次读 volatile 快路径，避免每次都进同步块
+        return prefs ?: synchronized(lock) {
+            prefs ?: build(ctx).also { prefs = it }
         }
-        // prefs 为 null 说明 init 没跑到（极端情况，比如进程被杀后重建）。
-        // 不能 !!（会 NPE 崩），退化到一个内存里的空实现：
-        // 读不到配置只会用默认值，不会让应用起不来。
-        return prefs ?: fallback(ctx)
     }
+
+    private fun build(ctx: Context): SharedPreferences {
+        return try {
+            val mk = MasterKey.Builder(ctx)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            EncryptedSharedPreferences.create(
+                ctx,
+                "mm_secure",
+                mk,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (t: Throwable) {
+            ctx.getSharedPreferences("mm_plain", Context.MODE_PRIVATE)
+        }
+    }
+
+    /** 老代码里 get() 的兜底分支，现已并入 build()，保留注释说明 */
 
     @Volatile
     private var fallbackPrefs: SharedPreferences? = null
@@ -166,4 +178,9 @@ object K {
     const val MC_VERSION = "mc_version"            // 目标 MC 版本
     const val LOADER = "loader_type"                // 目标加载器 fabric/forge/quilt/neoforge
     const val DOWNLOAD_SPEED = "download_speed"      // 下载并发：0单线程 1适中 2最大
+    // ── Groq（AI 代码审核）──────────────────────────────
+    // 密钥只存在本机加密配置里，**绝不写进源码或提交到仓库**。
+    // 存到 EncryptedSharedPreferences 后，只有本机能读到。
+    const val GROQ_KEY = "groq_key"
+    const val GROQ_MODEL = "groq_model"
 }

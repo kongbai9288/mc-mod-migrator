@@ -114,9 +114,19 @@ class SettingsStorageFragment : Fragment() {
             }
             Thread {
                 try {
-                    SyncManager.upload(ctx) { }
-                    CloudBackup.markBackedUp(ctx)
-                    main { tv?.text = CloudBackup.describe(ctx); Toast.makeText(ctx, "备份完成", Toast.LENGTH_SHORT).show() }
+                    // 和 CloudBackupWorker 同一个毛病：不看成败就更新时间戳，
+                    // 失败也说"备份完成"。这里改成如实反馈。
+                    val msg = SyncManager.upload(ctx) { }
+                    val done = CloudBackup.ok(msg)
+                    if (done) CloudBackup.markBackedUp(ctx)
+                    main {
+                        tv?.text = CloudBackup.describe(ctx)
+                        Toast.makeText(
+                            ctx,
+                            if (done) "备份完成：$msg" else "备份失败：$msg",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 } catch (t: Throwable) {
                     main { Toast.makeText(ctx, "备份失败：${t.message}", Toast.LENGTH_LONG).show() }
                 }
