@@ -41,29 +41,57 @@ class SettingsLogFragment : Fragment() {
 
     private fun refresh() {
         val ctx = context ?: return
+        // ⚠️ 两个问题：
+        //  ① `LogCenter.readAll(ctx)` 是通过 ContentResolver **读文件**，
+        //     属于磁盘 IO，却直接在**主线程**调用 → 日志文件大了会卡顿甚至 ANR。
+        //  ② 它是**无条件**读的：`disk` 只有在 mem 为空时才用到，
+        //     但不管 mem 有没有内容都会读一遍磁盘，纯属浪费。
+        // 现在：先把内存里的部分显示出来（立刻有反馈），
+        // 只有内存为空时才去后台读磁盘。
         val mem = LogCenter.all()
-        val disk = LogCenter.readAll(ctx)
-        val text = if (mem.isNotEmpty()) {
-            mem.joinToString("\n") { it.toString() }
-        } else {
-            disk.ifBlank { "暂无日志" }
+        tvInfo.text = "共 ${LogCenter.count()} 条（内存中）"
+        if (mem.isNotEmpty()) {
+            tv.text = tail(mem.joinToString("\n") { it.toString() })
+            return
         }
-        tv.text = tail(text)
-        tvInfo.text = "共 ${LogCenter.count()} 条（内存中）· 日志目录：${WorkDir.logs(ctx)?.name ?: "未设置工作目录"}"
+        tv.text = "正在读取磁盘日志…"
+        readDisk(ctx) { disk ->
+            tv.text = tail(disk.ifBlank { "暂无日志" })
+            tvInfo.text = "共 ${LogCenter.count()} 条（内存中）· 日志目录：${
+                WorkDir.logs(ctx)?.name ?: "未设置工作目录"
+            }"
+        }
     }
 
     /** 只看错误，方便定位问题 */
     private fun showErrors() {
-        val errs = LogCenter.all().filter { it.isError }
         val ctx = context ?: return
-        val disk = LogCenter.readAll(ctx).split("\n").filter { it.contains("错误") }
-        tv.text = if (errs.isNotEmpty()) {
-            errs.joinToString("\n") { it.toString() }
-        } else {
-            disk.joinToString("\n").ifBlank { "没有错误记录" }
+        val errs = LogCenter.all().filter { it.isError }
+        if (errs.isNotEmpty()) {
+            tv.text = errs.joinToString("\n") { it.toString() }
+            tvInfo.text = "错误 ${errs.size} 条"
+            return
         }
-        tvInfo.text = "错误 ${errs.size} 条"
+        tv.text = "正在读取磁盘日志…"
+        readDisk(ctx) { disk ->
+            val lines = disk.split("\n").filter { it.contains("错误") }
+            tv.text = lines.joinToString("\n").ifBlank { "没有错误记录" }
+            tvInfo.text = "内存中无错误"
+        }
     }
+
+    /** 后台读磁盘日志，读完切回主线程 */
+    private fun readDisk(ctx: android.content.Context, onDone: (String) -> Unit) {
+        exec.execute {
+            val disk = LogCenter.readAll(ctx)
+            handler.post {
+                if (!isAdded) return@post
+                onDone(disk)
+            }
+        }
+    }
+
+    private val exec = java.util.concurrent.Executors.newSingleThreadExecutor()
 
     /** 只显示末尾若干行，避免超长文本卡界面 */
     private fun tail(s: String): String {

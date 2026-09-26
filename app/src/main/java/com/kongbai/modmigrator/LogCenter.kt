@@ -112,18 +112,57 @@ object LogCenter {
 
     // ---------- 落盘 ----------
 
+    /**
+     * 磁盘日志大小上限（字节）。
+     *
+     * ⚠️ 之前用 "wa"（追加）模式写，**只增不减、从不清空也不截断**。
+     * 用久了 app.log 会涨到几十 MB，而「设置 → 日志」是把它
+     * **整个读进内存**再显示的 —— 读一次就卡死，甚至 OOM。
+     * 现在超过上限就保留后半段（新的），丢掉最早的那部分。
+     */
+    private const val MAX_DISK = 512 * 1024
+
     private fun persist(line: LogLine) {
         try {
             val ctx = Prefs.appCtx() ?: return
             val dir = WorkDir.logs(ctx) ?: return
             val f = dir.findFile("app.log") ?: dir.createFile("text/plain", "app.log") ?: return
+            val text = line.toString() + "\n"
             ctx.contentResolver.openOutputStream(f.uri, "wa")?.use {
-                it.write((line.toString() + "\n").toByteArray())
+                it.write(text.toByteArray())
             }
+            trimDisk(ctx, f)
         } catch (t: Throwable) {
             // 落盘失败不能影响主流程
                  Err.ignore(t, "落盘失败不能影响主流程")
              }
+    }
+
+    /**
+     * 磁盘日志超过上限时，只保留**后半段**（较新的内容）。
+     * 前半段按行切，避免把一个汉字/一条日志截成两半。
+     */
+    private fun trimDisk(ctx: Context, f: androidx.documentfile.provider.DocumentFile) {
+        try {
+            val len = f.length()
+            if (len <= MAX_DISK) return
+            val all = ctx.contentResolver.openInputStream(f.uri)?.use {
+                it.readBytes().toString(Charsets.UTF_8)
+            } ?: return
+            // 留 3/4 的空间，不至于每次写一行就重写一次
+            val keepBytes = MAX_DISK * 3 / 4
+            var cut = all.length - keepBytes
+            if (cut < 0) return
+            // 往后找到第一个换行，从那里开始保留，保证不截半行
+            val nl = all.indexOf('\n', cut)
+            if (nl >= 0) cut = nl + 1
+            val kept = all.substring(cut)
+            ctx.contentResolver.openOutputStream(f.uri, "wt")?.use {
+                it.write(kept.toByteArray())
+            }
+        } catch (t: Throwable) {
+            Err.ignore(t, "截断磁盘日志")
+        }
     }
 
     /** 读出磁盘上的完整日志，供「设置 → 日志」查看 */

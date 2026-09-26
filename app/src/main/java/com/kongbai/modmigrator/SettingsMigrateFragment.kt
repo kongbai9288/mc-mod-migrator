@@ -74,12 +74,18 @@ class SettingsMigrateFragment : Fragment() {
             val cur = Prefs.get(requireContext()).getInt(K.DOWNLOAD_PARALLEL, 3)
             val vals = resources.getStringArray(R.array.parallel_values)
             val idx = vals.indexOf(cur.toString())
+            // Spinner 的 onItemSelected **在设置监听器时就会自动触发一次**，
+            // 用户根本没操作。不设守卫的话，一进这个页面就会把并发数
+            // 按当前选中项**重新写一遍**——而 setSelection 之前
+            // 选中项是第 0 项（"1"），于是你设置里的 4 会被悄悄改成 1。
+            var spLoading = true
             sp.setSelection(if (idx >= 0) idx else 2)
             sp.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
                 override fun onItemSelected(
                     parent: android.widget.AdapterView<*>?, view2: android.view.View?,
                     pos: Int, id: Long
                 ) {
+                    if (spLoading) { spLoading = false; return }
                     val n = vals.getOrNull(pos)?.toIntOrNull() ?: 3
                     Prefs.get(requireContext()).edit().putInt(K.DOWNLOAD_PARALLEL, n).apply()
                 }
