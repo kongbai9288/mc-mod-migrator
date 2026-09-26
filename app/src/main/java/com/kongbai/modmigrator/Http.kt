@@ -56,6 +56,12 @@ object Http {
             m.contains("connectionreset") || m.contains("reset") -> "连接被重置"
             m.contains("failed to connect") || m.contains("econnrefused") -> "连不上服务器"
             m.contains("network is unreachable") -> "网络不可用"
+            // 401 单列：CurseForge 官方博客明确说明，自 2025-07-16 起
+            // edge.forgecdn.net 的直连下载**强制要求 API Key**，
+            // 不带有效 Key 一律返回 401 Unauthorized。
+            // 之前 401 被笼统归到"请求被拒绝"，用户只知道下载失败，
+            // 不知道根因是没填 Key。这里直说，省得反复试。
+            m.contains("http 401") -> "未授权（401）：API Key 无效或没填。CurseForge 官方 CDN 已强制要求 Key，请在设置里填写，或改用镜像"
             m.startsWith("http 4") -> "请求被拒绝（${t.message?.take(24)}）"
             m.startsWith("http 5") -> "服务器出错（${t.message?.take(24)}）"
             m.startsWith("http") -> "HTTP 异常（${t.message?.take(24)}）"

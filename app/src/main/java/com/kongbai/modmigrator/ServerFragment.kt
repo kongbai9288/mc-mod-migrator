@@ -547,8 +547,18 @@ class ServerFragment : Fragment() {
                             .replace(Regex("[-_]mc1?[._-]?\\d+.*$", RegexOption.IGNORE_CASE), "")
                             .replace(Regex("[._-]"), " ")
                             .trim()
+                        // ⚠️ 这里**不再把 side 传给 API 层过滤**。
+                        // 之前传 side 会往 new_filters 里拼
+                        // `environment!="client_only"`，但：
+                        //   1) Modrinth 官方可过滤字段清单里**没有 environment**；
+                        //   2) 官方前端源码里 environment 过滤器明确标注
+                        //      supports_negative_filter = false（不支持否定过滤）。
+                        // 非法字段可能让整串 new_filters 失效、请求异常或返回空，
+                        // 结果就是搜索直接搜不出东西。
+                        // 运行环境改为**拿到结果后本地筛**（下面 Environ.okFor 已经在做），
+                        // 不依赖 API 支持，行为一致且更稳。
                         val res = try {
-                            ModrinthApi.search(q, mc, loader, 8, 0, side)
+                            ModrinthApi.search(q, mc, loader, 8, 0, null)
                         } catch (t: Throwable) {
                             emptyList<MarketMod>()
                         }
