@@ -35,6 +35,14 @@ class WeeklyReportFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         val ctx = requireContext()
+        // ⚠️ 提示里写着"下拉刷新"，之前却**根本没有 SwipeRefreshLayout** ——
+        // 用户照着提示下拉，什么都不会发生。
+        refresh = androidx.swiperefreshlayout.widget.SwipeRefreshLayout(ctx).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        }
         val scroll = android.widget.ScrollView(ctx)
         val root = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
@@ -42,6 +50,7 @@ class WeeklyReportFragment : Fragment() {
             setPadding(pad, pad, pad, pad)
         }
         scroll.addView(root)
+        refresh.addView(scroll)
 
         root.addView(UiCards.hint(ctx, "最近发生了什么。下拉刷新或重进本页可重新拉取。"))
 
@@ -55,36 +64,73 @@ class WeeklyReportFragment : Fragment() {
         box = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
         root.addView(box)
 
+        refresh.setOnRefreshListener { load() }
+        refresh.isRefreshing = true
         load()
-        return scroll
+        return refresh
     }
 
     private fun load() {
         val ctx = context ?: return
+        val gen = ++generation
         tvState.text = "正在生成周报…"
         box.removeAllViews()
 
-        // 先渲染本机部分（本地数据，几乎立刻出结果），不用等网络
-        renderSites()
+        // ⚠️ 之前三个分区是**各自往 box 里 addView**，谁先跑完谁排在前面。
+        // 「社区动态」要联网抓（慢），「应用动态」也要联网（慢），
+        // 「本机动态」是本地计算（快）——于是每次进页面的分区顺序都不一样，
+        // 而且还会互相插队：慢的那个回来时直接追加到末尾，
+        // 可能把「本机动态」的卡片夹在「应用动态」中间。
+        // 现在先建好三个空的占位槽，各自只往自己的槽里填，顺序就固定了。
+        slotSites = newSlot()
+        slotLocal = newSlot()
+        slotRemote = newSlot()
+        box.addView(slotSites!!)
+        box.addView(slotLocal!!)
+        box.addView(slotRemote!!)
+
+        pending.set(2)
+
+        // 本机动态：本地数据，几乎立刻出结果
         renderLocal()
+
+        renderSites(gen)
 
         exec.execute {
             val remote = try {
                 fetchReleases(ctx)
             } catch (t: Throwable) {
-                emptyList()
+                emptyList<Pair<String, String>>()
             }
             safePost(handler) {
+                if (gen != generation) return@safePost
                 renderRemote(remote)
-                tvState.text = "生成于 ${now()}"
+                if (pending.decrementAndGet() <= 0) finishLoad()
             }
         }
     }
 
+    private fun newSlot(): LinearLayout = LinearLayout(requireContext()).apply {
+        orientation = LinearLayout.VERTICAL
+    }
+
+    private fun finishLoad() {
+        tvState.text = "生成于 ${now()}"
+        refresh.isRefreshing = false
+    }
+
+    /** 加载轮次，用于丢弃过期回调（下拉刷新时旧结果不能插进来） */
+    private var generation = 0
+    private var slotSites: LinearLayout? = null
+    private var slotLocal: LinearLayout? = null
+    private var slotRemote: LinearLayout? = null
+    private lateinit var refresh: androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+
     /** 本机动态：从日志统计 */
     private fun renderLocal() {
         val ctx = context ?: return
-        box.addView(UiCards.sectionTitle(ctx, "本机动态"))
+        val slot = slotLocal ?: return
+        slot.addView(UiCards.sectionTitle(ctx, "本机动态"))
         try {
             val lines = LogCenter.all()
             val total = lines.size
@@ -103,9 +149,9 @@ class WeeklyReportFragment : Fragment() {
                     .takeLast(3)
                     .forEach { sb.append("· ${it.msg.take(80)}\n") }
             }
-            box.addView(card(ctx, "使用情况", sb.toString()))
+            slot.addView(card(ctx, "使用情况", sb.toString()))
         } catch (t: Throwable) {
-            box.addView(UiCards.emptyCard(ctx, "暂无本地数据", "用一阵子再来看就有了。"))
+            slot.addView(UiCards.emptyCard(ctx, "暂无本地数据", "用一阵子再来看就有了。"))
         }
     }
 
@@ -115,24 +161,27 @@ class WeeklyReportFragment : Fragment() {
      * 每条都标明来源站点，点进去是原文地址——不伪装成自己的内容。
      * 抓不到就显示降级文案，不会让整页空白。
      */
-    private fun renderSites() {
+    private fun renderSites(gen: Int) {
         val ctx = context ?: return
-        box.addView(UiCards.sectionTitle(ctx, "社区动态（来自各站点）"))
+        val slot = slotSites ?: return
+        slot.addView(UiCards.sectionTitle(ctx, "社区动态（来自各站点）"))
         exec.execute {
             val list = try {
                 SiteFeed.fetch()
             } catch (t: Throwable) {
-                emptyList()
+                emptyList<SiteFeed.Entry>()
             }
             handler.post {
+                if (gen != generation) return@post
                 if (!isAdded) return@post
                 if (list.isEmpty()) {
-                    box.addView(
+                    slot.addView(
                         UiCards.emptyCard(
                             ctx, "暂时抓不到社区动态",
                             "可能网络不通，或站点改版导致解析失效。不影响其他功能。"
                         )
                     )
+                    if (pendingDone()) finishLoad()
                     return@post
                 }
                 for ((source, entries) in SiteFeed.groupBySource(list)) {
@@ -151,23 +200,29 @@ class WeeklyReportFragment : Fragment() {
                     ) {
                         WebActivity.open(ctx, first.url, first.title)
                     }
-                    box.addView(card)
+                    slot.addView(card)
                 }
-                box.addView(TextView(ctx).apply {
+                slot.addView(TextView(ctx).apply {
                     text = "以上内容分别来自各站点，版权归原作者所有。点击可跳转原文。"
                     textSize = 11f
                     setPadding(0, (8 * resources.displayMetrics.density).toInt(), 0, 0)
                 })
+                if (pendingDone()) finishLoad()
             }
         }
     }
 
+    /** 两个联网分区都完成了才收尾 */
+    private fun pendingDone(): Boolean = pending.decrementAndGet() <= 0
+    private val pending = java.util.concurrent.atomic.AtomicInteger(2)
+
     /** 应用动态：仓库 release */
     private fun renderRemote(list: List<Pair<String, String>>) {
         val ctx = context ?: return
-        box.addView(UiCards.sectionTitle(ctx, "应用动态"))
+        val slot = slotRemote ?: return
+        slot.addView(UiCards.sectionTitle(ctx, "应用动态"))
         if (list.isEmpty()) {
-            box.addView(
+            slot.addView(
                 UiCards.emptyCard(
                     ctx, "暂时拉不到更新记录",
                     "可能网络不通或仓库没发布过 release，不影响使用。"
@@ -176,7 +231,7 @@ class WeeklyReportFragment : Fragment() {
             return
         }
         for ((tag, body) in list.take(6)) {
-            box.addView(card(ctx, tag, body.take(300).ifBlank { "（无说明）" }))
+            slot.addView(card(ctx, tag, body.take(300).ifBlank { "（无说明）" }))
         }
     }
 
@@ -226,8 +281,12 @@ class WeeklyReportFragment : Fragment() {
             .ifBlank { UpdateChecker.defaultRepo() }
         val token = Prefs.get(ctx).getString(K.TOKEN, "") ?: ""
         val url = "https://api.github.com/repos/${Http.enc(o)}/${Http.enc(r)}/releases?per_page=6"
-        val json = Http.get(url, if (token.isBlank()) emptyMap()
-        else mapOf("Authorization" to "Bearer $token"))
+        // 短超时 + GitHub 官方推荐的 Accept 头。
+        // 之前用默认超时（读取 120 秒），网络不通时整页要干等两分钟
+        // 才显示"暂时拉不到更新记录"。
+        val headers = mutableMapOf("Accept" to "application/vnd.github+json")
+        if (token.isNotBlank()) headers["Authorization"] = "Bearer $token"
+        val json = Http.get(url, headers, Http.SHORT)
         val arr = Json.arr(json) ?: return emptyList()
         val out = ArrayList<Pair<String, String>>()
         for (e in arr) {
