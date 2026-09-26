@@ -42,7 +42,6 @@ object NavConfig {
         Item("weekly", R.string.tab_weekly, R.drawable.ic_rocket_launch) { WeeklyReportFragment() },
         Item("sites", R.string.tab_sites, R.drawable.ic_open_in_new) { SitesFragment() },
         Item("mods", R.string.tab_mods, R.drawable.ic_extension) { ModManagerFragment() },
-        Item("review", R.string.tab_review, R.drawable.ic_shield) { CodeReviewFragment() },
         Item("trash", R.string.tab_trash, R.drawable.ic_delete) { TrashFragment() }
     )
 

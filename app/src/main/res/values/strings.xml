@@ -144,7 +144,6 @@
     <string name="tool_doctor">模组体检</string>
     <string name="tool_diff">配置对比</string>
     <string name="tab_tools">工具箱</string>
-    <string name="tab_review">AI 代码审核</string>
     <string name="tab_modpack">整合包</string>
     <string name="tab_more">更多</string>
     <string name="tab_update">整合包更新</string>

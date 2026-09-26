@@ -178,9 +178,5 @@ object K {
     const val MC_VERSION = "mc_version"            // 目标 MC 版本
     const val LOADER = "loader_type"                // 目标加载器 fabric/forge/quilt/neoforge
     const val DOWNLOAD_SPEED = "download_speed"      // 下载并发：0单线程 1适中 2最大
-    // ── Groq（AI 代码审核）──────────────────────────────
-    // 密钥只存在本机加密配置里，**绝不写进源码或提交到仓库**。
-    // 存到 EncryptedSharedPreferences 后，只有本机能读到。
-    const val GROQ_KEY = "groq_key"
-    const val GROQ_MODEL = "groq_model"
+
 }
