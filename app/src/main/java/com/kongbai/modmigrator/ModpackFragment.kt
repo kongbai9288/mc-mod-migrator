@@ -125,39 +125,84 @@ class ModpackFragment : Fragment() {
             val jars = Fs.children(mods).filter {
                 it.isFile && (it.name ?: "").endsWith(".jar", true)
             }
-            val rows = ArrayList<UpdateRow>()
-            var done = 0
+            if (jars.isEmpty()) {
+                setState("mods 目录里没有 jar")
+                return@bg
+            }
+
+            // ⚠️ 之前这里是**两层串行逐个请求**：
+            //   每个 jar → lookupHashSimple(1 次) → versions(1 次)
+            //   50 个模组就是 100 次排队等待，检查一轮要好几分钟，
+            //   中途还要 setState 刷新界面，看着像卡住了。
+            // 现在改成三次批量：
+            //   ① 本地算全部指纹  ② 一次批量反查项目  ③ 一次批量取最新版本
+            setState("正在计算 ${jars.size} 个文件的指纹…")
+            val shaOf = java.util.concurrent.ConcurrentHashMap<String, String>()
+            val pool = java.util.concurrent.Executors.newFixedThreadPool(
+                (p.getInt(K.DOWNLOAD_PARALLEL, 3)).coerceIn(1, 4)
+            )
+            val latch = java.util.concurrent.CountDownLatch(jars.size)
             for (j in jars) {
-                done++
-                setState("检查中 $done/${jars.size}：${j.name}")
-                val sha = try {
-                    Fs.sha1(ctx, j)
-                } catch (t: Throwable) {
-                    ""
+                pool.execute {
+                    try {
+                        val s = try { Fs.sha1(ctx, j) } catch (t: Throwable) { "" }
+                        shaOf[j.uri.toString()] = s
+                    } catch (t: Throwable) {
+                        Err.ignore(t, "计算整合包指纹")
+                    } finally {
+                        latch.countDown()
+                    }
                 }
-                val hit = if (sha.isBlank()) null else ModrinthApi.lookupHashSimple(sha)
-                if (hit == null) {
-                    rows.add(
-                        UpdateRow(
-                            j.name ?: "", "", "", "", "",
-                            if (sha.isBlank()) "哈希计算失败" else "Modrinth 上没找到"
-                        )
-                    )
+            }
+            latch.await()
+            pool.shutdown()
+
+            val hashes = ArrayList<String>()
+            for (j in jars) {
+                val s = shaOf[j.uri.toString()].orEmpty()
+                if (s.isBlank()) continue
+                hashes.add(s.lowercase())
+            }
+
+            setState("批量反查 ${hashes.size} 个指纹…")
+            val found = try {
+                ModrinthApi.lookupHashes(hashes)
+            } catch (t: Throwable) {
+                emptyMap<String, ModrinthApi.LookupResult>()
+            }
+            // 顺带把项目名取回来（一次批量请求）
+            ModrinthApi.refreshAll(found.values.map { it.projectId })
+
+            setState("批量查询最新版本…")
+            val latest = try {
+                ModrinthApi.latestForHashes(hashes, mc, loader)
+            } catch (t: Throwable) {
+                emptyMap<String, ModFile>()
+            }
+
+            val rows = ArrayList<UpdateRow>()
+            for (j in jars) {
+                val name = j.name ?: ""
+                val s = shaOf[j.uri.toString()].orEmpty()
+                if (s.isBlank()) {
+                    rows.add(UpdateRow(name, "", "", "", "", "哈希计算失败"))
                     continue
                 }
-                val pid = hit.first
-                val cur = hit.second
-                val vs = ModrinthApi.versions(pid, mc, loader)
-                val f0 = vs.firstOrNull()
+                val hit = found[s.lowercase()]
+                if (hit == null || !hit.found) {
+                    rows.add(UpdateRow(name, "", "", "", "", "Modrinth 上没找到"))
+                    continue
+                }
+                val f0 = latest[s.lowercase()]
                 if (f0 == null) {
-                    rows.add(UpdateRow(j.name ?: "", cur, "", "", "", "当前版本下无可用更新"))
+                    rows.add(UpdateRow(name, hit.version, "", "", "", "当前版本下无可用更新"))
                     continue
                 }
-                val same = f0.fileName.equals(j.name, true)
+                val same = f0.fileName.equals(name, true)
                 rows.add(
                     UpdateRow(
-                        file = j.name ?: "",
-                        current = cur,
+                        file = name,
+                        current = hit.version,
                         latest = f0.fileName.substringBeforeLast(".jar"),
                         url = f0.url,
                         latestName = f0.fileName,
@@ -214,9 +259,14 @@ class ModpackFragment : Fragment() {
                     toast("目标目录不可用，请先在设置里选工作目录")
                     return@execute
                 }
-                Downloader.download(ctx, r.url, dir, r.latestName, emptyMap())
+                // ⚠️ 之前不看返回值就弹"下载完成"——下载失败也一样报成功。
+                val out = Downloader.download(ctx, r.url, dir, r.latestName, emptyMap())
                 handler.post {
                     if (!isAdded) return@post
+                    if (out == null) {
+                        toast("下载失败：${r.latestName}")
+                        return@post
+                    }
                     MaterialAlertDialogBuilder(ctx)
                         .setTitle("下载完成")
                         .setMessage("${r.latestName}\n\n已放到目标 mods 目录，替换旧文件前建议先备份。")
@@ -237,23 +287,45 @@ class ModpackFragment : Fragment() {
             return
         }
         toast("开始下载 ${todo.size} 个")
-        exec.execute {
-            var ok = 0
-            for (r in todo) {
+        // ⚠️ 两个问题：
+        //  ① `exec` 是**单线程**池，所谓"下载全部"其实是一个一个排队下。
+        //  ② `ok++` 不看 download 的返回值 —— 下载失败也计成成功，
+        //     最后报"完成 20/20"，实际可能一个都没落地。
+        // 改成真并发，并且只在真的拿到文件时才计数。
+        val dir = WorkDir.modsDir(ctx) ?: Targets.modsDir(ctx)
+        if (dir == null) {
+            toast("目标目录不可用，请先在设置里选工作目录")
+            return
+        }
+        val ok = java.util.concurrent.atomic.AtomicInteger(0)
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(
+            (Prefs.get(ctx).getInt(K.DOWNLOAD_PARALLEL, 3) / 2).coerceIn(1, 4)
+        )
+        val latch = java.util.concurrent.CountDownLatch(todo.size)
+        for (r in todo) {
+            pool.execute {
                 try {
-                    val dir = WorkDir.modsDir(ctx) ?: Targets.modsDir(ctx)
-                    if (dir != null) {
-                        Downloader.download(ctx, r.url, dir, r.latestName, emptyMap())
-                        ok++
+                    if (Downloader.download(ctx, r.url, dir, r.latestName, emptyMap()) != null) {
+                        ok.incrementAndGet()
+                    } else {
+                        Err.ignore(RuntimeException("下载失败 ${r.latestName}"), "整合包批量下载")
                     }
-                } catch (t: Throwable) { Err.ignore(t, "ok++") }
-            }
-            handler.post {
-                if (!isAdded) return@post
-                setState("下载完成：$ok/${todo.size}")
-                toast("完成 $ok/${todo.size}")
+                } catch (t: Throwable) {
+                    Err.ignore(t, "整合包批量下载 ${r.latestName}")
+                } finally {
+                    latch.countDown()
+                }
             }
         }
+        java.lang.Thread {
+            latch.await()
+            pool.shutdown()
+            handler.post {
+                if (!isAdded) return@post
+                setState("下载完成：${ok.get()}/${todo.size}")
+                toast("完成 ${ok.get()}/${todo.size}")
+            }
+        }.start()
     }
     override fun onDestroyView() {
         super.onDestroyView()
