@@ -346,31 +346,58 @@ object BackendApi {
         return out
     }
 
-    /** 连通性探测：给设置页用，失败时区分「被墙/超时」与「接口报错」，并给出安抚文案 */
+    /**
+     * 连通性探测：给设置页用，失败时区分「被墙/超时」与「接口报错」，并给出安抚文案。
+     *
+     * ⚠️ 之前 `for (b in candidates(ctx)) { return try {...} catch {...} }`
+     * 在循环体里**无条件 return** —— 无论成功失败都在**第一个**候选地址就返回了，
+     * 后面的兜底地址**一次都不会被尝试**。
+     * 于是提示里写的"可在设置里换兜底地址"根本没用：
+     * 主地址（workers.dev）在国内连不上时，就直接判失败了，
+     * 而自定义域那个能连通的入口压根没试过。
+     *
+     * 现在：**成功才返回**；失败就记下原因继续试下一个，
+     * 全部失败时把每个地址的原因都列出来。
+     */
     fun probe(ctx: Context): Pair<Boolean, String> {
-        for (b in candidates(ctx)) {
-            return try {
-                val o = Json.obj(Http.get("$b/api/config"))
+        val reasons = ArrayList<String>()
+        val all = candidates(ctx)
+        if (all.isEmpty()) {
+            return Pair(false, "没有配置后端地址，可在设置里填写自己的地址")
+        }
+        for (b in all) {
+            try {
+                val o = Json.obj(Http.get("$b/api/config", timeout = Http.SHORT))
                 if (o == null) {
-                    Pair(false, "后端返回异常，稍后再试试就好")
-                } else {
-                    val ready = Json.b(o, "curseforgeReady")
-                    Pair(true, "已连接 ${short(b)} · CurseForge ${if (ready) "已配置" else "未配置"}")
+                    reasons.add("${short(b)} 返回异常")
+                    continue
                 }
+                val ready = Json.b(o, "curseforgeReady")
+                return Pair(
+                    true,
+                    "已连接 ${short(b)} · CurseForge ${if (ready) "已配置" else "未配置"}"
+                )
             } catch (t: Throwable) {
                 val m = t.message ?: ""
-                when {
-                    m.contains("timeout", true) || m.contains("timed out", true) ->
-                        Pair(false, "${short(b)} 连接超时：国内访问 Cloudflare 常被限速，不是你的问题，换个网络或稍后再试")
-                    m.contains("UnknownHost", true) || m.contains("resolve", true) ->
-                        Pair(false, "${short(b)} 域名解析失败：可能被墙或地址写错了，可在设置里换兜底地址")
-                    m.contains("HTTP 5", true) ->
-                        Pair(false, "${short(b)} 后端暂时不可用（5xx），稍后会自动恢复")
-                    else -> Pair(false, "${short(b)} ${m.take(70)}")
-                }
+                reasons.add(
+                    when {
+                        m.contains("timeout", true) || m.contains("timed out", true) ->
+                            "${short(b)} 连接超时（国内访问 Cloudflare 常被限速）"
+                        m.contains("UnknownHost", true) || m.contains("resolve", true) ->
+                            "${short(b)} 域名解析失败（可能被墙或地址写错）"
+                        m.contains("HTTP 5", true) ->
+                            "${short(b)} 后端暂时不可用（5xx）"
+                        else -> "${short(b)} ${m.take(70)}"
+                    }
+                )
             }
         }
-        return Pair(false, "所有后端地址都连不上，可在设置里填写自己的地址")
+        val detail = reasons.joinToString("\n  · ")
+        return Pair(
+            false,
+            "${all.size} 个后端地址都没连上：\n  · $detail\n" +
+                "可在设置里填写自己的地址。"
+        )
     }
 
     private fun short(u: String): String = u.removePrefix("https://").take(28)

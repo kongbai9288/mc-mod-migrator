@@ -25,6 +25,16 @@ class SettingsBackendFragment : Fragment() {
     private val exec = Executors.newSingleThreadExecutor()
     private val handler = Handler(Looper.getMainLooper())
 
+    private val saveRunnable = Runnable {
+        runCatching {
+            if (!isAdded) return@runCatching
+            Prefs.get(requireContext()).edit()
+                .putString(K.BACKEND_BASE, etBase.text.toString().trim())
+                .putString(K.BACKEND_BACKUP, etBackup.text.toString().trim())
+                .apply()
+        }
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
@@ -39,14 +49,14 @@ class SettingsBackendFragment : Fragment() {
         etBase.setText(p.getString(K.BACKEND_BASE, "") ?: "")
         etBackup.setText(p.getString(K.BACKEND_BACKUP, "") ?: "")
 
+        // 400ms 防抖：之前每敲一个字符就写一次 SharedPreferences，
+        // 粘贴一长串地址时会连续写入几十次。
         fun watch(et: EditText) = et.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                Prefs.get(requireContext()).edit()
-                    .putString(K.BACKEND_BASE, etBase.text.toString().trim())
-                    .putString(K.BACKEND_BACKUP, etBackup.text.toString().trim())
-                    .apply()
+                handler.removeCallbacks(saveRunnable)
+                handler.postDelayed(saveRunnable, 400)
             }
         })
         watch(etBase)
@@ -117,12 +127,18 @@ class SettingsBackendFragment : Fragment() {
                 }
 
             } catch (t: Throwable) {
-                // 后台异常不崩进程
-                     Err.ignore(t, "后台异常不崩进程")
-                 }
+                // ⚠️ 之前这里只是记日志，tv 一直停在"正在检测…"，
+                // 用户永远等不到结果，看着像功能死了。异常也要给个说法。
+                Err.ignore(t, "后端探测异常")
+                safePost(handler) {
+                    tv.text = "检测出错：${t.message ?: "未知错误"}"
+                }
+            }
         }
     }
     override fun onDestroyView() {
+        // 防抖的先落一次盘：否则敲完最后一个字符立刻退出会丢
+        runCatching { if (isAdded) saveRunnable.run() }
         super.onDestroyView()
         // 清理 Handler：页面销毁后若还有未执行的 post，
         // 回调里访问已销毁的 View 会直接崩。
