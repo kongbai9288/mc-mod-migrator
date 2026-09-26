@@ -79,22 +79,32 @@ object OfflineTranslate {
     private const val MAX_CACHE = 2000
 
     private fun loadCache(ctx: Context): HashMap<String, String> {
-        memCache?.let { return it }
-        val m = HashMap<String, String>()
-        try {
-            val f = cacheFile(ctx)
-            if (f.exists()) {
-                f.readLines().forEach { line ->
-                    val i = line.indexOf('\t')
-                    if (i > 0) m[line.substring(0, i)] = line.substring(i + 1)
+        // ⚠️ 翻译是从**任意后台线程**调用的（网页翻译、市场批量翻译），
+        // 而 memCache 之前是普通 HashMap：
+        // 两个线程同时进入这里会重复读文件，更糟的是
+        // 一个线程正在写入（memCache = m）而另一个正好在遍历 →
+        // HashMap 内部结构损坏，可能死循环或直接崩。
+        // 与 LogCenter / ModrinthApi 同一类问题，同一套修法。
+        synchronized(cacheLock) {
+            memCache?.let { return it }
+            val m = HashMap<String, String>()
+            try {
+                val f = cacheFile(ctx)
+                if (f.exists()) {
+                    f.readLines().forEach { line ->
+                        val i = line.indexOf('\t')
+                        if (i > 0) m[line.substring(0, i)] = line.substring(i + 1)
+                    }
                 }
+            } catch (t: Throwable) {
+                Err.ignore(t, "读取翻译缓存")
             }
-        } catch (t: Throwable) {
-            Err.ignore(t, "读取翻译缓存")
+            memCache = m
+            return m
         }
-        memCache = m
-        return m
     }
+
+    private val cacheLock = Any()
 
     private fun saveCache(ctx: Context, key: String, value: String) {
         val m = loadCache(ctx)

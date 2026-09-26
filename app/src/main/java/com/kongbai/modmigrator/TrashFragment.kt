@@ -28,6 +28,8 @@ class TrashFragment : Fragment() {
     private lateinit var tvState: TextView
     private lateinit var cbAll: android.widget.CheckBox
     private lateinit var btnBatch: View
+    /** 「保留天数」按钮，改完只更新它的文字，不重建 Activity */
+    private lateinit var opDays: View
     /** 当前勾选的回收站条目 */
     private val picked = HashSet<String>()
 
@@ -73,7 +75,8 @@ class TrashFragment : Fragment() {
             b.layoutParams = lp
             return b
         }
-        row.addView(opBtn("保留天数：${Trash.days(ctx)} 天", false) { pickDays() })
+        opDays = opBtn("保留天数：${Trash.days(ctx)} 天", false) { pickDays() }
+        row.addView(opDays)
         val emptyBtn = opBtn(getString(R.string.trash_empty_all), false) { confirmEmpty() }
         (emptyBtn.layoutParams as LinearLayout.LayoutParams).marginEnd = 0
         row.addView(emptyBtn)
@@ -110,13 +113,30 @@ class TrashFragment : Fragment() {
         // 顺手清一次过期的
         exec.execute {
             runCatching { Trash.purgeExpired(context ?: return@execute) }
-            safePost(handler) { render() }
+            refresh()
         }
     }
 
-    private fun render() {
+    /**
+     * 读回收站清单。
+     *
+     * ⚠️ `Trash.items()` 是**读磁盘上的 JSON 索引**，`totalSize` 还要遍历统计，
+     * 都是 IO。之前 `render()` 直接在主线程调它们，
+     * 条目多了就会卡顿；而 `deleteForever` / `empty` 是通过 SAF 删文件，
+     * 更不该在主线程跑（清空几十个文件会直接 ANR）。
+     * 现在统一：IO 放后台，只把结果带回主线程渲染。
+     */
+    private fun refresh() {
         val ctx = context ?: return
-        val items = Trash.items(ctx)
+        exec.execute {
+            val items = Trash.items(ctx)
+            val total = runCatching { Trash.totalSize(ctx) }.getOrDefault(0L)
+            safePost(handler) { if (isAdded) render(items, total) }
+        }
+    }
+
+    private fun render(items: List<Trash.Item>, total: Long) {
+        val ctx = context ?: return
         box.removeAllViews()
         if (items.isEmpty()) {
             tvState.text = ""
@@ -165,7 +185,7 @@ class TrashFragment : Fragment() {
         cbAll.isChecked = picked.size == items.size && items.isNotEmpty()
         cbAll.setOnCheckedChangeListener { _, on ->
             if (on) picked.addAll(items.map { it.name }) else picked.clear()
-            render()
+            refresh()
         }
         updateBatchBtn()
     }
@@ -187,14 +207,19 @@ class TrashFragment : Fragment() {
         Toast.makeText(ctx, "正在还原 ${names.size} 个…", Toast.LENGTH_SHORT).show()
         exec.execute {
             var ok = 0
+            // ⚠️ 之前 `Trash.items(ctx)` 写在**循环里** —— 每还原一个
+            // 就把整个索引 JSON 重新读一遍。还原 20 个 = 读 20 次文件。
+            // 而且每还原一个都会改写一次索引，读到的还是上一版快照。
+            // 改成：先读一次清单，循环里只做还原。
+            val all = Trash.items(ctx)
             for (n in names) {
-                val item = Trash.items(ctx).firstOrNull { it.name == n }
+                val item = all.firstOrNull { it.name == n }
                 if (item != null && Trash.restore(ctx, item)) ok++
             }
             safePost(handler) {
                 Toast.makeText(ctx, "已还原 $ok / ${names.size}", Toast.LENGTH_SHORT).show()
                 picked.clear()
-                render()
+                refresh()
             }
         }
     }
@@ -205,7 +230,7 @@ class TrashFragment : Fragment() {
             val ok = Trash.restore(ctx, item)
             safePost(handler) {
                 Toast.makeText(ctx, if (ok) "已还原" else "还原失败（原目录可能已不可用）", Toast.LENGTH_SHORT).show()
-                render()
+                refresh()
             }
         }
     }
@@ -216,8 +241,11 @@ class TrashFragment : Fragment() {
             .setTitle("彻底删除")
             .setMessage("「${item.name}」将被永久删除，无法还原。")
             .setPositiveButton(getString(R.string.trash_delete)) { _, _ ->
-                Trash.deleteForever(ctx, item)
-                render()
+                // SAF 删除是 IO，放后台
+                exec.execute {
+                    Trash.deleteForever(ctx, item)
+                    refresh()
+                }
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
@@ -226,16 +254,28 @@ class TrashFragment : Fragment() {
 
     private fun confirmEmpty() {
         val ctx = context ?: return
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("清空回收站")
-            .setMessage("回收站里 ${Trash.count(ctx)} 个文件会被永久删除。")
-            .setPositiveButton("清空") { _, _ ->
-                val n = Trash.empty(ctx)
-                Toast.makeText(ctx, "已清空 $n 个", Toast.LENGTH_SHORT).show()
-                render()
+        // ⚠️ `Trash.count(ctx)` 是读磁盘 JSON（IO），之前在**主线程**调，
+        // 只是弹个确认框就顺带读一遍文件。
+        exec.execute {
+            val n0 = Trash.count(ctx)
+            safePost(handler) {
+                if (!isAdded) return@safePost
+                MaterialAlertDialogBuilder(ctx)
+                    .setTitle("清空回收站")
+                    .setMessage("回收站里 $n0 个文件会被永久删除。")
+                    .setPositiveButton("清空") { _, _ ->
+                        exec.execute {
+                            val n = Trash.empty(ctx)
+                            safePost(handler) {
+                                Toast.makeText(ctx, "已清空 $n 个", Toast.LENGTH_SHORT).show()
+                                refresh()
+                            }
+                        }
+                    }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
             }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+        }
     }
 
     private fun pickDays() {
@@ -249,7 +289,13 @@ class TrashFragment : Fragment() {
             .setSingleChoiceItems(opts, idx) { d, w ->
                 Trash.setDays(ctx, vals[w])
                 d.dismiss()
-                activity?.recreate()
+                // ⚠️ 之前用 `activity?.recreate()` —— 改个保留天数
+                // 就把整个 Activity 重建一遍：屏幕闪一下、滚动位置丢掉，
+                // 而且如果是在 SettingsHostActivity 里打开的，
+                // recreate 还会把返回栈一起清掉，直接退回主界面。
+                // 这里只需要更新那个按钮的文字，不需要重建。
+                (opDays as? android.widget.TextView)?.text = "保留天数：${Trash.days(ctx)} 天"
+                Toast.makeText(ctx, "已设为 ${vals[w]} 天", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
