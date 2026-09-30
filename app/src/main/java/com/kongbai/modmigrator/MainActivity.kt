@@ -79,6 +79,13 @@ class MainActivity : AppCompatActivity() {
         try {
             buildNav()
         } catch (t: Throwable) { Err.ignore(t, "buildNav()") }
+        // 补捡"下载完了但没能自动弹出安装"的更新包。
+        // 之前只靠动态注册的广播接收下载完成：用户切后台后进程被回收，
+        // Receiver 就没了，APK 下完也没人来调起安装。
+        // 回到前台时主动查一次 DownloadManager，把漏掉的那次补上。
+        try {
+            UpdateInstaller.checkPendingInstallations(this)
+        } catch (t: Throwable) { Err.ignore(t, "补捡待安装更新") }
     }
 
     /** 供设置页改动导航栏后调用重建 */

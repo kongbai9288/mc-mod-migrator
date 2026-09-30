@@ -182,4 +182,62 @@ object UpdateInstaller {
     fun openPage(ctx: Context, url: String, version: String) {
         WebActivity.open(ctx, url, "下载 $version")
     }
+
+    /**
+     * 补捡已经下载完、但没能自动调起安装的更新包。
+     *
+     * ## 为什么需要这个
+     *
+     * 下载完成靠的是**动态注册的 BroadcastReceiver**。
+     * 而动态 Receiver 的生命周期跟进程绑定：用户点了更新后切到别的应用，
+     * 系统为了省内存把我们的进程回收掉，Receiver 就没了。
+     * 等 APK 下载完，广播发出去没人接 ——
+     * 用户回来看到通知栏"下载完成"，点了却没反应，
+     * 或者干脆不知道要去看通知栏，以为更新失败了。
+     *
+     * DownloadManager 自己是系统服务，下载**不会**因为我们的进程被杀而中断，
+     * 它那边照样把状态记成"已完成"。所以只要回来时主动查一次，
+     * 就能把漏掉的那次安装补上。
+     *
+     * 在 [MainActivity.onResume] 里调用即可。
+     */
+    fun checkPendingInstallations(ctx: Context) {
+        try {
+            val dm = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
+                ?: return
+            val q = DownloadManager.Query().setFilterByStatus(
+                DownloadManager.STATUS_SUCCESSFUL
+            )
+            val ids = mutableListOf<Long>()
+            dm.query(q)?.use { cur ->
+                val idIdx = cur.getColumnIndex(DownloadManager.COLUMN_ID)
+                val titleIdx = cur.getColumnIndex(DownloadManager.COLUMN_TITLE)
+                val uriIdx = cur.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
+                if (idIdx < 0) return@use
+                while (cur.moveToNext()) {
+                    val id = cur.getLong(idIdx)
+                    // 只挑我们自己下的更新包，别把用户别的下载也拉起来安装
+                    val title = if (titleIdx >= 0) cur.getString(titleIdx) ?: "" else ""
+                    val uri = if (uriIdx >= 0) cur.getString(uriIdx) ?: "" else ""
+                    val mine = title.startsWith("ModMigrator") ||
+                        uri.contains("ModMigrator", true)
+                    if (mine) ids.add(id)
+                }
+            }
+            // 只补捡最近一个，避免一次弹出多个安装界面
+            val id = ids.maxOrNull() ?: return
+            // 已经处理过就不再重复弹
+            if (id == handledId) return
+            handledId = id
+            val prefs = ctx.getSharedPreferences("update_install", Context.MODE_PRIVATE)
+            if (prefs.getLong("handled", -1L) == id) return
+            prefs.edit().putLong("handled", id).apply()
+            install(ctx, id)
+        } catch (t: Throwable) {
+            Err.ignore(t, "补捡待安装的更新包")
+        }
+    }
+
+    /** 本次进程内已处理过的下载 id，防止重复弹安装 */
+    private var handledId = -1L
 }

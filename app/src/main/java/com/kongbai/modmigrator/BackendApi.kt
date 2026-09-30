@@ -191,9 +191,18 @@ object BackendApi {
 
     fun me(ctx: Context): User? {
         // 登录态 cookie 绑定在 workers.dev 下，这里固定走同一域名
+        //
+        // ⚠️ 之前这里 catch 后直接返回 null，
+        // 而调用方把 null 一律当成"未登录"。
+        // 于是后端超时、返回非 JSON、域名解析失败……
+        // 全都表现成"明明登录过，打开又显示未登录"，
+        // 用户会反复去重新登录，而真正的原因被完全掩盖。
+        // 现在把失败记成 error，至少能在日志里看到到底是什么错。
         val o = try {
-            Json.obj(Http.get(authBase() + "/api/auth/me"))
+            Json.obj(Http.get(authBase() + "/api/auth/me", timeout = Http.SHORT))
         } catch (t: Throwable) {
+            // 连不上是网络问题，不该伪装成"未登录"，但要留下线索
+            Err.fail(t, "读取登录态（/api/auth/me）")
             null
         } ?: return null
         val u = o.asJsonObject.get("user")
@@ -300,9 +309,19 @@ object BackendApi {
                 // 之前没传 timeout，用的是默认 120 秒。
                 Http.get(url, timeout = Http.SHORT)
             } catch (t: Throwable) {
+                // 之前直接 continue，失败原因一个都不留。
+                // 上层看到的是空列表 → 提示"没有可下载的文件"，
+                // 用户以为这个项目真的没文件，实际可能是被限流或后端挂了。
+                Err.warn(t, "获取后端文件列表（换下一个地址）")
                 continue
             }
-            val root = Json.obj(body) ?: continue
+            val root = Json.obj(body) ?: run {
+                Err.warn(
+                    RuntimeException("返回内容不是 JSON"),
+                    "后端文件列表解析失败（换下一个地址）"
+                )
+                continue
+            }
             val arr = Json.a(root, "files") ?: continue
             val out = mutableListOf<RemoteFile>()
             for (d in arr) {
@@ -345,6 +364,16 @@ object BackendApi {
             val list = search(ctx, "", mc, "", 0, 30, "popularity")
             if (list.isEmpty()) null else list
         } catch (t: Throwable) {
+            // ⚠️ 限流异常不能吞。
+            // search() 里专门为 429 抛了带明确文案的异常（"等约 1 分钟再试"），
+            // 如果在这里一律 ignore 并返回 null，上层只会看到"返回空列表"，
+            // 于是展示成"暂时没有推荐内容"——用户以为是没有数据，
+            // 实际是被限流了，而且永远等不到提示。
+            // 限流是**可恢复但需要用户知道**的状态，必须往上抛。
+            if (isRateLimited(t)) {
+                LogCenter.w("BackendApi", "推荐页被限流，向上传递提示")
+                throw t
+            }
             Err.ignore(t, "后端推荐（走 /api/mods 热门榜）")
             null
         }
@@ -423,4 +452,19 @@ object BackendApi {
     }
 
     private fun short(u: String): String = u.removePrefix("https://").take(28)
+
+    /**
+     * 判断一个异常是不是"被限流"。
+     *
+     * 为什么要单独判断：限流（429）和其他失败的处理方式完全不同 ——
+     * 网络不通要提示换地址，JSON 解析失败是后端 bug，
+     * 而限流只需要**等一会儿重试**，用户甚至不用改任何设置。
+     * 如果把它们都当成"失败"静默吞掉，用户看到的是"没有数据"，
+     * 会以为是功能坏了或者真的没内容，白白去查别的地方。
+     */
+    private fun isRateLimited(t: Throwable): Boolean {
+        val msg = t.message ?: return false
+        return msg.contains("429") || msg.contains("限流", true) ||
+            msg.contains("rate limit", true) || msg.contains("too many", true)
+    }
 }

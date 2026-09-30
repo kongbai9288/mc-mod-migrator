@@ -96,11 +96,23 @@ object Http {
     fun get(url: String, headers: Map<String, String> = emptyMap(), timeout: Int = NORMAL): String {
         val r = call(url, headers, timeout)
         r.use {
+            // ⚠️ 先取真实字节数，再读 body。
+            // 之前用 `body.length.toLong()` 统计流量是错的：
+            // Kotlin String.length 返回的是 **UTF-16 代码单元数**，不是网络传输的字节数。
+            // 一个中文字符 UTF-8 占 3 字节但 length 只算 1，
+            // Emoji 更夸张（UTF-8 占 4 字节，UTF-16 算 2 个单元）。
+            // 后端返回的模组名、简介大量含中文，误差可达 60% 以上 ——
+            // 流量提醒形同虚设：实际跑了几百 MB，统计里才几十 MB。
+            val bytes = it.body?.contentLength() ?: -1L
             val body = it.body?.string() ?: ""
             if (!it.isSuccessful) throw RuntimeException("HTTP ${it.code} ${body.take(160)}")
             // 流量统计：移动网络下累计，超阈值由调用方提示
             runCatching {
-                Prefs.appCtx()?.let { c -> Traffic.record(c, body.length.toLong() + 512) }
+                // contentLength() 在 chunked 等未知长度时返回 -1，
+                // 此时按实际解码后的字节数算（UTF-8），
+                // 再用 String.length 就会重蹈上面的覆辙。
+                val real = if (bytes > 0) bytes else body.toByteArray(Charsets.UTF_8).size.toLong()
+                Prefs.appCtx()?.let { c -> Traffic.record(c, real + 512) }
             }
             return body
         }

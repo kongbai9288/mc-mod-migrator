@@ -14,6 +14,21 @@ object Favorites {
     private const val FILE = "favorites.json"
 
     /**
+     * 所有读-改-写操作的锁。
+     *
+     * `add` / `remove` / `toggle` 都是经典的 Read-Modify-Write：
+     * 先 `list()` 读出全部 → 在内存里增删 → 再 `save()` 整个写回。
+     * 无锁时，快速连点两次收藏、或收藏列表正在后台同步的同时用户又点了收藏，
+     * 两个线程各自读到同一份旧快照，各自改完各自写回 —— **后写的覆盖先写的，
+     * 其中一方的操作凭空消失**，落到文件上就是条目莫名不见。
+     *
+     * 更糟的情况：两次写入交织进行，文件内容被写成一个半旧半新的串，
+     * JSON 解析失败，`list()` 直接返回空 —— 整个收藏夹看起来"清空了"。
+     * 这类问题偶发、难复现，是最容易被当成玄学的那一种。
+     */
+    private val lock = Any()
+
+    /**
      * 写：能写工作目录就写，同时写应用私有目录做兜底。
      *
      * 两处都写的原因：工作目录那份方便换设备带走，
@@ -151,16 +166,16 @@ object Favorites {
         }
     }
 
-    fun add(ctx: Context, m: MarketMod): Boolean {
+    fun add(ctx: Context, m: MarketMod): Boolean = synchronized(lock) {
         val list = list(ctx).toMutableList()
         val key = m.id.ifBlank { m.slug }
-        if (list.any { (it.id.ifBlank { it.slug }) == key }) return false
+        if (list.any { (it.id.ifBlank { it.slug }) == key }) return@synchronized false
         list.add(0, m)
         save(ctx, list)
-        return true
+        true
     }
 
-    fun remove(ctx: Context, m: MarketMod) {
+    fun remove(ctx: Context, m: MarketMod) = synchronized(lock) {
         val key = m.id.ifBlank { m.slug }
         save(ctx, list(ctx).filter { (it.id.ifBlank { it.slug }) != key })
     }
@@ -170,12 +185,25 @@ object Favorites {
         return list(ctx).any { (it.id.ifBlank { it.slug }) == key }
     }
 
-    fun toggle(ctx: Context, m: MarketMod): Boolean {
-        return if (has(ctx, m)) {
-            remove(ctx, m)
+    /**
+     * 收藏/取消收藏。
+     *
+     * 整个判断-增删过程必须在**同一把锁内**完成。
+     * 之前是先 `has()` 再 `add()`/`remove()` 两步走，两步之间没有锁：
+     * 并发下可能出现两个线程都判定"未收藏"、然后都执行 add，
+     * 结果同一个模组被加了两次（或后一个覆盖前一个的 fileId/fileName）。
+     */
+    fun toggle(ctx: Context, m: MarketMod): Boolean = synchronized(lock) {
+        val list = list(ctx).toMutableList()
+        val key = m.id.ifBlank { m.slug }
+        val idx = list.indexOfFirst { (it.id.ifBlank { it.slug }) == key }
+        if (idx >= 0) {
+            list.removeAt(idx)
+            save(ctx, list)
             false
         } else {
-            add(ctx, m)
+            list.add(0, m)
+            save(ctx, list)
             true
         }
     }
