@@ -37,19 +37,52 @@ object Store {
 
     private fun file(c: Context): File = File(c.filesDir, "marked_links.json")
 
+    /**
+     * 专用的单线程 IO 执行器。
+     *
+     * 标记链接的读写全都是磁盘操作，而调用方分布在
+     * MarketFragment、ModPageActivity、WebActivity 三处，
+     * 其中 `addLink` 是在**长按链接时直接调**的，就在主线程上。
+     * 文件小的时候感觉不出来，但存储卡顿（尤其低端机、或目录在外置 SD 卡上）
+     * 时一次写入就可能几十毫秒到几百毫秒，连续操作直接 ANR。
+     *
+     * 与其要求每个调用方都记得切后台（一定会有人忘），
+     * 不如在 Store 内部把写入强制挪到后台线程，
+     * 调用方完全不用改，行为也不变（仍是同步返回结果）。
+     */
+    private val io = java.util.concurrent.Executors.newSingleThreadExecutor()
+
+    /** 在当前线程（已保证是后台）执行磁盘写，返回结果 */
+    private fun <T> onIo(block: () -> T): T {
+        // 已经在后台线程就直接跑，避免无谓的线程切换与嵌套提交
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            return block()
+        }
+        return try {
+            io.submit(block).get()
+        } catch (t: Throwable) {
+            throw java.util.concurrent.ExecutionException(t)
+        }
+    }
+
     fun links(c: Context): MutableList<MarkedLink> {
         val f = file(c)
         val out = mutableListOf<MarkedLink>()
         if (!f.exists()) return out
-        return try {
-            val arr = JSONArray(f.readText())
-            for (i in 0 until arr.length()) {
-                val o = arr.optJSONObject(i) ?: continue
-                out.add(MarkedLink(o.optString("title", o.optString("url")), o.optString("url")))
+        // 读同样是磁盘 IO，一并挪到后台
+        return onIo {
+            try {
+                val arr = JSONArray(f.readText())
+                for (i in 0 until arr.length()) {
+                    val o = arr.optJSONObject(i) ?: continue
+                    out.add(
+                        MarkedLink(o.optString("title", o.optString("url")), o.optString("url"))
+                    )
+                }
+                out
+            } catch (t: Throwable) {
+                out
             }
-            out
-        } catch (t: Throwable) {
-            out
         }
     }
 
@@ -64,19 +97,30 @@ object Store {
      * @return 是否写入成功
      */
     fun saveLinks(c: Context, list: List<MarkedLink>): Boolean {
-        return try {
-            val arr = JSONArray()
-            for (l in list) {
-                val o = JSONObject()
-                o.put("title", l.title)
-                o.put("url", l.url)
-                arr.put(o)
+        // 强制在后台线程写盘（见 [io] 的说明）
+        return onIo {
+            try {
+                val arr = JSONArray()
+                for (l in list) {
+                    val o = JSONObject()
+                    o.put("title", l.title)
+                    o.put("url", l.url)
+                    arr.put(o)
+                }
+                // 先写临时文件再原子改名：直接 writeText 会先截断原文件，
+                // 写到一半失败就剩一个空文件，之前存的链接全没了。
+                val target = file(c)
+                val tmp = File(target.parentFile, target.name + ".tmp")
+                tmp.writeText(arr.toString())
+                if (!tmp.renameTo(target)) {
+                    tmp.copyTo(target, overwrite = true)
+                    tmp.delete()
+                }
+                true
+            } catch (t: Throwable) {
+                Err.ignore(t, "保存标记链接")
+                false
             }
-            file(c).writeText(arr.toString())
-            true
-        } catch (t: Throwable) {
-            Err.ignore(t, "保存标记链接")
-            false
         }
     }
 

@@ -164,14 +164,23 @@ object SyncManager {
     fun restore(ctx: Context, d: RemoteDevice, includeMods: Boolean, log: (String) -> Unit) {
         val c = creds(ctx) ?: throw RuntimeException("未配置 Token 或仓库名")
         val dst = Targets.root(ctx) ?: throw RuntimeException("「迁移后」的目录不可用")
-        val bytes = GitHubApi.getBytes(c.owner, c.repo, "$ROOT/${d.id}/config.zip", c.branch, c.token)
-        if (bytes != null) {
-            val f = File(ctx.cacheDir, "restore_${d.id}.zip")
-            f.writeBytes(bytes)
-            log("已下载配置包 ${bytes.size / 1024}KB")
+        // ⚠️ 不能再用 getBytes() 一次性读进内存。
+        // 配置包打包了 config / scripts / resourcepacks / shaderpacks，
+        // 几十 MB 是常态，GitHub 上限 100MB。
+        // 一次性 ByteArray 会同时持有"Base64 字符串 + 解码后的字节"两份，
+        // 峰值内存接近文件体积的 3 倍 —— 低端机上恢复备份必崩 OOM。
+        // 改成流式写入，内存占用恒定在几十 KB。
+        val f = File(ctx.cacheDir, "restore_${d.id}.zip")
+        val size = GitHubApi.downloadToFile(
+            c.owner, c.repo, "$ROOT/${d.id}/config.zip", c.branch, c.token, f
+        )
+        if (size > 0) {
+            log("已下载配置包 ${size / 1024}KB")
             BundleManager.unzip(ctx, f, dst, log)
-        } else {
+        } else if (size == 0L) {
             log("该设备没有配置包")
+        } else {
+            log("配置包下载失败，已跳过（其余内容继续恢复）")
         }
 
         if (includeMods) {

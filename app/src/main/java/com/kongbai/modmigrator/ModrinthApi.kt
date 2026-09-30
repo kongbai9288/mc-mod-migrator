@@ -368,18 +368,37 @@ fun lookupHashSimple(sha1: String): Triple<String, String, String>? {
         }
     }
 
+    /**
+     * 单个 id 的"检查缓存 → 请求网络 → 写缓存"锁。
+     *
+     * 原来这三步之间没有任何同步，是典型的**缓存击穿**：
+     * 列表里 50 个模组并发刷新同一个 project id 时，
+     * 10 个线程同时发现"缓存里没有"，于是 10 个都去发请求。
+     * 结果完全一样，但配额白白烧掉 10 倍 ——
+     * Modrinth 免费接口对频率敏感，这么做很容易直接被限流，
+     * 然后所有请求一起失败，界面上整个列表都不显示标题。
+     */
+    private val refreshLocks = java.util.concurrent.ConcurrentHashMap<String, Any>()
+
     fun refresh(pid: String) {
+        // 快路径：已经有值就直接返回，不进锁
         if (titles.containsKey(pid)) return
-        try {
-            val o = Json.obj(Http.get("${base()}/project/${Http.enc(pid)}"))
-            if (o != null) {
-                titles[pid] = Json.s(o, "title")
-                slugs[pid] = Json.s(o, "slug")
+        // 每个 id 一把独立的锁，不同 id 之间互不阻塞
+        val key = refreshLocks.computeIfAbsent(pid) { Any() }
+        synchronized(key) {
+            // 进锁后再查一次：前一个线程可能已经把值写好了。
+            // 这一步是必须的 —— 少了它，排队等锁的线程照样会各发一次请求。
+            if (titles.containsKey(pid)) return
+            try {
+                val o = Json.obj(Http.get("${base()}/project/${Http.enc(pid)}", timeout = Http.SHORT))
+                if (o != null) {
+                    titles[pid] = Json.s(o, "title")
+                    slugs[pid] = Json.s(o, "slug")
+                }
+            } catch (t: Throwable) {
+                Err.ignore(t, "取项目信息 ${pid.take(20)}")
             }
-        } catch (t: Throwable) {
-            // ignore
-                 Err.ignore(t, "ignore")
-             }
+        }
     }
 
     fun title(pid: String): String = titles[pid] ?: ""

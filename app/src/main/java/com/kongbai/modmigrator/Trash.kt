@@ -34,10 +34,31 @@ object Trash {
     private fun indexFile(ctx: Context): java.io.File =
         java.io.File(ctx.filesDir, "trash_index.json")
 
-    fun items(ctx: Context): MutableList<Item> {
-        return try {
+    /**
+     * 索引文件的读写锁。
+     *
+     * 所有操作都是典型的 Read-Modify-Write：
+     * `items()` 读出全部 → 内存里增删改 → `save()` 整个写回。
+     * 而这两个动作分别来自不同的线程：
+     *   - 用户在界面上还原 / 彻底删除（主线程或 Fragment 的后台线程）
+     *   - App 启动时自动清理过期项（后台线程）
+     *   - 删除模组时的批量操作（后台线程）
+     *
+     * 无锁时两边各自读到同一份旧快照、各自写回，
+     * 后写的覆盖先写的 —— 用户刚删的模组又出现在回收站里，
+     * 或者刚还原的文件在索引里还在，于是下次打开显示"条目已丢失"。
+     *
+     * 更糟的是：`writeText` 会**先截断文件再写入**，
+     * 如果另一个线程正好在这个窗口里读，读到的是空文件或半截 JSON，
+     * 解析失败后 `items()` 返回空列表 —— 回收站整个看起来"空了"，
+     * 而文件其实还在磁盘上占着空间。
+     */
+    private val lock = Any()
+
+    fun items(ctx: Context): MutableList<Item> = synchronized(lock) {
+        try {
             val f = indexFile(ctx)
-            if (!f.exists()) return mutableListOf()
+            if (!f.exists()) return@synchronized mutableListOf()
             val arr = JSONArray(f.readText())
             val out = mutableListOf<Item>()
             for (i in 0 until arr.length()) {
@@ -60,7 +81,7 @@ object Trash {
         }
     }
 
-    private fun save(ctx: Context, list: List<Item>) {
+    private fun save(ctx: Context, list: List<Item>) = synchronized(lock) {
         try {
             val arr = JSONArray()
             for (it in list) {
@@ -73,8 +94,19 @@ object Trash {
                 o.put("size", it.size)
                 arr.put(o)
             }
-            indexFile(ctx).writeText(arr.toString())
-        } catch (t: Throwable) { Err.ignore(t, "indexFile(ctx).writeText(arr.toString())") }
+            // 先写临时文件再原子改名。
+            // 直接 writeText 会先把原文件截断成 0，
+            // 写到一半崩了/断电就剩一个空文件，索引彻底丢失
+            // （回收站里的文件还在，但没人知道它们叫什么、该还原到哪）。
+            // 改名在同一分区内是原子操作，要么拿到完整的旧版，要么拿到完整的新版。
+            val target = indexFile(ctx)
+            val tmp = java.io.File(target.parentFile, target.name + ".tmp")
+            tmp.writeText(arr.toString())
+            if (!tmp.renameTo(target)) {
+                tmp.copyTo(target, overwrite = true)
+                tmp.delete()
+            }
+        } catch (t: Throwable) { Err.ignore(t, "保存回收站索引") }
     }
 
     fun days(ctx: Context): Int = Prefs.get(ctx).getInt(K.TRASH_DAYS, 7).coerceIn(1, 90)

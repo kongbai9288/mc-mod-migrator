@@ -228,9 +228,18 @@ object Downloader {
             val start = i * size
             val end = if (i == chunks - 1) total - 1 else (start + size - 1)
             pool.submit {
+                // 本块自己创建的临时文件，必须保证任何退出路径都能清掉。
+                // 之前只在"明确的失败分支"里 delete，
+                // 一旦异常发生在创建之后、删除之前（Http.call 抛异常、
+                // 写盘抛异常、被中断等），catch 里只设了 failed 标志却没删文件 ——
+                // 那个 .tmp 就永远留在 cache 里。
+                // 又因为下面失败时整个下载作废，这些文件再也没人来收，
+                // 重试几次就堆出几十上百 MB 的垃圾。
+                var mine: File? = null
                 try {
                     if (failed.get()) return@submit
                     val f = File.createTempFile("part${i}_", ".tmp")
+                    mine = f
                     val h = headers.toMutableMap()
                     h["Range"] = "bytes=$start-$end"
                     val r = Http.call(url, h)
@@ -261,6 +270,9 @@ object Downloader {
                     onProgress?.invoke(n, total)
                 } catch (t: Throwable) {
                     failed.set(true)
+                    // 异常路径也要清理：不用等下面的统一收尾，
+                    // 因为这块的文件根本没进 parts，统一收尾看不见它。
+                    runCatching { mine?.delete() }
                 } finally {
                     latch.countDown()
                 }
@@ -268,9 +280,19 @@ object Downloader {
         }
         return try {
             latch.await(5, TimeUnit.MINUTES)
-            if (failed.get() || parts.size != chunks) null
-            else (0 until chunks).mapNotNull { parts[it] }
+            if (failed.get() || parts.size != chunks) {
+                // ⚠️ 失败时必须把已经下好的分块全部删掉。
+                // 之前这里直接返回 null 就不管了，
+                // 那些已下载成功的 part 文件留在 cache 里无人清理 ——
+                // 下载大文件反复失败几次，cache 就被几百 MB 的残块占满，
+                // 而用户完全不知道这些空间去哪了。
+                parts.values.forEach { runCatching { it.delete() } }
+                parts.clear()
+                null
+            } else (0 until chunks).mapNotNull { parts[it] }
         } catch (t: Throwable) {
+            // 等待被中断等情况同样要清理
+            parts.values.forEach { runCatching { it.delete() } }
             null
         }
     }

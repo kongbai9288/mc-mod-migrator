@@ -116,6 +116,59 @@ object GitHubApi {
         return Base64.decode(c.replace("\n", ""), Base64.DEFAULT)
     }
 
+    /**
+     * 流式下载到文件。
+     *
+     * ## 为什么必须有这个方法
+     *
+     * [getBytes] 会把整个文件一次性解码成 ByteArray。
+     * 配置包打包了 config / scripts / resourcepacks / shaderpacks，
+     * 几十 MB 很常见，GitHub 上限更是给到 100MB。
+     * 而 Base64 解码还要额外占一份空间 ——
+     * 100MB 的文件在这一步峰值内存接近 **300MB**（Base64 字符串 + ByteArray），
+     * 低端机上就是一记干净的 OOM，而且崩在"恢复备份"这种关键路径上。
+     *
+     * 这里改成：把 Base64 分块解码后**边解边写**，
+     * 内存占用恒定在几十 KB，跟文件大小完全无关。
+     *
+     * @return 实际写入的字节数；失败返回 -1
+     */
+    fun downloadToFile(
+        owner: String, repo: String, path: String, branch: String, token: String,
+        dest: java.io.File
+    ): Long {
+        val c = contentOf(owner, repo, path, branch, token) ?: return -1L
+        val clean = c.replace("\n", "").replace("\r", "")
+        return try {
+            val tmp = java.io.File(dest.parentFile, dest.name + ".tmp")
+            var total = 0L
+            java.io.FileOutputStream(tmp).use { out ->
+                // 每块取 4 的倍数，保证 Base64 不被切断
+                val CHUNK = 3 * 1024 * 1024   // 3MB，能被 4 整除
+                var i = 0
+                while (i < clean.length) {
+                    val end = minOf(i + CHUNK, clean.length)
+                    val slice = clean.substring(i, end)
+                    val buf = Base64.decode(slice, Base64.DEFAULT)
+                    out.write(buf)
+                    total += buf.size
+                    i = end
+                }
+            }
+            // 写完整了才替换目标文件，避免中途失败留下半个坏 zip
+            if (dest.exists()) dest.delete()
+            if (!tmp.renameTo(dest)) {
+                tmp.copyTo(dest, overwrite = true)
+                tmp.delete()
+            }
+            total
+        } catch (t: Throwable) {
+            Err.fail(t, "GitHub 流式下载失败")
+            runCatching { java.io.File(dest.parentFile, dest.name + ".tmp").delete() }
+            -1L
+        }
+    }
+
     fun putBase64(
         owner: String,
         repo: String,

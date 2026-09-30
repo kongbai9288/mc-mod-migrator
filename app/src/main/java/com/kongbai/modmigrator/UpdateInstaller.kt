@@ -155,9 +155,39 @@ object UpdateInstaller {
             // 这里按 scheme 判断，是 file 就用已配置好的 FileProvider 转一次。
             val target = if (uri.scheme == "file") {
                 val p = uri.path ?: return
-                FileProvider.getUriForFile(
-                    ctx, "${ctx.packageName}.fileprovider", File(p)
-                )
+                val authority = "${ctx.packageName}.fileprovider"
+                // ⚠️ 不能假定这个 FileProvider 一定存在。
+                // getUriForFile 在 authority 没有注册、或 file_paths.xml
+                // 没覆盖这个路径时，会直接抛 IllegalArgumentException。
+                // 而它抛的位置在 startActivity 之前，
+                // 结果就是"点了安装直接闪退"，连个提示都没有。
+                // 先查一次，查不到就走"让用户去通知栏手动点"的退路，
+                // 至少不会崩，用户也知道该去哪找。
+                val providerOk = try {
+                    ctx.packageManager.resolveContentProvider(authority, 0) != null
+                } catch (t: Throwable) {
+                    false
+                }
+                if (!providerOk) {
+                    Err.fail(
+                        RuntimeException("FileProvider 未配置：$authority"),
+                        "更新包安装：FileProvider 不可用"
+                    )
+                    Toast.makeText(
+                        ctx, "请在通知栏点击已下载的安装包", Toast.LENGTH_LONG
+                    ).show()
+                    return
+                }
+                try {
+                    FileProvider.getUriForFile(ctx, authority, File(p))
+                } catch (t: Throwable) {
+                    // 即便 Provider 存在，路径不匹配时仍可能抛
+                    Err.fail(t, "FileProvider 路径未覆盖：$p")
+                    Toast.makeText(
+                        ctx, "请在通知栏点击已下载的安装包", Toast.LENGTH_LONG
+                    ).show()
+                    return
+                }
             } else uri
 
             val i = Intent(Intent.ACTION_VIEW).apply {

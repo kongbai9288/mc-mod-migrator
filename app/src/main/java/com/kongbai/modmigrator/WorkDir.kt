@@ -14,6 +14,11 @@ object WorkDir {
 
     fun uri(ctx: Context): String = Prefs.get(ctx).getString(K.WORKDIR_URI, "") ?: ""
 
+    /** 清除已保存的工作目录配置（授权失效时调用） */
+    fun clear(ctx: Context) {
+        Prefs.get(ctx).edit().remove(K.WORKDIR_URI).apply()
+    }
+
     /**
      * 工作目录根。
      *
@@ -23,6 +28,27 @@ object WorkDir {
     fun root(ctx: Context): DocumentFile? {
         val u = uri(ctx)
         if (u.isNotBlank()) {
+            // ⚠️ 只判断"字符串非空"是不够的。
+            // 用户完全可以在系统设置里随时撤销某个应用的目录授权，
+            // 而我们的配置里还留着那个 URI。
+            // 此时 Fs.tree() 往往还能返回一个 DocumentFile 对象
+            // （它只是对 URI 的包装，不校验权限），
+            // 但真正去读写时系统会抛 SecurityException。
+            // 结果就是：界面显示"工作目录已设置"，
+            // 一点导出/下载就崩，而崩溃点离这里很远，极难联想到是权限被撤了。
+            //
+            // takePersistableUriPermission 授予的授权会出现在
+            // persistedUriPermissions 里，这里直接查这个清单最可靠。
+            if (!hasPersistedPermission(ctx, u)) {
+                // 权限已失效：清掉配置，让上层回到"未设置"状态并提示重新授权，
+                // 而不是带着一个假的成功状态继续跑。
+                Err.fail(
+                    RuntimeException("工作目录授权已失效：$u"),
+                    "工作目录的持久化授权已被撤销，已清除配置"
+                )
+                runCatching { clear(ctx) }
+                return null
+            }
             val t = Fs.tree(ctx, u)
             if (t != null && t.isDirectory) return t
         }
@@ -30,6 +56,27 @@ object WorkDir {
             androidx.documentfile.provider.DocumentFile.fromFile(DefaultDir.root(ctx))
         } catch (e: Throwable) {
             null
+        }
+    }
+
+    /**
+     * 检查某个 URI 是否仍在持久化授权清单里。
+     *
+     * 只比对 authority + path，不比对完整字符串：
+     * URI 末尾可能带 fragment 或查询参数，严格相等会误判成失效。
+     */
+    private fun hasPersistedPermission(ctx: Context, u: String): Boolean {
+        return try {
+            val target = android.net.Uri.parse(u)
+            val granted = ctx.contentResolver.persistedUriPermissions
+            granted.any { p ->
+                p.uri.authority == target.authority &&
+                    p.uri.path == target.path &&
+                    p.isReadPermission
+            }
+        } catch (t: Throwable) {
+            // 查不到就按"有权限"处理，避免误清配置
+            true
         }
     }
 

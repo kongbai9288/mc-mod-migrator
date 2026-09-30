@@ -122,7 +122,24 @@ object LogCenter {
      */
     private const val MAX_DISK = 512 * 1024
 
-    private fun persist(line: LogLine) {
+    /**
+     * 磁盘写入锁。
+     *
+     * persist 是 **追加写（"wa"）**，trimDisk 是 **覆盖写（"wt"）**。
+     * 两者操作同一个文件却没有任何同步：
+     * 日志本身就可能从任意后台线程打出来（网络回调、下载线程、协程），
+     * 所以完全可能出现"一个线程正在追加、另一个线程正在整体覆盖重写"。
+     *
+     * 后果不是丢一行日志那么简单 ——
+     * 覆盖写会先把文件截断成 0，此时追加写正好落进去，
+     * 最终留下的是"半条旧日志 + 半条新日志"的混合体，
+     * 文件直接变成乱码。而日志是我们排查问题的唯一线索，它坏了就什么都查不了。
+     *
+     * 所以整个"追加 + 必要时裁剪"必须作为一个不可分割的整体来加锁。
+     */
+    private val logLock = Any()
+
+    private fun persist(line: LogLine) = synchronized(logLock) {
         try {
             val ctx = Prefs.appCtx() ?: return
             val dir = WorkDir.logs(ctx) ?: return
@@ -134,8 +151,9 @@ object LogCenter {
             trimDisk(ctx, f)
         } catch (t: Throwable) {
             // 落盘失败不能影响主流程
-                 Err.ignore(t, "落盘失败不能影响主流程")
-             }
+            Err.ignore(t, "写入磁盘日志失败")
+        }
+    }
     }
 
     /**
@@ -165,11 +183,17 @@ object LogCenter {
         }
     }
 
-    /** 读出磁盘上的完整日志，供「设置 → 日志」查看 */
-    fun readAll(ctx: Context): String {
-        return try {
-            val dir = WorkDir.logs(ctx) ?: return ""
-            val f = dir.findFile("app.log") ?: return ""
+    /**
+     * 读出磁盘上的完整日志，供「设置 → 日志」查看。
+     *
+     * 同样要加锁：trimDisk 的覆盖写会先把文件截断成 0 再重写，
+     * 如果读取正好发生在这个窗口里，读到的会是空内容或半截内容 ——
+     * 表现为"日志页偶尔一片空白"，过一会儿再打开又有了，极像随机 bug。
+     */
+    fun readAll(ctx: Context): String = synchronized(logLock) {
+        try {
+            val dir = WorkDir.logs(ctx) ?: return@synchronized ""
+            val f = dir.findFile("app.log") ?: return@synchronized ""
             ctx.contentResolver.openInputStream(f.uri)?.use {
                 it.readBytes().toString(Charsets.UTF_8)
             } ?: ""

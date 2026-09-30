@@ -42,15 +42,41 @@ object Favorites {
                 val f = dir.findFile(FILE)
                     ?: dir.createFile("application/json", FILE)
                 if (f != null) {
-                    ctx.contentResolver.openOutputStream(f.uri, "wt")?.use {
+                    // SAF 没有 rename，但"先写临时文件、成功后再覆盖正式文件"
+                    // 同样能避免"正式文件被截断后写入失败"留下空内容的风险。
+                    val tmpFile = dir.findFile("$FILE.tmp")
+                        ?: dir.createFile("application/json", "$FILE.tmp")
+                    val sink = tmpFile ?: f
+                    var okWrite = false
+                    ctx.contentResolver.openOutputStream(sink.uri, "wt")?.use {
                         it.write(txt.toByteArray())
+                        okWrite = true
                     }
-                    wrote = true
+                    if (okWrite && sink !== f) {
+                        // 临时文件写完整了，才搬到正式文件
+                        ctx.contentResolver.openInputStream(sink.uri)?.use { inp ->
+                            ctx.contentResolver.openOutputStream(f.uri, "wt")?.use { out ->
+                                inp.copyTo(out)
+                            }
+                        }
+                        runCatching { sink.delete() }
+                    }
+                    wrote = okWrite
                 }
             }
         } catch (t: Throwable) { Err.ignore(t, "写收藏到工作目录") }
         try {
-            java.io.File(ctx.filesDir, FILE).writeText(txt)
+            // 先写临时文件再原子改名。
+            // writeText 会先把原文件截断成 0，写一半崩了就剩个空文件 ——
+            // 下次 list() 解析空内容返回空列表，整个收藏夹"消失"了。
+            // 改名在同一分区内是原子操作，不会留下中间状态。
+            val target = java.io.File(ctx.filesDir, FILE)
+            val tmp = java.io.File(ctx.filesDir, "$FILE.tmp")
+            tmp.writeText(txt)
+            if (!tmp.renameTo(target)) {
+                tmp.copyTo(target, overwrite = true)
+                tmp.delete()
+            }
             wrote = true
         } catch (t: Throwable) { Err.ignore(t, "写收藏到私有目录") }
         if (!wrote) {
