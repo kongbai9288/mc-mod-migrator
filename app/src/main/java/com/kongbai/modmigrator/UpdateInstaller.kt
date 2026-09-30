@@ -209,20 +209,27 @@ object UpdateInstaller {
                 DownloadManager.STATUS_SUCCESSFUL
             )
             val ids = mutableListOf<Long>()
-            dm.query(q)?.use { cur ->
+            // ⚠️ 不能用 `cursor.use { }`：android.database.Cursor **没有实现
+            // java.io.Closeable**，而 Kotlin 的 use 扩展只定义在 Closeable 上，
+            // 直接写会编译不过。这里手动 try/finally 关闭。
+            val cur = dm.query(q) ?: return
+            try {
                 val idIdx = cur.getColumnIndex(DownloadManager.COLUMN_ID)
                 val titleIdx = cur.getColumnIndex(DownloadManager.COLUMN_TITLE)
                 val uriIdx = cur.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
-                if (idIdx < 0) return@use
-                while (cur.moveToNext()) {
-                    val id = cur.getLong(idIdx)
-                    // 只挑我们自己下的更新包，别把用户别的下载也拉起来安装
-                    val title = if (titleIdx >= 0) cur.getString(titleIdx) ?: "" else ""
-                    val uri = if (uriIdx >= 0) cur.getString(uriIdx) ?: "" else ""
-                    val mine = title.startsWith("ModMigrator") ||
-                        uri.contains("ModMigrator", true)
-                    if (mine) ids.add(id)
+                if (idIdx >= 0) {
+                    while (cur.moveToNext()) {
+                        val id = cur.getLong(idIdx)
+                        // 只挑我们自己下的更新包，别把用户别的下载也拉起来安装
+                        val title = if (titleIdx >= 0) cur.getString(titleIdx) ?: "" else ""
+                        val uri = if (uriIdx >= 0) cur.getString(uriIdx) ?: "" else ""
+                        val mine = title.startsWith("ModMigrator") ||
+                            uri.contains("ModMigrator", true)
+                        if (mine) ids.add(id)
+                    }
                 }
+            } finally {
+                runCatching { cur.close() }
             }
             // 只补捡最近一个，避免一次弹出多个安装界面
             val id = ids.maxOrNull() ?: return
