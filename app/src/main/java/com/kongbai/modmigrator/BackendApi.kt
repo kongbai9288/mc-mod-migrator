@@ -315,7 +315,11 @@ object BackendApi {
                 Err.warn(t, "获取后端文件列表（换下一个地址）")
                 continue
             }
-            val root = Json.obj(body) ?: run {
+            // ⚠️ 这里不能用 `?: run { ...; continue }`：
+            // Kotlin 不允许在 lambda 里做非局部的 continue/break
+            // （run 虽然是 inline，但 break/continue 仍不可用，只有 return 可以）。
+            val root = Json.obj(body)
+            if (root == null) {
                 Err.warn(
                     RuntimeException("返回内容不是 JSON"),
                     "后端文件列表解析失败（换下一个地址）"
