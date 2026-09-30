@@ -59,9 +59,14 @@ object Store {
             return block()
         }
         return try {
-            io.submit(block).get()
+            // ⚠️ 必须显式包成 Callable。
+            // kotlin 的 () -> T 传给 ExecutorService.submit 时，
+            // 在 Runnable 与 Callable 两个重载之间无法自动判定，
+            // 直接写 `io.submit(block)` 编译不过。
+            io.submit(java.util.concurrent.Callable { block() }).get()
         } catch (t: Throwable) {
-            throw java.util.concurrent.ExecutionException(t)
+            Err.fail(t, "Store 后台 IO 失败")
+            throw t
         }
     }
 
