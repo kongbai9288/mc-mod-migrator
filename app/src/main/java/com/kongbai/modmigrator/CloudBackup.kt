@@ -81,7 +81,28 @@ object CloudBackup {
      * WorkManager 的周期任务最小间隔是 15 分钟，
      * 我们选的都是小时级（6/12/24/72/168），不会触发这个下限。
      */
+    /**
+     * 注册/取消周期备份任务。
+     *
+     * ⚠️ 同 SyncManager.schedule：WorkManager 内部依赖
+     * `ProcessLifecycleOwner.get().lifecycle.addObserver(...)`，
+     * **只能在主线程调用**。后台线程会抛
+     * "Method addObserver must be called on the main thread"。
+     *
+     * 另外这里被 `App.onCreate` 调用（开机/启动兜底），
+     * post 到主线程还有个额外好处：不阻塞应用启动。
+     */
     fun schedule(ctx: Context) {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                runCatching { scheduleOnMain(ctx) }
+            }
+            return
+        }
+        scheduleOnMain(ctx)
+    }
+
+    private fun scheduleOnMain(ctx: Context) {
         try {
             val wm = androidx.work.WorkManager.getInstance(ctx)
             val h = intervalHours(ctx)

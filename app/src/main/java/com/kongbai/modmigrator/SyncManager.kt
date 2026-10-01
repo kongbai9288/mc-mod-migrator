@@ -241,7 +241,32 @@ object SyncManager {
         }
     }
 
+    /**
+     * 注册/取消自动同步的周期任务。
+     *
+     * ⚠️ **必须切到主线程**再动 WorkManager。
+     * WorkManager 内部是用 LiveData + Lifecycle 实现的：
+     * `getInstance()` 首次触发初始化、`enqueueUniquePeriodicWork()`
+     * 返回 Operation 时，都会走到
+     * `ProcessLifecycleOwner.get().lifecycle.addObserver(...)`，
+     * 而这个调用**只允许在主线程**。后台线程调用会直接抛
+     * `IllegalStateException: Method addObserver must be called on the main thread`。
+     *
+     * 目前已知的调用点确实都在 UI 回调里，但这个函数也会被
+     * 设置变更、启动兜底等多条路径触发，将来很容易被误放进后台线程。
+     * 与其靠每个调用方自觉，不如在入口统一兜住。
+     */
     fun schedule(ctx: Context) {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                runCatching { scheduleOnMain(ctx) }
+            }
+            return
+        }
+        scheduleOnMain(ctx)
+    }
+
+    private fun scheduleOnMain(ctx: Context) {
         try {
             // WorkManager 没初始化好时直接跳过，不能拖垮调用方
             val on = Prefs.get(ctx).getBoolean(K.AUTO_SYNC, false)
@@ -253,8 +278,7 @@ object SyncManager {
             val req = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES).build()
             wm.enqueueUniquePeriodicWork("mm_sync", ExistingPeriodicWorkPolicy.UPDATE, req)
         } catch (t: Throwable) {
-            // ignore
-                 Err.ignore(t, "ignore")
-             }
+            Err.ignore(t, "注册自动同步周期任务")
+        }
     }
 }
