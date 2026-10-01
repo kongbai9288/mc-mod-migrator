@@ -156,25 +156,30 @@ object LogCenter {
     /** 距上次落盘超过这么久也落盘（保证日志不会长时间停在内存里） */
     private const val FLUSH_INTERVAL_MS = 2000L
 
-    private fun persist(line: LogLine) = synchronized(logLock) {
-        try {
-            diskBuffer.append(line.toString()).append("\n")
-            val now = System.currentTimeMillis()
-            if (diskBuffer.length >= FLUSH_CHARS ||
-                now - lastFlushMs > FLUSH_INTERVAL_MS
-            ) {
-                flushLocked()
-                lastFlushMs = now
-            }
-        } catch (t: Throwable) {
-            // ⚠️ 这里绝不能调 Err.ignore()。
-            // Err.ignore 会写日志，而日志系统正是此刻失败的那个 ——
-            // persist 失败 → Err.ignore → 再写日志 → persist 再失败 → ……
-            // 磁盘满时这条链会无限递归，几毫秒内撑爆栈。
-            // 直接用原生 Log，它写内核缓冲区，不碰文件系统，不可能再失败。
+    // ⚠️ 用块体而不是 `= synchronized(logLock) { ... }` 表达式体。
+    // 表达式体要求最后一句是表达式，而下面的 if 没有 else，
+    // Kotlin 会报 "'if' must have both main and 'else' branches if used as an expression"。
+    private fun persist(line: LogLine) {
+        synchronized(logLock) {
             try {
-                android.util.Log.e("LogCenter", "日志落盘失败", t)
-            } catch (_: Throwable) {}
+                diskBuffer.append(line.toString()).append("\n")
+                val now = System.currentTimeMillis()
+                if (diskBuffer.length >= FLUSH_CHARS ||
+                    now - lastFlushMs > FLUSH_INTERVAL_MS
+                ) {
+                    flushLocked()
+                    lastFlushMs = now
+                }
+            } catch (t: Throwable) {
+                // ⚠️ 这里绝不能调 Err.ignore()。
+                // Err.ignore 会写日志，而日志系统正是此刻失败的那个 ——
+                // persist 失败 → Err.ignore → 再写日志 → persist 再失败 → ……
+                // 磁盘满时这条链会无限递归，几毫秒内撑爆栈。
+                // 直接用原生 Log，它写内核缓冲区，不碰文件系统，不可能再失败。
+                try {
+                    android.util.Log.e("LogCenter", "日志落盘失败", t)
+                } catch (_: Throwable) {}
+            }
         }
     }
 
@@ -192,7 +197,7 @@ object LogCenter {
      * 用"丢旧的、留新的"换掉全量读写，是这个场景下正确的取舍。
      */
     private fun flushLocked() {
-        if (diskBuffer.isEmpty()) return
+        if (diskBuffer.length == 0) return
         val ctx = Prefs.appCtx() ?: return
         try {
             val dir = WorkDir.logs(ctx) ?: return
@@ -246,10 +251,17 @@ object LogCenter {
      * 顺序反了的话：删完文件后，缓冲区里还没落盘的内容会被下一次 flush
      * 重新写进去 —— 用户点了"清空"，一刷新日志又冒出来了，像功能坏了。
      */
-    fun clearFile(ctx: Context) = synchronized(logLock) {
+    fun clearFile(ctx: Context) {
+        // ⚠️ clear() 是 @Synchronized（锁 LogCenter 实例），
+        // 必须放在 logLock **外面**调用。
+        // push() 的顺序是「锁 this → 锁 logLock」，
+        // 如果这里写成「锁 logLock → 锁 this」，两个线程各持一把等对方，
+        // 就是标准的 AB-BA 死锁 —— 界面直接卡死。
         try {
-            diskBuffer.setLength(0)
-            WorkDir.logs(ctx)?.findFile("app.log")?.delete()
+            synchronized(logLock) {
+                diskBuffer.setLength(0)
+                WorkDir.logs(ctx)?.findFile("app.log")?.delete()
+            }
         } catch (t: Throwable) {
             try {
                 android.util.Log.e("LogCenter", "删除日志文件失败", t)
