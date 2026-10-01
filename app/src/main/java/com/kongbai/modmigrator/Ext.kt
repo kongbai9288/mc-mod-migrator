@@ -49,7 +49,9 @@ fun android.widget.EditText.addTextWatcherSafe(block: () -> Unit) {
  */
 fun android.app.Activity.recreateSafely() {
     val act = this
-    val go = {
+    // 显式写成 Runnable：直接把 `{ ... }` 传给 post 会触发
+    // "unit conversions on arbitrary expressions" 实验特性告警（此处按错误处理）
+    val go = Runnable {
         try {
             act.recreate()
         } catch (t: Throwable) {
@@ -59,8 +61,8 @@ fun android.app.Activity.recreateSafely() {
     }
     try {
         val decor = act.window?.decorView
-        if (decor != null) decor.post(go) else go()
+        if (decor != null) decor.post(go) else go.run()
     } catch (t: Throwable) {
-        go()
+        go.run()
     }
 }

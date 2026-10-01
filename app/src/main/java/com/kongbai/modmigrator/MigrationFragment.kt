@@ -22,6 +22,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.util.concurrent.Executors
 
+
+/** 日志弹窗里最多显示多少条（完整内容走「复制」） */
+private const val MAX_SHOW_LINES = 40
+
 class MigrationFragment : Fragment() {
 
     private lateinit var tvSource: TextView
@@ -150,8 +154,6 @@ class MigrationFragment : Fragment() {
         }
     }
 
-    /** 对话框里最多显示多少条日志 */
-    private const val MAX_SHOW_LINES = 40
 
     private fun copyLogs(txt: String) {
         val ctx = context ?: return
