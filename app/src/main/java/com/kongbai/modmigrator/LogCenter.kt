@@ -169,6 +169,12 @@ object LogCenter {
                 ) {
                     flushLocked()
                     lastFlushMs = now
+                } else {
+                    // 还没到阈值，继续攒在内存里。
+                    // 必须有这个 else：`synchronized { }` 的 lambda 有返回值，
+                    // 而这是它最后一句，Kotlin 会把 if 当表达式，
+                    // 缺 else 直接编译不过。
+                    Unit
                 }
             } catch (t: Throwable) {
                 // ⚠️ 这里绝不能调 Err.ignore()。
