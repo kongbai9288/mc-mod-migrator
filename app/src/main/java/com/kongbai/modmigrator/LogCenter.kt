@@ -139,58 +139,96 @@ object LogCenter {
      */
     private val logLock = Any()
 
+    // ── 内存写缓冲 ────────────────────────────────────────────
+    // ⚠️ 之前是"每打一行日志就立刻写一次磁盘"，而且**每写一行都调一次 trimDisk**，
+    // trimDisk 内部又要 f.length()（SAF 下是跨进程 IPC）+ 超限时 readBytes()
+    // 把整个 512KB 读进内存、截取、再全量重写。
+    // 下载进度、网络回调这类高频日志下，这就是
+    // 「每写一行 = 1 次 IPC + 可能的全量读写 512KB」，
+    // CPU 和 IO 带宽被瞬间吃光，主线程直接 ANR。
+    //
+    // 改成：先攒在内存里，攒够量或到时间才真正落盘一次。
+    private val diskBuffer = StringBuilder(4096)
+    private var lastFlushMs = 0L
+
+    /** 缓冲区攒到这么多字符就落盘 */
+    private const val FLUSH_CHARS = 8192
+    /** 距上次落盘超过这么久也落盘（保证日志不会长时间停在内存里） */
+    private const val FLUSH_INTERVAL_MS = 2000L
+
     private fun persist(line: LogLine) = synchronized(logLock) {
         try {
-            val ctx = Prefs.appCtx() ?: return
-            val dir = WorkDir.logs(ctx) ?: return
-            val f = dir.findFile("app.log") ?: dir.createFile("text/plain", "app.log") ?: return
-            val text = line.toString() + "\n"
-            ctx.contentResolver.openOutputStream(f.uri, "wa")?.use {
-                it.write(text.toByteArray())
+            diskBuffer.append(line.toString()).append("\n")
+            val now = System.currentTimeMillis()
+            if (diskBuffer.length >= FLUSH_CHARS ||
+                now - lastFlushMs > FLUSH_INTERVAL_MS
+            ) {
+                flushLocked()
+                lastFlushMs = now
             }
-            trimDisk(ctx, f)
         } catch (t: Throwable) {
-            // 落盘失败不能影响主流程
-            Err.ignore(t, "写入磁盘日志失败")
+            // ⚠️ 这里绝不能调 Err.ignore()。
+            // Err.ignore 会写日志，而日志系统正是此刻失败的那个 ——
+            // persist 失败 → Err.ignore → 再写日志 → persist 再失败 → ……
+            // 磁盘满时这条链会无限递归，几毫秒内撑爆栈。
+            // 直接用原生 Log，它写内核缓冲区，不碰文件系统，不可能再失败。
+            try {
+                android.util.Log.e("LogCenter", "日志落盘失败", t)
+            } catch (_: Throwable) {}
         }
     }
 
     /**
-     * 磁盘日志超过上限时，只保留**后半段**（较新的内容）。
-     * 前半段按行切，避免把一个汉字/一条日志截成两半。
+     * 把缓冲区真正写进磁盘。**调用前必须已持有 logLock。**
+     *
+     * 超限处理刻意做得"粗暴"：直接丢弃旧内容，只保留这一批新的。
+     *
+     * 之前的做法是"读全文件 → 内存截取 → 全量重写"，
+     * 为了不截半个汉字还要做字符串扫描 ——
+     * 每次都要把 512KB 读进来再写回去，是纯粹的 IO 灾难。
+     * 而日志超过上限本来就是要丢掉最早的那些，
+     * 逐行精确保留并没有实际价值（没人会去翻 512KB 之外的旧日志，
+     * 界面上显示时也是整个读进内存，太大反而卡死）。
+     * 用"丢旧的、留新的"换掉全量读写，是这个场景下正确的取舍。
      */
-    private fun trimDisk(ctx: Context, f: androidx.documentfile.provider.DocumentFile) {
+    private fun flushLocked() {
+        if (diskBuffer.isEmpty()) return
+        val ctx = Prefs.appCtx() ?: return
         try {
-            val len = f.length()
-            if (len <= MAX_DISK) return
-            val all = ctx.contentResolver.openInputStream(f.uri)?.use {
-                it.readBytes().toString(Charsets.UTF_8)
-            } ?: return
-            // 留 3/4 的空间，不至于每次写一行就重写一次
-            val keepBytes = MAX_DISK * 3 / 4
-            var cut = all.length - keepBytes
-            if (cut < 0) return
-            // 往后找到第一个换行，从那里开始保留，保证不截半行
-            val nl = all.indexOf('\n', cut)
-            if (nl >= 0) cut = nl + 1
-            val kept = all.substring(cut)
-            ctx.contentResolver.openOutputStream(f.uri, "wt")?.use {
-                it.write(kept.toByteArray())
+            val dir = WorkDir.logs(ctx) ?: return
+            val f = dir.findFile("app.log") ?: dir.createFile("text/plain", "app.log") ?: return
+            val text = diskBuffer.toString()
+            // 只有这一次 length 查询，且只在落盘时发生，不再是每行一次
+            val over = try { f.length() > MAX_DISK } catch (_: Throwable) { false }
+            val mode = if (over) "wt" else "wa"
+            ctx.contentResolver.openOutputStream(f.uri, mode)?.use {
+                it.write(text.toByteArray(Charsets.UTF_8))
             }
+            diskBuffer.setLength(0)
         } catch (t: Throwable) {
-            Err.ignore(t, "截断磁盘日志")
+            // 同上：不能用 Err.ignore，避免与日志写入互相触发造成递归
+            try {
+                android.util.Log.e("LogCenter", "日志刷盘失败", t)
+            } catch (_: Throwable) {}
         }
     }
+
+    /** 主动把缓冲区刷到磁盘（退出前、查看日志前调用） */
+    fun flush() = synchronized(logLock) { flushLocked() }
 
     /**
      * 读出磁盘上的完整日志，供「设置 → 日志」查看。
      *
-     * 同样要加锁：trimDisk 的覆盖写会先把文件截断成 0 再重写，
-     * 如果读取正好发生在这个窗口里，读到的会是空内容或半截内容 ——
-     * 表现为"日志页偶尔一片空白"，过一会儿再打开又有了，极像随机 bug。
+     * 两件事必须一起做：
+     * 1. **先刷盘**。日志现在先攒在内存缓冲里，不刷就读不到最新的那部分，
+     *    用户会看到"刚打的错误日志怎么没有"，以为是丢了。
+     * 2. **加锁**。覆盖写会先把文件截断成 0 再重写，
+     *    读取正好落在这个窗口里就会读到空内容或半截内容 ——
+     *    表现为"日志页偶尔一片空白"，过一会儿再打开又有了，极像随机 bug。
      */
     fun readAll(ctx: Context): String = synchronized(logLock) {
         try {
+            flushLocked()
             val dir = WorkDir.logs(ctx) ?: return@synchronized ""
             val f = dir.findFile("app.log") ?: return@synchronized ""
             ctx.contentResolver.openInputStream(f.uri)?.use {
@@ -201,10 +239,22 @@ object LogCenter {
         }
     }
 
-    fun clearFile(ctx: Context) {
+    /**
+     * 清空日志。
+     *
+     * ⚠️ 必须和写入互斥，且**先清内存缓冲再删文件**。
+     * 顺序反了的话：删完文件后，缓冲区里还没落盘的内容会被下一次 flush
+     * 重新写进去 —— 用户点了"清空"，一刷新日志又冒出来了，像功能坏了。
+     */
+    fun clearFile(ctx: Context) = synchronized(logLock) {
         try {
+            diskBuffer.setLength(0)
             WorkDir.logs(ctx)?.findFile("app.log")?.delete()
-        } catch (t: Throwable) { Err.ignore(t, "WorkDir.logs(ctx)?.findFile(\"app.log\")?.delete()") }
+        } catch (t: Throwable) {
+            try {
+                android.util.Log.e("LogCenter", "删除日志文件失败", t)
+            } catch (_: Throwable) {}
+        }
         clear()
     }
 }

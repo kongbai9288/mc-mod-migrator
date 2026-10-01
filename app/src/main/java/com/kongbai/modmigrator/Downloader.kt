@@ -112,6 +112,21 @@ object Downloader {
     }
 
     /** 下载到 cache，内部自动判断是否分块 */
+    /**
+     * 按目标文件名加细粒度锁。
+     *
+     * 批量下载时线程池是并发的，而同名模组（比如两个源都给出
+     * `sodium-1.20.1.jar`）会指向**同一个缓存文件**。
+     * 两个线程同时 `out.exists() → delete()` 再 `outputStream()` 写，
+     * 会出现一个刚写完、另一个把它删了重写的交错 ——
+     * 最终文件是 0 字节、半截、或者两份内容拼接的损坏文件。
+     * 用户看到的正是"批量下载后有几个模组装不上"。
+     *
+     * 按文件名加锁：不同文件完全并行不受影响，
+     * 只有真正同名才串行，代价极小。
+     */
+    private val fileLocks = java.util.concurrent.ConcurrentHashMap<String, Any>()
+
     private fun downloadToCache(
         ctx: Context, url: String, name: String,
         headers: Map<String, String>, onProgress: ((Long, Long) -> Unit)?
@@ -119,10 +134,28 @@ object Downloader {
         val cache = File(ctx.cacheDir, "dl").apply { if (!exists()) mkdirs() }
         val safe = guessName(name).ifBlank { "mod.jar" }
         val out = File(cache, safe)
+        val lock = fileLocks.computeIfAbsent(safe) { Any() }
+        // ⚠️ 用完**不能**把锁从 map 里删掉。
+        // 假如此时正有另一个线程阻塞在这把锁上等待：
+        // 删掉之后，第三个线程进来会 computeIfAbsent 出一个**新的**锁对象，
+        // 于是等待中的线程和它各自持有不同的锁 —— 互斥彻底失效，
+        // 反而制造出我们本来要防止的并发写冲突。
+        // 锁对象只是个空 Any()，一个模组名一个，常驻也没有内存压力。
+        return synchronized(lock) {
+            downloadToCacheLocked(ctx, url, out, headers, onProgress)
+        }
+    }
+
+    private fun downloadToCacheLocked(
+        ctx: Context, url: String, out: File,
+        headers: Map<String, String>, onProgress: ((Long, Long) -> Unit)?
+    ): File? {
 
         // 原子提交：先写 .part，完整写完后才 rename 成正式文件。
         // 否则下载中断会留下半截文件，下次复用缓存时会被当成完整文件，
         // 装进 mods 目录就是个坏 jar——这是"下载中断后模组装不上"的常见根因。
+        val safe = out.name
+        val cache = out.parentFile ?: return null
         val part = File(cache, "$safe.part")
         runCatching { if (part.exists()) part.delete() }
         runCatching { if (out.exists()) out.delete() }

@@ -24,11 +24,30 @@ package com.kongbai.modmigrator
  */
 object Err {
 
-    /** 静默但留痕：不影响流程，但记录到日志 */
+    /**
+     * 静默但留痕：不影响流程，但记录到日志。
+     *
+     * ⚠️ 这里**必须用 Android 原生 Log，不能调 LogCenter**。
+     *
+     * 原因是一个会直接撑爆栈的循环依赖：
+     *   LogCenter.persist() 写盘失败 → catch 里调 Err.ignore()
+     *   → Err.ignore() 调 LogCenter.w() → push() → persist()
+     *   → 磁盘依然是满的，再次失败 → 再调 Err.ignore() → ……
+     * 几毫秒内栈就溢出，抛 StackOverflowError。
+     * 而崩在后台线程时用户只看到"闪退"，连崩溃日志都来不及写。
+     *
+     * 更隐蔽的是：这个循环只在"磁盘写不进去"时才触发，
+     * 平时完全正常，所以极难复现，一旦出现就是必崩。
+     *
+     * Err 是最底层的错误处理设施，它只能依赖**同样不会失败**的输出方式。
+     * android.util.Log 写的是内核 log 缓冲区，不碰文件系统，不会失败。
+     */
     fun ignore(t: Throwable, what: String = "") {
         val msg = if (what.isBlank()) "已忽略异常" else "已忽略异常：$what"
         try {
-            LogCenter.w("Err", "$msg -> ${t.javaClass.simpleName}: ${t.message?.take(120) ?: ""}")
+            android.util.Log.w(
+                "Err", "$msg -> ${t.javaClass.simpleName}: ${t.message?.take(120) ?: ""}", t
+            )
         } catch (_: Throwable) {
         }
         try {
@@ -40,7 +59,9 @@ object Err {
     /** 值得注意的失败：记 warn */
     fun warn(t: Throwable, what: String) {
         try {
-            LogCenter.w("Err", "$what -> ${t.javaClass.simpleName}: ${t.message?.take(120) ?: ""}")
+            android.util.Log.w(
+                "Err", "$what -> ${t.javaClass.simpleName}: ${t.message?.take(120) ?: ""}", t
+            )
         } catch (_: Throwable) {
         }
         try {
@@ -52,7 +73,9 @@ object Err {
     /** 功能性失败：记 error，界面可据此提示用户 */
     fun fail(t: Throwable, what: String) {
         try {
-            LogCenter.e("Err", "$what -> ${t.javaClass.simpleName}: ${t.message?.take(200) ?: ""}")
+            android.util.Log.e(
+                "Err", "$what -> ${t.javaClass.simpleName}: ${t.message?.take(200) ?: ""}", t
+            )
         } catch (_: Throwable) {
         }
         try {
