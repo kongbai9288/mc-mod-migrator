@@ -67,8 +67,14 @@ object Prefs {
             ctx.getSharedPreferences("mm_fallback", Context.MODE_PRIVATE)
         } catch (t: Throwable) {
             // 连 SharedPreferences 都拿不到时，用一个纯内存实现兜底
+            // 说明：这个纯内存兜底只在"连 SharedPreferences 都拿不到"时才用，
+            // 属于极端情况，但它仍然必须是并发安全的 ——
+            // get() 会被任意后台线程调用（下载、同步、搜索都可能读配置），
+            // 普通 HashMap 在并发 put + 遍历（getAll）时，
+            // 轻则抛 ConcurrentModificationException，
+            // 重则内部链表成环导致 CPU 100% 死循环。
             object : SharedPreferences {
-                private val m = HashMap<String, Any?>()
+                private val m = java.util.concurrent.ConcurrentHashMap<String, Any?>()
                 override fun getAll(): Map<String, *> = m
                 override fun getString(k: String, d: String?): String? = m[k] as? String ?: d
                 override fun getStringSet(k: String, d: MutableSet<String>?): MutableSet<String>? =
@@ -87,6 +93,8 @@ object Prefs {
                     override fun putBoolean(k: String, v: Boolean): SharedPreferences.Editor { m[k] = v; return this }
                     override fun remove(k: String): SharedPreferences.Editor { m.remove(k); return this }
                     override fun clear(): SharedPreferences.Editor { m.clear(); return this }
+                    // apply() 在真实实现里是异步落盘，
+                    // 这里数据已在内存 map 中，本身就是"已生效"的
                     override fun commit(): Boolean = true
                     override fun apply() {}
                 }

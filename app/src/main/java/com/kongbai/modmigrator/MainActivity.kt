@@ -135,7 +135,32 @@ class MainActivity : AppCompatActivity() {
     private val tabHistory = ArrayList<Int>()
     private var currentTabId: Int = -1
 
+    // ── 底部导航防抖 ──────────────────────────────────────────
+    // 快速连点底部导航栏时，FragmentManager 会把多个事务排队执行。
+    // 而每个事务都带淡入淡出动画：
+    // 前一个还没结束、后一个已经开始替换 container 里的 Fragment，
+    // 于是出现"两个 Fragment 同时挂载"的瞬间 ——
+    // 上层那个被移除时留下空白，背景色透出来，看起来就是**白屏**。
+    // 更糟的是旧 Fragment 的视图还没销毁就又被引用，泄漏随之而来。
+    // 这里做双重保护：时间窗 350ms + 正在切换中的标志位。
+    private var navLock = false
+    private var lastNavAt = 0L
+
     private fun switchTo(id: Int) {
+        // 同一个 tab 重复点也没意义，直接忽略
+        if (id == currentTabId) return
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (navLock || now - lastNavAt < 350L) return
+        navLock = true
+        lastNavAt = now
+        try {
+            switchToInternal(id)
+        } finally {
+            navLock = false
+        }
+    }
+
+    private fun switchToInternal(id: Int) {
         // 记录切换历史（去重：连续点同一个不算）
         if (id != currentTabId) {
             tabHistory.remove(id)   // 已存在就先移除，再放到末尾，保持最近优先

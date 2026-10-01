@@ -230,10 +230,58 @@ object BackendApi {
      *   而 CF 的 index 是 0 基偏移。之前这里传的是 offset/20（0,1,2…），
      *   导致第 2 页取到 1..20 —— 和第 1 页几乎完全重复。现在传真实偏移。
      */
+    /**
+     * 客户端侧事前节流。
+     *
+     * 后端对 /api/mods 是**每 IP 每分钟 120 次**限流。
+     * 而聚合搜索会同时并发多个源，翻页又是连续的 ——
+     * 用户快速翻几页就很容易打满配额，然后收到 429。
+     *
+     * 光靠"收到 429 再提示"是**事后补救**：请求已经发出去了、
+     * 配额已经超了，用户还要干等一分钟，期间什么都做不了。
+     * 这里在发出请求前先自限，把速率压在后端阈值之下，
+     * 让 429 变成"几乎不会触发"而不是"经常遇到"。
+     *
+     * 取 90 而不是 120：留出余量，因为同一个 IP 下
+     * 可能还有别的请求（推荐页、文件列表）在共用这个配额。
+     */
+    private object RateLimiter {
+        private const val LIMIT = 90
+        private const val WINDOW_MS = 60_000L
+        private val stamps = java.util.concurrent.ConcurrentLinkedQueue<Long>()
+
+        /** 取一个名额，取不到返回 false（调用方应提示"稍后再试"而不是发请求） */
+        @Synchronized
+        fun tryAcquire(): Boolean {
+            val now = System.currentTimeMillis()
+            while (true) {
+                val head = stamps.peek() ?: break
+                if (now - head > WINDOW_MS) stamps.poll() else break
+            }
+            return if (stamps.size < LIMIT) {
+                stamps.offer(now)
+                true
+            } else false
+        }
+
+        /** 距离配额恢复还要等几秒，用于给用户明确的等待时间 */
+        fun retryAfterSec(): Int {
+            val oldest = stamps.peek() ?: return 5
+            val left = WINDOW_MS - (System.currentTimeMillis() - oldest)
+            return (left / 1000).toInt().coerceIn(1, 60)
+        }
+    }
+
     fun search(
         ctx: Context, query: String, mc: String, loader: String,
         offset: Int = 0, pageSize: Int = 20, sort: String = "popularity"
     ): List<MarketMod> {
+        // 事前节流：不让请求打满后端配额（见 RateLimiter 说明）
+        if (!RateLimiter.tryAcquire()) {
+            throw RuntimeException(
+                "操作过于频繁，请约 ${RateLimiter.retryAfterSec()} 秒后再试"
+            )
+        }
         // 后端对 /api/mods 有每 IP 每分钟 120 次的限流，超限返回 429
         // （响应体是中文"请求过于频繁"，头里带 retry-after）。
         // 之前 429 和"地址不通"一样被 continue 掉，最后返回空列表，
@@ -468,7 +516,10 @@ object BackendApi {
      */
     private fun isRateLimited(t: Throwable): Boolean {
         val msg = t.message ?: return false
+        // "频繁" 是客户端事前节流抛的文案（见 RateLimiter），
+        // 本质上也是限流，同样要让用户看到而不是被吞掉。
         return msg.contains("429") || msg.contains("限流", true) ||
+            msg.contains("频繁", true) ||
             msg.contains("rate limit", true) || msg.contains("too many", true)
     }
 }
