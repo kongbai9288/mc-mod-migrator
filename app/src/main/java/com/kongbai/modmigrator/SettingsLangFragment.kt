@@ -81,9 +81,7 @@ class SettingsLangFragment : Fragment() {
                                 getString(R.string.lang_pack_found, n.toString(), LangPack.loadedName)
                             )
                             .setPositiveButton(R.string.ok) { _, _ ->
-                                try {
-                                    activity?.recreate()
-                                } catch (t: Throwable) { Err.ignore(t, "activity?.recreate()") }
+                                activity?.recreateSafely()
                             }
                             .show()
                     }
@@ -177,9 +175,7 @@ class SettingsLangFragment : Fragment() {
                 }
                 @Suppress("DEPRECATION")
                 resources.updateConfiguration(cfg, resources.displayMetrics)
-                try {
-                    activity?.recreate()
-                } catch (t: Throwable) { Err.ignore(t, "activity?.recreate()") }
+                activity?.recreateSafely()
             }
         } catch (t: Throwable) { Err.ignore(t, "切换语言") }
     }

@@ -115,22 +115,32 @@ class MigrationFragment : Fragment() {
 
     private lateinit var tvProgress: TextView
 
-    /** 展示完整运行日志 */
+    /** 展示运行日志 */
     private fun showAllLogs() {
         val ctx = context ?: return
-        val txt = LogCenter.all().joinToString("\n") { it.toString() }.ifBlank { "暂无日志" }
+        val all = LogCenter.all()
+        // 完整内容只用于「复制」，不塞进对话框
+        val full = all.joinToString("\n") { it.toString() }.ifBlank { "暂无日志" }
+
+        // ⚠️ 对话框里显示的内容必须受控。
+        // 上一版我直接 setMessage(全部日志)，这是个错误：
+        // 装它的 Material message TextView 要对整段文本做测量和换行排版，
+        // 300 条日志（含堆栈）能到 MB 级 —— 而这台设备已经因为 OOM 崩过
+        // （堆只剩 1.9MB，系统线程连 64 字节都分配不到）。
+        // 显示层截断、复制层给全文，两者分开。
+        val shown = if (all.size > MAX_SHOW_LINES) {
+            "（仅显示最近 $MAX_SHOW_LINES 条，共 ${all.size} 条；点「复制」可拿到完整日志）\n\n" +
+                all.take(MAX_SHOW_LINES).joinToString("\n") { it.toString() }
+        } else {
+            all.joinToString("\n") { it.toString() }
+        }
+        val txt = shown.ifBlank { "暂无日志" }
+
         val dlg = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
             .setTitle("运行日志（共 ${LogCenter.count()} 条）")
-            // ⚠️ 之前这里 `takeLast(6000)` 只留最后 6000 字符。
-            // 崩溃堆栈恰恰是**开头**（异常类型和消息）最重要、
-            // 结尾全是框架内部调用帧 —— 截断后等于把根因扔掉了，
-            // 只剩一堆看不出所以然的 androidx 内部行号。
-            // 而且 Material 的 message TextView 默认不可选中，
-            // 想看全就只能截图，长堆栈根本截不全。
-            // 现在不截断，并让文本可以长按选中，另给一个复制按钮。
             .setMessage(txt)
             .setPositiveButton(R.string.ok, null)
-            .setNeutralButton("复制") { _, _ -> copyLogs(txt) }
+            .setNeutralButton("复制") { _, _ -> copyLogs(full) }
             .setNegativeButton("清空") { _, _ -> LogCenter.clear(); refreshLogSummary() }
             .show()
         // 让正文可以长按选中，方便只复制某一段堆栈
@@ -139,6 +149,9 @@ class MigrationFragment : Fragment() {
                 ?.setTextIsSelectable(true)
         }
     }
+
+    /** 对话框里最多显示多少条日志 */
+    private const val MAX_SHOW_LINES = 40
 
     private fun copyLogs(txt: String) {
         val ctx = context ?: return

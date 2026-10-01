@@ -17,3 +17,50 @@ fun android.widget.EditText.addTextWatcherSafe(block: () -> Unit) {
         override fun afterTextChanged(s: android.text.Editable?) = block()
     })
 }
+
+/**
+ * 安全地重建 Activity。
+ *
+ * ⚠️ 直接调 `activity.recreate()` 是**会崩的**，真实崩溃日志为证：
+ * ```
+ * java.lang.IllegalStateException: The specified message queue synchronization
+ *   barrier token has not been posted or has already been removed.
+ *     at android.os.MessageQueue.removeSyncBarrier(MessageQueue.java:600)
+ *     at android.view.ViewRootImpl.doTraversal(ViewRootImpl.java:3140)
+ *     at android.view.ViewRootImpl$TraversalRunnable.run(...)
+ *     at android.view.Choreographer$CallbackRecord.run(...)
+ * ```
+ *
+ * 成因：ViewRootImpl 每次布局前会 `postSyncBarrier()` 插一道同步屏障，
+ * 保证自己那一帧的遍历消息优先执行，遍历结束后再 `removeSyncBarrier(token)` 撤掉。
+ * 如果 Activity 在这个窗口内被 recreate，旧的 ViewRootImpl 连同它的
+ * traversal 状态一起作废；等 Choreographer 下一帧回调 `doTraversal()` 时，
+ * 屏障早没了，于是 `removeSyncBarrier` 找不到 token 直接抛异常。
+ *
+ * 触发场景高度一致：**对话框 dismiss 后紧接着 recreate**
+ * （dismiss 本身就要重排布局、开启动画，屏障正活跃）。
+ *
+ * 解法：不要立刻 recreate，也不要用 `handler.postDelayed` 猜一个延时
+ * （300ms 也可能刚好撞上下一帧的遍历）。
+ * 改成把重建动作 `post` 到 **decorView** 上：
+ * 同步屏障会挡住普通消息、只放行异步的遍历消息，
+ * 所以这条 post 必然排在"当前这次遍历结束、屏障撤掉"之后才执行 ——
+ * 由系统保证时序，而不是靠我们自己猜延时。
+ */
+fun android.app.Activity.recreateSafely() {
+    val act = this
+    val go = {
+        try {
+            act.recreate()
+        } catch (t: Throwable) {
+            // 兜底：极端情况下重建失败也不能把界面卡死
+            android.util.Log.w("recreateSafely", "重建 Activity 失败", t)
+        }
+    }
+    try {
+        val decor = act.window?.decorView
+        if (decor != null) decor.post(go) else go()
+    } catch (t: Throwable) {
+        go()
+    }
+}

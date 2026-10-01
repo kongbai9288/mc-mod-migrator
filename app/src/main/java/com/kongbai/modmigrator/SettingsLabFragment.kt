@@ -159,7 +159,12 @@ class SettingsLabFragment : Fragment() {
                 d.dismiss()
                 refresh()
                 Toast.makeText(ctx, "已切换，正在应用…", Toast.LENGTH_SHORT).show()
-                handler.postDelayed({ activity?.recreate() }, 300)
+                // ⚠️ 之前是 postDelayed(300) 里直接 activity?.recreate()。
+                // 对话框 dismiss 会引发重排、同步屏障正活跃，
+                // 延时 300ms 只是碰运气，照样可能撞在某一帧的遍历上 ——
+                // 真机上崩过：removeSyncBarrier: token has already been removed。
+                // 改由 recreateSafely() 交给系统屏障时序来保证。
+                activity?.recreateSafely()
             }
             .setNegativeButton(R.string.cancel, null)
             .show()

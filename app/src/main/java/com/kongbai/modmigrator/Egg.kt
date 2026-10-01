@@ -224,9 +224,7 @@ object Egg {
                     Toast.makeText(
                         ctx, "已换成「${themes[picked].name}」", Toast.LENGTH_SHORT
                     ).show()
-                    try {
-                        (ctx as? android.app.Activity)?.recreate()
-                    } catch (t: Throwable) { Err.ignore(t, "(ctx as? android.app.Activity)?.recreate()") }
+                    (ctx as? android.app.Activity)?.recreateSafely()
                 }
                 .setNegativeButton(R.string.cancel, null)
                 .create()

@@ -18,6 +18,33 @@ object LogCenter {
     private const val MAX_MEM = 300
 
     /**
+     * 单条日志最多存多少字符。
+     *
+     * ⚠️ 真实 OOM 崩溃（HUAWEI FIN-AL60, Android 12）：
+     * ```
+     * java.lang.OutOfMemoryError: Failed to allocate a 64 byte allocation
+     *   with 1992008 free bytes and 1945KB until OOM ... <1% of heap free after GC
+     * ```
+     * 堆被榨到只剩 1.9MB，连系统自己的视图检测线程要 64 字节都拿不到。
+     *
+     * 日志本身是重要嫌疑：一条崩溃堆栈轻松 3～5KB，
+     * 300 条就是 1MB 以上的字符串**常驻内存**；
+     * 而崩溃会触发写日志、日志里又有堆栈，容易滚雪球。
+     * 日志是排查问题的工具，不该反过来把 App 拖垮。
+     *
+     * 这里给单条设上限，超长只保留**开头**——
+     * 堆栈的开头正是异常类型 + 消息 + 我们代码里的触发点，
+     * 也就是真正有用的部分；末尾那些 androidx 内部帧价值很低。
+     */
+    private const val MAX_LINE_CHARS = 2000
+
+    private fun clipLine(msg: String): String {
+        if (msg.length <= MAX_LINE_CHARS) return msg
+        return msg.substring(0, MAX_LINE_CHARS) +
+            "\n    ……（本条过长，已截断，共 ${msg.length} 字符）"
+    }
+
+    /**
      * 内存里的日志（最新的在前，最多保留 N 条用于顶部展示）。
      *
      * 这三个集合会被**多个线程同时访问**：日志可能从任意后台线程写入，
@@ -68,7 +95,7 @@ object LogCenter {
 
     @Synchronized
     private fun push(level: String, tag: String, msg: String) {
-        val line = LogLine(now(), level, tag, msg)
+        val line = LogLine(now(), level, tag, clipLine(msg))
         lines.add(0, line)
         while (lines.size > MAX_MEM) lines.removeAt(lines.size - 1)
         // 落盘
