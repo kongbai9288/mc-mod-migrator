@@ -25,6 +25,11 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(ThemePrefs.styleRes(this))
         super.onCreate(savedInstanceState)
+        // 冷启动净化：Progress 是全局单例，上次运行若因异常/提前 return
+        // 没走到 done()，running 会永久卡在 true，
+        // 于是本次一进界面就提示"扫描运行中"——用户根本没点扫描。
+        // 这里在渲染任何界面之前强制复位，作为最后一道兜底。
+        runCatching { Progress.done() }
         // 每次冷启动重置「首次进商店」标记：
         // 这样推荐只在本次打开应用后的第一次进商店时自动跑
         runCatching {
@@ -40,10 +45,7 @@ class MainActivity : AppCompatActivity() {
             if (first != null && first.key != "settings") switchTo(NavConfig.idOf(first.key))
         }
 
-        nav?.setOnItemSelectedListener { item ->
-            switchTo(item.itemId)
-            true
-        }
+        setupNavListener()
 
         // 公告只在启动时检查一次。
         // 之前这句写在了 tab 选择监听器里，导致每切一次 tab 就弹一次公告。
@@ -267,17 +269,39 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
+    /**
+     * 底部导航的监听器**只设一次**。
+     *
+     * ⚠️ 之前的写法是每次切换都 `setOnItemSelectedListener(null)` 再重设一个新监听器。
+     * 高频切换时，BottomNavigationView 内部的事件分发链会在极短时间内被反复拆掉又接上，
+     * 它的选中状态机直接崩掉 —— 表现为**底部栏整个消失**，而且再也点不动。
+     * 这是"点几下下面啥也不显示"的直接原因。
+     *
+     * 反复解绑本来是为了防止"程序改选中态 → 反过来触发 switchTo"的循环，
+     * 但用标志位就能解决，没必要动监听器本身。
+     */
+    private fun setupNavListener() {
+        val n = nav ?: return
+        n.setOnItemSelectedListener { item ->
+            // 程序同步选中态时不回调，避免 switchTo → syncNavSelection → switchTo 死循环
+            if (!suppressNavCallback) switchTo(item.itemId)
+            true
+        }
+    }
+
+    /** 正在由程序（而非用户点击）同步选中态 */
+    private var suppressNavCallback = false
+
     /** 同步底部导航的选中项，避免"内容变了但高亮还在别处" */
     private fun syncNavSelection(id: Int) {
         val n = nav ?: return
         runCatching {
-            // 先取消监听再设置，防止 setSelectedItemId 反过来触发 switchTo 造成循环
-            n.setOnItemSelectedListener(null)
-            val item = n.menu.findItem(id)
-            if (item != null) item.isChecked = true
-            n.setOnItemSelectedListener { it2 ->
-                switchTo(it2.itemId)
-                true
+            suppressNavCallback = true
+            try {
+                val item = n.menu.findItem(id)
+                if (item != null) item.isChecked = true
+            } finally {
+                suppressNavCallback = false
             }
         }
     }

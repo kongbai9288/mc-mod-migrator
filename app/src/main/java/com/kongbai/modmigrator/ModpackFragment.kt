@@ -96,6 +96,11 @@ class ModpackFragment : Fragment() {
                 block()
             } catch (t: Throwable) {
                 setState("出错了：${t.message}")
+            } finally {
+                // 同 MigrationFragment：Progress 是全局单例，
+                // 异常/提前 return 时不复位会永久卡在"运行中"，
+                // 下次开 App 出现幽灵进度条。
+                try { Progress.done() } catch (_: Throwable) {}
             }
         }
     }

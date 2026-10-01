@@ -22,7 +22,19 @@ object ModrinthApi {
      * 官方限制单次最多提交的哈希数量。
      * 文档没写死上限，社区实践是 500，这里保守取 400 分批发。
      */
-    private const val BATCH = 400
+    /**
+     * 每批最多查多少个哈希。
+     *
+     * ⚠️ 之前设成 400，太大了。
+     * 官方文档只写 "accepts multiple hashes"，**没有公布数量上限**，
+     * 但同类启动器的实现普遍按 100 一批走（官方搜索接口的上限也是 100）。
+     * 一旦超过服务端/网关的实际承载能力，它**不会报错**，
+     * 而是静默返回一个空对象 `{}` ——
+     * 代码拿到空结果后判定"这些哈希都没收录"，
+     * 于是 300 个模组瞬间扫完、全部显示"未收录"。
+     * 用户看到的是"扫描快得离谱且全错"，完全想不到是批次太大。
+     */
+    private const val BATCH = 100
 
     private fun base(): String = if (Prefs.mirror()) MIRROR else OFFICIAL
     /**
@@ -250,6 +262,7 @@ fun lookupHashSimple(sha1: String): Triple<String, String, String>? {
         val uniq = hashes.map { it.lowercase() }.filter { it.isNotBlank() }.distinct()
         if (uniq.isEmpty()) return out
 
+        var anyMatched = false
         for (chunk in uniq.chunked(BATCH)) {
             val body = org.json.JSONObject().apply {
                 put("algorithm", "sha1")
@@ -272,15 +285,30 @@ fun lookupHashSimple(sha1: String): Triple<String, String, String>? {
                 continue
             }
             // 返回的是 Map<hash, Version>，只含匹配上的
+            var matchedInChunk = 0
             for (h in chunk) {
                 val v = o.get(h)
                 if (v == null || !v.isJsonObject) continue   // 没收录，不放进 map
                 val pid = Json.s(v, "project_id")
                 if (pid.isBlank()) continue
+                matchedInChunk++
                 out[h] = LookupResult(
                     found = true,
                     projectId = pid,
                     version = Json.s(v, "version_number").ifBlank { Json.s(v, "name") }
+                )
+            }
+            if (matchedInChunk > 0) anyMatched = true
+            // ── 熔断诊断 ──────────────────────────────────────────
+            // 前几批都正常、从某一批开始整批 0 匹配，是**被网关/镜像截断**
+            // 的典型特征（请求体太大时服务器静默返回空对象，而不是报错）。
+            // 这种情况用户只会看到"全都没收录"，完全想不到是批次问题。
+            // 打一条明确日志，下次排查时一眼就能看出是网络层截断还是真的没收录。
+            if (matchedInChunk == 0 && anyMatched && chunk.size > 1) {
+                LogCenter.w(
+                    "Modrinth",
+                    "哈希批次 ${chunk.size} 个全部 0 匹配（前序批次有命中）——" +
+                        "可能是请求体过大被网关截断，可尝试调小批次或换镜像"
                 )
             }
         }

@@ -476,12 +476,32 @@ class MigrationFragment : Fragment() {
         }
     }
 
+    /**
+     * 后台执行一段任务。
+     *
+     * ⚠️ 之前这里只有 try/catch，**没有 finally**。
+     * 而 `Progress` 是全局单例，任务开始时置 running=true、结束时调 done() 复位。
+     * 一旦 block 抛异常、或内部某个分支提前 return，
+     * `Progress.done()` 就永远不会执行 ——
+     * running 标志位**永久卡在 true**。
+     *
+     * 后果：下次打开 App，全局单例还带着这个脏状态，
+     * 一进界面就提示"扫描运行中"，而用户根本没点过扫描。
+     * 这种"幽灵进度条"看起来像 App 出现幻觉，极难联想到是上次异常留下的。
+     *
+     * 这里统一在 finally 里兜底复位。
+     * 正常路径下 block 内部已经调过 done()，再调一次是幂等的（只是重置状态），
+     * 不会有任何副作用。
+     */
     private fun bg(block: () -> Unit) {
         exec.execute {
             try {
                 block()
             } catch (t: Throwable) {
                 log("错误：${t.message}")
+            } finally {
+                // 无论正常结束、提前 return 还是抛异常，都必须复位进度状态
+                try { Progress.done() } catch (_: Throwable) {}
             }
         }
     }
