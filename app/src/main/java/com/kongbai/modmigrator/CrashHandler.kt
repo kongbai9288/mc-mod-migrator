@@ -64,7 +64,7 @@ object CrashHandler {
             try {
                 val pi = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
                 sb.appendLine("版本：${pi.versionName}（${pi.versionCode}）")
-            } catch (t: Throwable) { Err.ignore(t, "sb.appendLine(\"版本：{pi.versionName}（{pi.versionCo") }
+            } catch (t: Throwable) { Err.ignore(t, "写入崩溃信息头（版本/设备）") }
             sb.appendLine("设备：${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
             sb.appendLine("系统：Android ${android.os.Build.VERSION.RELEASE}（API ${android.os.Build.VERSION.SDK_INT}）")
             sb.appendLine("CPU：${android.os.Build.SUPPORTED_ABIS.joinToString()}".take(200))
@@ -121,7 +121,7 @@ object CrashHandler {
                 out.flush()
                 try {
                     out.fd.sync()
-                } catch (t: Throwable) { Err.ignore(t, "out.fd.sync()") }
+                } catch (t: Throwable) { Err.ignore(t, "崩溃日志刷盘") }
             }
         } catch (t: Throwable) { Err.ignore(t, "") }
     }
@@ -133,7 +133,7 @@ object CrashHandler {
             files.sortedByDescending { it.lastModified() }
                 .drop(MAX_FILES)
                 .forEach { runCatching { it.delete() } }
-        } catch (t: Throwable) { Err.ignore(t, ".forEach { runCatching { it.delete() } }") }
+        } catch (t: Throwable) { Err.ignore(t, "清理过期崩溃日志") }
     }
 
     /** 读取全部崩溃日志（界面展示/分享用） */
@@ -159,6 +159,6 @@ object CrashHandler {
         try {
             File(ctx.filesDir, "crash.log").delete()
             dir(ctx).listFiles()?.forEach { runCatching { it.delete() } }
-        } catch (t: Throwable) { Err.ignore(t, "dir(ctx).listFiles()?.forEach { runCatching { it.d") }
+        } catch (t: Throwable) { Err.ignore(t, "清空崩溃日志文件") }
     }
 }

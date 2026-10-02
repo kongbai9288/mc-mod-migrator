@@ -217,7 +217,7 @@ object BackendApi {
     fun logout(ctx: Context) {
         try {
             Http.get(authBase() + "/api/auth/logout")
-        } catch (t: Throwable) { Err.ignore(t, "Http.get(authBase() + \"/api/auth/logout\")") }
+        } catch (t: Throwable) { Err.ignore(t, "调用退出登录接口失败") }
     }
 
     /** 后端搜索（CurseForge 代理）。全部地址都失败返回 emptyList。 */

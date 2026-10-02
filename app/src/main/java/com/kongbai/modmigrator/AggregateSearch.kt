@@ -147,7 +147,7 @@ object AggregateSearch {
         }
         try {
             done.await(SRC_TIMEOUT_SEC + 5, TimeUnit.SECONDS)
-        } catch (t: Throwable) { Err.ignore(t, "done.await(SRC_TIMEOUT_SEC + 5, TimeUnit.SECONDS)") }
+        } catch (t: Throwable) { Err.ignore(t, "等待各搜索源返回") }
         return all.sortedByDescending { it.downloads }
     }
 
@@ -308,7 +308,7 @@ object AggregateSearch {
         }
         try {
             done.await(SRC_TIMEOUT_SEC + 5, TimeUnit.SECONDS)
-        } catch (t: Throwable) { Err.ignore(t, "done.await(SRC_TIMEOUT_SEC + 5, TimeUnit.SECONDS)") }
+        } catch (t: Throwable) { Err.ignore(t, "等待各搜索源返回") }
         return all.sortedByDescending { it.downloads }.take(20)
     }
 
@@ -316,7 +316,7 @@ object AggregateSearch {
         android.os.Handler(android.os.Looper.getMainLooper()).post {
             try {
                 block()
-            } catch (t: Throwable) { Err.ignore(t, "block()") }
+            } catch (t: Throwable) { Err.ignore(t, "执行单个搜索源") }
         }
     }
 

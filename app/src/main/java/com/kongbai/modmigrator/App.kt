@@ -107,20 +107,48 @@ class App : Application() {
  * 而不只是最后那一行堆栈。
  */
 private class CrashTree : timber.log.Timber.Tree() {
+    /**
+     * 正在转发日志的线程标记。
+     *
+     * ⚠️ 这是**必须**的防回灌闸门，真实事故为证：
+     * ```
+     * LogCenter.push → errorHook 弹窗失败 → Err.ignore
+     *   → Timber.w → CrashTree.log → LogCenter.e
+     *   → push → errorHook → 再弹 → 再失败 → ……
+     * ```
+     * 每循环一次堆栈就往上堆一层，日志单条滚到 **8 万字符**。
+     *
+     * 之前我只切断了「Err → LogCenter」的直连，
+     * 却漏了「Err → Timber → CrashTree → LogCenter」这条环 ——
+     * 而 CrashTree 存在的意义恰恰就是把 Timber 日志转进 LogCenter，
+     * 等于亲手把环接上了。
+     *
+     * 用 ThreadLocal：只挡当前线程，不影响其它线程正常记录日志。
+     */
+    private val forwarding = java.lang.ThreadLocal.withInitial { false }
+
     override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
+        // 已经在转发中 → 说明这条日志本身就是 LogCenter 触发出来的，
+        // 不能再写回去，否则无限递归
+        if (forwarding.get()) return
         val p = when (priority) {
             android.util.Log.ERROR -> "E"
             android.util.Log.WARN -> "W"
             else -> "I"
         }
-        runCatching {
-            val line = "$p/${tag ?: "app"}: $message"
-            when (p) {
-                "E" -> LogCenter.e(tag ?: "app", message)
-                "W" -> LogCenter.w(tag ?: "app", message)
-                else -> LogCenter.i(tag ?: "app", message)
+        forwarding.set(true)
+        try {
+            runCatching {
+                val line = "$p/${tag ?: "app"}: $message"
+                when (p) {
+                    "E" -> LogCenter.e(tag ?: "app", message)
+                    "W" -> LogCenter.w(tag ?: "app", message)
+                    else -> LogCenter.i(tag ?: "app", message)
+                }
+                if (t != null) LogCenter.e(tag ?: "app", t.message ?: t.toString())
             }
-            if (t != null) LogCenter.e(tag ?: "app", t.message ?: t.toString())
+        } finally {
+            forwarding.set(false)
         }
     }
 }

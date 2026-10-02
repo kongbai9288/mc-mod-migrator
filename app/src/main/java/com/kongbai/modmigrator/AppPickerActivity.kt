@@ -58,7 +58,7 @@ class AppPickerActivity : AppCompatActivity() {
     private fun safePostA(h: android.os.Handler, block: () -> Unit) {
         h.post {
             if (isFinishing || isDestroyed) return@post
-            try { block() } catch (t: Throwable) { Err.ignore(t, "try { block() }") }
+            try { block() } catch (t: Throwable) { Err.ignore(t, "读取应用列表失败，跳过该项") }
         }
     }
 

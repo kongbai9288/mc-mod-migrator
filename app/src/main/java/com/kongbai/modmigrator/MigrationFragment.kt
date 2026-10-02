@@ -105,15 +105,56 @@ class MigrationFragment : Fragment() {
         if (::tvLogSummary.isInitialized) refreshLogSummary()
     }
 
+    /**
+     * 严重错误时弹窗提示。
+     *
+     * ⚠️ 这里**必须切到主线程**，真实崩溃日志为证：
+     * ```
+     * java.lang.IllegalStateException: Method addObserver must be called on the main thread
+     *   at androidx.lifecycle.LifecycleRegistry.addObserver(LifecycleRegistry.kt:181)
+     *   at androidx.savedstate.SavedStateRegistryController.performAttach(...)
+     *   at androidx.activity.ComponentDialog.onCreate(ComponentDialog.kt:74)
+     *   at android.app.Dialog.show(Dialog.java:922)
+     *   at com.kongbai.modmigrator.MigrationFragment$errorHook$1.invoke(...)
+     *   at com.kongbai.modmigrator.LogCenter.push(LogCenter.kt:113)
+     * ```
+     * 日志可能从**任意后台线程**写入（网络回调、下载线程、WorkManager），
+     * 而 errorHook 是直接被 push() 同步调用的 —— 于是 `Dialog.show()`
+     * 跑在后台线程上。AlertDialog 内部要经 SavedStateRegistry → Lifecycle
+     * 注册观察者，只允许主线程，直接抛异常。
+     *
+     * 更糟的是这次异常又被 push 的 catch 捕获、再次走一遍日志链路，
+     * 于是每弹一次失败就再触发一次 → 递归，日志滚到 8 万字符。
+     */
     private val errorHook: (LogCenter.LogLine) -> Unit = { line ->
         val ctx = context
         if (ctx != null && isAdded) {
+            if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    showErrorDialog(ctx, line)
+                }
+            } else {
+                showErrorDialog(ctx, line)
+            }
+        }
+    }
+
+    private fun showErrorDialog(ctx: android.content.Context, line: LogCenter.LogLine) {
+        try {
+            // 二次校验：切到主线程的过程中 Fragment 可能已经 detach，
+            // 或者 Activity 正在销毁。这两种情况下弹窗都会崩
+            // （"Can not perform this action after onSaveInstanceState"）。
+            if (!isAdded || context == null) return
             com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
                 .setTitle("操作失败")
                 .setMessage(line.msg)
                 .setPositiveButton(R.string.ok, null)
                 .setNegativeButton("查看全部日志") { _, _ -> showAllLogs() }
                 .show()
+        } catch (t: Throwable) {
+            // 弹窗失败绝不能再走 Err.ignore：那会写日志、再次触发 errorHook，
+            // 形成无限递归。用原生 Log，它不碰我们的日志系统。
+            android.util.Log.w("errorHook", "错误弹窗失败", t)
         }
     }
 
@@ -1177,7 +1218,12 @@ class MigrationFragment : Fragment() {
             pool.shutdown()
             try {
                 pool.awaitTermination(30, java.util.concurrent.TimeUnit.MINUTES)
-            } catch (t: Throwable) { Err.ignore(t, "pool.awaitTermination(30, java.util.concurrent.Tim") }
+            } catch (t: Throwable) {
+                // 线程池关闭等待被打断。这里本来就是收尾动作，
+                // 等不到不影响结果，但至少要留一条记录。
+                // （之前这里的提示文本是半截代码字符串，看不出在说什么）
+                Err.ignore(t, "等待下载线程池关闭")
+            }
 
             val ok = okCnt.get()
             val total = todo.size

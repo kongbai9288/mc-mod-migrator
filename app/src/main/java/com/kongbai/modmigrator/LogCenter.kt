@@ -93,8 +93,35 @@ object LogCenter {
         errorHooks.remove(h)
     }
 
+    /**
+     * 正在写日志的线程标记（按线程隔离）。
+     *
+     * ⚠️ 最后一道兜底闸门。已出现过两次递归事故：
+     * ① persist 写盘失败 → Err.ignore → LogCenter → push → 再失败
+     * ② push → errorHook 弹窗失败 → Err.ignore → Timber → CrashTree → LogCenter → push
+     * 第 ② 次把单条日志滚到了 8 万字符。
+     *
+     * 上面每一环都已经单独修过了，但日志系统是**全局最底层**的设施，
+     * 任何一处回调（弹窗、落盘、监听器）都可能反过来写日志。
+     * 与其要求每个调用方都记得防递归，不如在入口统一挡住 ——
+     * 递归时直接丢弃内层那条，代价是少记一行日志，
+     * 换来的是绝不会再因为记日志而把 App 拖垮。
+     */
+    private val inPush = java.lang.ThreadLocal.withInitial { false }
+
     @Synchronized
     private fun push(level: String, tag: String, msg: String) {
+        // 递归进入：这一条本身是"记录日志时出的错"，再记一次只会再错一次
+        if (inPush.get()) return
+        inPush.set(true)
+        try {
+            pushInner(level, tag, msg)
+        } finally {
+            inPush.set(false)
+        }
+    }
+
+    private fun pushInner(level: String, tag: String, msg: String) {
         val line = LogLine(now(), level, tag, clipLine(msg))
         lines.add(0, line)
         while (lines.size > MAX_MEM) lines.removeAt(lines.size - 1)
