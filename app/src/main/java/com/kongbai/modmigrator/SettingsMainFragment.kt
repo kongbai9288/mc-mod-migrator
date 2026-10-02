@@ -17,6 +17,10 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.switchmaterial.SwitchMaterial
 import java.util.concurrent.Executors
 
+
+/** 读取登录态的最小间隔（毫秒） */
+private const val ACCOUNT_FETCH_GAP = 10_000L
+
 class SettingsMainFragment : Fragment() {
 
     private lateinit var ivAvatar: ImageView
@@ -156,7 +160,6 @@ class SettingsMainFragment : Fragment() {
      */
     @Volatile
     private var lastAccountFetch = 0L
-    private const val ACCOUNT_FETCH_GAP = 10_000L
 
     /** 刷新登录态：已登录显示头像与昵称，未登录显示登录按钮 */
     private fun refreshAccount(force: Boolean = false) {
