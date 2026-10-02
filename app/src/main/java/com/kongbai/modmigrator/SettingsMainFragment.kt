@@ -62,7 +62,7 @@ class SettingsMainFragment : Fragment() {
             runCatching { WebCookies.flushAll() }
             handler.post {
                 if (!isAdded) return@post
-                refreshAccount()
+                refreshAccount(force = true)
             }
         }
     }
@@ -137,9 +137,36 @@ class SettingsMainFragment : Fragment() {
         }
     }
 
+    /**
+     * 上次真正发起「读取登录态」请求的时间。
+     *
+     * ⚠️ 真实日志里 15 秒内刷了 5 次完整的连接失败（每次带 4KB 堆栈）：
+     * ```
+     * 11:18:25 Connection reset
+     * 11:18:28 SocketTimeoutException ... after 6000ms
+     * 11:18:34 Failed to connect ...:443
+     * 11:18:37 SocketTimeoutException ... after 6000ms
+     * 11:18:40 Failed to connect ...:443
+     * ```
+     * 原因：onCreateView / onResume / 登录回调 / 诊断页返回 都会触发刷新，
+     * 而每次都要串行试多个后端入口、每个都要等满 6 秒连接超时。
+     * 后端本来就不可达时，这等于在几秒内连打十几发必失败的请求。
+     *
+     * 登录态不是实时行情，10 秒内刷一次完全够用。
+     */
+    @Volatile
+    private var lastAccountFetch = 0L
+    private const val ACCOUNT_FETCH_GAP = 10_000L
+
     /** 刷新登录态：已登录显示头像与昵称，未登录显示登录按钮 */
-    private fun refreshAccount() {
+    private fun refreshAccount(force: Boolean = false) {
         val ctx = requireContext()
+        val now = System.currentTimeMillis()
+        if (!force && now - lastAccountFetch < ACCOUNT_FETCH_GAP) {
+            // 刚查过：只把已有状态渲染出来，不再打网络
+            return
+        }
+        lastAccountFetch = now
         exec.execute {
             val u = try {
                 BackendApi.me(ctx)
@@ -278,7 +305,7 @@ class SettingsMainFragment : Fragment() {
                 val full = LoginDiag.format(r)
                 val tip = full.substringAfter("建议：", "")
                 if (tip.isNotBlank()) tv.append("\n建议：$tip")
-                if (r.loggedIn) refreshAccount()
+                if (r.loggedIn) refreshAccount(force = true)
             }
         }
     }
@@ -306,7 +333,7 @@ class SettingsMainFragment : Fragment() {
                 }
                 Prefs.get(ctx).edit().putString(K.GH_TOKEN_BACKEND, t).apply()
                 toast("已保存")
-                refreshAccount()
+                refreshAccount(force = true)
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
@@ -341,7 +368,7 @@ class SettingsMainFragment : Fragment() {
                  }
             handler.post {
                 if (!isAdded) return@post
-                refreshAccount()
+                refreshAccount(force = true)
                 toast("已退出")
             }
         }

@@ -59,29 +59,36 @@ object BackendApi {
 
     fun base(ctx: Context): String = candidates(ctx).first()
 
-    /** 依次尝试主地址与兜底地址，返回第一个成功的响应体 */
+    /**
+     * 依次尝试主地址与兜底地址，返回第一个成功的响应体。
+     *
+     * ⚠️ 失败时**不逐条记日志**：
+     * 4 个候选 × 每个 2 条（异常+警告）× 3KB 堆栈 ≈ 一次调用 24KB 日志。
+     * 而"某个 IP 连不上"对用户毫无用处，他既改不了网络也改不了后端部署。
+     * 全部落空时才记一句总结。
+     */
     private fun getAny(ctx: Context, path: String): String? {
         for (b in candidates(ctx)) {
             try {
                 return Http.get(b + path, timeout = Http.SHORT)
-            } catch (t: Throwable) {
+            } catch (_: Throwable) {
                 // 换下一个兜底地址
-                     Err.ignore(t, "换下一个兜底地址")
-                 }
+            }
         }
+        LogCenter.w("BackendApi", "后端不可用：所有入口都连不上（$path）")
         return null
     }
 
-    /** 依次尝试，返回「实际可用的 base」与「响应体」 */
+    /** 依次尝试，返回「实际可用的 base」与「响应体」。失败时同样不逐条记日志 */
     private fun getAnyWithBase(ctx: Context, path: String): Pair<String, String>? {
         for (b in candidates(ctx)) {
             try {
                 return Pair(b, Http.get(b + path, timeout = Http.SHORT))
-            } catch (t: Throwable) {
+            } catch (_: Throwable) {
                 // 换下一个兜底地址
-                     Err.ignore(t, "换下一个兜底地址")
-                 }
+            }
         }
+        LogCenter.w("BackendApi", "后端不可用：所有入口都连不上（$path）")
         return null
     }
 
@@ -198,11 +205,23 @@ object BackendApi {
         // 全都表现成"明明登录过，打开又显示未登录"，
         // 用户会反复去重新登录，而真正的原因被完全掩盖。
         // 现在把失败记成 error，至少能在日志里看到到底是什么错。
+        // 依次试所有已知入口。
+        // 之前只打 authBase() 一个：主地址是 workers.dev 而它在国内
+        // 经常被重置/超时时，就算填了可用的兜底地址也永远轮不到它 ——
+        // 于是"设置里换了地址却还是登不上"，排查方向完全被带偏。
+        val got = getAnyWithBase(ctx, "/api/auth/me")
+        if (got == null) {
+            // 连不上是网络问题，不该伪装成"未登录"，但要留下线索。
+            // 只记一句人话：完整堆栈 4KB，重试几次就把日志刷满了，
+            // 而"哪个 IP、哪个端口"对用户没有任何用处。
+            LogCenter.w("BackendApi", "读取登录态失败：所有后端入口都连不上")
+            return null
+        }
         val o = try {
-            Json.obj(Http.get(authBase() + "/api/auth/me", timeout = Http.SHORT))
+            Json.obj(got.second)
         } catch (t: Throwable) {
-            // 连不上是网络问题，不该伪装成"未登录"，但要留下线索
-            Err.fail(t, "读取登录态（/api/auth/me）")
+            // 解析失败才是真异常，这个值得记
+            Err.fail(t, "登录态返回不是合法 JSON")
             null
         } ?: return null
         val u = o.asJsonObject.get("user")
