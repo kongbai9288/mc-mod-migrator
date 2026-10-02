@@ -92,6 +92,10 @@ object Announcement {
             .ifBlank { UpdateChecker.defaultRepo() }
         val branch = Prefs.get(ctx).getString(K.BRANCH, "").orEmpty().ifBlank { "main" }
 
+        // 节流：6 小时内查过就不再打外网。
+        // 「再弹一次」是用户主动触发的，必须无视节流立刻去查。
+        if (!force && !shouldCheck()) return null
+
         val notice = fetchFromMirrors(owner, repo, branch) ?: return null
         if (notice.id.isBlank()) return null
         if (!force && closedIds(ctx).contains(notice.id)) return null
@@ -99,48 +103,65 @@ object Announcement {
     }
 
     /**
-     * 依次试镜像，谁通了用谁。
+     * 拉公告。
      *
-     * ⚠️ **404 不是故障，是"仓库里没有公告文件"**。
-     * 真实日志里一次启动就刷了 14 条（7 个镜像 × 错误+警告各一条）：
-     * ```
-     * 错误 · app：HTTP 404 Couldn't find the requested file /announcement.json ...
-     * 警告 · app：已忽略异常：换下一个镜像
-     * ```
-     * 每次冷启动都来这么一屏，把真正有用的日志全淹没了。
-     * 而 announcement.json 是**可选**的：不发公告时本来就不该有这个文件，
-     * 此时 404 是预期结果，不是需要上报的错误。
+     * ⚠️ 这是被反复修的一个点，把踩过的坑记下来：
+     *
+     * **第一次**：仓库里从来没建过 `announcement.json`，而这里要依次试 7 个镜像
+     * 去拉它 —— 每次冷启动 7 个全部 404，刷出 14 条日志
+     * （每个镜像一条"错误"+一条"警告"），把有用的日志全淹没。
+     *
+     * **第二次**：只把 404 静默了，网络类失败（Connection reset）照样
+     * 每个镜像两条日志，每条还带 3KB 堆栈 —— 一次启动几十 KB 日志。
+     *
+     * 根子上的问题是**设计**：公告是个低频、非关键的功能，
+     * 却用了"每次启动都串行打 7 个外网请求、每个失败都记日志"的写法。
+     * 现在改成：
+     *  1. **记住上次成功的镜像**，下次优先试它（绝大多数情况一次就成）
+     *  2. **节流**：距上次尝试不足 6 小时就跳过（公告没必要每次启动都查）
+     *  3. **失败不逐条记**，全部落空才记一句总结
      */
     private fun fetchFromMirrors(owner: String, repo: String, branch: String): Notice? {
-        var notFound = 0
-        for (m in MIRRORS) {
-            val url = m
-                .replace("{owner}", owner)
+        val urls = MIRRORS.map {
+            it.replace("{owner}", owner)
                 .replace("{repo}", repo)
                 .replace("{branch}", branch)
+        }
+        // 上次成功的那个排到最前
+        val last = lastMirror()
+        val ordered = if (last.isBlank()) urls
+        else listOf(last) + urls.filter { it != last }
+
+        var notFound = 0
+        var netFail = 0
+        for (u in ordered) {
             try {
-                // 必须用短超时：这里要依次试 7 个镜像。
-                // 用默认超时的话（读取 120 秒），前面两三个不通就要等好几分钟，
-                // 公告迟迟弹不出来，用户只会觉得"公告功能没做"。
-                // 单个镜像快速失败，7 个试完也就十几秒。
-                val text = Http.get(url, timeout = Http.SHORT)
+                val text = Http.get(u, timeout = Http.SHORT)
                 if (text.isBlank()) continue
                 val n = parse(text)
-                if (n != null) return n
-            } catch (t: Throwable) {
-                if (isNotFound(t)) {
-                    // 文件不存在 → 换下一个镜像，不记错误日志
-                    notFound++
-                    continue
+                if (n != null) {
+                    saveMirror(u)
+                    markAttempt()
+                    return n
                 }
-                // 网络类异常才值得记一条，且合并成一句人话
-                Err.ignore(t, "公告镜像不可用，换下一个")
+            } catch (t: Throwable) {
+                if (isNotFound(t)) notFound++ else netFail++
+                // ⚠️ 这里**故意不记日志**。
+                // 7 个镜像逐个试，每个都记一条就是 7 倍噪音，
+                // 而且失败原因对用户没有意义（他改不了网络、改不了镜像站）。
+                // 全部落空时才在下面记一句总结。
             }
         }
-        if (notFound > 0) {
-            // 所有镜像都返回 404：仓库里没放 announcement.json，
-            // 属于"当前没有公告"，静默结束即可。
-            LogCenter.i("Announcement", "仓库中没有公告文件（$notFound 个镜像均 404），跳过")
+        markAttempt()
+        when {
+            notFound > 0 && netFail == 0 ->
+                LogCenter.i("Announcement", "仓库中没有公告文件（$notFound 个镜像均 404），跳过")
+            netFail > 0 ->
+                LogCenter.w(
+                    "Announcement",
+                    "公告拉取失败（$netFail 个镜像不可达" +
+                        "${if (notFound > 0) "，$notFound 个无此文件" else ""}），跳过"
+                )
         }
         return null
     }
@@ -149,6 +170,37 @@ object Announcement {
     private fun isNotFound(t: Throwable): Boolean {
         val msg = t.message ?: return false
         return msg.contains("HTTP 404") || msg.contains("404 Not Found")
+    }
+
+    // ---- 镜像记忆与节流（都放普通 Prefs，失败也不影响主流程） ----
+
+    private const val KEY_MIRROR = "anno_last_mirror"
+    private const val KEY_AT = "anno_last_attempt"
+    private const val INTERVAL_MS = 6 * 60 * 60 * 1000L
+
+    private fun prefs() = Prefs.appCtx()?.let { Prefs.get(it) }
+
+    private fun lastMirror(): String = try {
+        prefs()?.getString(KEY_MIRROR, "") ?: ""
+    } catch (_: Throwable) { "" }
+
+    private fun saveMirror(u: String) {
+        try {
+            prefs()?.edit()?.putString(KEY_MIRROR, u)?.apply()
+        } catch (_: Throwable) {}
+    }
+
+    /** 距上次尝试是否已超过节流间隔 */
+    fun shouldCheck(): Boolean {
+        val p = prefs() ?: return true
+        val at = try { p.getLong(KEY_AT, 0L) } catch (_: Throwable) { 0L }
+        return System.currentTimeMillis() - at > INTERVAL_MS
+    }
+
+    private fun markAttempt() {
+        try {
+            prefs()?.edit()?.putLong(KEY_AT, System.currentTimeMillis())?.apply()
+        } catch (_: Throwable) {}
     }
 
     private fun parse(text: String): Notice? {
