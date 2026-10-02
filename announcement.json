@@ -1,0 +1,8 @@
+{
+  "id": "2026-10-02-v211",
+  "title": "v2.1.1 更新",
+  "body": "本次修复：\n1. 日志无限递归（单条日志曾滚到 8 万字符）\n2. 错误弹窗在后台线程弹出导致的崩溃\n3. 批量改空 catch 留下的无意义提示文本\n\n另外优化：\n- 日志落盘改为批量写入，高频日志不再拖慢界面\n- 同名文件并发下载不再互相覆盖",
+  "level": "info",
+  "url": "https://github.com/kongbai9288/mc-mod-migrator/releases/latest",
+  "minVersion": "2.1.0"
+}

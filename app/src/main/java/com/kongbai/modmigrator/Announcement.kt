@@ -98,8 +98,21 @@ object Announcement {
         return notice
     }
 
-    /** 依次试镜像，谁通了用谁 */
+    /**
+     * 依次试镜像，谁通了用谁。
+     *
+     * ⚠️ **404 不是故障，是"仓库里没有公告文件"**。
+     * 真实日志里一次启动就刷了 14 条（7 个镜像 × 错误+警告各一条）：
+     * ```
+     * 错误 · app：HTTP 404 Couldn't find the requested file /announcement.json ...
+     * 警告 · app：已忽略异常：换下一个镜像
+     * ```
+     * 每次冷启动都来这么一屏，把真正有用的日志全淹没了。
+     * 而 announcement.json 是**可选**的：不发公告时本来就不该有这个文件，
+     * 此时 404 是预期结果，不是需要上报的错误。
+     */
     private fun fetchFromMirrors(owner: String, repo: String, branch: String): Notice? {
+        var notFound = 0
         for (m in MIRRORS) {
             val url = m
                 .replace("{owner}", owner)
@@ -115,11 +128,27 @@ object Announcement {
                 val n = parse(text)
                 if (n != null) return n
             } catch (t: Throwable) {
-                // 换下一个镜像
-                     Err.ignore(t, "换下一个镜像")
-                 }
+                if (isNotFound(t)) {
+                    // 文件不存在 → 换下一个镜像，不记错误日志
+                    notFound++
+                    continue
+                }
+                // 网络类异常才值得记一条，且合并成一句人话
+                Err.ignore(t, "公告镜像不可用，换下一个")
+            }
+        }
+        if (notFound > 0) {
+            // 所有镜像都返回 404：仓库里没放 announcement.json，
+            // 属于"当前没有公告"，静默结束即可。
+            LogCenter.i("Announcement", "仓库中没有公告文件（$notFound 个镜像均 404），跳过")
         }
         return null
+    }
+
+    /** 判断是不是 404（仓库里没有该文件的正常情况） */
+    private fun isNotFound(t: Throwable): Boolean {
+        val msg = t.message ?: return false
+        return msg.contains("HTTP 404") || msg.contains("404 Not Found")
     }
 
     private fun parse(text: String): Notice? {
