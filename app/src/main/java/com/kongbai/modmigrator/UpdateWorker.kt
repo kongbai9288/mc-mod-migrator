@@ -16,7 +16,7 @@ class UpdateWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params)
 
     override fun doWork(): Result {
         val ctx = applicationContext
-        if (Prefs.get(ctx).getBoolean(K.OFFLINE, false)) return Result.success()
+        if (!NetGate.allow(ctx, NetGate.Area.UPDATE)) return Result.success()
         if (!Prefs.get(ctx).getBoolean(K.UPDATE_CHECK, true)) return Result.success()
         return try {
             val rel = UpdateChecker.latest(ctx)

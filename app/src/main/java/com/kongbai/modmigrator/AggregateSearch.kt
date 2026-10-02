@@ -70,7 +70,8 @@ object AggregateSearch {
         onBatch: (batch: List<MarketMod>, source: String, finished: Boolean) -> Unit
     ) {
         val p = Prefs.get(ctx)
-        if (p.getBoolean(K.OFFLINE, false)) {
+        // 断网细分：商店搜索/推荐单独可控，不再被全局开关一刀切
+        if (!NetGate.allow(ctx, NetGate.Area.SEARCH)) {
             onBatch(emptyList(), "离线模式", true)
             return
         }
@@ -92,7 +93,9 @@ object AggregateSearch {
                             fresh.add(m); break
                         }
                     } else if (m.downloads > old.downloads) {
-                        if (seen.replace(key, old, m)) { fresh.add(m); break }
+                        // 同 recommend：命中已存在时只更新，**不再加入 fresh**，
+                        // 否则同名模组会在列表里出现两次。
+                        if (seen.replace(key, old, m)) break
                     } else break
                 }
             }
@@ -213,7 +216,7 @@ object AggregateSearch {
         // 之前写成了 `|| mc.isBlank()` —— 用户没填 MC 版本时，
         // 推荐直接返回空且没有任何提示，表现就是"点推荐没反应"，
         // 用户只会以为功能坏了。MC 版本是可选过滤条件，不是前置条件。
-        if (p.getBoolean(K.OFFLINE, false) || !p.getBoolean(K.RECOMMEND, true)) {
+        if (!NetGate.allow(ctx, NetGate.Area.SEARCH) || !p.getBoolean(K.RECOMMEND, true)) {
             onBatch(emptyList(), "推荐已关闭", true)
             return
         }
@@ -261,7 +264,15 @@ object AggregateSearch {
                 if (old == null) {
                     if (seen.putIfAbsent(k, m) == null) fresh.add(m)
                 } else if (m.downloads > old.downloads) {
-                    if (seen.replace(k, old, m)) fresh.add(m)
+                    // ⚠️ 重复 bug 就在这里。
+                    // 之前是 `seen.replace(...) 成功就 fresh.add(m)` ——
+                    // 可 old 那条**早就显示在列表里了**，这里再 add 一次，
+                    // 界面上就出现两条同名模组。
+                    // 同一个源里同名项本来就少见，但三个源并行推同一个模组时
+                    // 很容易撞上，于是"推荐列表里总有重复的"。
+                    // 命中已存在时只更新数据（保留更完整的那条），
+                    // **不再往 fresh 里加**。
+                    seen.replace(k, old, m)
                 }
             }
             return fresh

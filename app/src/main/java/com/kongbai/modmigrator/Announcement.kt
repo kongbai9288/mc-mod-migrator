@@ -92,6 +92,8 @@ object Announcement {
             .ifBlank { UpdateChecker.defaultRepo() }
         val branch = Prefs.get(ctx).getString(K.BRANCH, "").orEmpty().ifBlank { "main" }
 
+        // 公告联网可单独关闭
+        if (!NetGate.allow(ctx, NetGate.Area.ANNOUNCE)) return null
         // 节流：6 小时内查过就不再打外网。
         // 「再弹一次」是用户主动触发的，必须无视节流立刻去查。
         if (!force && !shouldCheck()) return null

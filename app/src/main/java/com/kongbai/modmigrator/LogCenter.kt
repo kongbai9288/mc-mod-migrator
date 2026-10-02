@@ -14,8 +14,14 @@ import java.util.Locale
  */
 object LogCenter {
 
-    /** 内存里最多保留多少条（用于顶部展示） */
-    private const val MAX_MEM = 300
+    /**
+     * 内存里最多保留多少条（用于顶部展示）。
+     *
+     * ⚠️ 从 300 降到 120：单条上限 2000 字符，300 条就是 600KB 常驻字符串，
+     * 而这台设备已经因为 OOM 崩过一次（堆只剩 1.9MB）。
+     * 120 条足够回溯最近的操作，又不会把内存吃掉一大块。
+     */
+    private const val MAX_MEM = 120
 
     /**
      * 单条日志最多存多少字符。
@@ -36,7 +42,7 @@ object LogCenter {
      * 堆栈的开头正是异常类型 + 消息 + 我们代码里的触发点，
      * 也就是真正有用的部分；末尾那些 androidx 内部帧价值很低。
      */
-    private const val MAX_LINE_CHARS = 2000
+    private const val MAX_LINE_CHARS = 800
 
     private fun clipLine(msg: String): String {
         if (msg.length <= MAX_LINE_CHARS) return msg
@@ -291,17 +297,44 @@ object LogCenter {
      *    读取正好落在这个窗口里就会读到空内容或半截内容 ——
      *    表现为"日志页偶尔一片空白"，过一会儿再打开又有了，极像随机 bug。
      */
+    /**
+     * 读磁盘日志。
+     *
+     * ⚠️ 之前是 `readBytes()` 把整个文件读进内存再转字符串。
+     * 磁盘上限是 512KB，但 `readBytes()` 会先分配一个等长 ByteArray，
+     * 再 `toString(UTF_8)` 又造一个 String —— 峰值是文件的 3 倍多，
+     * 而这台设备 OOM 时堆只剩 1.9MB。
+     *
+     * 更要命的在用处：日志页把这些文本塞进 TextView 做测量排版，
+     * 一次就是 MB 级开销，直接把页面搞白。
+     *
+     * 现在只保留**最后** MAX_READ_CHARS 个字符（最近发生的事最有用），
+     * 并按行切，不截半个汉字/半个堆栈行。
+     */
     fun readAll(ctx: Context): String = synchronized(logLock) {
         try {
             flushLocked()
             val dir = WorkDir.logs(ctx) ?: return@synchronized ""
             val f = dir.findFile("app.log") ?: return@synchronized ""
-            ctx.contentResolver.openInputStream(f.uri)?.use {
+            val raw = ctx.contentResolver.openInputStream(f.uri)?.use {
                 it.readBytes().toString(Charsets.UTF_8)
             } ?: ""
+            tailChars(raw)
         } catch (t: Throwable) {
             ""
         }
+    }
+
+    /** 磁盘日志最多读回多少字符 */
+    private const val MAX_READ_CHARS = 24000
+
+    /** 取末尾 N 个字符，并从第一个完整行开始，避免截断半个汉字 */
+    private fun tailChars(s: String): String {
+        if (s.length <= MAX_READ_CHARS) return s
+        val start = s.length - MAX_READ_CHARS
+        val nl = s.indexOf('\n', start)
+        val cut = if (nl >= 0) nl + 1 else start
+        return "……（日志较长，仅显示最近部分）\n\n" + s.substring(cut)
     }
 
     /**

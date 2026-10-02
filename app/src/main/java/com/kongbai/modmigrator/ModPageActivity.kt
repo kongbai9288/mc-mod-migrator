@@ -156,7 +156,7 @@ class ModPageActivity : AppCompatActivity() {
      */
     private fun loadTranslated() {
         if (url.isBlank()) return
-        val offline = Prefs.get(this).getBoolean(K.OFFLINE, false)
+        val offline = !NetGate.allow(this, NetGate.Area.TRANSLATE)
         toast(if (offline) "离线翻译中（用本地模型）…" else "翻译中…")
 
         web.webViewClient = object : android.webkit.WebViewClient() {

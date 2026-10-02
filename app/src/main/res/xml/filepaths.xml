@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <cache-path name="logs" path="logs/" />
+    <!-- ⚠️ 分享功能之前根本发不出去：QuickTransfer.pack() 把 zip 写在
+         cacheDir/share/ 下，而这里只声明了 logs/ 一个 cache 子目录。
+         FileProvider.getUriForFile() 找不到匹配的 root，直接抛
+         IllegalArgumentException("Failed to find configured root ...")，
+         于是用户点了"发送到别的设备"什么都没发生（或者只弹一句"无法分享"）。
+         补上 share/，并加一条 cache 根路径兜底，避免以后换个目录又踩同一个坑。 -->
+    <cache-path name="share" path="share/" />
+    <cache-path name="cache" path="." />
     <files-path name="files" path="." />
     <external-files-path name="external" path="." />
     <external-path name="sdcard" path="." />

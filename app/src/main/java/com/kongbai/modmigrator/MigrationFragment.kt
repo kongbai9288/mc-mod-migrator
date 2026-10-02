@@ -139,18 +139,65 @@ class MigrationFragment : Fragment() {
         }
     }
 
+    /**
+     * 错误弹窗的节流时间戳。
+     *
+     * ⚠️ 真实体验问题：批量操作时（比如几十个模组逐个失败），
+     * 每条错误都弹一个对话框，**一个叠一个往上堆**。
+     * 用户看到的不是提示，而是一叠关不完的弹窗 ——
+     * 底下的「复制」按钮根本点不到，只能一个一个点掉。
+     *
+     * 现在：3 秒内只弹一次，后续错误**追加到已弹的那个对话框里**，
+     * 而不是再开一个新的。
+     */
+    private var lastErrDialogAt = 0L
+    private var pendingErrText: StringBuilder? = null
+    private var pendingErrCount = 0
+    private var pendingErrDialog: androidx.appcompat.app.AlertDialog? = null
+
     private fun showErrorDialog(ctx: android.content.Context, line: LogCenter.LogLine) {
         try {
             // 二次校验：切到主线程的过程中 Fragment 可能已经 detach，
             // 或者 Activity 正在销毁。这两种情况下弹窗都会崩
             // （"Can not perform this action after onSaveInstanceState"）。
             if (!isAdded || context == null) return
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+
+            val now = System.currentTimeMillis()
+            // 已有对话框还开着（3 秒内）→ 累加进去，不再新建
+            val buf = pendingErrText
+            val dlg = pendingErrDialog
+            if (buf != null && dlg != null && now - lastErrDialogAt < 3000L) {
+                pendingErrCount++
+                if (buf.length < 3000) buf.append("\n\n").append(line.msg)
+                // ⚠️ 光改 StringBuilder 是不会刷新的：
+                // 对话框 show 时已经把文本设进 TextView 了，
+                // 必须直接改 TextView 才能看到新内容。
+                runCatching {
+                    dlg.findViewById<android.widget.TextView>(android.R.id.message)
+                        ?.text = "（共 $pendingErrCount 条错误）\n\n$buf"
+                }
+                return
+            }
+
+            val sb = StringBuilder(line.msg)
+            pendingErrText = sb
+            pendingErrCount = 1
+            lastErrDialogAt = now
+
+            val d = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
                 .setTitle("操作失败")
-                .setMessage(line.msg)
-                .setPositiveButton(R.string.ok, null)
-                .setNegativeButton("查看全部日志") { _, _ -> showAllLogs() }
+                .setMessage(sb)
+                .setPositiveButton(R.string.ok) { _, _ -> pendingErrText = null }
+                .setNegativeButton("查看全部日志") { _, _ ->
+                    pendingErrText = null
+                    showAllLogs()
+                }
                 .show()
+            pendingErrDialog = d
+            d.setOnDismissListener {
+                pendingErrText = null
+                pendingErrDialog = null
+            }
         } catch (t: Throwable) {
             // 弹窗失败绝不能再走 Err.ignore：那会写日志、再次触发 errorHook，
             // 形成无限递归。用原生 Log，它不碰我们的日志系统。

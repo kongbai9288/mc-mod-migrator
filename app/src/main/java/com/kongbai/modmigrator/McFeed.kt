@@ -105,6 +105,10 @@ object McFeed {
         val hit = cached(key)
         if (hit.isNotEmpty()) return hit
 
+        // 资讯联网可单独关闭。注意放在缓存之后：
+        // 断网时仍然返回已缓存的内容，不至于一片空白。
+        if (!NetGate.allow(ctx, NetGate.Area.FEED)) return emptyList()
+
         val zone = ZONES.firstOrNull { it.key == key } ?: return emptyList()
 
         // 官方版本这一块优先用 Modrinth 的游戏版本接口（结构化，比抓 HTML 稳），

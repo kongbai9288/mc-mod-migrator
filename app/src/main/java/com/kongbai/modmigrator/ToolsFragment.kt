@@ -108,12 +108,18 @@ class ToolsFragment : Fragment() {
         ) { shareMods() })
 
         // ---------- 开发者 ----------
-        root.addView(UiCards.sectionTitle(ctx, "开发者"))
+        root.addView(UiCards.sectionTitle(ctx, "开发者", R.drawable.ic_code))
 
         root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_edit, "代码级迁移",
+            ctx, R.drawable.ic_code, "代码级迁移",
             "Forge↔Fabric↔NeoForge 工程转换，先扫描出报告再改", "打开"
         ) { codeMigrate() })
+
+        // 崩溃日志：排查问题时最常要的东西，之前只能去设置里翻
+        root.addView(UiCards.infoCard(
+            ctx, R.drawable.ic_info, "崩溃日志",
+            "查看历次崩溃记录，可复制或分享给开发者", "查看"
+        ) { showCrashLog() })
 
         return scroll
     }
@@ -563,8 +569,14 @@ class ToolsFragment : Fragment() {
             for (f in files) {
                 val out = java.io.File(tmp, f.name ?: continue)
                 try {
-                    ctx.contentResolver.openInputStream(f.uri)?.use { i ->
-                        out.outputStream().use { i.copyTo(it, 1 shl 16) }
+                    ctx.contentResolver.openInputStream(f.uri)?.use { raw ->
+                        out.outputStream().use { o ->
+                            // 同 MrpackExport：SAF 流必须包缓冲，
+                            // 否则每次 read 都是一次跨进程调用
+                            java.io.BufferedInputStream(raw, 1 shl 18).use {
+                                it.copyTo(o, 1 shl 18)
+                            }
+                        }
                     }
                     if (out.exists() && out.length() > 0) locals.add(out)
                 } catch (t: Throwable) {
@@ -578,6 +590,51 @@ class ToolsFragment : Fragment() {
             handler.post {
                 if (!isAdded) return@post
                 QuickTransfer.shareFiles(ctx, locals, "mods.zip")
+            }
+        }
+    }
+
+    /**
+     * 查看崩溃日志。
+     * 放在后台读：CrashHandler.readAll 会把历次崩溃文件全读一遍，是磁盘 IO。
+     */
+    private fun showCrashLog() {
+        val ctx = context ?: return
+        toast("正在读取崩溃日志…")
+        bg {
+            val txt = CrashHandler.readAll(ctx)
+            handler.post {
+                if (!isAdded) return@post
+                val body = txt.ifBlank { "没有记录到崩溃" }
+                val sv = android.widget.ScrollView(ctx)
+                val tv = TextView(ctx).apply {
+                    text = body
+                    textSize = 12f
+                    setPadding(24, 16, 24, 16)
+                    setTextIsSelectable(true)
+                }
+                sv.addView(tv)
+                MaterialAlertDialogBuilder(ctx)
+                    .setTitle("崩溃日志")
+                    .setView(sv)
+                    .setPositiveButton(R.string.ok, null)
+                    .setNeutralButton("复制") { _, _ ->
+                        val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                                as? android.content.ClipboardManager
+                        if (cm == null) {
+                            toast("复制失败：拿不到剪贴板")
+                        } else {
+                            cm.setPrimaryClip(
+                                android.content.ClipData.newPlainText("崩溃日志", body)
+                            )
+                            toast("已复制")
+                        }
+                    }
+                    .setNegativeButton("清空") { _, _ ->
+                        CrashHandler.clear(ctx)
+                        toast("已清空")
+                    }
+                    .show()
             }
         }
     }

@@ -124,7 +124,7 @@ object Egg {
             }
 
             root.addView(TextView(ctx).apply {
-                text = "🎨 换个颜色"
+                text = "换个颜色"
                 textSize = 16f
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
                 setPadding(0, 0, 0, (10 * ctx.resources.displayMetrics.density).toInt())
@@ -209,7 +209,7 @@ object Egg {
                     Prefs.get(ctx).edit().putBoolean(K.EXPERIMENTAL_UPGRADE, on).apply()
                     Toast.makeText(
                         ctx,
-                        if (on) "🔓 已解锁实验性功能：设置 → 实验室" else "已隐藏实验性功能",
+                        if (on) "已解锁实验性功能：设置 → 实验室" else "已隐藏实验性功能",
                         Toast.LENGTH_LONG
                     ).show()
                 }

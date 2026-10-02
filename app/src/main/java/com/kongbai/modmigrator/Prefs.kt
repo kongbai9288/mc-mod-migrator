@@ -158,6 +158,15 @@ object K {
     const val ANIM_MODE = "anim_mode"
     const val DOWNLOAD_PARALLEL = "download_parallel"
     const val UPDATE_CHECK = "update_check"
+
+    // ---- 断网模式细分 ----
+    // 总开关 OFFLINE 打开时一律断网；关闭时再按下面这些分项判断。
+    // 用法见 NetGate.
+    const val OFFLINE_SEARCH = "offline_search"       // 商店搜索 / 推荐
+    const val OFFLINE_TRANSLATE = "offline_translate" // 在线翻译
+    const val OFFLINE_FEED = "offline_feed"           // 资讯抓取
+    const val OFFLINE_UPDATE = "offline_update"       // 更新检查
+    const val OFFLINE_ANNOUNCE = "offline_announce"   // 公告拉取
     const val LAST_UPDATE_TAG = "last_update_tag"
     const val LAST_UPDATE_NOTES = "last_update_notes"
     const val LAST_UPDATE_AT = "last_update_at"

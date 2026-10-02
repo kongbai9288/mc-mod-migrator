@@ -32,6 +32,23 @@ class ModAdapter(
         return VH(v)
     }
 
+    /** 把大数字压成中文习惯的短写法：12.8万 / 1.2亿 */
+    private fun compactCount(n: Long): String {
+        if (n <= 0) return "0"
+        return when {
+            n >= 100_000_000L -> "%.1f亿".format(n / 100_000_000.0)
+            n >= 10_000L -> {
+                val v = n / 10_000.0
+                // 1.0万 这种小数点后的 0 没意义，整数就显示整数
+                if (v >= 100) "%.0f万".format(v) else "%.1f万".format(v)
+            }
+            else -> {
+                // 千位分隔，避免 1234 和 12345 混在一起看错量级
+                java.text.NumberFormat.getIntegerInstance(java.util.Locale.CHINA).format(n)
+            }
+        }
+    }
+
     override fun getItemCount(): Int = items.size
 
     override fun onBindViewHolder(h: VH, pos: Int) {
@@ -96,7 +113,11 @@ class MarketAdapter(
         val m = items[pos]
         // 收藏的加个星标，一眼能认出来
         h.name.text = (if (isFav(m)) "★ " else "") + m.name
-        h.meta.text = "${m.source} · 下载量 ${m.downloads}"
+        // ⚠️ 之前直接打印原始数字（如 "下载量 12847392"）。
+        // 位数长、没分隔，在列表里横向占位很宽，
+        // 把模组名和简介挤得只剩一点点，看列表很费劲。
+        // 改成中文习惯的万/亿，一眼能比较量级又不挡视线。
+        h.meta.text = "${m.source} · ${compactCount(m.downloads)} 次下载"
         if (m.summaryZh.isNotBlank()) {
             h.status.text = m.summaryZh
             h.trans.text = "原文"

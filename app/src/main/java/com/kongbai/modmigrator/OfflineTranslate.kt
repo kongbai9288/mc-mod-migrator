@@ -180,7 +180,7 @@ object OfflineTranslate {
             return
         }
         // 离线模式：只用本地词典，不联网
-        if (Prefs.get(ctx).getBoolean(K.OFFLINE, false)) {
+        if (!NetGate.allow(ctx, NetGate.Area.TRANSLATE)) {
             cb(null)
             return
         }

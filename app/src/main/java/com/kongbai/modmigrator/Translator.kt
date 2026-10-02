@@ -245,7 +245,7 @@ object Translator {
      */
     /** 在线兜底：模型不可用时的备胎，公开给需要同步结果的场景 */
     fun fallbackTranslate(text: String): String? {
-        if (Prefs.appCtx()?.let { Prefs.get(it).getBoolean(K.OFFLINE, false) } == true) {
+        if (!NetGate.allow(Prefs.appCtx(), NetGate.Area.TRANSLATE)) {
             return null
         }
         return try {

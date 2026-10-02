@@ -59,11 +59,21 @@ object AnimPrefs {
      * 速率可调（设置 → 实验室 → 动画速率）：
      *   慢 = 1.6 倍时长（看得清）、正常 = 1 倍、快 = 0.5 倍（干脆利落）。
      */
-    fun dur(ctx: Context, ms: Long = 220L): Long {
+    /**
+     * 动画时长。
+     *
+     * ⚠️ 基准从 220ms 降到 150ms，快档 0.5 → 0.35。
+     * 反馈原话是"叠化太慢，反而让人觉得卡"。
+     * 220ms 单看不算长，但列表是**逐项错开淡入**的（下面 stagger 40ms/项），
+     * 一屏十几项时最后一项要等 400+220=620ms 才完全出现 ——
+     * 用户感知到的不是"优雅"，而是"列表要等半天才齐"。
+     * 150ms 已经足够柔和，又不拖沓。
+     */
+    fun dur(ctx: Context, ms: Long = 150L): Long {
         if (!enabled(ctx)) return 0L
         val f = when (speed(ctx)) {
             0 -> 1.6f   // 慢
-            2 -> 0.5f   // 快
+            2 -> 0.35f  // 快
             else -> 1.0f
         }
         return (ms * f).toLong()
@@ -144,8 +154,12 @@ object AnimPrefs {
             }
             return
         }
+        // ⚠️ 错开间隔从 40ms/项降到 18ms/项，累计上限 400ms 降到 180ms。
+        // 原来一屏十几项时，最后一项要等 400ms 才开始动，
+        // 加上自身 220ms 时长，总共 620ms 才稳定 —— 观感就是"慢"。
+        // 18ms 仍能看出依次浮现的层次，但整体收在 330ms 内。
         views.forEachIndexed { i, v ->
-            fadeIn(ctx, v, (i * 40L).coerceAtMost(400L))
+            fadeIn(ctx, v, (i * 18L).coerceAtMost(180L))
         }
     }
 

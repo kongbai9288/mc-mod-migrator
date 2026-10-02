@@ -97,9 +97,21 @@ class SettingsMainFragment : Fragment() {
         }
         swOffline.isChecked = Prefs.get(requireContext()).getBoolean(K.OFFLINE, false)
         swOffline.setOnCheckedChangeListener { _, c ->
+            if (loading) return@setOnCheckedChangeListener
             Prefs.get(requireContext()).edit().putBoolean(K.OFFLINE, c).apply()
-            toast(if (c) "已开启离线模式：只用本地词典与缓存，不发网络请求" else "已关闭离线模式")
+            toast(if (c) "已开启离线模式：所有联网功能一律关闭" else "已关闭离线模式")
+            syncOfflineParts()
         }
+
+        // ---- 断网细分 ----
+        // 之前只有一个总开关：想省某一块的流量，就只能把所有联网一起关掉。
+        // 现在总开关关闭时，可以按块单独关。
+        bindOfflinePart(v, R.id.swOfflineSearch, K.OFFLINE_SEARCH)
+        bindOfflinePart(v, R.id.swOfflineTranslate, K.OFFLINE_TRANSLATE)
+        bindOfflinePart(v, R.id.swOfflineFeed, K.OFFLINE_FEED)
+        bindOfflinePart(v, R.id.swOfflineUpdate, K.OFFLINE_UPDATE)
+        bindOfflinePart(v, R.id.swOfflineAnnounce, K.OFFLINE_ANNOUNCE)
+        syncOfflineParts(v)
 
         btnAccount.setOnClickListener { login() }
         v.findViewById<Button>(R.id.btnGoBackend).setOnClickListener { go("backend") }
@@ -113,6 +125,40 @@ class SettingsMainFragment : Fragment() {
 
         refreshAccount()
         return v
+    }
+
+    /**
+     * 绑定一个细分断网开关。
+     * 控件文字是"关闭xxx的联网"，所以勾选 = 存 true = 断网。
+     */
+    private fun bindOfflinePart(
+        v: View, id: Int, key: String
+    ) {
+        val sw = v.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(id)
+            ?: return
+        sw.isChecked = Prefs.get(requireContext()).getBoolean(key, false)
+        sw.setOnCheckedChangeListener { _, c ->
+            if (loading) return@setOnCheckedChangeListener
+            Prefs.get(requireContext()).edit().putBoolean(key, c).apply()
+        }
+    }
+
+    /**
+     * 总开关打开时把分项置灰 —— 此时分项不起作用，
+     * 还让用户能勾会造成"我明明单独开了商店，怎么还是连不上"的困惑。
+     */
+    private fun syncOfflineParts(v: View) {
+        val on = Prefs.get(requireContext()).getBoolean(K.OFFLINE, false)
+        for (id in intArrayOf(
+            R.id.swOfflineSearch, R.id.swOfflineTranslate, R.id.swOfflineFeed,
+            R.id.swOfflineUpdate, R.id.swOfflineAnnounce
+        )) {
+            v.findViewById<android.view.View>(id)?.let {
+                it.isEnabled = !on
+                it.alpha = if (on) 0.4f else 1f
+            }
+        }
+        v.findViewById<android.view.View>(R.id.tvOfflineParts)?.alpha = if (on) 0.4f else 1f
     }
 
     private fun go(page: String) {

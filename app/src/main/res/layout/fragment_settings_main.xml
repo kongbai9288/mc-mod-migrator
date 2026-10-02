@@ -139,5 +139,53 @@
             android:text="@string/cfg_offline_hint"
             android:textColor="@color/textSecondary"
             android:textSize="12sp" />
+
+        <!-- 断网细分：总开关关闭时，这几个分项才生效 -->
+        <TextView
+            android:id="@+id/tvOfflineParts"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="单独关闭某一项的联网"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/swOfflineSearch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="商店搜索与推荐" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/swOfflineTranslate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="在线翻译（关掉后只用本地词典）" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/swOfflineFeed"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="资讯抓取" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/swOfflineUpdate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="更新检查" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/swOfflineAnnounce"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="公告拉取" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="8dp"
+            android:text="上面的总开关打开时，所有联网一律关闭，分项不再单独判断。"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
     </LinearLayout>
 </ScrollView>

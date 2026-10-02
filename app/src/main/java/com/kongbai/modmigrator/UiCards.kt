@@ -144,15 +144,47 @@ object UiCards {
         }
 
     /** 分组标题 */
-    fun sectionTitle(ctx: Context, text: String): TextView =
-        TextView(ctx).apply {
-            this.text = text
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
-            setTextColor(primary(ctx))
+    /**
+     * 分区标题。
+     *
+     * @param icon 传 0 就是纯文字（保持旧行为）；
+     *             传图标资源则左侧带一个 16dp 的小图标，
+     *             让"依赖与冲突 / 实例与加载器 / 开发者"这类分区
+     *             在长列表里更容易区分定位。
+     */
+    @JvmOverloads
+    fun sectionTitle(ctx: Context, text: String, icon: Int = 0): View {
+        if (icon == 0) {
+            return TextView(ctx).apply {
+                this.text = text
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setTextColor(primary(ctx))
+                val p = dp(ctx, 4)
+                setPadding(dp(ctx, 2), dp(ctx, 16), p, dp(ctx, 6))
+            }
+        }
+        return LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
             val p = dp(ctx, 4)
             setPadding(dp(ctx, 2), dp(ctx, 16), p, dp(ctx, 6))
+            addView(ImageView(ctx).apply {
+                setImageResource(icon)
+                val s = dp(ctx, 16)
+                layoutParams = LinearLayout.LayoutParams(s, s).apply {
+                    marginEnd = dp(ctx, 6)
+                }
+                setColorFilter(primary(ctx))
+            })
+            addView(TextView(ctx).apply {
+                this.text = text
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setTextColor(primary(ctx))
+            })
         }
+    }
 
     /**
      * 名单卡片：圆形首字母头像 + 名字 + 角色 + 可点击打开主页。

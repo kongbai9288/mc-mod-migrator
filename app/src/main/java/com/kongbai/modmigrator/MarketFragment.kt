@@ -330,10 +330,32 @@ class MarketFragment : Fragment() {
                 searchResults.addAll(list)
                 currentTab = "search"
                 refreshList()
-                toast(if (list.isEmpty()) "没获取到推荐" else "推荐 ${list.size} 个")
-                if (list.isNotEmpty()) autoTranslate(list)
+                // ⚠️ 之前只说一句"没获取到推荐"。
+                // 但空结果的原因差别很大：是开关关了、断网了、
+                // CurseForge 没填 Key，还是三个源都失败了？
+                // 不说清楚，用户只能一遍遍点，以为功能坏了。
+                if (list.isEmpty()) {
+                    toast(recommendEmptyReason(ctx))
+                } else {
+                    toast("推荐 ${list.size} 个")
+                    autoTranslate(list)
+                }
             }
         }
+
+        // 让 AggregateSearch 把各源的失败原因记录下来，便于这里说明
+        AggregateSearch.lastRoutes = ""
+    }
+
+    /** 推荐为空时，说清楚到底是为什么 */
+    private fun recommendEmptyReason(ctx: android.content.Context): String {
+        val p = Prefs.get(ctx)
+        if (p.getBoolean(K.OFFLINE, false)) return "已开启离线模式，推荐需要联网"
+        if (p.getBoolean(K.OFFLINE_SEARCH, false)) return "已在设置里单独关闭了商店联网"
+        if (!p.getBoolean(K.RECOMMEND, true)) return "推荐开关是关的（设置 → 搜索里打开）"
+        val routes = AggregateSearch.lastRoutes
+        if (routes.isNotBlank()) return "没获取到推荐（$routes）"
+        return "没获取到推荐：各来源都没返回数据，检查网络或到设置里配置来源"
     }
 
     /** 收藏夹页签：加载并显示，搜索结果原样保留在内存里 */
