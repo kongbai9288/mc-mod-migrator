@@ -23,6 +23,10 @@ private const val ACCOUNT_FETCH_GAP = 10_000L
 
 class SettingsMainFragment : Fragment() {
 
+    /** 初始化期间禁止触发监听器（Spinner/Switch 设置监听器时会自动回调一次） */
+    private var loading = true
+
+
     private lateinit var ivAvatar: ImageView
     private lateinit var rowAccount: android.view.View
     private lateinit var tvAccount: TextView
@@ -100,7 +104,7 @@ class SettingsMainFragment : Fragment() {
             if (loading) return@setOnCheckedChangeListener
             Prefs.get(requireContext()).edit().putBoolean(K.OFFLINE, c).apply()
             toast(if (c) "已开启离线模式：所有联网功能一律关闭" else "已关闭离线模式")
-            syncOfflineParts()
+            syncOfflineParts(v)
         }
 
         // ---- 断网细分 ----
@@ -124,6 +128,7 @@ class SettingsMainFragment : Fragment() {
         v.findViewById<Button>(R.id.btnGoLab)?.setOnClickListener { go("lab") }
 
         refreshAccount()
+        loading = false
         return v
     }
 

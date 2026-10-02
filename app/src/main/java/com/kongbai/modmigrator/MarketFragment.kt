@@ -343,8 +343,6 @@ class MarketFragment : Fragment() {
             }
         }
 
-        // 让 AggregateSearch 把各源的失败原因记录下来，便于这里说明
-        AggregateSearch.lastRoutes = ""
     }
 
     /** 推荐为空时，说清楚到底是为什么 */

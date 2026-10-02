@@ -32,23 +32,6 @@ class ModAdapter(
         return VH(v)
     }
 
-    /** 把大数字压成中文习惯的短写法：12.8万 / 1.2亿 */
-    private fun compactCount(n: Long): String {
-        if (n <= 0) return "0"
-        return when {
-            n >= 100_000_000L -> "%.1f亿".format(n / 100_000_000.0)
-            n >= 10_000L -> {
-                val v = n / 10_000.0
-                // 1.0万 这种小数点后的 0 没意义，整数就显示整数
-                if (v >= 100) "%.0f万".format(v) else "%.1f万".format(v)
-            }
-            else -> {
-                // 千位分隔，避免 1234 和 12345 混在一起看错量级
-                java.text.NumberFormat.getIntegerInstance(java.util.Locale.CHINA).format(n)
-            }
-        }
-    }
-
     override fun getItemCount(): Int = items.size
 
     override fun onBindViewHolder(h: VH, pos: Int) {
@@ -105,6 +88,23 @@ class MarketAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val v = LayoutInflater.from(parent.context).inflate(R.layout.item_mod, parent, false)
         return VH(v)
+    }
+
+    /** 把大数字压成中文习惯的短写法：12.8万 / 1.2亿 */
+    private fun compactCount(n: Long): String {
+        if (n <= 0) return "0"
+        return when {
+            n >= 100_000_000L -> "%.1f亿".format(n / 100_000_000.0)
+            n >= 10_000L -> {
+                val v = n / 10_000.0
+                // 1.0万 这种小数点后的 0 没意义，整数就显示整数
+                if (v >= 100) "%.0f万".format(v) else "%.1f万".format(v)
+            }
+            else -> {
+                // 千位分隔，避免 1234 和 12345 混在一起看错量级
+                java.text.NumberFormat.getIntegerInstance(java.util.Locale.CHINA).format(n)
+            }
+        }
     }
 
     override fun getItemCount(): Int = items.size
