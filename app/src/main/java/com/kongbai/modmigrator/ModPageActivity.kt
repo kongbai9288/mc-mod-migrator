@@ -334,7 +334,7 @@ class ModPageActivity : AppCompatActivity() {
                             android.net.Uri.parse(web.url)
                         )
                     )
-                } catch (t: Throwable) { Err.ignore(t, ")") }
+                } catch (t: Throwable) { Err.ignore(t, "解析模组详情页数据") }
             }
         }
         return true

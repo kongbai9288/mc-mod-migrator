@@ -163,7 +163,9 @@ class ServerFragment : Fragment() {
                 android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
                     android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             )
-        } catch (t: Throwable) { Err.ignore(t, ")") }
+        } catch (t: Throwable) {
+            Err.ignore(t, "恢复上次保存的面板凭据")
+        }
         Prefs.get(ctx).edit().putString(K.PANEL_OUT_DIR, uri.toString()).apply()
         refreshOutDirLabel()
         toast("已设置存放位置")
@@ -193,6 +195,10 @@ class ServerFragment : Fragment() {
             } catch (t: Throwable) {
                 log("认证失败：${t.message}")
                 safePost(handler) { toast("认证失败：${t.message}") }
+                return@bg
+            }
+            if (token == null) {
+                safePost(handler) { showLoginUnsupported() }
                 return@bg
             }
             val entries = try {
@@ -310,6 +316,10 @@ class ServerFragment : Fragment() {
                 toast("认证失败：${t.message}")
                 return@bg
             }
+            if (token == null) {
+                safePost(handler) { showLoginUnsupported() }
+                return@bg
+            }
             val dirs = ServerPanelApi.probeDirs(c.base, token, srv.uuid.ifBlank { srv.id })
             safePost(handler) {
                 if (dirs.isEmpty()) {
@@ -380,6 +390,12 @@ class ServerFragment : Fragment() {
             toast("请填写 Client API Key")
             return
         }
+        // 账号密码这条路根本走不通，没必要先发一轮网络请求再告诉用户。
+        // 直接在这里拦下来说明白。
+        if (c.mode == ServerPanelApi.Mode.LOGIN) {
+            showLoginUnsupported()
+            return
+        }
         // 提前校验 Key 形态：填成应用 Key（ptla_）会直接 403，
         // 而面板返回的 403 信息对用户等于天书，这里先拦下来说明白
         if (c.mode == ServerPanelApi.Mode.KEY) {
@@ -402,6 +418,26 @@ class ServerFragment : Fragment() {
         doConnect(c)
     }
 
+    /**
+     * 账号密码模式走不通时的引导。
+     *
+     * 之前依赖 `login()` 抛异常把这段话带出来 —— 那是**异常当业务提示用**，
+     * 任何一处漏了 try-catch 就是崩溃。现在 login() 返回 null，
+     * 提示统一由这里弹，并且在**发起连接之前**就拦下来，
+     * 不再让用户先等一轮网络请求才看到结论。
+     */
+    private fun showLoginUnsupported() {
+        val ctx = context ?: return
+        runCatching {
+            if (!isAdded) return
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                .setTitle("请用 API Key 连接")
+                .setMessage(ServerPanelApi.LOGIN_UNSUPPORTED_MSG)
+                .setPositiveButton(R.string.ok, null)
+                .show()
+        }
+    }
+
     private fun doConnect(c: ServerPanelApi.Cred) {
         toast("正在连接面板…")
         bg {
@@ -410,6 +446,10 @@ class ServerFragment : Fragment() {
             } catch (t: Throwable) {
                 log("认证失败：${t.message}")
                 safePost(handler) { toast("认证失败：${t.message}") }
+                return@bg
+            }
+            if (token == null) {
+                safePost(handler) { showLoginUnsupported() }
                 return@bg
             }
             val list = try {
@@ -481,6 +521,10 @@ class ServerFragment : Fragment() {
             } catch (t: Throwable) {
                 log("认证失败：${t.message}")
                 safePost(handler) { toast("认证失败：${t.message}") }
+                return@bg
+            }
+            if (token == null) {
+                safePost(handler) { showLoginUnsupported() }
                 return@bg
             }
             val list = try {

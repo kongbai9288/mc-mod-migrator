@@ -71,7 +71,7 @@ object Perms {
             ctx.contentResolver.releasePersistableUriPermission(
                 Uri.parse(uriStr), FLAGS
             )
-        } catch (t: Throwable) { Err.ignore(t, ")") }
+        } catch (t: Throwable) { Err.ignore(t, "查询 URI 持久化权限") }
     }
 
     /** 当前仍在使用的授权（即设置里存着的那些 URI） */

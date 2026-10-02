@@ -112,7 +112,7 @@ class SettingsBackendFragment : Fragment() {
                     android.net.Uri.parse("https://github.com/settings/developers")
                 )
             )
-        } catch (t: Throwable) { Err.ignore(t, ")") }
+        } catch (t: Throwable) { Err.ignore(t, "保存后端设置") }
     }
 
     private fun probe() {

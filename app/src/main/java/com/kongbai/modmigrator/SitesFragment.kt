@@ -49,7 +49,7 @@ class SitesFragment : Fragment() {
                                 android.net.Uri.parse(s.url)
                             )
                         )
-                    } catch (t: Throwable) { Err.ignore(t, ")") }
+                    } catch (t: Throwable) { Err.ignore(t, "打开站点链接") }
                     true
                 }
                 root.addView(card)

@@ -83,6 +83,12 @@ object ServerPanelApi {
             // URL 里用短 id 或 uuid 都可以，优先短 id
             val id = identifier.ifBlank { uuid }
 
+            // ⚠️ 两个都没有就必须跳过。
+            // 硬塞进列表的话，点进去会拼出 /api/client/servers//files/list
+            // → 404，界面表现为"列表能显示、点进去什么都加载不了"，
+            // 而且看不出是哪台服务器有问题。跳过并留下名字更好排查。
+            if (id.isBlank()) continue
+
             val eggName = Json.s(attrs, "name")
             var eggKind = ""
             val rel = d.asJsonObject.get("relationships")
@@ -185,22 +191,36 @@ object ServerPanelApi {
      * 所以这个功能以前只是"点了没反应然后报一句登录失败"。
      * 现在如实说明，把用户引到真正能用的做法上，不再假装能登。
      */
-    fun login(base: String, user: String, pass: String): String {
-        throw RuntimeException(
-            "无法用账号密码登录。\n\n" +
-                "Pterodactyl 的客户端接口只接受 **Client API Key**：\n" +
-                "登录面板 → 右上角账号 → API 凭证（/account/api）→ 创建，\n" +
-                "复制那把以 ptlc_ 开头的 Key，填回这里即可。\n\n" +
-                "（注意：以 ptla_ 开头的是应用 API Key，客户端接口不接受。）"
-        )
-    }
+    /**
+     * 账号密码不可用的说明。
+     * 抽成常量，好让 UI 在**发起连接之前**就能直接展示，不必等到抛异常。
+     */
+    val LOGIN_UNSUPPORTED_MSG = "无法用账号密码登录。\n\n" +
+        "Pterodactyl 的客户端接口只接受 **Client API Key**：\n" +
+        "登录面板 → 右上角账号 → API 凭证（/account/api）→ 创建，\n" +
+        "复制那把以 ptlc_ 开头的 Key，填回这里即可。\n\n" +
+        "（注意：以 ptla_ 开头的是应用 API Key，客户端接口不接受。）"
 
-    /** 拿最终可用的 token：账号密码模式会先登录 */
-    fun tokenOf(c: Cred): String {
-        if (c.mode == Mode.KEY) return c.key.trim()
+    /**
+     * 账号密码登录。**永远返回 null**——这条路走不通。
+     *
+     * ⚠️ 之前这里是 `throw RuntimeException(说明文案)`。
+     * 用异常来承载"功能不支持"这种**预期内的业务结论**是错的设计：
+     * 异常意味着"出了意外"，而这里每次都会发生；
+     * 一旦某个调用点忘了 try-catch，用户看到的就是崩溃。
+     * 现在改成返回 null（= 拿不到 token），由调用方决定怎么提示。
+     */
+    fun login(base: String, user: String, pass: String): String? = null
+
+    /**
+     * 拿最终可用的 token。
+     * 账号密码模式拿不到，返回 null（调用方必须判空，不能拿去拼 URL）。
+     */
+    fun tokenOf(c: Cred): String? {
+        if (c.mode == Mode.KEY) return c.key.trim().ifBlank { null }
         if (c.token.isNotBlank()) return c.token
         val t = login(c.base, c.user, c.pass)
-        c.token = t
+        c.token = t ?: ""
         return t
     }
 
@@ -214,19 +234,42 @@ object ServerPanelApi {
     )
 
     /**
-     * 自动探测：逐个试候选目录，返回有 jar 的那些。
+     * 自动探测：试候选目录，返回有内容的那些。
      *
-     * 探测是**串行**的且要试十来个目录，之前用默认超时（读取 120 秒），
-     * 面板地址填错或网络不通时要等上好几分钟才出结果，
-     * 看起来就是"点连接没反应"。改成短超时快速失败。
+     * ⚠️ 之前是**串行**试 11 个目录，哪怕每个只用短超时，
+     * 网络差时累计也要几十秒，界面一直转圈，看着像"找不到"。
+     * 改成并发，总耗时取决于最慢的那一个而不是全部之和。
+     *
+     * 超时**刻意保持 SHORT**：探测本来就是"试探"，
+     * 某个目录响应慢就该立刻放弃换下一个，
+     * 换成 NORMAL（读取 120 秒）反而会让探测卡死在第一个不通的目录上。
      */
     fun probeDirs(base: String, key: String, uuid: String): List<String> {
-        val found = LinkedHashMap<String, Int>()
-        for (d in DIR_CANDIDATES) {
-            val fs = listFiles(base, key, uuid, d, Http.SHORT)
-            if (fs.isNotEmpty()) found[d] = fs.size
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(
+            (DIR_CANDIDATES.size).coerceAtMost(6)
+        )
+        return try {
+            // 用有序容器 + 按下标定长数组，保证**结果顺序与候选顺序一致**，
+            // 并发下不能用 LinkedHashMap 边跑边 put（顺序会乱）
+            val slots = arrayOfNulls<String>(DIR_CANDIDATES.size)
+            val tasks = DIR_CANDIDATES.mapIndexed { i, d ->
+                pool.submit {
+                    try {
+                        // 只关心"这个目录有没有内容"，不关心内容是什么
+                        val fs = listFiles(base, key, uuid, d, Http.SHORT)
+                        if (fs.isNotEmpty()) slots[i] = d
+                    } catch (_: Throwable) {
+                        // 单个目录失败 = 它不存在，忽略即可
+                    }
+                }
+            }
+            for (t in tasks) {
+                try { t.get() } catch (_: Throwable) {}
+            }
+            slots.filterNotNull()
+        } finally {
+            pool.shutdownNow()
         }
-        return found.keys.toList()
     }
 
     /** 列出目录内容（不筛 jar），用于浏览面板目录树 */
