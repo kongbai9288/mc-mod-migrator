@@ -240,6 +240,7 @@ class MarketFragment : Fragment() {
         // 不会因为某一个源慢或挂掉而整页卡住。
         // 结果存在 searchResults 里，切到收藏夹再回来依然在。
         searchResults.clear()
+        MarketState.offsets.clear()
         currentTab = "search"
         // 新一轮搜索：偏移归零，并记录这次的查询条件供"加载更多"复用
         searchOffset = 0
@@ -258,6 +259,8 @@ class MarketFragment : Fragment() {
             if (batch.isNotEmpty()) {
                 searchResults.addAll(batch)
                 roundGot += batch.size
+                // 按来源分别推进：见 MarketState.offsets 的说明
+                MarketState.advance(source, batch.size)
                 refreshList()
                 toast("$source 返回 ${batch.size} 个（共 ${searchResults.size}）")
                 autoTranslate(batch)
@@ -267,11 +270,6 @@ class MarketFragment : Fragment() {
                 if (searchResults.isEmpty()) {
                     toast("没有结果${if (routes.isNotBlank()) "（$routes）" else ""}")
                 } else {
-                    // 按「本轮实际拿到的条数」推进偏移。
-                    // 之前固定加 PAGE_SIZE：源返回不足一页时，
-                    // 偏移会跳过中间那段没返回的数据，翻页会漏条目。
-                    val advance = roundGot.coerceAtLeast(1)
-                    searchOffset += advance
                     // 本轮一条都没拿到 → 后面也不会有了
                     if (roundGot == 0) hasMore = false
                     val moreHint = if (hasMore) "，下滑加载更多" else "（已全部加载）"
@@ -296,20 +294,34 @@ class MarketFragment : Fragment() {
         // 同样按「本轮实际拿到多少条」推进，不用固定页大小
         var roundGot = 0
         AggregateSearch.searchStreaming(
-            ctx, lastQuery, lastMc, lastLoader, searchOffset, PAGE_SIZE
+            ctx, lastQuery, lastMc, lastLoader, searchOffset, PAGE_SIZE,
+            // 各源自己的偏移。传空则全部从 searchOffset 起，
+            // 这里始终带上，保证每个源只从自己上次的位置往后翻。
+            offsets = MarketState.offsets.toMap()
         ) { batch, source, finished ->
             if (!isAdded) return@searchStreaming
             if (batch.isNotEmpty()) {
-                searchResults.addAll(batch)
+                //
+                // 跨页去重：AggregateSearch 内部的 seen 只在**本轮**生效，
+                // 翻页时是新的一轮，上一页已经显示过的同名模组会再来一次。
+                // 用户看到的就是"往下翻出现一堆重复的"。
+                //
+                val fresh = batch.filter { m ->
+                    val k = m.name.trim().lowercase()
+                    k.isNotBlank() && searchResults.none { it.name.trim().lowercase() == k }
+                }
+                if (fresh.isNotEmpty()) {
+                    searchResults.addAll(fresh)
+                    refreshList()
+                    toast("$source 又返回 ${fresh.size} 个（共 ${searchResults.size}）")
+                    autoTranslate(fresh)
+                }
                 roundGot += batch.size
-                refreshList()
-                toast("$source 又返回 ${batch.size} 个（共 ${searchResults.size}）")
-                autoTranslate(batch)
+                MarketState.advance(source, batch.size)
             }
             if (finished) {
                 loadingMore = false
                 if (roundGot == 0) hasMore = false
-                else searchOffset += roundGot
                 updateLoadMoreHint()
             }
         }

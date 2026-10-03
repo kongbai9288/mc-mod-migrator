@@ -26,6 +26,15 @@ object MarketState {
     var tab: String = "search"
 
     // ---- 翻页状态 ----
+    //
+    // ⚠️ offset 必须**按来源分别记录**。
+    // Modrinth 的 offset=20 指的是"Modrinth 自己的第 21 条"，
+    // CurseForge 的 index=20 是"CurseForge 自己的第 21 条"，两者毫不相干。
+    // 之前共用一个数字、按"各源返回数之和"推进，
+    // 一轮下来偏移跳了好几十，中间的条目全被跳过 ——
+    // 表现就是"翻两页就没了""越翻越乱"。
+    val offsets = mutableMapOf<String, Int>()
+
     var offset: Int = 0
     var hasMore: Boolean = false
     var query: String = ""
@@ -47,8 +56,17 @@ object MarketState {
     /** 彻底清空（用户主动换关键词时） */
     fun reset() {
         searchResults.clear()
+        offsets.clear()
         offset = 0
         hasMore = false
+    }
+
+    /** 某个来源下一页该从第几条开始 */
+    fun offsetOf(src: String): Int = offsets[src] ?: 0
+
+    /** 记下某个来源这一页实际拿到了几条 */
+    fun advance(src: String, got: Int) {
+        offsets[src] = offsetOf(src) + got
     }
 
     /**

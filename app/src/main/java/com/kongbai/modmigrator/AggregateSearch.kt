@@ -67,7 +67,8 @@ object AggregateSearch {
         loader: String,
         offset: Int,
         limit: Int,
-        onBatch: (batch: List<MarketMod>, source: String, finished: Boolean) -> Unit
+        onBatch: (batch: List<MarketMod>, source: String, finished: Boolean) -> Unit,
+        offsets: Map<String, Int> = emptyMap()
     ) {
         val p = Prefs.get(ctx)
         // 断网细分：商店搜索/推荐单独可控，不再被全局开关一刀切
@@ -103,7 +104,7 @@ object AggregateSearch {
         }
 
         // 收集本次要查的源
-        val tasks = buildSources(ctx, q, mc, loader, limit, offset)
+        val tasks = buildSources(ctx, q, mc, loader, limit, offset, offsets)
         if (tasks.isEmpty()) {
             onBatch(emptyList(), "没有可用的搜索源", true)
             return
@@ -160,8 +161,17 @@ object AggregateSearch {
      */
     private fun buildSources(
         ctx: Context, q: String, mc: String, loader: String,
-        limit: Int = 20, offset: Int = 0
+        limit: Int = 20, offset: Int = 0, offsets: Map<String, Int> = emptyMap()
     ): List<Pair<String, () -> List<MarketMod>>> {
+        //
+        // ⚠️ 每个源必须有**自己的**偏移。
+        // 之前三个源共用同一个 offset：第一轮各源各返回 20 条，
+        // 调用方按"三源之和 60"推进偏移，下一轮三个源都从 60 开始取 ——
+        // 而 Modrinth 实际只消费了 20 条，中间的 40 条被整个跳过。
+        // 表现就是"翻两页就没内容了""越翻越乱"。
+        //
+        fun off(name: String): Int = offsets[name] ?: offset
+
         val p = Prefs.get(ctx)
         val mode = p.getString(K.SOURCE, "聚合") ?: "聚合"
         val useBackend = p.getBoolean(K.USE_BACKEND, true)
@@ -172,7 +182,7 @@ object AggregateSearch {
 
         // Modrinth：免费无 Key，最稳，始终优先
         if (aggregate || mode == "Modrinth" || mode == "聚合") {
-            out.add("Modrinth" to { ModrinthApi.search(q, mc, loader, limit, offset) })
+            out.add("Modrinth" to { ModrinthApi.search(q, mc, loader, limit, off("Modrinth")) })
         }
 
         // CurseForge 后端代理
@@ -180,7 +190,7 @@ object AggregateSearch {
             // 后端 /api/mods 的 page 参数会被原样透传给 CurseForge 的 index，
             // 而 index 是 0 基偏移。所以这里直接传 offset，
             // 不能除以页大小（那样第二页会取到和第一页几乎相同的内容）。
-            out.add("后端" to { BackendApi.search(ctx, q, mc, loader, offset, limit) })
+            out.add("后端" to { BackendApi.search(ctx, q, mc, loader, off("后端"), limit) })
         }
 
         // CurseForge 镜像 / 官方直连
@@ -193,7 +203,7 @@ object AggregateSearch {
             val canOfficial = useOfficial && key.isNotBlank()
             val label = if (canOfficial) "CurseForge官方" else "CurseForge镜像"
             out.add(
-                Pair(label, { CurseForgeApi.search(q, mc, loader, if (canOfficial) key else "", limit, offset) })
+                Pair(label, { CurseForgeApi.search(q, mc, loader, if (canOfficial) key else "", limit, off(label)) })
             )
             logCf(if (canOfficial) "CurseForge 走官方直连" else "CurseForge 走国内镜像")
         }
