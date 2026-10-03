@@ -102,7 +102,6 @@ class ServerFragment : Fragment() {
         rv.layoutManager = LinearLayoutManager(requireContext())
         rv.adapter = adapter
 
-        val p = Prefs.get(requireContext())
         etBase.setText(p.getString(K.PANEL_BASE, "") ?: "")
         etUser.setText(p.getString(K.PANEL_USER, "") ?: "")
         etPass.setText(p.getString(K.PANEL_PASS, "") ?: "")
