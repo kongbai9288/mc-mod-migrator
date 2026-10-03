@@ -160,6 +160,46 @@ object LogCenter {
 
     fun all(): List<LogLine> = ArrayList(lines)
 
+    /**
+     * 把一批日志放进可复制的对话框。
+     *
+     * 排查登录这类多环节问题时，用户最需要的是"把这段发给我"，
+     * 而现在只能靠截图——堆栈长、截图还看不全。
+     * 这里做成可长按选中 + 一键复制。
+     */
+    fun copyable(ctx: android.content.Context, title: String, list: List<LogLine>) {
+        val text = if (list.isEmpty()) "（没有匹配到记录）"
+        else list.joinToString("\n") { it.toString() }
+        val tv = android.widget.TextView(ctx).apply {
+            this.text = text
+            setTextIsSelectable(true)
+            textSize = 11f
+            typeface = android.graphics.Typeface.MONOSPACE
+            val p = (16 * ctx.resources.displayMetrics.density).toInt()
+            setPadding(p, p / 2, p, 0)
+        }
+        val sv = android.widget.ScrollView(ctx).apply {
+            addView(tv)
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                (320 * ctx.resources.displayMetrics.density).toInt()
+            )
+        }
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+            .setTitle(title)
+            .setView(sv)
+            .setPositiveButton("复制") { _, _ ->
+                val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                        as? android.content.ClipboardManager
+                runCatching {
+                    cm?.setPrimaryClip(android.content.ClipData.newPlainText(title, text))
+                }
+                android.widget.Toast.makeText(ctx, "已复制", android.widget.Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
     @Synchronized
     fun clear() {
         lines.clear()

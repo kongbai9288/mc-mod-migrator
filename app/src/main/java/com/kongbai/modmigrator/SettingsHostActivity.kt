@@ -91,6 +91,7 @@ class SettingsHostActivity : AppCompatActivity() {
             "plugin" -> PluginFragment()
             "devs" -> DevsFragment()
             "log" -> SettingsLogFragment()
+            "patch" -> SettingsPatchFragment()
             "about" -> SettingsAboutFragment()
             "more" -> MoreFragment()
             "main" -> SettingsMainFragment()

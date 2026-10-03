@@ -213,6 +213,7 @@ class MainActivity : AppCompatActivity() {
                 "plugin" -> PluginFragment()
                 "devs" -> DevsFragment()
                 "log" -> SettingsLogFragment()
+                "patch" -> SettingsPatchFragment()
                 "about" -> SettingsAboutFragment()
                 "lab" -> SettingsLabFragment()
                 "feed" -> McFeedFragment()

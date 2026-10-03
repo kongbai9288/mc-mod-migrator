@@ -138,6 +138,7 @@ class SettingsMainFragment : Fragment() {
         v.findViewById<Button>(R.id.btnGoStorage).setOnClickListener { go("storage") }
         v.findViewById<Button>(R.id.btnGoAbout).setOnClickListener { go("about") }
         v.findViewById<Button>(R.id.btnGoLab)?.setOnClickListener { go("lab") }
+        v.findViewById<Button>(R.id.btnGoPatch)?.setOnClickListener { goPatch() }
 
         refreshAccount()
         loading = false
@@ -178,6 +179,26 @@ class SettingsMainFragment : Fragment() {
         v.findViewById<android.view.View>(R.id.tvOfflineParts)?.alpha = if (on) 0.4f else 1f
     }
 
+    /**
+     * 补丁入口。
+     *
+     * 之前这块只在 App 启动时后台静默更新一次、失败了也不说，
+     * 用户根本不知道有这回事。现在给个显式入口，
+     * 进去能看到每项的状态并手动刷新。
+     */
+    private fun goPatch() {
+        val ctx = context ?: return
+        try {
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, SettingsPatchFragment())
+                .addToBackStack("settings:patch")
+                .commit()
+        } catch (t: Throwable) {
+            Err.fail(t, "打开补丁页")
+            toast("打不开补丁页")
+        }
+    }
+
     private fun go(page: String) {
         // 已在设置容器里就直接切页，避免新开 Activity 造成返回栈错乱
         val host = activity as? SettingsHostActivity
@@ -195,6 +216,25 @@ class SettingsMainFragment : Fragment() {
         val i = Intent(requireContext(), SettingsHostActivity::class.java)
         i.putExtra("page", page)
         startActivity(i)
+    }
+
+    /** 授权地址里带 state 参数，日志里只留域名和路径，不落参数 */
+    private fun maskUrl(u: String): String {
+        return try {
+            val uri = android.net.Uri.parse(u)
+            "${uri.scheme}://${uri.host}${uri.path}"
+        } catch (t: Throwable) {
+            u.take(60)
+        }
+    }
+
+    /** 把登录链路的记录单独摘出来，方便直接发给开发者 */
+    private fun copyLoginLog() {
+        val ctx = context ?: return
+        val lines = LogCenter.lines().filter {
+            it.tag == "Login" || it.msg.contains("auth") || it.msg.contains("登录")
+        }
+        LogCenter.copyable(ctx, "登录日志", lines)
     }
 
     private fun toast(s: String) {
@@ -298,6 +338,13 @@ class SettingsMainFragment : Fragment() {
 
     private fun login() {
         val ctx = requireContext()
+        //
+        // 登录链路一共 4 步，任何一步断了表现都一模一样（就是登不上）。
+        // 之前这里不记日志，用户只能看到"没反应"，既没法自查也没法报障。
+        // 现在每一步都写进运行日志，并给一个「复制登录日志」的入口，
+        // 用户可以直接把这条链路的完整记录发出来。
+        //
+        LogCenter.i("Login", "1. 用户点击登录，开始向后端要授权地址")
         toast("正在打开授权页…")
         exec.execute {
             val start = try {
@@ -309,6 +356,7 @@ class SettingsMainFragment : Fragment() {
             handler.post {
                 if (!isAdded) return@post
                 if (start.url.isBlank()) {
+                    LogCenter.e("Login", "2. 失败：${start.error}")
                     // 之前不管什么情况都显示同一句"连不上"，
                     // 用户分不清是网络问题还是后端没配好。
                     // 现在把后端返回的真实原因直接摆出来。
@@ -333,10 +381,15 @@ class SettingsMainFragment : Fragment() {
                     // 缺了它授权成功后仍会失败。提前讲清楚，别让用户白跑一趟。
                     toast("注意：state cookie 未写入，授权后可能报校验失败")
                 }
+                LogCenter.i(
+                    "Login",
+                    "2. 已拿到授权地址（state cookie ${if (start.stateCookieOk) "已写入" else "缺失"}）"
+                )
                 try {
                     // 用内置浏览器登录：cookie 存在 WebView 里，
                     // OkHttp 通过 cookie 桥能读到，登录状态才对得上。
                     // 用结果回调启动，登录完成后会自动回到这里刷新状态。
+                    LogCenter.i("Login", "3. 拉起内置浏览器：$maskUrl(start.url)")
                     val i = Intent(requireContext(), WebActivity::class.java)
                     i.putExtra("url", start.url)
                     i.putExtra("title", "登录 GitHub")
@@ -469,19 +522,69 @@ class SettingsMainFragment : Fragment() {
                 arrayOf(
                     "用访问令牌登录（推荐，直连 GitHub）",
                     "走后端 OAuth 登录",
+                    "用系统浏览器登录",
                     "登录诊断（看卡在哪）",
+                    "复制登录日志",
                     "退出登录"
                 )
             ) { _, w ->
                 when (w) {
                     0 -> manualToken()
                     1 -> login()
-                    2 -> runLoginDiag()
-                    3 -> doLogout()
+                    2 -> loginExternal()
+                    3 -> runLoginDiag()
+                    4 -> copyLoginLog()
+                    5 -> doLogout()
                 }
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
+    }
+
+    /**
+     * 用系统浏览器完成授权。
+     *
+     * 内置浏览器走的是 WebView，GitHub 对嵌入式浏览器的支持并不完整，
+     * 部分账号会卡在授权页或跳不回来。系统浏览器（Chrome）没有这个问题。
+     *
+     * 代价：会话 cookie 落在浏览器里，本应用读不到，
+     * 所以回到应用后仍显示未登录——这是预期行为，不是故障。
+     * 真正要让应用内也处于登录态，请改用「用访问令牌登录」。
+     */
+    private fun loginExternal() {
+        val ctx = context ?: return
+        LogCenter.i("Login", "用户选择用系统浏览器登录")
+        exec.execute {
+            val start = try {
+                BackendApi.loginUrl(ctx)
+            } catch (t: Throwable) {
+                BackendApi.LoginStart(error = Http.describeError(t))
+            }
+            handler.post {
+                if (!isAdded) return@post
+                if (start.url.isBlank()) {
+                    LogCenter.e("Login", "取地址失败：${start.error}")
+                    Toast.makeText(ctx, "拿不到登录地址：${start.error}", Toast.LENGTH_LONG).show()
+                    return@post
+                }
+                LogCenter.i("Login", "已在系统浏览器打开 ${maskUrl(start.url)}")
+                try {
+                    ctx.startActivity(
+                        Intent(Intent.ACTION_VIEW, android.net.Uri.parse(start.url))
+                    )
+                    Toast.makeText(
+                        ctx,
+                        "已在浏览器打开。授权完成后回到本页点「登录诊断」确认状态。\n" +
+                            "注意：系统浏览器的登录态不会同步到应用内，\n" +
+                            "需要应用内登录请用「用访问令牌登录」。",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } catch (t: Throwable) {
+                    Err.fail(t, "调起系统浏览器")
+                    Toast.makeText(ctx, "打不开浏览器：${t.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
     private fun doLogout() {

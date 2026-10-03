@@ -255,4 +255,5 @@
     <string name="menu_log">运行日志</string>
     <string name="btn_refresh_log">刷新</string>
     <string name="btn_only_errors">只看错误</string>
+    <string name="menu_patch">补丁</string>
 </resources>

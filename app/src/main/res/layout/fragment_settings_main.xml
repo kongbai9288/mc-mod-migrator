@@ -80,6 +80,12 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/menu_lab" />
+        <Button
+            android:id="@+id/btnGoPatch"
+            style="@style/AppButtonOutlined"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/menu_patch" />
 
         <Button
             android:id="@+id/btnGoTranslate"
