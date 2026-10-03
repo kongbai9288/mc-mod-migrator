@@ -59,6 +59,8 @@ class ServerFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         val v = inflater.inflate(R.layout.fragment_server, container, false)
+        // 下面恢复 FTP/SFTP 表单时要读它，必须先取到
+        val p = Prefs.get(requireContext())
         etBase = v.findViewById(R.id.etPanelBase)
         etUser = v.findViewById(R.id.etPanelUser)
         etPass = v.findViewById(R.id.etPanelPass)

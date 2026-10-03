@@ -134,7 +134,6 @@ object RemoteFs {
     private fun connectSftp(c: Conf, port: Int): net.schmizz.sshj.SSHClient {
         return net.schmizz.sshj.SSHClient().apply {
             connectTimeout = TIMEOUT_MS
-            setSocketTimeout(TIMEOUT_MS)
             // 手机端没有维护 known_hosts 的场景，强校验只会让人连不上。
             // 这是"首次连接信任主机"的意思，不是关掉传输加密 ——
             // 数据仍然是 SSH 全程加密的。

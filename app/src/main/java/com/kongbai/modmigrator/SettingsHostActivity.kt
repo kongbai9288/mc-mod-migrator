@@ -75,7 +75,7 @@ class SettingsHostActivity : AppCompatActivity() {
     /** 显示 current 指向的页面（不入栈，用于重建时还原现场） */
     private fun showCurrent() {
         val page = current
-        val f: Fragment? = when (page) {
+        val f: Fragment = when (page) {
             "backend" -> SettingsBackendFragment()
             "search" -> SettingsSearchFragment()
             "migrate" -> SettingsMigrateFragment()
@@ -94,8 +94,8 @@ class SettingsHostActivity : AppCompatActivity() {
             "about" -> SettingsAboutFragment()
             "more" -> MoreFragment()
             "main" -> SettingsMainFragment()
-            else -> null
-        } ?: return
+            else -> return
+        }
         try {
             supportFragmentManager.beginTransaction()
                 .replace(R.id.container, f)

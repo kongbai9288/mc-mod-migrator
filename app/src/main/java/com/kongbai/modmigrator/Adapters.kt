@@ -33,52 +33,6 @@ class ModAdapter(
         return VH(v)
     }
 
-    /**
-     * 分类标签行。
-     *
-     * 用 Material 的 Chip 太重（每个 Chip 都是一个带触摸反馈的 Button，
-     * 列表里几十个会拖慢滑动），这里用轻量的 TextView + 描边背景。
-     * 没有标签就整行 GONE —— 不留一条空白，也不画"无标签"字样。
-     */
-    private fun renderCats(h: VH, m: MarketMod) {
-        val cats = ModCats.clean(m.categories)
-        if (cats.isEmpty()) {
-            h.rowCats.visibility = View.GONE
-            return
-        }
-        h.rowCats.visibility = View.VISIBLE
-        h.rowCats.removeAllViews()
-        val ctx = h.itemView.context
-        val d = ctx.resources.displayMetrics.density
-        val tint = try {
-            if (android.os.Build.VERSION.SDK_INT >= 23) ctx.getColor(R.color.textSecondary)
-            else @Suppress("DEPRECATION") ctx.resources.getColor(R.color.textSecondary)
-        } catch (t: Throwable) { android.graphics.Color.GRAY }
-        for (c in cats) {
-            val tv = TextView(ctx)
-            tv.text = c
-            tv.textSize = 10f
-            tv.setTextColor(tint)
-            tv.setPadding((d * 5).toInt(), (d * 1).toInt(), (d * 5).toInt(), (d * 1).toInt())
-            tv.background = tagBg(tint)
-            val lp = ViewGroup.MarginLayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            lp.marginEnd = (d * 4).toInt()
-            tv.layoutParams = lp
-            h.rowCats.addView(tv)
-        }
-    }
-
-    /** 圆角描边背景（跟标签文字同色，深浅主题都适配） */
-    private fun tagBg(color: Int): android.graphics.drawable.Drawable {
-        val g = android.graphics.drawable.GradientDrawable()
-        g.cornerRadius = 999f
-        g.setStroke(1, color)
-        return g
-    }
-
     override fun getItemCount(): Int = items.size
 
     override fun onBindViewHolder(h: VH, pos: Int) {
@@ -225,6 +179,53 @@ class MarketAdapter(
     }
 
     override fun getItemCount(): Int = items.size
+
+
+    /**
+     * 分类标签行。
+     *
+     * 用 Material 的 Chip 太重（每个 Chip 都是一个带触摸反馈的 Button，
+     * 列表里几十个会拖慢滑动），这里用轻量的 TextView + 描边背景。
+     * 没有标签就整行 GONE —— 不留一条空白，也不画"无标签"字样。
+     */
+    private fun renderCats(h: VH, m: MarketMod) {
+        val cats = ModCats.clean(m.categories)
+        if (cats.isEmpty()) {
+            h.rowCats.visibility = View.GONE
+            return
+        }
+        h.rowCats.visibility = View.VISIBLE
+        h.rowCats.removeAllViews()
+        val ctx = h.itemView.context
+        val d = ctx.resources.displayMetrics.density
+        val tint = try {
+            if (android.os.Build.VERSION.SDK_INT >= 23) ctx.getColor(R.color.textSecondary)
+            else @Suppress("DEPRECATION") ctx.resources.getColor(R.color.textSecondary)
+        } catch (t: Throwable) { android.graphics.Color.GRAY }
+        for (c in cats) {
+            val tv = TextView(ctx)
+            tv.text = c
+            tv.textSize = 10f
+            tv.setTextColor(tint)
+            tv.setPadding((d * 5).toInt(), (d * 1).toInt(), (d * 5).toInt(), (d * 1).toInt())
+            tv.background = tagBg(tint)
+            val lp = ViewGroup.MarginLayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            lp.marginEnd = (d * 4).toInt()
+            tv.layoutParams = lp
+            h.rowCats.addView(tv)
+        }
+    }
+
+    /** 圆角描边背景（跟标签文字同色，深浅主题都适配） */
+    private fun tagBg(color: Int): android.graphics.drawable.Drawable {
+        val g = android.graphics.drawable.GradientDrawable()
+        g.cornerRadius = 999f
+        g.setStroke(1, color)
+        return g
+    }
 
     override fun onBindViewHolder(h: VH, pos: Int) {
         val m = items[pos]

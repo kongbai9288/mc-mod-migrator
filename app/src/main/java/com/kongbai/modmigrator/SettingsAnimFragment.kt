@@ -38,7 +38,7 @@ class SettingsAnimFragment : Fragment() {
 
         val tvState = TextView(ctx).apply {
             textSize = 13f
-            setTextColor(Ext.textColorPrimary(ctx))
+            setTextColor(textColorPrimary(ctx))
             setPadding(0, 0, 0, 12)
         }
         root.addView(tvState)
@@ -69,7 +69,7 @@ class SettingsAnimFragment : Fragment() {
         root.addView(TextView(ctx).apply {
             text = "动画速率"
             textSize = 14f
-            setTextColor(Ext.textColorPrimary(ctx))
+            setTextColor(textColorPrimary(ctx))
             setPadding(0, 20, 0, 4)
         })
         val rgSpeed = RadioGroup(ctx).apply {
@@ -94,7 +94,7 @@ class SettingsAnimFragment : Fragment() {
         val demo = TextView(ctx).apply {
             text = "示例：点下面的按钮看动画效果"
             textSize = 13f
-            setTextColor(Ext.textColorPrimary(ctx))
+            setTextColor(textColorPrimary(ctx))
             setPadding(0, 20, 0, 8)
         }
         root.addView(demo)
@@ -150,7 +150,7 @@ class SettingsAnimFragment : Fragment() {
             TextView(ctx).apply {
                 text = "第 ${i + 1} 行"
                 textSize = 14f
-                setTextColor(Ext.textColorPrimary(ctx))
+                setTextColor(textColorPrimary(ctx))
                 setPadding(0, 10, 0, 10)
             }
         }

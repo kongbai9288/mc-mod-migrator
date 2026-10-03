@@ -62,7 +62,7 @@ class SettingsThemeFragment : Fragment() {
                 background = GradientDrawable().apply {
                     setColor(t.seedColor)
                     shape = GradientDrawable.OVAL
-                    if (i == cur) setStroke((d * 2.5).toInt(), Ext.textColorPrimary(ctx))
+                    if (i == cur) setStroke((d * 2.5).toInt(), textColorPrimary(ctx))
                 }
             }
             row.addView(swatch)
@@ -70,7 +70,7 @@ class SettingsThemeFragment : Fragment() {
             val tv = TextView(ctx).apply {
                 text = t.name
                 textSize = 15f
-                setTextColor(Ext.textColorPrimary(ctx))
+                setTextColor(textColorPrimary(ctx))
                 layoutParams = LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
                 )
@@ -81,7 +81,7 @@ class SettingsThemeFragment : Fragment() {
                 row.addView(TextView(ctx).apply {
                     text = getString(R.string.theme_current)
                     textSize = 12f
-                    setTextColor(Ext.textColorSecondary(ctx))
+                    setTextColor(textColorSecondary(ctx))
                 })
             }
             box.addView(row)
