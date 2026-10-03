@@ -102,7 +102,9 @@ object RemoteFs {
                 org.apache.commons.net.ftp.FTPClient()
             }
         f.connectTimeout = TIMEOUT_MS
-        f.soTimeout = TIMEOUT_MS
+        // FTPClient 没有 soTimeout 属性，只有 setSoTimeout()；
+        // 另外数据通道（列目录/下载）的超时是单独的 dataTimeout
+        f.setSoTimeout(TIMEOUT_MS)
         // 中文目录名/文件名：不加这条会乱码
         f.controlEncoding = "UTF-8"
         return try {
@@ -132,10 +134,19 @@ object RemoteFs {
     private fun connectSftp(c: Conf, port: Int): net.schmizz.sshj.SSHClient {
         return net.schmizz.sshj.SSHClient().apply {
             connectTimeout = TIMEOUT_MS
-            soTimeout = TIMEOUT_MS
+            setSocketTimeout(TIMEOUT_MS)
             // 手机端没有维护 known_hosts 的场景，强校验只会让人连不上。
-            // 这是"首次连接信任主机"的意思，不是关掉传输加密。
-            addHostKeyVerifier { _, _, _ -> true }
+            // 这是"首次连接信任主机"的意思，不是关掉传输加密 ——
+            // 数据仍然是 SSH 全程加密的。
+            //
+            // 显式写成匿名对象：直接传 Kotlin lambda 会因为
+            // HostKeyVerifier 的三个参数类型推断不出来而编译失败。
+            addHostKeyVerifier(object :
+                net.schmizz.sshj.transport.verification.HostKeyVerifier {
+                override fun verify(hostname: String?, port: Int, key: java.security.PublicKey?): Boolean = true
+                override fun findExistingAlgorithms(hostname: String?, port: Int):
+                    MutableList<String> = mutableListOf()
+            })
             connect(c.host, port)
             authPassword(c.user, c.pass)
         }
@@ -231,7 +242,9 @@ object RemoteFs {
                         Entry(
                             name = n,
                             path = join(path, n),
-                            isDir = e.type == net.schmizz.sshj.sftp.RemoteResourceInfo.Type.DIRECTORY,
+                            // sshj 的 RemoteResourceInfo 直接给了 isDirectory()，
+                            // 比去比 Type 枚举稳（不同版本枚举位置不一样）
+                            isDir = e.isDirectory,
                             size = e.attributes.size
                         )
                     )
@@ -256,7 +269,8 @@ object RemoteFs {
         val port = if (c.port > 0) c.port else defaultPort(c.kind)
         return when (c.kind) {
             Kind.FTP, Kind.FTPS -> {
-                val (conn, _) = connectFtp(c, port) ?: return null
+                val (conn0, _) = connectFtp(c, port)
+                val conn = conn0 ?: return null
                 val f = conn.raw
                 try {
                     val s = f.retrieveFileStream(path) ?: run {
