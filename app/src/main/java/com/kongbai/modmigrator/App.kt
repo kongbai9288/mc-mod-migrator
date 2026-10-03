@@ -67,6 +67,10 @@ class App : Application() {
         installConscrypt()
         CrashHandler.install(this)
         Prefs.init(this)
+        // 补丁：把"启动器目录清单"这类易变数据从远端更新，
+        // 这样旧版 App 也能支持新的启动器/新 MC 版本，不必重装。
+        // 失败静默，内置清单继续工作。
+        runCatching { PatchCenter.updateInBackground(this) }
         // 主题必须在任何 Activity 创建前定好，否则深色模式要重启才生效
         runCatching { ThemePrefs.init(this) }
         Store.init(this)
