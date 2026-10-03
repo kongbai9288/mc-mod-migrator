@@ -52,13 +52,7 @@ object ModIcons {
     /** 当前缓存占用的字节数（只统计真正有位图的条目） */
     private var bytes = 0
 
-    /** 内存紧张时由 [App.onTrimMemory] 调用 */
-    fun clear() {
-        synchronized(lock) {
-            cache.clear()
-            bytes = 0
-        }
-    }
+    /** 内存紧张时由 [App.onTrimMemory] 调用（清空的实现在文件末尾） */
 
     /** 元数据没声明图标时的候选路径 */
     private val FALLBACKS = listOf(
@@ -251,11 +245,14 @@ object ModIcons {
 
     /** 清空缓存（切换目录或内存紧张时调用） */
     fun clear() {
-        synchronized(cache) { cache.clear() }
+        synchronized(lock) {
+            cache.clear()
+            bytes = 0
+        }
     }
 
     /** 缓存里有多少个条目（供设置页显示） */
-    fun cacheSize(): Int = synchronized(cache) { cache.size }
+    fun cacheSize(): Int = synchronized(lock) { cache.size }
 
     /** 给没有图标的模组生成一个稳定的占位色 */
     fun placeholderColor(id: String): Int {
