@@ -69,6 +69,21 @@ jobs:
           echo "tag=v$V" >> $GITHUB_OUTPUT
           echo "app version: v$V"
 
+      - name: Fetch NBT / datapack AARs
+        run: |
+          set -e
+          # 两个 AAR 是 MIT 许可的第三方库，由 kongbai9288/misode-vianbt-android
+          # 的 Release 提供。**不进 git** —— 仓库里放二进制会持续占用存储配额，
+          # 这里在编译前拉取即可。
+          mkdir -p app/libs
+          BASE=https://github.com/kongbai9288/misode-vianbt-android/releases/download/v1.1.0
+          curl -sSL --retry 3 -o app/libs/vianbt-release.aar "$BASE/vianbt-release.aar"
+          curl -sSL --retry 3 -o app/libs/misode-android-release.aar "$BASE/misode-android-release.aar"
+          ls -la app/libs
+          # 拉不到就让编译直接失败，避免"编译过了但功能残缺"
+          test -s app/libs/vianbt-release.aar
+          test -s app/libs/misode-android-release.aar
+
       - name: Decode keystore
         run: |
           set -e
