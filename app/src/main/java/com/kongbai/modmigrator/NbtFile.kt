@@ -7,7 +7,6 @@ import com.viaversion.nbt.tag.CompoundTag
 import com.viaversion.nbt.tag.Tag
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import java.io.DataInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -52,10 +51,17 @@ object NbtFile {
         // named()：标准 NBT 文件的根标签是带名字的（level.dat 的根叫 ""）。
         // 不加这个会读错一个字节，表现为整个文件解析失败或字段错位。
         //
+        //
+        // 注意：DataInputStream 同时是 InputStream 又实现了 DataInput，
+        // 直接传会让 read(DataInput) / read(InputStream) 两个重载都匹配，
+        // Kotlin 报 Overload resolution ambiguity。
+        // 这里显式按 InputStream 传，TagReader 内部自己会包 DataInputStream。
+        //
+        val inStream: InputStream = java.io.BufferedInputStream(src)
         val tag = NBTIO.reader()
             .named()
             .tagLimiter(TagLimiter.noop())
-            .read(DataInputStream(java.io.BufferedInputStream(src)))
+            .read(inStream)
         return tag as? CompoundTag
             ?: throw java.io.IOException("根标签不是 Compound（实际是 ${tag.javaClass.simpleName}）")
     }
