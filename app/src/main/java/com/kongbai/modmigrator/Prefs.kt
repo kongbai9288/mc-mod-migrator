@@ -167,6 +167,15 @@ object K {
     const val OFFLINE_FEED = "offline_feed"           // 资讯抓取
     const val OFFLINE_UPDATE = "offline_update"       // 更新检查
     const val OFFLINE_ANNOUNCE = "offline_announce"   // 公告拉取
+
+    /**
+     * 是否在加载器分类里显示**手机启动器不支持**的那些加载器
+     * （Cleanroom / LiteLoader / Rift / Risugami / BTA …）。
+     * 默认关：它们大多停在 1.12.2 及更早或已停止维护，
+     * 列出来只会让用户选到一个装了也跑不起来的环境。
+     * 识别已有实例/模组时仍然认这些加载器，只是不出现在可选列表里。
+     */
+    const val SHOW_EXTRA_LOADERS = "show_extra_loaders"
     const val LAST_UPDATE_TAG = "last_update_tag"
     const val LAST_UPDATE_NOTES = "last_update_notes"
     const val LAST_UPDATE_AT = "last_update_at"

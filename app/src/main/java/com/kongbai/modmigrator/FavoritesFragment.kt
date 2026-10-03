@@ -72,8 +72,12 @@ class FavoritesFragment : Fragment() {
         }
         tvState.text = "共 ${list.size} 个"
         for (m in list) {
-            val card = UiCards.infoCard(
-                ctx, R.drawable.ic_storefront,
+            // ⚠️ 之前这里传的是 R.drawable.ic_storefront（商店图标），
+            // 于是每张卡片都是同一个图标，看不出是哪个模组 ——
+            // 这就是"收藏看不到图标"。
+            // 改用 modCard，加载模组自己的远程图标。
+            val card = UiCards.modCard(
+                ctx, m.iconUrl,
                 m.name,
                 m.summary.take(60).ifBlank { "来自 ${m.source}" },
                 "安装"
@@ -121,7 +125,13 @@ class FavoritesFragment : Fragment() {
                 // CurseForge 的正确取址是 CurseForgeApi.downloadUrl()
                 // （用已存的 fileId/fileName 拼 CDN 路径）。
                 val pair: Pair<String, String>? = if (m.source == "curseforge") {
-                    val u = CurseForgeApi.downloadUrl(m)
+                    // ⚠️ 之前这里直接用 downloadUrl()（CDN 公式拼的直连），
+                    // 而 CF 的下载要先过读秒，直连下到的常常只是一个 HTML 页面
+                    // —— 收藏夹这条路径**从来没接过读秒逻辑**，
+                    // 所以从收藏夹装 CF 模组基本都是装了个废文件。
+                    // 改成先调官方 download-url 端点拿真实直链。
+                    // 这段代码本身已经在后台线程里，可以直接同步调用。
+                    val u = CurseForgeApi.fetchDownloadUrl(m)
                     if (u.isBlank()) null else u to m.fileName
                 } else if (m.source == "backend") {
                     BackendApi.files(ctx, m.id, mc, ld).firstOrNull()?.let {

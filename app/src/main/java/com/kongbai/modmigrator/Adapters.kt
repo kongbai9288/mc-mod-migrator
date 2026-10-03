@@ -73,7 +73,29 @@ class MarketAdapter(
     private val onOpen: (MarketMod) -> Unit,
     private val onTranslate: (MarketMod) -> Unit,
     private val onFav: (MarketMod) -> Unit = {},
-    private val isFav: (MarketMod) -> Boolean = { false }
+    private val isFav: (MarketMod) -> Boolean = { false },
+    /**
+     * 这个模组是不是已经装在 mods 目录里了。
+     *
+     * ⚠️ 之前下载完**没有任何视觉反馈** —— 按钮还是"安装"，
+     * 用户不知道到底装没装成，只能自己再去目录里翻。
+     * 现在装过的按钮变成"已安装"，一眼能看出来。
+     *
+     * 用 lambda 而不是 MarketMod 上的字段：装没装是**外部状态**，
+     * 存成字段会和真实目录不同步（比如在别处把 jar 删了）。
+     */
+    private val isInstalled: (MarketMod) -> Boolean = { false },
+    /**
+     * 当前选择的加载器，用来判断"这个模组支不支持你选的环境"。
+     * 用 lambda 而不是固定值：用户切换加载器后不用重建 Adapter。
+     */
+    private val currentLoader: () -> String = { "auto" },
+    /**
+     * 明知不支持仍要安装时的回调（点按钮 → 弹警告 → 确认 → 走这里）。
+     * 与 onInstall 分开是为了**不影响批量下载**：
+     * 批量下载直接调 onInstall，不会撞上确认弹窗。
+     */
+    private val onInstallMismatch: (MarketMod) -> Unit = onInstall
 ) : RecyclerView.Adapter<MarketAdapter.VH>() {
 
     class VH(v: View) : RecyclerView.ViewHolder(v) {
@@ -83,6 +105,8 @@ class MarketAdapter(
         val status: TextView = v.findViewById(R.id.tvStatus)
         val action: Button = v.findViewById(R.id.btnAction)
         val trans: Button = v.findViewById(R.id.btnTrans)
+        val rowLoaders: LinearLayout = v.findViewById(R.id.rowLoaders)
+        val downloads: TextView = v.findViewById(R.id.tvDownloads)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -107,6 +131,54 @@ class MarketAdapter(
         }
     }
 
+    /**
+     * 画一行加载器图标，后面跟下载量。
+     *
+     * 图标是纯黑线稿（透明底），这里统一染成次要文字色：
+     * 一是跟"平台 · 下载量"同级，不抢模组名的视觉重心；
+     * 二是深浅两套主题下都看得清。
+     */
+    private fun renderLoaderIcons(h: VH, lds: List<String>, downloads: Long) {
+        h.rowLoaders.removeAllViews()
+        val ctx = h.itemView.context
+        val tint = try {
+            if (android.os.Build.VERSION.SDK_INT >= 23) ctx.getColor(R.color.textSecondary)
+            else @Suppress("DEPRECATION") ctx.resources.getColor(R.color.textSecondary)
+        } catch (t: Throwable) {
+            android.graphics.Color.GRAY
+        }
+        val d = ctx.resources.displayMetrics.density
+        val size = (d * 14).toInt()
+        // 最多 4 个：再多这一行就挤爆了，剩下的用 "+N" 表示
+        val show = lds.take(4)
+        for (ld in show) {
+            val iv = ImageView(ctx)
+            iv.setImageResource(Loaders.icon(ld))
+            iv.setColorFilter(tint)
+            iv.scaleType = ImageView.ScaleType.FIT_CENTER
+            iv.contentDescription = Loaders.label(ld)
+            val lp = LinearLayout.LayoutParams(size, size)
+            lp.marginEnd = (d * 3).toInt()
+            iv.layoutParams = lp
+            h.rowLoaders.addView(iv)
+        }
+        if (lds.size > show.size) {
+            val more = TextView(ctx)
+            more.text = "+${lds.size - show.size}"
+            more.textSize = 11f
+            more.setTextColor(tint)
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            lp.marginEnd = (d * 4).toInt()
+            more.layoutParams = lp
+            h.rowLoaders.addView(more)
+        }
+        h.downloads.text = "${compactCount(downloads)} 次下载"
+        h.rowLoaders.addView(h.downloads)
+    }
+
     override fun getItemCount(): Int = items.size
 
     override fun onBindViewHolder(h: VH, pos: Int) {
@@ -117,7 +189,18 @@ class MarketAdapter(
         // 位数长、没分隔，在列表里横向占位很宽，
         // 把模组名和简介挤得只剩一点点，看列表很费劲。
         // 改成中文习惯的万/亿，一眼能比较量级又不挡视线。
-        h.meta.text = "${m.source} · ${compactCount(m.downloads)} 次下载"
+        // ── 平台 + 加载器图标 + 下载量 ──────────────────────
+        // 模组声明了支持的加载器时，图标单独占一行（平台名下方），
+        // 下载量跟在图标后面。没声明时退回原来的"平台 · 下载量"。
+        val lds = m.loaders
+        if (lds.isEmpty()) {
+            h.rowLoaders.visibility = View.GONE
+            h.meta.text = "${m.source} · ${compactCount(m.downloads)} 次下载"
+        } else {
+            h.rowLoaders.visibility = View.VISIBLE
+            h.meta.text = m.source
+            renderLoaderIcons(h, lds, m.downloads)
+        }
         if (m.summaryZh.isNotBlank()) {
             h.status.text = m.summaryZh
             h.trans.text = "原文"
@@ -141,8 +224,38 @@ class MarketAdapter(
         } else {
             h.icon.setImageResource(R.drawable.ic_extension)
         }
-        h.action.text = "安装"
-        h.action.setOnClickListener { onInstall(m) }
+        // ── 安装按钮：不支持当前加载器时置灰但仍可点 ──────────
+        // 用"变灰 + 点弹警告"而不是 setEnabled(false)：
+        // 后者点了完全没反应，用户只会以为按钮坏了。
+        val cur = Loaders.normalize(currentLoader())
+        val mismatch = lds.isNotEmpty() && cur != "auto" && !lds.contains(cur)
+        if (isInstalled(m)) {
+            // 装过就标出来。仍然允许再点（可能是想覆盖更新），
+            // 但不禁用 —— 禁用后点了没反应，用户只会以为按钮坏了。
+            h.action.text = "已安装"
+            h.action.alpha = 0.6f
+            h.action.setOnClickListener { onInstall(m) }
+        } else if (mismatch) {
+            h.action.text = "安装?"
+            h.action.alpha = 0.45f
+            h.action.setOnClickListener {
+                val sup = lds.joinToString("、") { Loaders.label(it) }
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(h.itemView.context)
+                    .setTitle("这个模组没有 ${Loaders.label(cur)} 版")
+                    .setMessage(
+                        "《${m.name}》支持的加载器：${sup}\n\n" +
+                            "当前选的是 ${Loaders.label(cur)}，" +
+                            "装上去大概率进不去游戏。\n\n仍要安装吗？"
+                    )
+                    .setNegativeButton("取消", null)
+                    .setPositiveButton("仍要安装") { _, _ -> onInstallMismatch(m) }
+                    .show()
+            }
+        } else {
+            h.action.text = "安装"
+            h.action.alpha = 1f
+            h.action.setOnClickListener { onInstall(m) }
+        }
         h.itemView.setOnClickListener { onOpen(m) }
         // 长按收藏 / 取消收藏
         h.itemView.setOnLongClickListener {

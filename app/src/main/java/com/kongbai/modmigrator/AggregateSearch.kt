@@ -298,9 +298,21 @@ object AggregateSearch {
             }
         }
 
-        // 三个来源并行：Modrinth 热门、CurseForge 热门、后端推荐
+        // 三个来源并行。
+        //
+        // ⚠️ 排序：之前三个源全按**下载量**取，于是推荐出来永远是
+        // JEI、Sodium 这些老牌热门，翻来覆去就那几十个 ——
+        // 用户根本看不到最近有什么新模组，"推荐"等于没用。
+        //
+        // Modrinth 侧改用 index="newest"（官方合法取值之一：
+        // relevance / downloads / follows / newest / updated），
+        // 让它直接在 API 层就按发布时间取，而不是取热门后再排序。
+        //
+        // CurseForge 侧**不改** sortField：它的 ModsSearchSortField
+        // 枚举值我没找到可信依据，猜错会拿到错误排序甚至报错，
+        // 所以保持下载量排序，由下面统一按 updated 再排一次。
         val jobs: List<Pair<String, () -> List<MarketMod>>> = listOf(
-            "Modrinth" to { ModrinthApi.search("", mc, loader, 30) },
+            "Modrinth" to { ModrinthApi.search("", mc, loader, 30, 0, null, "newest") },
             "CurseForge" to { CurseForgeApi.search("", mc, loader, key, 30) },
             "后端" to { BackendApi.recommend(ctx, mc, loader) ?: emptyList() }
         )
@@ -320,7 +332,13 @@ object AggregateSearch {
         try {
             done.await(SRC_TIMEOUT_SEC + 5, TimeUnit.SECONDS)
         } catch (t: Throwable) { Err.ignore(t, "等待各搜索源返回") }
-        return all.sortedByDescending { it.downloads }.take(20)
+        // 推荐按**更新时间**排，不是下载量：
+        // 下载量排序必然把老牌热门顶在最前，新发布的模组永远排不上来。
+        // 更新时间为空的排后面（而不是最前，否则会把一堆没时间字段的顶上来）。
+        return all.sortedWith(
+            compareByDescending<MarketMod> { it.updated.isNotBlank() }
+                .thenByDescending { it.updated }
+        ).take(20)
     }
 
     private fun main(block: () -> Unit) {

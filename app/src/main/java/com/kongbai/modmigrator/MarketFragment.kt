@@ -67,6 +67,8 @@ class MarketFragment : Fragment() {
         etQuery = v.findViewById(R.id.etQuery)
         etVersion = v.findViewById(R.id.etVersion)
         spLoader = v.findViewById(R.id.spLoader)
+        // 带加载器图标的下拉
+        LoaderSpinner.attachByPref(spLoader)
         rvMods = v.findViewById(R.id.rvMods)
         rvLinks = v.findViewById(R.id.rvLinks)
 
@@ -76,7 +78,16 @@ class MarketFragment : Fragment() {
             { m -> openPage(m.pageUrl) },
             { m -> translate(m) },
             { m -> toggleFav(m) },
-            { m -> Favorites.has(requireContext(), m) }
+            { m -> Favorites.has(requireContext(), m) },
+            // 已安装：下载完会把名字加进 installedSet 并刷新，
+            // 卡片按钮变成"已安装"，不用再自己去目录里确认
+            { m -> isInstalled(m) },
+            // 当前加载器用 lambda 传：切下拉后 notifyDataSetChanged 就能重画，
+            // 不用重建 Adapter（重建会丢滚动位置）
+            { loader() },
+            // 明知道加载器不匹配仍要装：确认后走同一个 install，
+            // 但**不经过**批量下载路径，所以不会打断批量任务
+            { m -> install(m) }
         )
         linkAdapter = LinkAdapter(links, { l -> downloadLink(l) }, { l ->
             Store.removeLink(requireContext(), l.url)
@@ -133,6 +144,10 @@ class MarketFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        // 回到页面时重扫一次 mods 目录：
+        // 用户可能在别处删了 jar、或者用别的途径装了模组，
+        // 不重扫的话"已安装"标记会和真实情况对不上。
+        installedSet = null
         // 首次进入商店页自动跑一次推荐，让页面一打开就有内容（不是空白）
         // 只在「本次打开应用后的第一次」执行，之后进出不再自动跑
         val ctx = context ?: return
@@ -293,6 +308,59 @@ class MarketFragment : Fragment() {
             else -> ""
         }
         tvListTitle.text = getString(R.string.tab_search_results) + "（${results.size}）$suffix"
+    }
+
+    /**
+     * 已安装文件名缓存（小写、去扩展名）。
+     *
+     * 为什么不每次都去读目录：卡片 bind 时每一行都会问一次"装没装"，
+     * 每次都 Fs.children() 等于滑一屏做几十次 SAF 查询，会卡。
+     * 装完新模组时手动加进集合即可；目录在外面被改动时调
+     * [refreshInstalled] 重扫。
+     */
+    private var installedSet: MutableSet<String>? = null
+
+    private fun installedNow(): MutableSet<String> {
+        installedSet?.let { return it }
+        val s = try {
+            val c = context
+            val dir = if (c == null) null else (WorkDir.modsDir(c) ?: Targets.modsDir(c))
+            if (dir == null) mutableSetOf()
+            else Fs.children(dir)
+                .filter { it.name?.endsWith(".jar", true) == true }
+                .mapNotNull { it.name?.substringBeforeLast(".")?.lowercase() }
+                .toMutableSet()
+        } catch (t: Throwable) {
+            mutableSetOf()
+        }
+        installedSet = s
+        return s
+    }
+
+    /** 卡片用：这个模组是不是已经装过了 */
+    private fun isInstalled(m: MarketMod): Boolean {
+        val key = m.fileName.substringBeforeLast(".").lowercase()
+        if (key.isBlank()) return false
+        return key in installedNow()
+    }
+
+    /**
+     * 下载完成后调用。
+     *
+     * ⚠️ 之前下载完**没有任何反馈**：按钮还是"安装"，
+     * 用户不知道到底装没装成，只能自己去目录里翻 ——
+     * 这就是反馈里说的"没法正常标记"。
+     */
+    private fun markInstalled(fileName: String) {
+        val key = fileName.substringBeforeLast(".").lowercase()
+        if (key.isNotBlank()) installedNow().add(key)
+        safePost(handler) { resAdapter.notifyDataSetChanged() }
+    }
+
+    /** 目录可能在别处被改过（比如手动删了 jar），重新扫一遍 */
+    private fun refreshInstalled() {
+        installedSet = null
+        safePost(handler) { resAdapter.notifyDataSetChanged() }
     }
 
     /** 已安装模组名（小写），用于推荐时过滤掉装过的 */
@@ -471,10 +539,17 @@ class MarketFragment : Fragment() {
     /**
      * 安装模组。
      *
-     * CurseForge 特殊处理：它的下载要先过「读秒页面」，
-     * 直接拿 API 给的地址去下载，下到的只是一个 HTML。
-     * 所以这里改成：后台开一个隐藏页面等它读秒，
-     * 真实地址出现时截获，再拿去下载（用户全程不用盯着）。
+     * CurseForge 特殊处理：它的下载页要先过「读秒」，
+     * 直接拿 API 给的地址去下载，下到的往往只是一个 HTML 页面
+     * ——代码却当成成功，装进 mods 目录的是个废文件。
+     *
+     * ⚠️ 联网核实后确认：官方有
+     *   `GET /v1/mods/{modId}/files/{fileId}/download-url`
+     * 直接返回真实直链，**不用读秒**。所以顺序改成：
+     *   ① 后台调该端点拿直链（快，且不依赖 WebView）
+     *   ② 拿不到才用 CDN 公式直连
+     *   ③ 再不行才开隐藏 WebView 等读秒（最慢，兜底）
+     * 之前的版本**反过来**：一上来就等读秒，慢且经常等不到。
      */
     private fun install(mod: MarketMod) {
         val ctx = requireContext()
@@ -482,53 +557,31 @@ class MarketFragment : Fragment() {
         val ld = loader()
 
         if (mod.source == "curseforge") {
-            val page = DelayedDownload.curseForgePage(mod)
-            if (page.isBlank()) {
-                toast("没有下载地址")
-                return
-            }
-            toast("CurseForge 需要等待读秒，正在后台获取真实地址…")
-            DelayedDownload.capture(
-                ctx, page,
-                onGot = { real ->
-                    val n = mod.fileName.ifBlank { Downloader.guessName(real) }
-                    val dlg = ProgressDialog.show(ctx, n)
-                    bg {
-                        val dir = Targets.modsDir(ctx)
-                        val f = if (dir == null) null
-                        else Downloader.download(ctx, real, dir, n) { done, total ->
-                            safePost(handler) { dlg.update(done, total) }
-                        }
-                        safePost(handler) {
-                            dlg.dismiss()
-                            toast(if (f == null) "下载失败" else "已安装：${f.name}")
-                        }
-                        if (f != null) Notifier.show(ctx, "下载完成", mod.name)
-                    }
-                },
-                onFail = { why ->
-                    toast("没拿到下载地址（$why），改用直连试试…")
-                    // 兜底：还是用 API 给的地址试一次
-                    val u = CurseForgeApi.downloadUrl(mod)
-                    if (u.isBlank()) {
-                        toast("下载失败")
-                        return@capture
-                    }
-                    val n = mod.fileName.ifBlank { Downloader.guessName(u) }
-                    val dlg = ProgressDialog.show(ctx, n)
-                    bg {
-                        val dir = Targets.modsDir(ctx)
-                        val f = if (dir == null) null
-                        else Downloader.download(
-                            ctx, u, dir, n, CurseForgeApi.authHeaders()
-                        ) { done, total -> safePost(handler) { dlg.update(done, total) } }
-                        safePost(handler) {
-                            dlg.dismiss()
-                            toast(if (f == null) "下载失败" else "已安装：${f.name}")
-                        }
-                    }
+            toast("正在获取下载地址…")
+            bg {
+                // ①② 都在后台做，拿到地址后再回到主线程起进度条
+                val direct = CurseForgeApi.fetchDownloadUrl(mod)
+                if (direct.isNotBlank()) {
+                    safePost(handler) { startCfDownload(mod, direct) }
+                    return@bg
                 }
-            )
+                // ③ 兜底：隐藏 WebView 等读秒
+                val page = DelayedDownload.curseForgePage(mod)
+                if (page.isBlank()) {
+                    safePost(handler) { toast("没有下载地址") }
+                    return@bg
+                }
+                safePost(handler) {
+                    toast("正在后台等待 CurseForge 读秒…")
+                    DelayedDownload.capture(
+                        ctx, page,
+                        onGot = { real -> startCfDownload(mod, real) },
+                        onFail = { why ->
+                            toast("没拿到下载地址（$why）")
+                        }
+                    )
+                }
+            }
             return
         }
 
@@ -568,9 +621,48 @@ class MarketFragment : Fragment() {
                     }
                     safePost(handler) {
                         dlg.dismiss()
-                        toast(if (f == null) "下载失败" else "已安装：${f.name}")
-                        if (f != null) Notifier.show(ctx, "下载完成", mod.name)
+                        if (f == null) {
+                            toast("下载失败")
+                        } else {
+                            toast("已安装：${f.name}")
+                            markInstalled(f.name)
+                            Notifier.show(ctx, "下载完成", mod.name)
+                        }
                     }
+                }
+            }
+        }
+    }
+
+    /**
+     * 拿到真实地址后开始下载（CurseForge 专用）。
+     *
+     * 抽成一个方法是因为三条取址路径
+     * （download-url 端点 / CDN 公式 / WebView 等读秒）
+     * 最后都要走同一套下载流程，之前是三份重复代码，
+     * 其中有两份**不看返回值就报"已安装"**，失败了也说成功。
+     */
+    private fun startCfDownload(mod: MarketMod, url: String) {
+        val ctx = context ?: return
+        val n = mod.fileName.ifBlank { Downloader.guessName(url) }
+        val dlg = ProgressDialog.show(ctx, n)
+        bg {
+            val dir = Targets.modsDir(ctx)
+            val f = if (dir == null) null
+            else Downloader.download(
+                ctx, url, dir, n, CurseForgeApi.authHeaders()
+            ) { done, total ->
+                safePost(handler) { dlg.update(done, total) }
+            }
+            safePost(handler) {
+                dlg.dismiss()
+                if (f == null) {
+                    toast("下载失败")
+                } else {
+                    toast("已安装：${f.name}")
+                    // 标记出来，卡片按钮变成"已安装"
+                    markInstalled(f.name)
+                    Notifier.show(ctx, "下载完成", mod.name)
                 }
             }
         }

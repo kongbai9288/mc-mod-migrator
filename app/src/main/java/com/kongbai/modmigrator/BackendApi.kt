@@ -432,7 +432,10 @@ object BackendApi {
      */
     fun recommend(ctx: Context, mc: String, loader: String): List<MarketMod>? {
         return try {
-            val list = search(ctx, "", mc, "", 0, 30, "popularity")
+            // ⚠️ 之前传 "popularity"（下载量），推荐出来永远是那批老牌热门，
+            // 用户看不到最近有什么新模组。改按发布时间取。
+            // 后端对 sort 做了小写归一，不认的值会退回默认排序，不会报错。
+            val list = search(ctx, "", mc, "", 0, 30, "newest")
             if (list.isEmpty()) null else list
         } catch (t: Throwable) {
             // ⚠️ 限流异常不能吞。

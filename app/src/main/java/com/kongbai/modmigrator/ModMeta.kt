@@ -36,6 +36,16 @@ object ModMeta {
     const val QUILT = "quilt"
     const val FORGE = "forge"
     const val NEOFORGE = "neoforge"
+    /**
+     * Cleanroom：Forge 1.12.2 的 fork（用现代 Java 重写）。
+     *
+     * ⚠️ 它和 Forge 1.12.2 **共用 mcmod.info 这个 sentinel**，
+     * 单看元数据文件是分不出来的。区分依据是 jar 里有没有
+     * `com/cleanroommc/`（已核实：CleanroomMC/Cleanroom 仓库里
+     * 有 com/cleanroommc/{boot,loader,discovery,cleanmix,…}）。
+     * 有 → 这个模组依赖 Cleanroom；只有 net/minecraftforge/ → 普通 Forge。
+     */
+    const val CLEANROOM = "cleanroom"
     const val UNKNOWN = "unknown"
 
     data class Info(
@@ -107,16 +117,38 @@ object ModMeta {
     private fun parseFromZipFile(zf: java.util.zip.ZipFile): Info {
         val found = findSentinel(zf) ?: return Info()
         val (entryName, loader) = found
-        val text = readEntry(zf, entryName) ?: return Info(loader = loader)
+        val text = readEntry(zf, entryName) ?: return Info(loader = refine(loader, zf))
 
         return when (loader) {
             FABRIC, QUILT -> parseFabric(text, loader)
             else -> {
-                if (entryName.equals("mcmod.info", true)) parseMcmodInfo(text)
+                val info = if (entryName.equals("mcmod.info", true)) parseMcmodInfo(text)
                 else parseModsToml(text, loader)
+                // mcmod.info 是 Cleanroom 和 Forge 共用的，
+                // 只有确认没有 Cleanroom 的包，才能稳当地叫它 Forge
+                if (info.loader == FORGE && hasCleanroom(zf)) info.copy(loader = CLEANROOM)
+                else info
             }
         }
     }
+
+    /** ZipFile 里有没有 Cleanroom 的包 */
+    private fun hasCleanroom(zf: java.util.zip.ZipFile): Boolean {
+        return try {
+            val en = zf.entries()
+            var n = 0
+            while (en.hasMoreElements() && n < 3000) {
+                n++
+                if ((en.nextElement().name ?: "").startsWith("com/cleanroommc/", true)) return true
+            }
+            false
+        } catch (t: Throwable) {
+            false
+        }
+    }
+
+    private fun refine(loader: String, zf: java.util.zip.ZipFile): String =
+        if (loader == FORGE && hasCleanroom(zf)) CLEANROOM else loader
 
     /** 按优先级找第一个存在的 sentinel 文件 */
     private fun findSentinel(zf: java.util.zip.ZipFile): Pair<String, String>? {
@@ -138,12 +170,15 @@ object ModMeta {
     private fun parse(zip: ZipInputStream): Info {
         var hit: Pair<String, String>? = null
         var payload = ""
+        var sawCleanroom = false
         var e: ZipEntry? = zip.nextEntry
         var scanned = 0
         // 只扫前 400 条：元数据文件一定在靠前的位置
         while (e != null && scanned < 400) {
             scanned++
             val n = e.name ?: ""
+            // 顺路记一下 Cleanroom 的包名，不用再打开一次文件
+            if (!sawCleanroom && n.startsWith("com/cleanroommc/", true)) sawCleanroom = true
             val match = SENTINELS.firstOrNull { it.first.equals(n, true) }
             val rank = SENTINELS.indexOf(match)
             val cur = hit?.let { SENTINELS.indexOf(it) } ?: Int.MAX_VALUE
@@ -159,11 +194,14 @@ object ModMeta {
         runCatching { zip.closeEntry() }
         if (hit == null) return Info()
         val (name, loader) = hit
-        return when (loader) {
+        val info = when (loader) {
             FABRIC, QUILT -> parseFabric(payload, loader)
             else -> if (name.equals("mcmod.info", true)) parseMcmodInfo(payload)
             else parseModsToml(payload, loader)
         }
+        // mcmod.info 是 Cleanroom 与 Forge 1.12.2 共用的 sentinel，
+        // 见到 com/cleanroommc/ 才能判定是 Cleanroom
+        return if (info.loader == FORGE && sawCleanroom) info.copy(loader = CLEANROOM) else info
     }
 
     // ---------------- fabric.mod.json / quilt.mod.json ----------------

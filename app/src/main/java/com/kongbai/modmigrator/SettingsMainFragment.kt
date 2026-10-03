@@ -117,6 +117,18 @@ class SettingsMainFragment : Fragment() {
         bindOfflinePart(v, R.id.swOfflineAnnounce, K.OFFLINE_ANNOUNCE)
         syncOfflineParts(v)
 
+        // 手机不支持的加载器是否出现在分类下拉里
+        val swExtra = v.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(
+            R.id.swExtraLoaders
+        )
+        swExtra.isChecked = Prefs.get(requireContext())
+            .getBoolean(K.SHOW_EXTRA_LOADERS, false)
+        swExtra.setOnCheckedChangeListener { _, c ->
+            if (loading) return@setOnCheckedChangeListener
+            Prefs.get(requireContext()).edit().putBoolean(K.SHOW_EXTRA_LOADERS, c).apply()
+            toast(if (c) "已开启：加载器分类里会显示手机不支持的那些" else "已关闭")
+        }
+
         btnAccount.setOnClickListener { login() }
         v.findViewById<Button>(R.id.btnGoBackend).setOnClickListener { go("backend") }
         v.findViewById<Button>(R.id.btnGoSearch).setOnClickListener { go("search") }

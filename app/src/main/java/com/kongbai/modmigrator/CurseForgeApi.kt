@@ -42,9 +42,20 @@ object CurseForgeApi {
             var fileName = ""
             val lf = Json.a(d, "latestFiles")
             // 先判空再取 [0]：之前直接 lf[0]，空数组时 IndexOutOfBounds 直接崩
+            //
+            // CurseForge 搜索结果**没有**独立的 loaders 字段，
+            // 加载器混在 gameVersions 里（形如 ["1.20.1","Fabric","Forge"]）。
+            // 这里把它们挑出来：命中已知加载器的留下，
+            // 版本号会 normalize 成 "auto"，正好被过滤掉。
+            var cfLoaders: List<String> = emptyList()
             if (lf != null && lf.size() > 0) {
-                fileId = Json.s(lf.get(0), "id")
-                fileName = Json.s(lf.get(0), "fileName")
+                val f0 = lf.get(0)
+                fileId = Json.s(f0, "id")
+                fileName = Json.s(f0, "fileName")
+                cfLoaders = Json.sa(f0, "gameVersions")
+                    .map { Loaders.normalize(it) }
+                    .filter { it != "auto" }
+                    .distinct()
             }
             out.add(
                 MarketMod(
@@ -58,7 +69,8 @@ object CurseForgeApi {
                     fileId = fileId,
                     fileName = fileName,
                     source = "curseforge",
-                    updated = Json.s(d, "dateModified").ifBlank { Json.s(d, "dateReleased") }
+                    updated = Json.s(d, "dateModified").ifBlank { Json.s(d, "dateReleased") },
+                    loaders = cfLoaders
                 )
             )
         }
@@ -106,4 +118,62 @@ object CurseForgeApi {
         }
         return "https://www.curseforge.com/minecraft/mc-mods/${mod.slug}/download/${mod.fileId}"
     }
+
+    /**
+     * 取真实下载地址（同步，必须在**后台线程**调用）。
+     *
+     * ⚠️ 之前的做法问题很大：直接拿 CDN 公式拼地址去下载，
+     * 而 CF 的下载页实际要先过「读秒」，下到的往往只是一个 HTML 页面
+     * ——代码却当成成功，装进 mods 目录的是个废文件。
+     *
+     * 联网核实后确认：官方有专门端点
+     *   `GET /v1/mods/{modId}/files/{fileId}/download-url`
+     * 它直接返回 **{"data": "<真实直链>"}**，**不需要读秒、不需要 WebView**。
+     * 这才是正解，之前的 WebView 后台等读秒只能当最后兜底。
+     *
+     * 三级兜底：
+     *   ① download-url 端点（最可靠，官方/镜像都支持）
+     *   ② CDN 公式直连
+     *   ③ 调用方再走 WebView 等读秒
+     *
+     * @return 真实下载地址；拿不到时返回用 CDN 公式拼的地址（不会返回空，
+     *         让调用方至少还有得试）
+     */
+    fun fetchDownloadUrl(mod: MarketMod): String {
+        val ctx = Prefs.appCtx() ?: return downloadUrl(mod)
+        val key = Prefs.get(ctx).getString(K.CF_KEY, "") ?: ""
+        val b = base(key)
+        val headers = if (key.isNotBlank()) mapOf("x-api-key" to key) else emptyMap()
+        // 端点需要 modId 和 fileId，缺任一就只能用公式
+        if (mod.id.isNotBlank() && mod.fileId.isNotBlank()) {
+            val u = "$b/mods/${mod.id}/files/${mod.fileId}/download-url"
+            val real = runCatching {
+                val root = Json.obj(Http.get(u, headers, timeout = Http.SHORT))
+                if (root == null) "" else Json.s(root, "data")
+            }.getOrDefault("")
+            if (real.isNotBlank()) {
+                // 镜像模式下把拿到的官方直链换成镜像域名，否则国内下不动
+                return if (mirrorOn(key)) toMirror(real) else real
+            }
+        }
+        return downloadUrl(mod)
+    }
+
+    /**
+     * 把官方 CDN 域名换成镜像域名。
+     *
+     * MCIM 官方给的替换规则是：
+     *   api.curseforge.com          → mod.mcimirror.top/curseforge
+     *   edge.forgecdn.net           → mod.mcimirror.top
+     *   mediafilez.forgecdn.net     → mod.mcimirror.top
+     * 注意是**整体替换域名**，路径保持不动，
+     * 所以不能简单地在前面拼 "/files"。
+     */
+    private fun toMirror(url: String): String {
+        return url
+            .replace("https://edge.forgecdn.net", FILE_MIRROR_HOST)
+            .replace("https://mediafilez.forgecdn.net", FILE_MIRROR_HOST)
+    }
+
+    private const val FILE_MIRROR_HOST = "https://mod.mcimirror.top"
 }

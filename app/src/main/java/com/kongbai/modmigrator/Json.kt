@@ -63,6 +63,35 @@ object Json {
             } else def
     }
 
+    /**
+     * 取字符串数组（如 Modrinth 的 `loaders: ["fabric","quilt"]`）。
+     * 元素可能是 null 或非字符串，一律跳过，不抛异常。
+     */
+    fun sa(e: JsonElement?, key: String): List<String> {
+        val arr = a(e, key) ?: return emptyList()
+        val out = ArrayList<String>(arr.size())
+        for (i in 0 until arr.size()) {
+            val v = arr.get(i)
+            if (v == null || !v.isJsonPrimitive) continue
+            val t = v.asString
+            if (t.isNotBlank()) out.add(t)
+        }
+        return out
+    }
+
+    /** 从 JsonArray 直接取字符串数组 */
+    fun saOf(arr: JsonArray?): List<String> {
+        if (arr == null) return emptyList()
+        val out = ArrayList<String>(arr.size())
+        for (i in 0 until arr.size()) {
+            val v = arr.get(i)
+            if (v == null || !v.isJsonPrimitive) continue
+            val t = v.asString
+            if (t.isNotBlank()) out.add(t)
+        }
+        return out
+    }
+
     fun a(e: JsonElement?, key: String): JsonArray? {
         if (e == null || !e.isJsonObject) return null
         val v = e.asJsonObject.get(key) ?: return null

@@ -14,7 +14,14 @@ data class ModEntry(
     var pageUrl: String = "",
     var status: String = "待处理",
     /** 是否是"网络问题导致没查成"（区别于确实没收录）。用于重试。 */
-    var netError: Boolean = false
+    var netError: Boolean = false,
+    /**
+     * 识别出的加载器（标准名，见 [Loaders.normalize]）。
+     *
+     * 用来在列表里显示加载器图标。识别不出时留空 = 不显示图标，
+     * 不会硬塞一个"未知"图标误导人。
+     */
+    var loader: String = ""
 )
 
 data class MarketMod(
@@ -31,7 +38,15 @@ data class MarketMod(
     var source: String = "modrinth",
     var updated: String = "",  // 最近更新时间（ISO），用于按时间排序
     /** Modrinth 的 environment；client_side/server_side 已废弃，见 [Environ] */
-    var environment: String = ""
+    var environment: String = "",
+    /**
+     * 这个模组**支持哪些加载器**（标准名，见 [Loaders.normalize]）。
+     *
+     * 为什么要单独存：商店卡片要在平台名下方显示加载器图标，
+     * 而"当前搜索用的加载器"和"这个模组实际支持的加载器"是两回事 ——
+     * 用前者推断会把很多模组标错。
+     */
+    var loaders: List<String> = emptyList()
 )
 
 data class ModFile(

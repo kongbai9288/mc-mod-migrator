@@ -145,7 +145,9 @@ fun search(
                     downloads = Json.l(h, "downloads"),
                     source = "modrinth",
                     updated = Json.s(h, "date_modified").ifBlank { Json.s(h, "date_created") },
-                    environment = Environ.read(h)
+                    environment = Environ.read(h),
+                    // 搜索结果里就有 loaders 数组，直接取，不用再去查一次详情
+                    loaders = Json.sa(h, "loaders").map { Loaders.normalize(it) }.distinct()
                 )
             )
         }

@@ -21,29 +21,17 @@ import java.util.Locale
  */
 object LoaderIcons {
 
-    /** 加载器 → 图标资源 */
-    fun res(loader: String): Int {
-        return when (loader.lowercase(Locale.ROOT)) {
-            "fabric" -> R.drawable.ic_loader_fabric
-            "forge" -> R.drawable.ic_loader_forge
-            "neoforge" -> R.drawable.ic_loader_neoforge
-            "quilt" -> R.drawable.ic_loader_quilt
-            "optifine" -> R.drawable.ic_loader_optifine
-            else -> R.drawable.ic_loader_unknown
-        }
-    }
+    /**
+     * 加载器 → 图标资源。
+     *
+     * 委托给 [Loaders.icon]：那里维护**全部**已知加载器
+     * （含 Cleanroom / LiteLoader / Rift 这些老旧的），
+     * 这里只留一个入口，避免两处名单对不上。
+     */
+    fun res(loader: String): Int = Loaders.icon(loader)
 
-    /** 加载器显示名（中文） */
-    fun label(loader: String): String {
-        return when (loader.lowercase(Locale.ROOT)) {
-            "fabric" -> "Fabric"
-            "forge" -> "Forge"
-            "neoforge" -> "NeoForge"
-            "quilt" -> "Quilt"
-            "optifine" -> "OptiFine"
-            else -> "未知"
-        }
-    }
+    /** 加载器显示名 */
+    fun label(loader: String): String = Loaders.label(loader)
 
     /**
      * 加载远程图标（含 WebP / SVG）。
@@ -111,6 +99,53 @@ object LoaderIcons {
      * OptiFine 不是标准 Forge/Fabric 模组，元数据文件里查不到，
      * 只能靠特征类识别。
      */
+    /**
+     * Cleanroom 检测。
+     *
+     * **已核实**（CleanroomMC/Cleanroom 仓库源码树）：
+     * Cleanroom 是 **Forge 1.12.2 的 fork**（用现代 Java 重写），
+     * jar 内同时存在：
+     *   - `net/minecraftforge/…`   （fork 自 Forge，保留原包名）
+     *   - `com/cleanroommc/…`      （Cleanroom 自己的代码：
+     *                               boot / loader / discovery / cleanmix /
+     *                               configanytime / client / common / util）
+     *
+     * 所以 `com/cleanroommc/` 就是可靠特征：
+     * 有它 = 这个模组用了 Cleanroom 的 API，只有 Cleanroom 环境跑得起来；
+     * 只有 `net/minecraftforge/` = 普通 Forge 1.12.2 模组。
+     *
+     * ⚠️ 反过来不成立：Cleanroom 上也能跑普通 Forge 1.12.2 模组。
+     * 这里只标"依赖 Cleanroom"，不把 Forge 模组误标成 Cleanroom。
+     */
+    fun detectCleanroom(ctx: Context, uri: android.net.Uri): Boolean {
+        return scanJar(ctx, uri) { name ->
+            name.startsWith("com/cleanroommc/", true)
+        }
+    }
+
+    /** 通用的 jar 条目扫描：命中任一条目即返回 true */
+    private fun scanJar(
+        ctx: Context, uri: android.net.Uri, hit: (String) -> Boolean
+    ): Boolean {
+        return try {
+            ctx.contentResolver.openInputStream(uri)?.use { input ->
+                java.util.zip.ZipInputStream(input).use { zip ->
+                    var e = zip.nextEntry
+                    var n = 0
+                    // 上限保护：超大 jar 不把整个中央目录扫完
+                    while (e != null && n < 2000) {
+                        n++
+                        if (hit(e.name ?: "")) return true
+                        e = zip.nextEntry
+                    }
+                }
+            }
+            false
+        } catch (t: Throwable) {
+            false
+        }
+    }
+
     fun detectOptiFine(ctx: Context, uri: android.net.Uri): Boolean {
         return try {
             ctx.contentResolver.openInputStream(uri)?.use { input ->

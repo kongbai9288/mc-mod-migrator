@@ -372,6 +372,90 @@ object UiCards {
         return card
     }
 
+    /**
+     * 带**远程图标**的信息卡。
+     *
+     * 为什么单独加一个：`infoCard` 只能传本地 drawable 资源，
+     * 于是收藏夹等地方只能拿一个通用图标（商店图标）凑数 ——
+     * 所有卡片长得一模一样，看不出是哪个模组，
+     * 这就是"收藏看不到图标"。
+     *
+     * 这里用 ImageView + LoaderIcons.loadRemote（走 Coil，
+     * 支持 Modrinth 常见的 WebP / SVG），失败时退回本地占位图。
+     */
+    fun modCard(
+        ctx: Context,
+        iconUrl: String,
+        title: String,
+        desc: String,
+        actionLabel: String = "",
+        onClick: () -> Unit
+    ): View {
+        val card = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            background = cardBg(ctx)
+            setPadding(dp(ctx, 14), dp(ctx, 14), dp(ctx, 14), dp(ctx, 14))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = dp(ctx, 10) }
+            setOnClickListener { onClick() }
+            isClickable = true
+        }
+
+        val iv = ImageView(ctx).apply {
+            val s = dp(ctx, 40)
+            layoutParams = LinearLayout.LayoutParams(s, s)
+            scaleType = ImageView.ScaleType.CENTER_CROP
+        }
+        card.addView(iv)
+
+        val texts = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+            ).apply { marginStart = dp(ctx, 12) }
+        }
+        texts.addView(TextView(ctx).apply {
+            text = title
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        })
+        if (desc.isNotBlank()) {
+            texts.addView(TextView(ctx).apply {
+                text = desc
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                setTextColor(
+                    if (android.os.Build.VERSION.SDK_INT >= 23) ctx.getColor(R.color.textSecondary)
+                    else @Suppress("DEPRECATION") ctx.resources.getColor(R.color.textSecondary)
+                )
+                setPadding(0, dp(ctx, 3), 0, 0)
+            })
+        }
+        card.addView(texts)
+
+        if (actionLabel.isNotBlank()) {
+            card.addView(TextView(ctx).apply {
+                text = actionLabel
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                setTextColor(primary(ctx))
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+            })
+        }
+
+        // 远程图标放在最后加载：它要等网络，不能挡住卡片先显示出来
+        if (iconUrl.isNotBlank()) {
+            LoaderIcons.loadRemote(
+                ctx, iv, iconUrl,
+                androidx.core.content.ContextCompat.getDrawable(ctx, R.drawable.ic_extension)
+            )
+        } else {
+            iv.setImageResource(R.drawable.ic_extension)
+        }
+        return card
+    }
+
     /** 空状态卡片：没有数据时给个说明，而不是一片空白 */
     fun emptyCard(ctx: Context, title: String, desc: String): View =
         LinearLayout(ctx).apply {

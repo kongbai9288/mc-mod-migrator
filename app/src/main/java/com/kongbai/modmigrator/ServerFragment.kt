@@ -55,6 +55,7 @@ class ServerFragment : Fragment() {
         etDir = v.findViewById(R.id.etPanelDir)
         etVersion = v.findViewById(R.id.etVersion)
         spLoader = v.findViewById(R.id.spLoader)
+        LoaderSpinner.attachByPref(spLoader)
         spSide = v.findViewById(R.id.spSide)
         tvServer = v.findViewById(R.id.tvServer)
         tvLog = v.findViewById(R.id.tvLog)

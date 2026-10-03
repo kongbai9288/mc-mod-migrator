@@ -26,6 +26,9 @@ import java.util.concurrent.Executors
 /** 日志弹窗里最多显示多少条（完整内容走「复制」） */
 private const val MAX_SHOW_LINES = 40
 
+/** 错误弹窗最多合并多少条（再多只更新计数，不继续堆文本） */
+private const val MAX_ERR_LINES = 20
+
 class MigrationFragment : Fragment() {
 
     private lateinit var tvSource: TextView
@@ -126,9 +129,19 @@ class MigrationFragment : Fragment() {
      * 更糟的是这次异常又被 push 的 catch 捕获、再次走一遍日志链路，
      * 于是每弹一次失败就再触发一次 → 递归，日志滚到 8 万字符。
      */
+    /**
+     * 用户点了「本次不再提示」后，错误只进日志、不再弹窗。
+     *
+     * 批量迁移几十个模组时，每一个失败都弹一次的话，
+     * 就算合并成一个对话框也会一直跳出来打断操作。
+     * 给一个立即生效的出口，比在设置里翻开关直接。
+     * 只影响本次会话：下次进页面重新可提示（字段在 Fragment 上，重建即清零）。
+     */
+    private var errDialogMuted = false
+
     private val errorHook: (LogCenter.LogLine) -> Unit = { line ->
         val ctx = context
-        if (ctx != null && isAdded) {
+        if (!errDialogMuted && ctx != null && isAdded) {
             if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
                     showErrorDialog(ctx, line)
@@ -163,19 +176,34 @@ class MigrationFragment : Fragment() {
             if (!isAdded || context == null) return
 
             val now = System.currentTimeMillis()
-            // 已有对话框还开着（3 秒内）→ 累加进去，不再新建
+            // ⚠️ 上一版这里写的是 `now - lastErrDialogAt < 3000L`，
+            // 也就是**只认 3 秒内**的旧对话框。但批量操作会持续几十秒，
+            // 用户还没来得及点掉第一个，3 秒一过就又新建一个叠上去 ——
+            // 结果仍然是一叠关不完的弹窗，底下的「复制」根本点不到。
+            // 判断依据应该是"对话框**还开着**吗"，而不是"距今多久"。
             val buf = pendingErrText
             val dlg = pendingErrDialog
-            if (buf != null && dlg != null && now - lastErrDialogAt < 3000L) {
+            if (buf != null && dlg != null && runCatching { dlg.isShowing }.getOrDefault(false)) {
                 pendingErrCount++
-                if (buf.length < 3000) buf.append("\n\n").append(line.msg)
+                // 上限 20 条：没有上限的话文本会一直涨，
+                // 而对话框的 TextView 要对整段做测量排版，容易把内存吃紧的设备拖垮
+                if (buf.length < 3000 && pendingErrCount <= MAX_ERR_LINES) {
+                    buf.append("\n\n").append(line.msg)
+                }
                 // ⚠️ 光改 StringBuilder 是不会刷新的：
                 // 对话框 show 时已经把文本设进 TextView 了，
                 // 必须直接改 TextView 才能看到新内容。
                 runCatching {
-                    dlg.findViewById<android.widget.TextView>(android.R.id.message)
-                        ?.text = "（共 $pendingErrCount 条错误）\n\n$buf"
+                    val shown = if (pendingErrCount > MAX_ERR_LINES) {
+                        "（共 $pendingErrCount 条错误，仅显示前 $MAX_ERR_LINES 条，" +
+                            "完整内容请到运行日志里看）\n\n$buf"
+                    } else {
+                        "（共 $pendingErrCount 条错误）\n\n$buf"
+                    }
+                    dlg.findViewById<android.widget.TextView>(android.R.id.message)?.text = shown
                 }
+                // 刷新节流时间戳，让"对话框刚关又立刻来一条错误"时不会误判
+                lastErrDialogAt = now
                 return
             }
 
@@ -191,6 +219,11 @@ class MigrationFragment : Fragment() {
                 .setNegativeButton("查看全部日志") { _, _ ->
                     pendingErrText = null
                     showAllLogs()
+                }
+                .setNeutralButton("本次不再提示") { _, _ ->
+                    errDialogMuted = true
+                    pendingErrText = null
+                    toast("后续错误只记录到日志，不再弹窗")
                 }
                 .show()
             pendingErrDialog = d
@@ -283,6 +316,8 @@ class MigrationFragment : Fragment() {
         tvTarget = v.findViewById(R.id.tvTarget)
         etVersion = v.findViewById(R.id.etTargetVersion)
         spLoader = v.findViewById(R.id.spLoader)
+        // 换成带加载器图标的下拉（原来 android:entries 是纯文字）
+        LoaderSpinner.attachByPref(spLoader)
         cbConfig = v.findViewById(R.id.cbConfig)
         cbScripts = v.findViewById(R.id.cbScripts)
         cbOptions = v.findViewById(R.id.cbOptions)
@@ -396,9 +431,7 @@ class MigrationFragment : Fragment() {
     }
 
     private fun selectLoader(name: String) {
-        val arr = resources.getStringArray(R.array.loaders)
-        val i = arr.indexOf(name)
-        if (i >= 0) spLoader.setSelection(i)
+        LoaderSpinner.select(spLoader, name)
     }
 
     private fun pickDir(code: Int) {

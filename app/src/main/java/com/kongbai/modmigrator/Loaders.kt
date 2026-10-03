@@ -14,14 +14,80 @@ import java.util.Locale
  */
 object Loaders {
 
-    /** 展示顺序，也是选择器里的顺序 */
-    val ALL = listOf("auto", "fabric", "forge", "neoforge", "quilt")
+    /**
+     * 手机启动器（Pojav / FCL / Zalith 等）**通常支持**的加载器。
+     *
+     * 这几个是 Android 上真正跑得起来的：装进实例就能用。
+     * 默认只显示这些，避免一打开下拉就是一堆手机上根本用不了的选项。
+     */
+    val PHONE = listOf("auto", "fabric", "forge", "neoforge", "quilt", "optifine")
+
+    /**
+     * 手机启动器**不支持或极少支持**的加载器。
+     *
+     * 它们大多停留在 1.12.2 及更早、或是早已停止维护
+     * （LiteLoader、Rift、Risugami ModLoader、BTA、Nilloader…）。
+     * 列出来是为了识别**已有实例/已有模组**时不出错，
+     * 而不是让用户去选一个装了也跑不起来的环境。
+     *
+     * 只有用户在设置里主动勾选后，才出现在分类下拉里。
+     */
+    val EXTRA = listOf(
+        "cleanroom", "legacy_fabric", "babric", "ornithe", "liteloader",
+        "rift", "risugami_modloader", "nilloader", "bta", "java_agent"
+    )
+
+    /** 全部已知加载器（手机支持的前面，其余在后） */
+    val ALL: List<String> get() = PHONE + EXTRA
+
+    /**
+     * 当前应该在分类下拉里出现的加载器。
+     *
+     * @param showExtra 用户是否在设置里勾了「显示手机不支持的加载器」
+     */
+    fun visible(showExtra: Boolean): List<String> =
+        if (showExtra) ALL else PHONE
+
+    /** 加载器 → 图标资源（线稿，可用 setColorFilter 染色/置灰） */
+    fun icon(name: String): Int = when (normalize(name)) {
+        "fabric" -> R.drawable.ic_ld_fabric
+        "forge" -> R.drawable.ic_ld_forge
+        "neoforge" -> R.drawable.ic_ld_neoforge
+        "quilt" -> R.drawable.ic_ld_quilt
+        "cleanroom" -> R.drawable.ic_ld_cleanroom
+        "legacy_fabric" -> R.drawable.ic_ld_legacy_fabric
+        "babric" -> R.drawable.ic_ld_babric
+        "ornithe" -> R.drawable.ic_ld_ornithe
+        "liteloader" -> R.drawable.ic_ld_liteloader
+        "rift" -> R.drawable.ic_ld_rift
+        "risugami_modloader" -> R.drawable.ic_ld_risugami_modloader
+        "nilloader" -> R.drawable.ic_ld_nilloader
+        "bta" -> R.drawable.ic_ld_bta
+        "java_agent" -> R.drawable.ic_ld_java_agent
+        // 图标包里没有 OptiFine，继续用老的自绘矢量图
+        "optifine" -> R.drawable.ic_loader_optifine
+        else -> R.drawable.ic_ld_auto
+    }
+
+    /** 是否手机启动器支持 */
+    fun isPhoneSupported(name: String): Boolean = normalize(name) in PHONE
 
     fun label(name: String): String = when (normalize(name)) {
         "fabric" -> "Fabric"
         "forge" -> "Forge"
         "neoforge" -> "NeoForge"
         "quilt" -> "Quilt"
+        "optifine" -> "OptiFine"
+        "cleanroom" -> "Cleanroom"
+        "legacy_fabric" -> "Legacy Fabric"
+        "babric" -> "Babric"
+        "ornithe" -> "Ornithe"
+        "liteloader" -> "LiteLoader"
+        "rift" -> "Rift"
+        "risugami_modloader" -> "Risugami ModLoader"
+        "nilloader" -> "Nilloader"
+        "bta" -> "Beta TAS"
+        "java_agent" -> "Java Agent"
         else -> "自动"
     }
 
@@ -32,22 +98,48 @@ object Loaders {
         val s = raw.trim().lowercase(Locale.ROOT)
         if (s.isBlank()) return "auto"
         return when {
-            // Fabric 系
-            s == "fabric" || s.startsWith("fabric") ||
-                s.contains("net.fabricmc") || s.contains("fabric-loader") ||
-                s.contains("fabricloader") -> "fabric"
+            // ── 必须在 fabric / forge 之前判断的 ──────────────────
+            // 这几个名字里都带 "fabric" 或 "forge" 子串，
+            // 放到后面会被更宽泛的规则先吃掉，识别成 Fabric/Forge。
 
-            // Quilt（要在 fabric 之后判断， quilt 也带 fabric 兼容层字样）
-            s == "quilt" || s.contains("org.quiltmc") ||
-                s.contains("quilt-loader") || s.contains("quiltloader") -> "quilt"
+            // Cleanroom：Forge 1.12.2 的 fork（用 Java 21+ 重写）。
+            // 包名前缀 com.cleanroommc，见 CleanroomMC/Cleanroom 仓库。
+            s.contains("cleanroom") || s.contains("com.cleanroommc") -> "cleanroom"
+
+            // Legacy Fabric / Babric / Ornithe：1.12.2 及更早的 Fabric 分支
+            s.contains("legacyfabric") || s.contains("legacy-fabric") ||
+                s.contains("legacy_fabric") -> "legacy_fabric"
+            s.contains("babric") -> "babric"
+            s.contains("ornithe") -> "ornithe"
 
             // NeoForge（必须在 forge 之前，否则 "neoforge" 会被 forge 吃掉）
             s == "neoforge" || s.contains("neoforge") ||
                 s.contains("net.neoforged") || s == "neo" -> "neoforge"
 
+            // Fabric 系
+            s == "fabric" || s.startsWith("fabric") ||
+                s.contains("net.fabricmc") || s.contains("fabric-loader") ||
+                s.contains("fabricloader") -> "fabric"
+
+            // Quilt
+            s == "quilt" || s.contains("org.quiltmc") ||
+                s.contains("quilt-loader") || s.contains("quiltloader") -> "quilt"
+
             // Forge
             s == "forge" || s.contains("forge") ||
                 s.contains("net.minecraftforge") || s.contains("minecraftforge") -> "forge"
+
+            // ── 老旧 / 小众 ────────────────────────────────────
+            s.contains("liteloader") || s.contains("lite-loader") -> "liteloader"
+            s == "rift" || s.contains("rift") -> "rift"
+            s.contains("risugami") || s.contains("modloader") -> "risugami_modloader"
+            s.contains("nilloader") || s.contains("nil-loader") -> "nilloader"
+            // BTA = Better Than Adventure（1.7.3 分支），不是"加载器"但与上面同源
+            s == "bta" || s.contains("betterthanadventure") ||
+                s.contains("better-than-adventure") -> "bta"
+            s.contains("javaagent") || s.contains("java-agent") -> "java_agent"
+
+            s.contains("optifine") -> "optifine"
 
             s == "vanilla" || s == "原版" -> "auto"
             else -> "auto"

@@ -187,5 +187,20 @@
             android:text="上面的总开关打开时，所有联网一律关闭，分项不再单独判断。"
             android:textColor="@color/textSecondary"
             android:textSize="12sp" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/swExtraLoaders"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="在加载器分类里显示手机不支持的加载器" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="8dp"
+            android:text="如 Cleanroom / LiteLoader / Rift / Risugami / BTA。默认关闭：这些大多停在 1.12.2 及更早或已停更，手机上装了也跑不起来。开启后仅用于识别已有模组，不代表能运行。"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
     </LinearLayout>
 </ScrollView>
