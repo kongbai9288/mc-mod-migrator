@@ -66,3 +66,38 @@ fun android.app.Activity.recreateSafely() {
         go.run()
     }
 }
+
+/**
+ * 取当前主题的正文色。
+ *
+ * 为什么需要它：代码里 `TextView(ctx)` 这种**手动 new 出来的控件**
+ * 不会套用主题的 textColorPrimary，用的是系统默认色 ——
+ * 深色主题下就是黑底黑字，看起来像"字没了"。
+ * 布局文件里的控件没这个问题（系统会按主题注入），只有代码建的才需要。
+ */
+fun textColorPrimary(ctx: android.content.Context): Int {
+    return try {
+        val tv = android.util.TypedValue()
+        val ok = ctx.theme.resolveAttribute(android.R.attr.textColorPrimary, tv, true)
+        if (ok && tv.resourceId != 0) {
+            if (android.os.Build.VERSION.SDK_INT >= 23) ctx.getColor(tv.resourceId)
+            else @Suppress("DEPRECATION") ctx.resources.getColor(tv.resourceId)
+        } else android.graphics.Color.GRAY
+    } catch (t: Throwable) {
+        android.graphics.Color.GRAY
+    }
+}
+
+/** 取当前主题的次要文字色 */
+fun textColorSecondary(ctx: android.content.Context): Int {
+    return try {
+        val tv = android.util.TypedValue()
+        val ok = ctx.theme.resolveAttribute(android.R.attr.textColorSecondary, tv, true)
+        if (ok && tv.resourceId != 0) {
+            if (android.os.Build.VERSION.SDK_INT >= 23) ctx.getColor(tv.resourceId)
+            else @Suppress("DEPRECATION") ctx.resources.getColor(tv.resourceId)
+        } else android.graphics.Color.GRAY
+    } catch (t: Throwable) {
+        android.graphics.Color.GRAY
+    }
+}

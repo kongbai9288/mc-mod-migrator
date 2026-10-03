@@ -11,8 +11,8 @@ android {
         applicationId "com.kongbai.modmigrator"
         minSdk 26
         targetSdk 34
-        versionCode 25
-        versionName "2.1.7"
+        versionCode 26
+        versionName "2.1.8"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -74,6 +74,18 @@ dependencies {
     implementation 'commons-net:commons-net:3.11.1'
     // SFTP：sshj（Apache-2.0，非传染性）
     implementation 'com.hierynomus:sshj:0.38.0'
+    //
+    // ⚠️ Conscrypt 是 sshj 在 Android 上的**硬性依赖**，不是可选项。
+    // sshj 走 BouncyCastle 做 SHA-256 / ECDSA / Ed25519 这些运算，
+    // 但 Android 内置的 BC 是阉割版：从 Android P 起不再提供
+    // MessageDigest.SHA-256 等算法（官方专门发文说明的变更）。
+    // 结果就是连现代 SSH 服务器必定抛：
+    //   "The BC provider no longer provides an implementation for
+    //    MessageDigest.SHA-256"
+    // ——不是服务器的问题，也不是账号密码的问题，就是缺这个 provider。
+    // 装上它并在 App 里 insertProviderAt 之后才能握手成功。
+    // （Apache-2.0，非传染性）
+    implementation 'org.conscrypt:conscrypt-android:2.5.2'
 
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'com.google.code.gson:gson:2.10.1'

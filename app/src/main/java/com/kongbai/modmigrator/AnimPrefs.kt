@@ -31,16 +31,24 @@ object AnimPrefs {
         Prefs.get(ctx).edit().putInt(K.ANIM_MODE, m).apply()
     }
 
-    /** 这台设备算不算低端：系统标记低内存，或可用内存偏小 */
+    /**
+     * 这台设备算不算低端：系统标记低内存，或可用内存偏小。
+     *
+     * ⚠️ 阈值从 4GB 降到 2GB。
+     * 4GB 内存的手机现在遍地都是，按旧阈值**绝大多数人的动画被静默关掉**——
+     * 于是"设置 → 实验室 → 动画速率"调了半天界面毫无反应，
+     * 用户只会觉得速率功能是坏的（反馈原话："应用动画速率也有问题"）。
+     * 真正跑不动动画的是 2GB 以下的那批，按这个判。
+     */
     fun isLowEnd(ctx: Context): Boolean {
         try {
             val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
             if (am != null && am.isLowRamDevice) return true
             val mi = ActivityManager.MemoryInfo()
             am?.getMemoryInfo(mi)
-            // 总内存小于 4GB 视为低端
-            if (mi.totalMem > 0 && mi.totalMem < 4L * 1024 * 1024 * 1024) return true
-        } catch (t: Throwable) { Err.ignore(t, "if (mi.totalMem > 0 && mi.totalMem < 4L * 1024 * 1") }
+            // 总内存小于 2GB 才算低端
+            if (mi.totalMem > 0 && mi.totalMem < 2L * 1024 * 1024 * 1024) return true
+        } catch (t: Throwable) { Err.ignore(t, "判定低端设备") }
         return false
     }
 
@@ -185,6 +193,10 @@ object AnimPrefs {
             OFF -> "总是关闭"
             else -> "跟随设备（当前${if (low) "判定为低端机 → 关闭" else "判定为正常机 → 开启"}）"
         }
-        return "动画：${if (cur) "已开启" else "已关闭"}\n模式：$modeTxt"
+        return "动画：${if (cur) "已开启" else "已关闭"}\n模式：$modeTxt\n" +
+            "速率：${speedLabel(ctx)}" +
+            // ⚠️ 必须写明这一点，否则用户改速率看不到任何变化，
+            // 只会以为速率功能是坏的。
+            if (!cur) "\n（动画已关闭，改速率不会有效果）" else ""
     }
 }

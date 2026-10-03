@@ -60,6 +60,11 @@ class App : Application() {
         }
         // 必须在任何界面创建前设置好，否则先加载的图片拿不到解码器
         installCoil()
+        // SFTP 依赖：见 build.gradle 里的说明。
+        // Android 自带的 BouncyCastle 不提供 SHA-256/ECDSA 等算法，
+        // sshj 握手时会直接抛"The BC provider no longer provides ..."，
+        // 装上 Conscrypt 并插到第一位才能连上现代 SSH 服务器。
+        installConscrypt()
         CrashHandler.install(this)
         Prefs.init(this)
         // 主题必须在任何 Activity 创建前定好，否则深色模式要重启才生效
@@ -117,6 +122,20 @@ class App : Application() {
     override fun onLowMemory() {
         super.onLowMemory()
         freeCaches(true)
+    }
+
+    /**
+     * 把 Conscrypt 插到安全提供者第一位。
+     *
+     * 只插一次（重复插入会让列表越来越长），失败也不能影响启动。
+     */
+    private fun installConscrypt() {
+        try {
+            if (java.security.Security.getProvider("Conscrypt") != null) return
+            java.security.Security.insertProviderAt(org.conscrypt.Conscrypt.newProvider(), 1)
+        } catch (t: Throwable) {
+            android.util.Log.w("App", "Conscrypt 安装失败，SFTP 可能连不上", t)
+        }
     }
 
     private fun freeCaches(includeCoil: Boolean) {
