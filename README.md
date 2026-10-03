@@ -2,13 +2,12 @@
 
 Minecraft Java 版 **模组与配置迁移工具**（Android）。
 
-把一台设备上某个游戏版本的模组、配置、脚本、存档、光影等，
-整体搬到另一个版本（或另一台设备 / 服务器）上——
-自动识别已装的模组、自动去 Modrinth / CurseForge 找对应新版本的下载地址，
-再批量下载到目标目录。
+Minecraft java edition 手机启动器的跨版本更新迁移工具
 
-> 适用：安卓上的 FCL、Zalith、Pojav、Amethyst、HMCL-PE、澪-Ultimate 等启动器。
-> 不适用：基岩版（Bedrock）。
+> 适用：安卓上的 FCL、Zalith、Pojav、Amethyst、HMCL-PE、澪-Ultimate 等(java eidition)启动器。
+> 不适用：基岩版（Bedrock eidition）
+
+注：本项目与各loader,启动器，mojang AB及其主公司Microsoft©没有所属关系！
 
 ---
 
@@ -56,7 +55,7 @@ Minecraft Java 版 **模组与配置迁移工具**（Android）。
 - 填面板地址，支持**账号密码**登录或 Client API Key
 - 自动探测 `/mods`、`/plugins` 等目录（不用手填路径）
 - 列出 jar → 检测更新 → 逐个或批量下载
-- **不会自动上传**，下载完你自己通过面板/SFTP 传上去
+- **不会自动上传**，下载完你需要自己通过面板/SFTP 传上去
 
 ### 工具箱
 - **模组体检**：重复模组、可疑文件名（中文/空格）、超大文件
@@ -74,29 +73,6 @@ Minecraft Java 版 **模组与配置迁移工具**（Android）。
 - **界面动画**：跟随设备（低端机自动关）/ 总是开 / 总是关
 - **语言**：简体中文 / English，支持**语言拓展包**（放到目录里自动读取）
 - **插件**：允许外部扩展功能
-
----
-
-## 设置页结构
-
-```
-设置
-├── 后端（ModMarket 后端地址、OAuth 回调诊断）
-├── 搜索（模组源、CurseForge Key、聚合）
-├── 迁移（默认版本、加载器、并发数、自动启动）
-├── 存储（工作目录）
-├── 界面动画
-├── 底部导航栏
-├── 主题
-├── 语言
-├── 插件
-├── 开发者名单
-├── 日志
-└── 关于（版本号、检查更新、更新内容、授权状态、隐私政策、开源许可）
-```
-
-返回键逐层退回，栈空才退出设置。
-
 ---
 
 ## 模组源说明
@@ -108,51 +84,35 @@ Minecraft Java 版 **模组与配置迁移工具**（Android）。
 | CurseForge（官方直连） | **需要** | 自己在设置里填 Key |
 | CurseForge（国内镜像） | 不需要 | 无 Key 时自动走镜像 |
 
-**单源模式下后端与官方直连互斥**（开一个另一个自动关）。
-**聚合模式不受影响**——两条都查，按名字去重、保留下载量高的。
+**聚合模式不受影响**
 
 ---
 
 ## 翻译
 
-用 **Google ML Kit Translate**，不是自己拼的接口：
+用 **Google ML Kit Translate**：
 
 - 真神经网络翻译，质量远超词典替换
 - 模型约 30MB，**下载一次后完全离线可用**
 - 支持 50+ 语言
-- 网页翻译不再是跳 `translate.google.com` 代理页（国内经常打不开、一失败就白屏），
+- 网页翻译会先检测一遍，如果出现问题，再重新点击翻译会正常
   而是页面正常加载后把文字用本地模型翻成中文再替换——离线也能翻，页面内容不外发
 
 首次使用在「设置 → 翻译」里点一下下载模型即可。没下载也能用，会走在线接口兜底。
 
 ## 隐私
 
-- 代码里**不含任何凭据**（GitHub Token、CurseForge Key、面板密码都不写死）
-- Token / Key / 密码由用户自己填写，存在 `EncryptedSharedPreferences`（AES-256）
-- GitHub 登录走 OAuth，在浏览器完成，**App 不接触也不保存密码**
-- 后端地址默认为 `modmarket.3566500461.workers.dev`
+- 代码里**不含任何凭据**如果你有自己的后台可以自己切换
+- GitHub 登录是为了帮助你自己传到你的仓库里，这样的话方便配置，可以不登录
+- 后端地址默认为120/分钟请求，请合理使用
+- 如果你没发正常连接，你可能需要国际环境
 - 完整的隐私政策见 App 内「设置 → 关于 → 隐私说明」
 
 ---
 
 ## 下载
 
-Release 里提供已签名的 `ModMigrator-release.apk`。
-
-## 构建
-
-```bash
-# 需要 JDK 17
-./gradlew assembleRelease
-```
-
-签名信息通过环境变量注入，不入库：
-
-```
-KEYSTORE_FILE / KEYSTORE_PASS / KEY_ALIAS / KEY_PASS
-```
-
-CI（GitHub Actions）会在每次推送后自动构建并发布 Release。
+Release 里提供已签名的 `ModMigrator-release.apk`，如果你已安装，可以通过检测更新来获得新版本
 
 ---
 
