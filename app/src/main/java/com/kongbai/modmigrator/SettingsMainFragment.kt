@@ -380,7 +380,7 @@ class SettingsMainFragment : Fragment() {
                     // 用内置浏览器登录：cookie 存在 WebView 里，
                     // OkHttp 通过 cookie 桥能读到，登录状态才对得上。
                     // 用结果回调启动，登录完成后会自动回到这里刷新状态。
-                    LogCenter.i("Login", "3. 拉起内置浏览器：$maskUrl(start.url)")
+                    LogCenter.i("Login", "3. 拉起内置浏览器：${maskUrl(start.url)}")
                     val i = Intent(requireContext(), WebActivity::class.java)
                     i.putExtra("url", start.url)
                     i.putExtra("title", "登录 GitHub")
