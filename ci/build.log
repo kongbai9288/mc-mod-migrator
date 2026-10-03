@@ -26,9 +26,9 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mapReleaseSourceSetPaths
 > Task :app:generateReleaseResources
 > Task :app:packageReleaseResources
-> Task :app:mergeReleaseResources
 > Task :app:createReleaseCompatibleScreenManifests
 > Task :app:extractDeepLinksRelease
+> Task :app:mergeReleaseResources
 > Task :app:parseReleaseLocalResources
 > Task :app:processReleaseMainManifest
 > Task :app:processReleaseManifest
@@ -39,15 +39,15 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:desugarReleaseFileDependencies
 > Task :app:checkReleaseDuplicateClasses
 > Task :app:processReleaseManifestForPackage
-> Task :app:mergeReleaseArtProfile
+> Task :app:stripReleaseDebugSymbols
+> Task :app:mergeExtDexRelease
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
 
 > Task :app:extractReleaseNativeSymbolTables
-> Task :app:processReleaseResources
-> Task :app:mergeExtDexRelease
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
@@ -58,6 +58,7 @@ Unable to strip the following libraries, packaging them as they are: libconscryp
 > Task :app:validateSigningRelease
 > Task :app:writeReleaseAppMetadata
 > Task :app:writeReleaseSigningConfigVersions
+> Task :app:processReleaseResources
 > Task :app:optimizeReleaseResources
 > Task :app:compileReleaseKotlin
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:296:25 None of the following functions can be called with the arguments supplied: 
@@ -83,5 +84,5 @@ Execution failed for task ':app:compileReleaseKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 2m 22s
+BUILD FAILED in 2m 10s
 34 actionable tasks: 34 executed
