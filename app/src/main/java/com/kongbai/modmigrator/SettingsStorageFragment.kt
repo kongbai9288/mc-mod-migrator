@@ -28,8 +28,7 @@ class SettingsStorageFragment : Fragment() {
         refresh()
         setupBackup(v)
         btnPick.setOnClickListener {
-            val i = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-            startActivityForResult(i, 21)
+            DirGuide.pick(requireActivity(), 21, DirGuide.Purpose.FREE)
         }
         btnClear.setOnClickListener {
             Prefs.get(requireContext()).edit().putString(K.WORKDIR_URI, "").apply()
@@ -42,7 +41,7 @@ class SettingsStorageFragment : Fragment() {
 
     private fun refresh() {
         val u = WorkDir.uri(requireContext())
-        tvWork.text = if (u.isBlank()) "未设置：所有导出与缓存会放在应用私有目录" else "工作目录：$u"
+        tvWork.text = if (u.isBlank()) "未设置：所有导出与缓存会放在应用私有目录" else "工作目录：${DirGuide.human(u)}"
     }
 
     /** 云盘备份：上传地址 + 自动备份间隔 */

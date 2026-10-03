@@ -426,8 +426,11 @@ class MigrationFragment : Fragment() {
 
     private fun refreshPaths() {
         val p = Prefs.get(requireContext())
-        tvSource.text = p.getString(K.SRC_URI, null) ?: getString(R.string.empty_hint)
-        tvTarget.text = p.getString(K.DST_URI, null) ?: getString(R.string.empty_hint)
+        // 显示人能看懂的路径，而不是 content://...%3A... 那串 URI
+        tvSource.text = DirGuide.human(p.getString(K.SRC_URI, "") ?: "")
+            .ifBlank { getString(R.string.empty_hint) }
+        tvTarget.text = DirGuide.human(p.getString(K.DST_URI, "") ?: "")
+            .ifBlank { getString(R.string.empty_hint) }
     }
 
     private fun selectLoader(name: String) {
@@ -435,8 +438,20 @@ class MigrationFragment : Fragment() {
     }
 
     private fun pickDir(code: Int) {
-        val i = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-        startActivityForResult(i, code)
+        //
+        // ⚠️ 之前直接 startActivityForResult 拉起系统文件选择器，
+        // 用户面对整台手机的目录树，完全不知道该选到哪一层 ——
+        // 选错的表现是"扫出 0 个实例""识别不出版本"，
+        // 界面上却只说"请选择目录"，没有任何指引。
+        // 这里先说明该选哪一层，并给出常见启动器的实际路径。
+        //
+        val purpose = when (code) {
+            11 -> DirGuide.Purpose.SOURCE
+            12 -> DirGuide.Purpose.TARGET
+            13 -> DirGuide.Purpose.SCAN_ROOT
+            else -> DirGuide.Purpose.FREE
+        }
+        DirGuide.pick(requireActivity(), code, purpose)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -451,6 +466,9 @@ class MigrationFragment : Fragment() {
             11 -> {
                 p.edit().putString(K.SRC_URI, uri.toString()).apply()
                 refreshPaths()
+                // 选错层级不会报错，只会"识别不出版本"，
+                // 这里当场校验并提示，不然后面用户完全联想不到是选错了。
+                DirGuide.check(ctx, uri, DirGuide.Purpose.SOURCE)?.let { log("⚠ $it") }
                 val root = Fs.tree(ctx, uri.toString())
                 if (root != null) {
                     log("「迁移前」的版本已选择，正在识别版本…")
@@ -460,6 +478,7 @@ class MigrationFragment : Fragment() {
             12 -> {
                 p.edit().putString(K.DST_URI, uri.toString()).apply()
                 refreshPaths()
+                DirGuide.check(ctx, uri, DirGuide.Purpose.TARGET)?.let { log("⚠ $it") }
                 log("「迁移后」的版本已选择")
             }
             31 -> {
@@ -471,6 +490,7 @@ class MigrationFragment : Fragment() {
             }
             13 -> {
                 p.edit().putString(K.SCAN_ROOT, uri.toString()).apply()
+                DirGuide.check(ctx, uri, DirGuide.Purpose.SCAN_ROOT)?.let { log("⚠ $it") }
                 log("已选择目录，正在里面找各个版本…")
                 scanLocal()
             }
