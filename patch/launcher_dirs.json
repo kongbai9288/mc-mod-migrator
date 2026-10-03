@@ -1,0 +1,10 @@
+[
+  {"name":"PojavLauncher","rel":"games/PojavLauncher/.minecraft","pkg":"net.kdt.pojavlaunch","note":"已停止维护，建议换 Zalith"},
+  {"name":"Zalith Launcher","rel":"games/ZalithLauncher/.minecraft","pkg":"com.movtery.zalithlauncher","note":""},
+  {"name":"Zalith Launcher 2","rel":"games/ZalithLauncher2/.minecraft","pkg":"com.movtery.zalithlauncher2","note":"推荐"},
+  {"name":"Amethyst","rel":"games/Amethyst/.minecraft","pkg":"com.aurora.amethyst","note":""},
+  {"name":"FCL","rel":"FCL/.minecraft","pkg":"com.fcl.launcher","note":"开版本隔离则在 versions/<版本>/ 下"},
+  {"name":"HMCL PE","rel":"HMCLPE/.minecraft","pkg":"com.tungsten.hmclpe","note":"开版本隔离则在 versions/<版本>/ 下"},
+  {"name":"澪 MioLauncher","rel":"MioLauncher/.minecraft","pkg":"","note":""},
+  {"name":"MCinaBox","rel":"MCinaBox/.minecraft","pkg":"com.aof.mcinabox","note":""}
+]
