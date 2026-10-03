@@ -38,6 +38,41 @@
             android:layout_height="wrap_content"
             android:text="@string/cfg_clear_workdir" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/cfg_gamedir_title"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="6dp"
+            android:text="@string/cfg_gamedir_hint"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
+
+        <Spinner
+            android:id="@+id/spGameDir"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <Button
+            android:id="@+id/btnPickGame"
+            style="@style/AppButtonOutlined"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/cfg_gamedir_pick" />
+
+        <TextView
+            android:id="@+id/tvGameDir"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="8dp"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
+
         <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/swLocalIcon"
             android:layout_width="match_parent"

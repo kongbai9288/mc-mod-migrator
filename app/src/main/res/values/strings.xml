@@ -186,6 +186,10 @@
     <string name="tab_favorites">收藏夹</string>
     <string name="tab_weekly">周报</string>
     <string name="tab_sites">站点导航</string>
+    <string name="cfg_gamedir_title">游戏目录（.minecraft）</string>
+    <string name="cfg_gamedir_hint">模组要装到启动器真正的 .minecraft 里才会生效。这里列出设备上已找到的启动器目录，选一个即可；也可以自己指定。改动会永久保存。</string>
+    <string name="cfg_gamedir_pick">自己指定 .minecraft 目录</string>
+    <string name="cfg_gamedir_none">未找到启动器目录（也许还没启动过游戏）</string>
     <string name="cfg_local_icon">从模组文件里读取图标</string>
     <string name="cfg_local_icon_hint">离线可用、不耗流量。关掉则只用网络图标。手机性能较弱时可关闭。</string>
     <string name="cfg_backup_title">云盘备份</string>

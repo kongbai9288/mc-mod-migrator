@@ -150,6 +150,10 @@ object K {
     const val USE_BACKEND = "use_backend"
     const val USE_OFFICIAL_CF = "use_official_cf"
     const val WORKDIR_URI = "workdir_uri"
+    /** 游戏目录（.minecraft）绝对路径。模组必须装到这里才会被启动器加载 */
+    const val GAME_DIR = "game_dir"
+    /** 游戏目录的可读名称（给设置页显示用） */
+    const val GAME_DIR_NAME = "game_dir_name"
     const val AGG_SEARCH = "agg_search"
     const val RECOMMEND = "recommend"
     const val LOCAL_ICON = "local_icon"
