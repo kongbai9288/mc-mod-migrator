@@ -126,11 +126,11 @@ class DevsFragment : Fragment() {
         val others = list.filter { !it.url.contains("github.com") }
 
         if (people.isNotEmpty()) {
-            box.addView(UiCards.sectionTitle(ctx, "开发"))
+            box.addView(UiCards.sectionTitle(ctx, "开发", R.drawable.ic_person))
             for (d in people) box.addView(devRow(ctx, d))
         }
         if (others.isNotEmpty()) {
-            box.addView(UiCards.sectionTitle(ctx, "数据来源与协议"))
+            box.addView(UiCards.sectionTitle(ctx, "数据来源与协议", R.drawable.ic_link))
             for (d in others) box.addView(devRow(ctx, d))
         }
         if (people.isEmpty() && others.isEmpty()) {

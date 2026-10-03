@@ -96,6 +96,24 @@ class ToolsFragment : Fragment() {
             "按 Modrinth 格式导出，可分享给别人或自己备份", "导出"
         ) { exportMrpack() })
 
+        // ---------- 存档与数据包 ----------
+        root.addView(UiCards.sectionTitle(ctx, "存档与数据包", R.drawable.ic_inventory))
+
+        root.addView(UiCards.infoCard(
+            ctx, R.drawable.ic_folder, "世界存档",
+            "列出存档的世界名、版本、种子、最后游玩时间、难度（只读查看）", "查看"
+        ) { openWorlds() })
+
+        root.addView(UiCards.infoCard(
+            ctx, R.drawable.ic_edit, "NBT 编辑器",
+            "打开 .dat / .nbt，树形查看 + SNBT 编辑，写回前自动备份", "打开"
+        ) { openNbt() })
+
+        root.addView(UiCards.infoCard(
+            ctx, R.drawable.ic_extension, "数据包生成器（离线）",
+            "137 个生成器，无需联网；结果可直接写进存档", "打开"
+        ) { openDatapack() })
+
         // ---------- 跨设备传输 ----------
         // QuickTransfer.shareFiles() 一直**没有任何调用方**——
         // 打包分享的代码写好了，界面上却点不到，等于没做。
@@ -122,6 +140,67 @@ class ToolsFragment : Fragment() {
         ) { showCrashLog() })
 
         return scroll
+    }
+
+    // ---------------- 存档与数据包 ----------------
+
+    private fun openWorlds() {
+        val ctx = context ?: return
+        // 世界存档是独立页面，直接压进当前容器的返回栈
+        try {
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, WorldsFragment())
+                .addToBackStack("worlds")
+                .commit()
+        } catch (t: Throwable) {
+            // 容器 id 变了（页面结构调整）时不能静默失败，给个明确提示
+            Err.fail(t, "打开世界存档页")
+            Toast.makeText(ctx, "打不开世界存档页，请从「更多 → 工具箱」进入", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun openNbt() {
+        val ctx = context ?: return
+        //
+        // 让用户挑 .minecraft 下的文件。直接给一个输入框填路径体验很差
+        // （用户不知道路径），所以先从游戏目录里列出候选 .dat/.nbt。
+        // 找不到就退化为手动填路径。
+        //
+        val game = Prefs.get(ctx).getString(K.GAME_DIR, "") ?: ""
+        val base = if (game.isNotBlank() && !game.startsWith("content://")) java.io.File(game) else null
+        val cand = ArrayList<java.io.File>()
+        base?.let { b ->
+            b.walkTopDown()
+                .filter { it.isFile && (it.name.endsWith(".dat") || it.name.endsWith(".nbt")) }
+                .take(60)
+                .forEach { cand.add(it) }
+        }
+        if (cand.isEmpty()) {
+            val et = android.widget.EditText(ctx).apply { setSingleLine(true) }
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                .setTitle("NBT 文件路径")
+                .setMessage("没在游戏目录里找到 .dat，也可以直接填完整路径")
+                .setView(et)
+                .setPositiveButton("打开") { _, _ ->
+                    val p = et.text.toString().trim()
+                    if (p.isBlank()) return@setPositiveButton
+                    NbtViewerActivity.open(ctx, java.io.File(p))
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+            return
+        }
+        val names = cand.map { it.name + "  (" + it.parentFile?.name + ")" }.toTypedArray()
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+            .setTitle("打开哪个文件")
+            .setItems(names) { _, w -> NbtViewerActivity.open(ctx, cand[w]) }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun openDatapack() {
+        val ctx = context ?: return
+        ctx.startActivity(android.content.Intent(ctx, DatapackActivity::class.java))
     }
 
     // ---------------- 跨加载器迁移 ----------------

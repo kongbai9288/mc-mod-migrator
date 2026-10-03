@@ -88,6 +88,20 @@
             android:exported="false"
             android:label="@string/title_browser"
             android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".NbtViewerActivity"
+            android:exported="false"
+            android:label="NBT 编辑器"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".DatapackActivity"
+            android:exported="false"
+            android:label="数据包生成器"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
         <service
             android:name=".DownloadService"
             android:exported="false"
