@@ -33,6 +33,52 @@ class ModAdapter(
         return VH(v)
     }
 
+    /**
+     * 分类标签行。
+     *
+     * 用 Material 的 Chip 太重（每个 Chip 都是一个带触摸反馈的 Button，
+     * 列表里几十个会拖慢滑动），这里用轻量的 TextView + 描边背景。
+     * 没有标签就整行 GONE —— 不留一条空白，也不画"无标签"字样。
+     */
+    private fun renderCats(h: VH, m: MarketMod) {
+        val cats = ModCats.clean(m.categories)
+        if (cats.isEmpty()) {
+            h.rowCats.visibility = View.GONE
+            return
+        }
+        h.rowCats.visibility = View.VISIBLE
+        h.rowCats.removeAllViews()
+        val ctx = h.itemView.context
+        val d = ctx.resources.displayMetrics.density
+        val tint = try {
+            if (android.os.Build.VERSION.SDK_INT >= 23) ctx.getColor(R.color.textSecondary)
+            else @Suppress("DEPRECATION") ctx.resources.getColor(R.color.textSecondary)
+        } catch (t: Throwable) { android.graphics.Color.GRAY }
+        for (c in cats) {
+            val tv = TextView(ctx)
+            tv.text = c
+            tv.textSize = 10f
+            tv.setTextColor(tint)
+            tv.setPadding((d * 5).toInt(), (d * 1).toInt(), (d * 5).toInt(), (d * 1).toInt())
+            tv.background = tagBg(tint)
+            val lp = ViewGroup.MarginLayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            lp.marginEnd = (d * 4).toInt()
+            tv.layoutParams = lp
+            h.rowCats.addView(tv)
+        }
+    }
+
+    /** 圆角描边背景（跟标签文字同色，深浅主题都适配） */
+    private fun tagBg(color: Int): android.graphics.drawable.Drawable {
+        val g = android.graphics.drawable.GradientDrawable()
+        g.cornerRadius = 999f
+        g.setStroke(1, color)
+        return g
+    }
+
     override fun getItemCount(): Int = items.size
 
     override fun onBindViewHolder(h: VH, pos: Int) {
@@ -108,6 +154,7 @@ class MarketAdapter(
         val trans: Button = v.findViewById(R.id.btnTrans)
         val rowLoaders: WrapRow = v.findViewById(R.id.rowLoaders)
         val downloads: TextView = v.findViewById(R.id.tvDownloads)
+        val rowCats: WrapRow = v.findViewById(R.id.rowCats)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -194,7 +241,13 @@ class MarketAdapter(
         // 收藏夹是从本地 JSON 恢复的、后端来源也不一定解析过 loaders，
         // 只在解析处清理的话，这几条路径仍可能带进重复的「自动」。
         val lds = Loaders.clean(m.loaders)
-        if (lds.isEmpty()) {
+        // ⚠️ 只有 **mod** 才有加载器。
+        // 数据包 / 资源包 / 光影 / 整合包这些项目类型，
+        // Modrinth 也会往 loaders 里塞值（比如 datapack 塞 "datapack"），
+        // 画出来的图标全是"自动"，等于在骗人。
+        // 非 mod 一律不画加载器行，下载量回到"平台 · N 次下载"。
+        val isMod = m.projectType.isBlank() || m.projectType == "mod"
+        if (lds.isEmpty() || !isMod) {
             h.rowLoaders.visibility = View.GONE
             h.meta.text = "${m.source} · ${compactCount(m.downloads)} 次下载"
         } else {
@@ -202,6 +255,7 @@ class MarketAdapter(
             h.meta.text = m.source
             renderLoaderIcons(h, lds, m.downloads)
         }
+        renderCats(h, m)
         if (m.summaryZh.isNotBlank()) {
             h.status.text = m.summaryZh
             h.trans.text = "原文"

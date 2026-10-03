@@ -55,6 +55,17 @@
                 android:textSize="11sp" />
         </com.kongbai.modmigrator.WrapRow>
 
+        <!-- 分类标签（优化 / 科技 / 魔法 …）。
+             内容分类才是"这个模组是干什么的"，
+             加载器图标只说明"能在哪个环境跑"，两者不能混。
+             没有标签的项目不显示这一行，不留空白。 -->
+        <com.kongbai.modmigrator.WrapRow
+            android:id="@+id/rowCats"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:visibility="gone" />
+
         <TextView
             android:id="@+id/tvStatus"
             android:layout_width="match_parent"

@@ -149,7 +149,10 @@ object Favorites {
                     // updated 丢了会导致"按更新时间排序"时收藏项全排最后。
                     fileId = Json.s(e, "fileId"),
                     fileName = Json.s(e, "fileName"),
-                    updated = Json.s(e, "updated")
+                    updated = Json.s(e, "updated"),
+                    loaders = Json.sa(e, "loaders"),
+                    categories = Json.sa(e, "categories"),
+                    projectType = Json.s(e, "projectType").ifBlank { "mod" }
                 )
             )
         }
@@ -183,6 +186,13 @@ object Favorites {
                         put("fileId", m.fileId)
                         put("fileName", m.fileName)
                         put("updated", m.updated)
+                        // 加载器图标 / 分类标签 / 项目类型也要存：
+                        // 收藏夹是从这份 JSON **重建**模组对象的，
+                        // 不存的话收藏夹里的卡片永远画不出加载器图标和标签，
+                        // 而搜索结果里有 —— 同一个模组两处显示不一致，很怪。
+                        put("loaders", org.json.JSONArray(m.loaders))
+                        put("categories", org.json.JSONArray(m.categories))
+                        put("projectType", m.projectType)
                     }
                 )
             }

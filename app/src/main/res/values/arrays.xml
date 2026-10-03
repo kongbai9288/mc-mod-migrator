@@ -10,6 +10,12 @@
     <!-- 运行环境：用它过滤"这个版本能不能装到服务端"。
          对应 Modrinth 的 environment 字段（client_side/server_side 已废弃）。
          注意顺序：第 0 项必须是「服务端」，ServerFragment.currentSide() 按位置取值。 -->
+    <!-- 服务器连接方式。顺序必须和 RemoteFs.Kind 一致：Spinner 按位置取值 -->
+    <string-array name="remote_kinds">
+        <item>FTP</item>
+        <item>FTPS（显式 TLS）</item>
+        <item>SFTP（SSH）</item>
+    </string-array>
     <string-array name="sides">
         <item>服务端</item>
         <item>客户端</item>

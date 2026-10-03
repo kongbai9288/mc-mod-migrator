@@ -194,6 +194,14 @@ object K {
     const val ANNO_CLEARED = "anno_cleared"
     const val FIRST_MARKET_VISIT = "first_market_visit"
     const val GH_AVATAR = "gh_avatar"
+    // 远程文件（FTP / FTPS / SFTP）
+    const val REMOTE_KIND = "remote_kind"       // 0=面板API 1=FTP 2=FTPS 3=SFTP
+    const val REMOTE_HOST = "remote_host"
+    const val REMOTE_PORT = "remote_port"
+    const val REMOTE_USER = "remote_user"
+    const val REMOTE_PASS = "remote_pass"
+    /** 本机令牌（PAT）是否已通过 GitHub 校验 */
+    const val GH_PAT_OK = "gh_pat_ok"
     const val GH_LOGIN = "gh_login"
     const val BROWSER_INTERNAL = "browser_internal"  // 一律用内置浏览器
     const val RESUME_DOWNLOAD = "resume_download"    // 断点续传

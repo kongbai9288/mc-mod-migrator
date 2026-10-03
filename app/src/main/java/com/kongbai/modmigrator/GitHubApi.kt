@@ -5,6 +5,75 @@ import com.google.gson.JsonObject
 
 object GitHubApi {
 
+    /**
+     * 直接用**个人访问令牌（PAT）**登录，不走后端 OAuth。
+     *
+     * ⚠️ 为什么要有这条路：
+     * 原来的登录完全依赖后端（workers.dev）转发 GitHub OAuth，
+     * 而这个域名在国内**大面积不可达**——日志里全是
+     * `Connection reset` / `failed to connect ... after 6000ms`。
+     * 域名不通，代码再怎么改都登不上，用户只能反复点。
+     *
+     * PAT 是 GitHub 官方给的方式：
+     * 用户在 GitHub 网页上生成一串令牌粘进来，应用拿它直接调
+     * `https://api.github.com/user` —— 直连 GitHub，不经过我们的后端，
+     * 域名可达性完全不一样。
+     */
+
+    /** PAT 的常见前缀（ghp_ 经典 / github_pat_ 细粒度） */
+    fun looksLikePat(t: String): Boolean {
+        val s = t.trim()
+        return s.startsWith("ghp_") || s.startsWith("github_pat_") ||
+            s.startsWith("gho_") || s.startsWith("ghu_") || s.startsWith("ghs_")
+    }
+
+    /**
+     * 校验令牌并取回账号信息。
+     * @return null 表示令牌无效/网络不通，msg 里是一句人话原因
+     */
+    fun verifyPat(token: String): Pair<User?, String> {
+        val t = token.trim()
+        if (t.isBlank()) return null to "还没填令牌"
+        if (!looksLikePat(t)) {
+            return null to "这不像 GitHub 令牌（应以 ghp_ 或 github_pat_ 开头）"
+        }
+        val body = try {
+            // 官方 REST 根路径下的 /user，用 PAT 直连即可
+            Http.get(
+                "https://api.github.com/user",
+                mapOf(
+                    "Authorization" to "Bearer $t",
+                    "Accept" to "application/vnd.github+json",
+                    // 官方要求所有 API 请求带 UA
+                    "User-Agent" to "ModMigrator/1.0"
+                ),
+                Http.SHORT
+            )
+        } catch (e: Throwable) {
+            return null to "连不上 GitHub：${Http.describeError(e)}"
+        }
+        val o = Json.obj(body)
+        if (o == null) return null to "GitHub 返回的不是 JSON（可能被网关拦截了）"
+        val login = Json.s(o, "login")
+        if (login.isBlank()) {
+            // 401 时 GitHub 返回 {"message":"Bad credentials"}
+            val msg = Json.s(o, "message")
+            return null to if (msg.isBlank()) "令牌无效" else "令牌无效：$msg"
+        }
+        return User(
+            login = login,
+            name = Json.s(o, "name"),
+            avatarUrl = Json.s(o, "avatar_url")
+        ) to ""
+    }
+
+    data class User(
+        var login: String = "",
+        var name: String = "",
+        var avatarUrl: String = ""
+    )
+
+
     private fun url(owner: String, repo: String, path: String) =
         "https://api.github.com/repos/$owner/$repo/contents/$path"
 

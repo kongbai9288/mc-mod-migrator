@@ -70,6 +70,91 @@
         android:textColor="@color/textSecondary"
         android:textSize="12sp" />
 
+    <!-- 连接方式：面板 API（要 ptlc_ Key）或 FTP/SFTP（用账号密码）。
+         面板 API 不是每台服务器都有，而 FTP/SSH 基本是标配，
+         没有面板 Key 时至少有路可走。 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="连接方式：" />
+
+        <Spinner
+            android:id="@+id/spRemoteKind"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:entries="@array/remote_kinds" />
+    </LinearLayout>
+
+    <!-- FTP/SFTP 的连接参数。选了面板 API 时整块隐藏，不占地方。 -->
+    <LinearLayout
+        android:id="@+id/boxRemote"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/etRemoteHost"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="3"
+                android:hint="主机，如 1.2.3.4 或 srv.example.com"
+                android:inputType="text"
+                android:singleLine="true" />
+
+            <EditText
+                android:id="@+id/etRemotePort"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="端口"
+                android:inputType="number"
+                android:singleLine="true" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/etRemoteUser"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="用户名"
+                android:inputType="text"
+                android:singleLine="true" />
+
+            <EditText
+                android:id="@+id/etRemotePass"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="密码"
+                android:inputType="textPassword"
+                android:singleLine="true" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="用服务器的 FTP/SSH 账号密码直连，可以浏览并读取 mods、plugins 目录。端口留空用默认值（FTP 21 / SFTP 22）。"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
+    </LinearLayout>
+
     <Button
         android:id="@+id/btnConnect"
         style="@style/AppButtonOutlined"

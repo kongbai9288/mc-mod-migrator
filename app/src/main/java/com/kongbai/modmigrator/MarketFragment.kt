@@ -26,10 +26,11 @@ class MarketFragment : Fragment() {
     private lateinit var rvMods: RecyclerView
     private lateinit var rvLinks: RecyclerView
 
-    // 搜索/推荐的结果单独存一份，切到收藏夹再切回来还在，
-    // 不会像之前那样被 clear() 冲掉
-    private val searchResults = mutableListOf<MarketMod>()
-    private val favResults = mutableListOf<MarketMod>()
+    // 搜索/推荐的结果存在 MarketState 单例里：
+    // 底部导航是 replace()，切页签时本 Fragment 会被销毁重建，
+    // 结果放在实例字段里会全部清零（表现为"切回来列表空了"）。
+    private val searchResults get() = MarketState.searchResults
+    private val favResults get() = MarketState.favResults
 
     /** 当前展示的列表（adapter 绑定它） */
     private val results = mutableListOf<MarketMod>()
@@ -37,20 +38,32 @@ class MarketFragment : Fragment() {
     private lateinit var resAdapter: MarketAdapter
     private lateinit var linkAdapter: LinkAdapter
 
-    /** 当前页签：search=搜索结果 / fav=收藏夹 */
-    private var currentTab = "search"
+    /** 当前页签：search=搜索结果 / fav=收藏夹（存在单例里，切页不丢） */
+    private var currentTab: String
+        get() = MarketState.tab
+        set(v) { MarketState.tab = v }
 
     // ---- 分页 ----
     // 之前只能拿第一页（默认 10~20 条），翻不到后面，
     // 而 Modrinth/CurseForge 都支持 offset。这里记录当前偏移，
     // 滑到底自动再拉一页，直到源返回空为止。
-    private var searchOffset = 0
     private val PAGE_SIZE = 20
-    private var hasMore = false
+    private var searchOffset: Int
+        get() = MarketState.offset
+        set(v) { MarketState.offset = v }
+    private var hasMore: Boolean
+        get() = MarketState.hasMore
+        set(v) { MarketState.hasMore = v }
     private var loadingMore = false
-    private var lastQuery = ""
-    private var lastMc = ""
-    private var lastLoader = ""
+    private var lastQuery: String
+        get() = MarketState.query
+        set(v) { MarketState.query = v }
+    private var lastMc: String
+        get() = MarketState.mc
+        set(v) { MarketState.mc = v }
+    private var lastLoader: String
+        get() = MarketState.loader
+        set(v) { MarketState.loader = v }
     private lateinit var tvListTitle: android.widget.TextView
     private lateinit var spSort: Spinner
     private lateinit var btnFav: Button
@@ -138,6 +151,10 @@ class MarketFragment : Fragment() {
 
         val p = Prefs.get(requireContext())
         etVersion.setText(p.getString(K.DEF_VERSION, "") ?: "")
+        // ⚠️ 切页签回来时 Fragment 是**新建**的，
+        // 之前什么都不做 → 列表空 → 用户看到"搜索结果（0）"，
+        // 以为刚才白搜了。这里把单例里存的结果灌回去。
+        if (MarketState.hasContent()) refreshList()
         reloadLinks()
         return v
     }

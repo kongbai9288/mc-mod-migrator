@@ -185,21 +185,39 @@ class SettingsLabFragment : Fragment() {
             .show()
     }
 
-    private fun parallelLabel(ctx: android.content.Context): String =
-        when (Prefs.get(ctx).getInt(K.DOWNLOAD_SPEED, 1)) {
-            0 -> "单线程（省内存）"
-            2 -> "最大并发（快）"
-            else -> "适中（推荐）"
+    /**
+     * ⚠️ 之前这里读的是 `K.DOWNLOAD_SPEED`（0/1/2 三档），
+     * 而**真正下载时读的是 `K.DOWNLOAD_PARALLEL`（1~6 的并发数）**
+     * —— Downloader、BatchModOps、MigrationFragment、ModpackFragment 全都读后者。
+     * 于是在实验室里改"下载并发"**完全不生效**：
+     * 选完按钮文字变了，实际下载的并发数还是设置→迁移里那个值。
+     * 现在两边统一到同一个键，改一处即生效。
+     */
+    private fun parallelLabel(ctx: android.content.Context): String {
+        val n = Prefs.get(ctx).getInt(K.DOWNLOAD_PARALLEL, 3)
+        return when {
+            n <= 1 -> "1 个（最稳，一个一个下）"
+            n >= 6 -> "6 个（需要好网络）"
+            else -> "$n 个"
         }
+    }
 
     private fun pickParallel() {
         val ctx = requireContext()
-        val opts = arrayOf("单线程（省内存）", "适中（推荐）", "最大并发（快）")
-        val cur = Prefs.get(ctx).getInt(K.DOWNLOAD_SPEED, 1)
+        // 与「设置 → 迁移」里的并发下拉用同一套档位（arrays.xml 的
+        // parallel_labels / parallel_values），避免两处数字对不上。
+        val opts = ctx.resources.getStringArray(R.array.parallel_labels)
+        val values = ctx.resources.getStringArray(R.array.parallel_values)
+        val curN = Prefs.get(ctx).getInt(K.DOWNLOAD_PARALLEL, 3)
+        val cur = values.indexOfFirst { it.toIntOrNull() == curN }.let { if (it < 0) 2 else it }
         MaterialAlertDialogBuilder(ctx)
             .setTitle("下载并发")
             .setSingleChoiceItems(opts, cur) { d, w ->
-                Prefs.get(ctx).edit().putInt(K.DOWNLOAD_SPEED, w).apply()
+                // 存的是**并发数**（1/2/3/4/6），不是档位序号，
+                // 这样 Downloader 读到的就是用户真正想要的值
+                val n = values.getOrNull(w)?.toIntOrNull() ?: 3
+                Prefs.get(ctx).edit().putInt(K.DOWNLOAD_PARALLEL, n).apply()
+                android.widget.Toast.makeText(ctx, "下载并发已设为 $n 个", android.widget.Toast.LENGTH_SHORT).show()
                 d.dismiss()
                 refresh()
             }

@@ -46,7 +46,24 @@ data class MarketMod(
      * 而"当前搜索用的加载器"和"这个模组实际支持的加载器"是两回事 ——
      * 用前者推断会把很多模组标错。
      */
-    var loaders: List<String> = emptyList()
+    var loaders: List<String> = emptyList(),
+    /**
+     * 分类标签（Modrinth 的 categories，如 "optimization"、"technology"）。
+     *
+     * 卡片上以小标签的形式显示在加载器图标下方，
+     * 让用户在不点开详情页的情况下就能判断这个模组是干什么的。
+     * 没有标签的项目（很多 CurseForge 项目、以及刚上传的新项目）
+     * 就不显示这一行，不留空白。
+     */
+    var categories: List<String> = emptyList(),
+    /**
+     * 项目类型：mod / datapack / resourcepack / shader / plugin / modpack。
+     *
+     * ⚠️ 为什么要单独存：只有 **mod** 才有加载器。
+     * 数据包、资源包、光影这些压根没有加载器可言，
+     * 拿它们去画加载器图标只会画出一片"自动"。
+     */
+    var projectType: String = "mod"
 )
 
 data class ModFile(

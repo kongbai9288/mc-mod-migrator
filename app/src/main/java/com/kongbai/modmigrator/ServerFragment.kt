@@ -38,6 +38,18 @@ class ServerFragment : Fragment() {
     private lateinit var adapter: UpdateAdapter
     private var chosen: PanelServer? = null
 
+    // ---- 远程文件（FTP / FTPS / SFTP）----
+    // 面板 API 必须有 ptlc_ Key，而很多服务器只给了 FTP/SSH 账号，
+    // 之前那种情况就完全没法用。这里让两种连接方式共存。
+    private lateinit var spRemoteKind: Spinner
+    private lateinit var boxRemote: View
+    private lateinit var etRemoteHost: android.widget.EditText
+    private lateinit var etRemotePort: android.widget.EditText
+    private lateinit var etRemoteUser: android.widget.EditText
+    private lateinit var etRemotePass: android.widget.EditText
+    /** FTP/SFTP 模式下"已选中的目录"，充当面板模式里的服务器 */
+    private var remoteDir: String? = null
+
     private val exec = Executors.newSingleThreadExecutor()
     private val handler = Handler(Looper.getMainLooper())
 
@@ -60,6 +72,29 @@ class ServerFragment : Fragment() {
         tvServer = v.findViewById(R.id.tvServer)
         tvLog = v.findViewById(R.id.tvLog)
         rv = v.findViewById(R.id.rvUpdates)
+        spRemoteKind = v.findViewById(R.id.spRemoteKind)
+        boxRemote = v.findViewById(R.id.boxRemote)
+        etRemoteHost = v.findViewById(R.id.etRemoteHost)
+        etRemotePort = v.findViewById(R.id.etRemotePort)
+        etRemoteUser = v.findViewById(R.id.etRemoteUser)
+        etRemotePass = v.findViewById(R.id.etRemotePass)
+        // 0 = 面板 API，1/2/3 = FTP / FTPS / SFTP
+        spRemoteKind.setSelection(p.getInt(K.REMOTE_KIND, 0).coerceIn(0, 3), false)
+        etRemoteHost.setText(p.getString(K.REMOTE_HOST, "") ?: "")
+        etRemotePort.setText(p.getString(K.REMOTE_PORT, "") ?: "")
+        etRemoteUser.setText(p.getString(K.REMOTE_USER, "") ?: "")
+        etRemotePass.setText(p.getString(K.REMOTE_PASS, "") ?: "")
+        spRemoteKind.onItemSelectedListener =
+            object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(
+                    a: android.widget.AdapterView<*>?, b: View?, pos: Int, id: Long
+                ) {
+                    syncRemoteFields()
+                    saveRemote()
+                }
+                override fun onNothingSelected(a: android.widget.AdapterView<*>?) {}
+            }
+        syncRemoteFields()
 
         adapter = UpdateAdapter(files) { f -> downloadOne(f) }
         rv.layoutManager = LinearLayoutManager(requireContext())
@@ -278,6 +313,50 @@ class ServerFragment : Fragment() {
         etPass.visibility = if (useKey) View.GONE else View.VISIBLE
     }
 
+    /** 选了 FTP/SFTP 就隐藏面板地址那几行，只留远程参数，避免两栏都填了两遍 */
+    private fun syncRemoteFields() {
+        val remote = isRemote()
+        boxRemote.visibility = if (remote) View.VISIBLE else View.GONE
+        val vis = if (remote) View.GONE else View.VISIBLE
+        etBase.visibility = vis
+        rgAuth.visibility = vis
+        etKey.visibility = if (remote) View.GONE else etKey.visibility
+        etUser.visibility = if (remote) View.GONE else etUser.visibility
+        etPass.visibility = if (remote) View.GONE else etPass.visibility
+    }
+
+    /** 是否走 FTP/FTPS/SFTP（0 = 面板 API） */
+    private fun isRemote(): Boolean = ::spRemoteKind.isInitialized &&
+        spRemoteKind.selectedItemPosition > 0
+
+    /** 当前远程连接配置 */
+    private fun remoteConf(): RemoteFs.Conf {
+        val kind = when (spRemoteKind.selectedItemPosition) {
+            1 -> RemoteFs.Kind.FTP
+            2 -> RemoteFs.Kind.FTPS
+            3 -> RemoteFs.Kind.SFTP
+            else -> RemoteFs.Kind.FTP
+        }
+        return RemoteFs.Conf(
+            kind = kind,
+            host = etRemoteHost.text.toString().trim(),
+            port = etRemotePort.text.toString().trim().toIntOrNull() ?: 0,
+            user = etRemoteUser.text.toString().trim(),
+            pass = etRemotePass.text.toString().trim()
+        )
+    }
+
+    private fun saveRemote() {
+        if (!::spRemoteKind.isInitialized) return
+        Prefs.get(requireContext()).edit()
+            .putInt(K.REMOTE_KIND, spRemoteKind.selectedItemPosition)
+            .putString(K.REMOTE_HOST, etRemoteHost.text.toString().trim())
+            .putString(K.REMOTE_PORT, etRemotePort.text.toString().trim())
+            .putString(K.REMOTE_USER, etRemoteUser.text.toString().trim())
+            .putString(K.REMOTE_PASS, etRemotePass.text.toString().trim())
+            .apply()
+    }
+
     /** 收集当前凭据 */
     private fun cred(): ServerPanelApi.Cred {
         val p = Prefs.get(requireContext())
@@ -301,10 +380,51 @@ class ServerFragment : Fragment() {
     }
 
     /** 自动找目录：面板下各服务器根目录结构不统一，逐个试候选 */
+    /** 让用户在找到的目录里挑一个，然后立刻扫描 */
+    private fun pickDirDialog(dirs: List<String>) {
+        val arr = dirs.toTypedArray()
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.panel_dir_pick)
+            .setItems(arr) { _, w ->
+                etDir.setText(arr[w])
+                remoteDir = arr[w]
+                scanFiles()
+            }
+            .show()
+    }
+
+    /** 多个候选目录时让用户选一台（面板模式下的"服务器"同理） */
+    private fun pickServerDialog() {
+        val arr = servers.map { it.name }.toTypedArray()
+        if (arr.isEmpty()) return
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("选择目录")
+            .setItems(arr) { _, w -> pickServer(servers[w]) }
+            .show()
+    }
+
     private fun probeDirs() {
         val srv = chosen
         if (srv == null) {
             toast("请先连接并选一台服务器")
+            return
+        }
+        // FTP/SFTP：直接列候选目录，不用面板那套 API
+        if (srv.id.startsWith("remote:")) {
+            val c = remoteConf()
+            toast("正在找模组目录…")
+            bg {
+                val dirs = probeRemoteDirs(c)
+                safePost(handler) {
+                    if (dirs.isEmpty()) {
+                        log("没自动找到含 jar 的目录，可手动填路径（常见：/mods、/plugins）")
+                        toast("没找到，请手动填目录")
+                    } else {
+                        log("找到目录：${dirs.joinToString("、")}")
+                        pickDirDialog(dirs)
+                    }
+                }
+            }
             return
         }
         val c = cred()
@@ -328,14 +448,7 @@ class ServerFragment : Fragment() {
                     toast("没找到，请手动填目录")
                 } else {
                     log("找到目录：${dirs.joinToString("、")}")
-                    val arr = dirs.toTypedArray()
-                    MaterialAlertDialogBuilder(requireContext())
-                        .setTitle(R.string.panel_dir_pick)
-                        .setItems(arr) { _, w ->
-                            etDir.setText(arr[w])
-                            scanFiles()
-                        }
-                        .show()
+                    pickDirDialog(dirs)
                 }
             }
         }
@@ -382,6 +495,11 @@ class ServerFragment : Fragment() {
     }
 
     private fun connect() {
+        // 选了 FTP/FTPS/SFTP：不再要求面板 Key，用账号密码直连
+        if (isRemote()) {
+            connectRemote()
+            return
+        }
         val c = cred()
         if (c.base.isBlank()) {
             toast("请填写面板地址")
@@ -436,6 +554,93 @@ class ServerFragment : Fragment() {
                 .setMessage(ServerPanelApi.LOGIN_UNSUPPORTED_MSG)
                 .setPositiveButton(R.string.ok, null)
                 .show()
+        }
+    }
+
+    /**
+     * FTP / SFTP 连接：测通 → 自动找 mods/plugins 目录 → 列出 jar。
+     *
+     * 之所以要整条串起来：面板模式下用户要自己填目录，
+     * 而 FTP 根目录结构各家都不一样，让用户猜路径等于让他放弃。
+     */
+    /** FTP/SFTP 下列出目录里的 jar */
+    private fun scanRemote() {
+        val dir = remoteDir ?: etDir.text.toString().trim().ifBlank { "/mods" }
+        val c = remoteConf()
+        toast("正在列出 $dir …")
+        bg {
+            val list = try {
+                RemoteFs.jars(c, dir).map {
+                    PanelFile(
+                        name = it.name,
+                        path = it.path,
+                        size = it.size,
+                        kind = ServerPanelApi.guessKind(it.path)
+                    )
+                }
+            } catch (t: Throwable) {
+                log("读取失败：${t.message}")
+                emptyList<PanelFile>()
+            }
+            safePost(handler) {
+                files.clear()
+                files.addAll(list)
+                adapter.notifyDataSetChanged()
+                toast("${list.size} 个 jar")
+            }
+        }
+    }
+
+    private fun connectRemote() {
+        val c = remoteConf()
+        if (c.host.isBlank()) { toast("请填写主机地址"); return }
+        if (c.user.isBlank()) { toast("请填写用户名"); return }
+        saveRemote()
+        toast("正在连接 ${c.kind.label} ${c.host} …")
+        bg {
+            val err = RemoteFs.test(c)
+            if (err != null) {
+                log("连接失败：$err")
+                safePost(handler) { toast(err) }
+                return@bg
+            }
+            log("已连上，正在找模组目录…")
+            // 并发试候选目录，找出真正有 jar 的那些
+            val found = probeRemoteDirs(c)
+            safePost(handler) {
+                servers.clear()
+                if (found.isEmpty()) {
+                    tvServer.text = "已连接，但没找到有 jar 的目录"
+                    toast("没找到 mods/plugins 目录，可以在下面手动填路径再扫描")
+                    return@safePost
+                }
+                // 有 jar 的目录当成"服务器"列出来让用户选，
+                // 只有一个就直接选中，不让他多点一次
+                servers.addAll(found.mapIndexed { i, d ->
+                    PanelServer(id = "remote:$d", uuid = d, name = d)
+                })
+                if (found.size == 1) pickServer(servers[0]) else pickServerDialog()
+            }
+        }
+    }
+
+    private fun probeRemoteDirs(c: RemoteFs.Conf): List<String> {
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(
+            RemoteFs.DIR_CANDIDATES.size.coerceAtMost(6)
+        )
+        return try {
+            val slots = arrayOfNulls<String>(RemoteFs.DIR_CANDIDATES.size)
+            val tasks = RemoteFs.DIR_CANDIDATES.mapIndexed { i, d ->
+                pool.submit {
+                    try {
+                        if (RemoteFs.jars(c, d).isNotEmpty()) slots[i] = d
+                    } catch (_: Throwable) {}
+                }
+            }
+            for (t in tasks) runCatching { t.get() }
+            slots.filterNotNull()
+        } finally {
+            pool.shutdownNow()
         }
     }
 
@@ -499,6 +704,10 @@ class ServerFragment : Fragment() {
      */
     private fun pickServer(s: PanelServer) {
         chosen = s
+        if (s.id.startsWith("remote:")) {
+            remoteDir = s.uuid
+            etDir.setText(s.uuid)
+        }
         tvServer.text = "服务器：${s.name} · ${s.id}"
         Prefs.get(requireContext()).edit().putString(K.PANEL_SERVER_ID, s.id).apply()
         // 选完立刻找目录，省得用户自己去猜路径
@@ -508,7 +717,12 @@ class ServerFragment : Fragment() {
     private fun scanFiles() {
         val s = chosen
         if (s == null) {
-            toast("请先连接并选择服务器")
+            toast("请先连接并选择目录")
+            return
+        }
+        // FTP/SFTP 模式：目录已经在连接时选好了，直接列
+        if (s.id.startsWith("remote:")) {
+            scanRemote()
             return
         }
         val c = cred()

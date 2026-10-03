@@ -153,7 +153,13 @@ fun search(
                     // "iris"、"bukkit" 这类根本不是加载器的值，
                     // normalize 一律归成 "auto"，卡片上就画出好几个
                     // 一模一样的「自动」图标，真实信息一个都没有。
-                    loaders = Loaders.clean(Json.sa(h, "loaders"))
+                    loaders = Loaders.clean(Json.sa(h, "loaders")),
+                    // 分类标签：搜索结果里就有，不用再查一次详情。
+                    // 只保留"能看懂"的那几个：categories 里还混着
+                    // "forge"、"1.20.x" 这类版本/加载器值，
+                    // 它们已经在加载器图标那一行体现过了，重复显示是噪音。
+                    categories = ModCats.clean(Json.sa(h, "categories")),
+                    projectType = Json.s(h, "project_type").ifBlank { "mod" }
                 )
             )
         }

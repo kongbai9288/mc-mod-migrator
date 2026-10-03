@@ -234,10 +234,24 @@ class SettingsMainFragment : Fragment() {
         }
         lastAccountFetch = now
         exec.execute {
-            val u = try {
-                BackendApi.me(ctx)
-            } catch (t: Throwable) {
-                null
+            // ── 先看本机令牌 ──────────────────────────────
+            // 之前只问后端：后端 workers.dev 一不通就必然"未登录"，
+            // 用户明明已经用令牌登录过也被打回未登录状态。
+            // 本机令牌是**确定的事实**，优先以它为准，后端只作补充。
+            val pat = Prefs.get(ctx)
+            val localLogin = pat.getString(K.GH_LOGIN, "") ?: ""
+            val u = if (localLogin.isNotBlank() && pat.getBoolean(K.GH_PAT_OK, false)) {
+                BackendApi.User(
+                    login = localLogin,
+                    name = "",
+                    avatarUrl = pat.getString(K.GH_AVATAR, "") ?: ""
+                )
+            } else {
+                try {
+                    BackendApi.me(ctx)
+                } catch (t: Throwable) {
+                    null
+                }
             }
             handler.post {
                 if (!isAdded) return@post
@@ -377,6 +391,17 @@ class SettingsMainFragment : Fragment() {
     }
 
     /** 手动填 GitHub Token 兜底：后端这条路走不通时仍能使用相关功能 */
+    /**
+     * 用**个人访问令牌**登录。
+     *
+     * ⚠️ 之前这里只是把字符串存下来就完事，**从不校验**，
+     * 而 `refreshAccount()` 判断"登没登录"只看后端 `me()`。
+     * 后端 workers.dev 在国内连不上 → 永远返回 null →
+     * 明明填了令牌却一直显示"未登录"，保存按钮像是坏了。
+     *
+     * 现在填完立刻调 `GitHubApi.verifyPat` 直连 GitHub 校验：
+     * 成功就把账号信息落盘并显示，失败明确说为什么。
+     */
     private fun manualToken() {
         val ctx = context ?: return
         val et = android.widget.EditText(ctx).apply {
@@ -384,22 +409,52 @@ class SettingsMainFragment : Fragment() {
             setSingleLine(true)
         }
         MaterialAlertDialogBuilder(ctx)
-            .setTitle("手动填写 GitHub Token")
+            .setTitle("用访问令牌登录")
             .setMessage(
-                "后端登录走不通时可以先这样用。\n\n" +
-                    "Token 只存在本机，用于访问 GitHub API。\n" +
-                    "建议只勾必要的只读权限。"
+                "后端（workers.dev）在国内经常连不上，\n" +
+                    "这种情况下可以跳过后端，直连 GitHub。\n\n" +
+                    "生成方法：GitHub → Settings → Developer settings →\n" +
+                    "Personal access tokens → Tokens (classic) → Generate new token。\n\n" +
+                    "令牌只存在本机，不会上传。"
             )
             .setView(et)
-            .setPositiveButton("保存") { _, _ ->
+            .setPositiveButton("验证并保存") { _, _ ->
                 val t = et.text.toString().trim()
                 if (t.isBlank()) {
                     toast("没填内容")
                     return@setPositiveButton
                 }
-                Prefs.get(ctx).edit().putString(K.GH_TOKEN_BACKEND, t).apply()
-                toast("已保存")
-                refreshAccount(force = true)
+                toast("正在验证…")
+                exec.execute {
+                    val r = try {
+                        GitHubApi.verifyPat(t)
+                    } catch (e: Throwable) {
+                        null to "验证出错：${e.message}"
+                    }
+                    handler.post {
+                        if (!isAdded) return@post
+                        val u = r.first
+                        if (u == null) {
+                            MaterialAlertDialogBuilder(ctx)
+                                .setTitle("令牌不可用")
+                                .setMessage(r.second)
+                                .setPositiveButton(R.string.ok, null)
+                                .show()
+                            return@post
+                        }
+                        // 两个键都写：K.TOKEN 给 GitHubApi（备份/同步用），
+                        // GH_TOKEN_BACKEND 给后端相关路径，避免只写一处另一处读不到
+                        Prefs.get(ctx).edit()
+                            .putString(K.TOKEN, t)
+                            .putString(K.GH_TOKEN_BACKEND, t)
+                            .putString(K.GH_LOGIN, u.login)
+                            .putString(K.GH_AVATAR, u.avatarUrl)
+                            .putBoolean(K.GH_PAT_OK, true)
+                            .apply()
+                        toast("已登录为 ${u.name.ifBlank { u.login }}")
+                        refreshAccount(force = true)
+                    }
+                }
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
@@ -411,12 +466,18 @@ class SettingsMainFragment : Fragment() {
         MaterialAlertDialogBuilder(ctx)
             .setTitle("登录")
             .setItems(
-                arrayOf("重新登录", "登录诊断（看卡在哪）", "手动填 GitHub Token")
+                arrayOf(
+                    "用访问令牌登录（推荐，直连 GitHub）",
+                    "走后端 OAuth 登录",
+                    "登录诊断（看卡在哪）",
+                    "退出登录"
+                )
             ) { _, w ->
                 when (w) {
-                    0 -> login()
-                    1 -> runLoginDiag()
-                    2 -> manualToken()
+                    0 -> manualToken()
+                    1 -> login()
+                    2 -> runLoginDiag()
+                    3 -> doLogout()
                 }
             }
             .setNegativeButton(R.string.cancel, null)
@@ -434,6 +495,13 @@ class SettingsMainFragment : Fragment() {
                  }
             handler.post {
                 if (!isAdded) return@post
+                // 本机令牌也要一起清：不然刷新时又从本地读回账号，
+                // 点了"退出登录"却还显示已登录。
+                Prefs.get(ctx).edit()
+                    .putBoolean(K.GH_PAT_OK, false)
+                    .putString(K.GH_LOGIN, "")
+                    .putString(K.GH_AVATAR, "")
+                    .apply()
                 refreshAccount(force = true)
                 toast("已退出")
             }
