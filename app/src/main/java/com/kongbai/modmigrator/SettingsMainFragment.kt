@@ -187,16 +187,7 @@ class SettingsMainFragment : Fragment() {
      * 进去能看到每项的状态并手动刷新。
      */
     private fun goPatch() {
-        val ctx = context ?: return
-        try {
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.fragment_container, SettingsPatchFragment())
-                .addToBackStack("settings:patch")
-                .commit()
-        } catch (t: Throwable) {
-            Err.fail(t, "打开补丁页")
-            toast("打不开补丁页")
-        }
+        go("patch")
     }
 
     private fun go(page: String) {
@@ -231,7 +222,7 @@ class SettingsMainFragment : Fragment() {
     /** 把登录链路的记录单独摘出来，方便直接发给开发者 */
     private fun copyLoginLog() {
         val ctx = context ?: return
-        val lines = LogCenter.lines().filter {
+        val lines = LogCenter.all().filter {
             it.tag == "Login" || it.msg.contains("auth") || it.msg.contains("登录")
         }
         LogCenter.copyable(ctx, "登录日志", lines)
