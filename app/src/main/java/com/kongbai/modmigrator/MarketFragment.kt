@@ -351,9 +351,10 @@ class MarketFragment : Fragment() {
      * 用户不知道到底装没装成，只能自己去目录里翻 ——
      * 这就是反馈里说的"没法正常标记"。
      */
-    private fun markInstalled(fileName: String) {
-        val key = fileName.substringBeforeLast(".").lowercase()
-        if (key.isNotBlank()) installedNow().add(key)
+    private fun markInstalled(fileName: String?) {
+        // DocumentFile.name 是可空的，这里收一下可空性
+        val key = fileName?.substringBeforeLast(".")?.lowercase()
+        if (!key.isNullOrBlank()) installedNow().add(key)
         safePost(handler) { resAdapter.notifyDataSetChanged() }
     }
 
