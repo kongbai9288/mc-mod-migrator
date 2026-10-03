@@ -106,7 +106,7 @@ class MarketAdapter(
         val status: TextView = v.findViewById(R.id.tvStatus)
         val action: Button = v.findViewById(R.id.btnAction)
         val trans: Button = v.findViewById(R.id.btnTrans)
-        val rowLoaders: LinearLayout = v.findViewById(R.id.rowLoaders)
+        val rowLoaders: WrapRow = v.findViewById(R.id.rowLoaders)
         val downloads: TextView = v.findViewById(R.id.tvDownloads)
     }
 
@@ -133,11 +133,16 @@ class MarketAdapter(
     }
 
     /**
-     * 画一行加载器图标，后面跟下载量。
+     * 画加载器图标，后面跟下载量。
      *
      * 图标是纯黑线稿（透明底），这里统一染成次要文字色：
      * 一是跟"平台 · 下载量"同级，不抢模组名的视觉重心；
      * 二是深浅两套主题下都看得清。
+     *
+     * ⚠️ 之前最多只画 4 个，剩下的用 "+N" 带过 ——
+     * 支持 5 个以上的模组看到的图标是**不全的**，
+     * 而"+2"也不告诉你到底是哪两个。
+     * 现在容器换成了会自动换行的 [WrapRow]，全部画出来。
      */
     private fun renderLoaderIcons(h: VH, lds: List<String>, downloads: Long) {
         h.rowLoaders.removeAllViews()
@@ -149,34 +154,26 @@ class MarketAdapter(
             android.graphics.Color.GRAY
         }
         val d = ctx.resources.displayMetrics.density
-        val size = (d * 14).toInt()
-        // 最多 4 个：再多这一行就挤爆了，剩下的用 "+N" 表示
-        val show = lds.take(4)
-        for (ld in show) {
+        val size = (d * 15).toInt()
+        for (ld in lds) {
             val iv = ImageView(ctx)
             iv.setImageResource(Loaders.icon(ld))
             iv.setColorFilter(tint)
             iv.scaleType = ImageView.ScaleType.FIT_CENTER
             iv.contentDescription = Loaders.label(ld)
-            val lp = LinearLayout.LayoutParams(size, size)
+            // WrapRow 只认 MarginLayoutParams
+            val lp = ViewGroup.MarginLayoutParams(size, size)
             lp.marginEnd = (d * 3).toInt()
             iv.layoutParams = lp
             h.rowLoaders.addView(iv)
         }
-        if (lds.size > show.size) {
-            val more = TextView(ctx)
-            more.text = "+${lds.size - show.size}"
-            more.textSize = 11f
-            more.setTextColor(tint)
-            val lp = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            lp.marginEnd = (d * 4).toInt()
-            more.layoutParams = lp
-            h.rowLoaders.addView(more)
-        }
         h.downloads.text = "${compactCount(downloads)} 次下载"
+        val dlp = ViewGroup.MarginLayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        dlp.marginStart = (d * 2).toInt()
+        h.downloads.layoutParams = dlp
         h.rowLoaders.addView(h.downloads)
     }
 
@@ -193,7 +190,10 @@ class MarketAdapter(
         // ── 平台 + 加载器图标 + 下载量 ──────────────────────
         // 模组声明了支持的加载器时，图标单独占一行（平台名下方），
         // 下载量跟在图标后面。没声明时退回原来的"平台 · 下载量"。
-        val lds = m.loaders
+        // 显示前再整理一次（丢掉认不出来的、去重、稳定排序）：
+        // 收藏夹是从本地 JSON 恢复的、后端来源也不一定解析过 loaders，
+        // 只在解析处清理的话，这几条路径仍可能带进重复的「自动」。
+        val lds = Loaders.clean(m.loaders)
         if (lds.isEmpty()) {
             h.rowLoaders.visibility = View.GONE
             h.meta.text = "${m.source} · ${compactCount(m.downloads)} 次下载"

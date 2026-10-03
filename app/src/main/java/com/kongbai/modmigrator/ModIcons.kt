@@ -25,10 +25,40 @@ import java.util.zip.ZipFile
  */
 object ModIcons {
 
-    /** 缓存上限：超过就整体清掉重来，避免无限增长 */
-    private const val MAX_CACHE = 120
+    /**
+     * 缓存上限（**字节**）。
+     *
+     * ⚠️ 之前按**条数**（120 条）限制，但每条的实际大小差很多：
+     * 图标按 56dp 采样解码，在 3x 屏上就是 168×168，
+     * 一张 168×168 的 ARGB_8888 位图约 **110KB**，
+     * 120 条就是 13MB 以上。
+     * 而这台设备崩的时候堆只剩 1.9MB —— 光图标缓存就能把它压垮。
+     * 改成按字节算，4MB 封顶。
+     */
+    private const val MAX_CACHE_BYTES = 4 * 1024 * 1024
 
-    private val cache = LinkedHashMap<String, Bitmap?>(MAX_CACHE + 8, 0.75f, true)
+    /** 图标解码的目标边长（dp）。56 → 48，位图面积小三成 */
+    private const val TARGET_DP = 48
+
+    /**
+     * 缓存本体。用 LinkedHashMap(accessOrder=true) 而不是 LruCache：
+     * LruCache **不接受 null 值**（put 时会抛 NPE），
+     * 而"这个模组取不到图标"本身是个需要记住的结论
+     * ——不记住的话，列表每滑一次就要把 jar 重新解一遍。
+     */
+    private val cache = LinkedHashMap<String, Bitmap?>(64, 0.75f, true)
+    private val lock = Any()
+
+    /** 当前缓存占用的字节数（只统计真正有位图的条目） */
+    private var bytes = 0
+
+    /** 内存紧张时由 [App.onTrimMemory] 调用 */
+    fun clear() {
+        synchronized(lock) {
+            cache.clear()
+            bytes = 0
+        }
+    }
 
     /** 元数据没声明图标时的候选路径 */
     private val FALLBACKS = listOf(
@@ -55,24 +85,24 @@ object ModIcons {
      */
     fun of(ctx: Context, f: DocumentFile): Bitmap? {
         val key = f.uri.toString()
-        if (cache.containsKey(key)) return cache[key]
-
+        synchronized(lock) {
+            if (cache.containsKey(key)) return cache[key]
+        }
         val bmp = try {
             extract(ctx, f)
         } catch (t: Throwable) {
             null
         }
-        synchronized(cache) {
-            if (cache.size >= MAX_CACHE) cache.clear()
-            cache[key] = bmp
-        }
+        put(key, bmp)
         return bmp
     }
 
     /** 从本地 File 取（能拿到真实路径时更快） */
     fun ofFile(file: File, targetPx: Int): Bitmap? {
         val key = "f:${file.absolutePath}:$targetPx"
-        if (cache.containsKey(key)) return cache[key]
+        synchronized(lock) {
+            if (cache.containsKey(key)) return cache[key]
+        }
         val bmp = try {
             if (!file.exists() || !file.canRead()) null
             else ZipFile(file).use { zf ->
@@ -83,11 +113,33 @@ object ModIcons {
         } catch (t: Throwable) {
             null
         }
-        synchronized(cache) {
-            if (cache.size >= MAX_CACHE) cache.clear()
-            cache[key] = bmp
-        }
+        put(key, bmp)
         return bmp
+    }
+
+    /**
+     * 入缓存，并按字节上限淘汰最久未用的。
+     *
+     * ⚠️ 淘汰时**不能**调 Bitmap.recycle()：
+     * 被淘汰的位图很可能还挂在某个 ImageView 上（列表只是滑出屏幕，
+     * ViewHolder 还没被回收），recycle 之后 Canvas 再画它就会抛
+     * "trying to use a recycled bitmap"，直接崩。
+     * 这里只解除引用，交给 GC —— 真正还在显示的那些本来也回收不了。
+     */
+    private fun put(key: String, bmp: Bitmap?) {
+        synchronized(lock) {
+            val old = cache.put(key, bmp)
+            if (old != null && old !== bmp) bytes -= old.byteCount
+            if (bmp != null) bytes += bmp.byteCount
+            if (bytes <= MAX_CACHE_BYTES) return
+            val it = cache.entries.iterator()
+            while (it.hasNext() && bytes > MAX_CACHE_BYTES) {
+                val e = it.next()
+                if (e.key == key) continue
+                if (e.value != null) bytes -= e.value!!.byteCount
+                it.remove()
+            }
+        }
     }
 
     private fun extract(ctx: Context, f: DocumentFile): Bitmap? {
@@ -100,7 +152,7 @@ object ModIcons {
                 tmp.outputStream().use { input.copyTo(it) }
             } ?: return null
 
-            val target = (56 * ctx.resources.displayMetrics.density).toInt()
+            val target = (TARGET_DP * ctx.resources.displayMetrics.density).toInt()
             ZipFile(tmp).use { zf ->
                 val meta = ModMeta.readFile(tmp)
                 val path = pickIconPath(zf, meta)

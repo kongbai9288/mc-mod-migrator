@@ -52,10 +52,9 @@ object CurseForgeApi {
                 val f0 = lf.get(0)
                 fileId = Json.s(f0, "id")
                 fileName = Json.s(f0, "fileName")
-                cfLoaders = Json.sa(f0, "gameVersions")
-                    .map { Loaders.normalize(it) }
-                    .filter { it != "auto" }
-                    .distinct()
+                // 用 Loaders.clean：归一化 + 丢掉认不出来的 + 去重 + 稳定排序，
+                // 与 Modrinth 那条路径保持一致（不然两个来源显示顺序会不一样）
+                cfLoaders = Loaders.clean(Json.sa(f0, "gameVersions"))
             }
             out.add(
                 MarketMod(

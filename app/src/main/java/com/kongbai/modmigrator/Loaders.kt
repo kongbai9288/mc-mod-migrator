@@ -38,15 +38,20 @@ object Loaders {
     )
 
     /** 全部已知加载器（手机支持的前面，其余在后） */
-    val ALL: List<String> get() = PHONE + EXTRA
+    val ALL: List<String> get() = (PHONE + EXTRA).distinct()
 
     /**
      * 当前应该在分类下拉里出现的加载器。
      *
      * @param showExtra 用户是否在设置里勾了「显示手机不支持的加载器」
+     *
+     * ⚠️ 去重放在这里而不是靠调用方：
+     * PHONE / EXTRA 是两个手工维护的名单，以后任何一个里多写一项，
+     * 下拉里就会出现两个「自动」（或别的重复项），
+     * 而看的人只会以为列表坏了。
      */
     fun visible(showExtra: Boolean): List<String> =
-        if (showExtra) ALL else PHONE
+        if (showExtra) ALL else PHONE.distinct()
 
     /** 加载器 → 图标资源（线稿，可用 setColorFilter 染色/置灰） */
     fun icon(name: String): Int = when (normalize(name)) {
@@ -64,8 +69,8 @@ object Loaders {
         "nilloader" -> R.drawable.ic_ld_nilloader
         "bta" -> R.drawable.ic_ld_bta
         "java_agent" -> R.drawable.ic_ld_java_agent
-        // 图标包里没有 OptiFine，继续用老的自绘矢量图
-        "optifine" -> R.drawable.ic_loader_optifine
+        // 图标包里补上了 OptiFine（64×64 线稿），不再用自绘矢量图占位
+        "optifine" -> R.drawable.ic_ld_optifine
         else -> R.drawable.ic_ld_auto
     }
 
@@ -148,6 +153,31 @@ object Loaders {
 
     /** 两个加载器是否视为同一个（用于去重比较） */
     fun same(a: String, b: String): Boolean = normalize(a) == normalize(b)
+
+    /**
+     * 整理「这个模组支持哪些加载器」。
+     *
+     * 归一化 → 去掉认不出来的 → 去重 → 按已知名单排序 → 归一后的顺序稳定。
+     *
+     * ⚠️ 为什么要丢掉认不出来的那些（normalize 结果是 "auto"）：
+     * Modrinth 的 loaders 数组里除了 fabric/forge/quilt，
+     * 还混着 "minecraft"、"datapack"、"iris"、"bukkit" 这类**不是加载器**的值，
+     * normalize 认不出来会统统归成 "auto"。
+     * 卡片上就会画出好几个一模一样的「自动」图标 ——
+     * 用户看到的是"这个模组支持两个自动"，而真实信息一个都没有。
+     * 认不出来的直接不显示，比显示一个错误答案好。
+     *
+     * 排序用 ALL 里的顺序：同一模组每次显示的顺序一致，
+     * 不会因为数据源返回顺序不同而跳动。
+     */
+    fun clean(raw: List<String>): List<String> {
+        val known = raw.map { normalize(it) }
+            .filter { it != "auto" }
+            .distinct()
+        if (known.size <= 1) return known
+        val order = ALL
+        return known.sortedBy { i -> order.indexOf(i).let { if (it < 0) Int.MAX_VALUE else it } }
+    }
 
     /**
      * 跨加载器替代：目标加载器上没找到时，给出已知平替。

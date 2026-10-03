@@ -147,7 +147,13 @@ fun search(
                     updated = Json.s(h, "date_modified").ifBlank { Json.s(h, "date_created") },
                     environment = Environ.read(h),
                     // 搜索结果里就有 loaders 数组，直接取，不用再去查一次详情
-                    loaders = Json.sa(h, "loaders").map { Loaders.normalize(it) }.distinct()
+                    //
+                    // ⚠️ 之前只做了 normalize + distinct，**没有丢掉认不出来的**。
+                    // Modrinth 的 loaders 里混着 "minecraft"、"datapack"、
+                    // "iris"、"bukkit" 这类根本不是加载器的值，
+                    // normalize 一律归成 "auto"，卡片上就画出好几个
+                    // 一模一样的「自动」图标，真实信息一个都没有。
+                    loaders = Loaders.clean(Json.sa(h, "loaders"))
                 )
             )
         }

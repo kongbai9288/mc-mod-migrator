@@ -35,14 +35,16 @@
             android:textSize="12sp" />
 
         <!-- 加载器图标 + 下载量。
-             图标由代码动态添加（数量不固定），tvDownloads 始终在最右。
+             图标由代码动态添加（数量不固定），tvDownloads 始终在最后。
+             用 WrapRow 而不是横向 LinearLayout：
+             一个模组支持 5 个以上加载器时，LinearLayout 放不下只能砍成
+             4 个 + "+N"，用户看到的是"图标不全"；WrapRow 会自动换行，
+             图标只有 14dp，换到第二行没有阅读负担。
              只有模组实际声明了支持的加载器时才显示这一行。 -->
-        <LinearLayout
+        <com.kongbai.modmigrator.WrapRow
             android:id="@+id/rowLoaders"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
             android:layout_marginTop="1dp">
 
             <TextView
@@ -51,7 +53,7 @@
                 android:layout_height="wrap_content"
                 android:textColor="@color/textSecondary"
                 android:textSize="11sp" />
-        </LinearLayout>
+        </com.kongbai.modmigrator.WrapRow>
 
         <TextView
             android:id="@+id/tvStatus"

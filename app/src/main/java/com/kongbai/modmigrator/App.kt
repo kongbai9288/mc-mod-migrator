@@ -1,10 +1,6 @@
 package com.kongbai.modmigrator
 
 import android.app.Application
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.content.Context
-import android.os.Build
 
 class App : Application() {
 
@@ -89,14 +85,44 @@ class App : Application() {
         }.start()
 
         runCatching { UpdateWorker.schedule(this) }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                Notifier.CHANNEL,
-                getString(R.string.notification_channel),
-                NotificationManager.IMPORTANCE_LOW
-            )
-            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            nm.createNotificationChannel(channel)
+        runCatching { Notifier.createChannel(this) }
+    }
+
+    /**
+     * 系统内存紧张时主动释放缓存。
+     *
+     * ⚠️ 真实问题：用户反馈"点着点着页面变成空白"。
+     * 空白页往往是**内存不足时 Activity 被销毁重建、而重建过程中又 OOM**
+     * 造成的——界面进程还活着，但视图已经没了。
+     * 崩过的那台设备日志里堆只剩 1.9MB，
+     * 系统自己起一个线程都分不到 64 字节。
+     *
+     * 本应用占内存的大头是两类缓存：
+     *   · [ModIcons] 的模组图标 Bitmap（每个几十到上百 KB）
+     *   · Coil 的网络图片内存缓存
+     * 这两类都是**可再生的**（丢掉重新解码即可），
+     * 系统喊内存紧张时就应该先让出来，而不是等着被杀。
+     */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        // 后台、或内存已经很紧张时才清；普通 UI 隐藏不清，
+        // 否则来回切页面会反复重新解码图标，白白卡顿
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN ||
+            level >= android.content.ComponentCallbacks2.TRIM_MEMORY_BACKGROUND
+        ) {
+            freeCaches(true)
+        }
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        freeCaches(true)
+    }
+
+    private fun freeCaches(includeCoil: Boolean) {
+        runCatching { ModIcons.clear() }
+        if (includeCoil) {
+            runCatching { coil.Coil.imageLoader(this).memoryCache?.clear() }
         }
     }
 }
