@@ -295,10 +295,7 @@ class MarketFragment : Fragment() {
         var roundGot = 0
         AggregateSearch.searchStreaming(
             ctx, lastQuery, lastMc, lastLoader, searchOffset, PAGE_SIZE,
-            // 各源自己的偏移。传空则全部从 searchOffset 起，
-            // 这里始终带上，保证每个源只从自己上次的位置往后翻。
-            offsets = MarketState.offsets.toMap()
-        ) { batch, source, finished ->
+            { batch, source, finished ->
             if (!isAdded) return@searchStreaming
             if (batch.isNotEmpty()) {
                 //
@@ -324,7 +321,11 @@ class MarketFragment : Fragment() {
                 if (roundGot == 0) hasMore = false
                 updateLoadMoreHint()
             }
-        }
+            // 各源自己的偏移：保证每个源只从自己上次的位置往后翻，
+            // 见 MarketState.offsets 的说明。
+            },
+            MarketState.offsets.toMap()
+        )
     }
 
     /** 列表底部提示：还有更多 / 已全部加载 / 加载中 */
