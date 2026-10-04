@@ -260,7 +260,7 @@ class ModManagerFragment : Fragment() {
                     .setTitle("发现 ${tasks.size} 个更新")
                     .setMessage("下载到工作目录的 mods 里，不会自动替换原文件。")
                     .setPositiveButton("下载") { _, _ ->
-                        val dir = WorkDir.modsDir(ctx) ?: Targets.modsDir(ctx)
+                        val dir = Targets.dstModsDir(ctx) ?: WorkDir.modsDir(ctx)
                         if (dir == null) {
                             toast("目标目录不可用")
                             return@setPositiveButton
@@ -298,7 +298,9 @@ class ModManagerFragment : Fragment() {
         box.removeAllViews()
         exec.execute {
             val dir = try {
-                WorkDir.modsDir(ctx) ?: Targets.modsDir(ctx)
+                // 用户选定的游戏 mods 目录优先；没选才退回工作目录。
+                // 顺序反了的话，列出来的就不是游戏里那份。
+                Targets.dstModsDir(ctx) ?: WorkDir.modsDir(ctx)
             } catch (t: Throwable) {
                 null
             }
@@ -321,11 +323,32 @@ class ModManagerFragment : Fragment() {
             } catch (t: Throwable) {
                 emptyList()
             }
+            // 顺手把占用统计出来。
+            // 「存储用量看不见」——之前列表只有每个模组的 KB，
+            // 想知道整个目录多大得自己一个个加起来。
+            var total = 0L
+            for (f in list) total += runCatching { f.length() }.getOrDefault(0L)
+            val n = list.size
+            val dn = list.count { ModToggle.isDisabled(it) }
             safePost(handler) {
                 render(list)
-                tvState.text = if (list.isEmpty()) "这个目录里没有模组" else "共 ${list.size} 个模组"
+                tvState.text = if (n == 0) "这个目录里没有模组"
+                else buildString {
+                    append("共 $n 个模组")
+                    if (dn > 0) append("（$dn 个已禁用）")
+                    append(" · 占用 ${humanSize(total)}")
+                }
             }
         }
+    }
+
+    private fun humanSize(b: Long): String {
+        if (b < 1024) return "$b B"
+        val kb = b / 1024.0
+        if (kb < 1024) return "%.1f KB".format(kb)
+        val mb = kb / 1024.0
+        if (mb < 1024) return "%.1f MB".format(mb)
+        return "%.2f GB".format(mb / 1024.0)
     }
 
     private fun toast(s: String) {

@@ -73,6 +73,25 @@ object McaEdit {
                 .read(ByteArrayInputStream(bytes)) as? CompoundTag
         }
 
+        /**
+         * 删掉一个区块（整块抹掉，不是清空方块）。
+         *
+         * 渲染视图那边要"删除区块"来做瘦身/重置地形，
+         * 所以这里给出的是**真正的移除**：槽位表清零、负载丢弃，
+         * 重新打包时该槽位不会再写出数据。
+         * 抹掉之后游戏再次进入该区域会按当前版本重新生成地形，
+         * 这是删除区块的预期行为，不是数据损坏。
+         *
+         * @return 该槽位原来是否有内容
+         */
+        fun remove(slot: Int): Boolean {
+            if (slot !in 0 until SLOTS) return false
+            val had = payloads[slot] != null
+            payloads[slot] = null
+            comps[slot] = 0
+            return had
+        }
+
         fun put(slot: Int, tag: CompoundTag) {
             comps[slot] = 2
             payloads[slot] = deflate(tag)

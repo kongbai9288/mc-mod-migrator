@@ -131,6 +131,18 @@ class ChunkMapActivity : AppCompatActivity() {
         }
         root.addView(btnSave)
 
+        //
+        // 删除当前区块。
+        // 渲染视图那边用它做"瘦身 / 重置地形"：
+        // 整块抹掉后，游戏再次加载该区域会按当前版本重新生成。
+        // 这是删除区块的预期行为，不是存档损坏 —— 但不可逆，
+        // 所以必须二次确认，并且照样先备份 .bak。
+        //
+        root.addView(MaterialButton(this).apply {
+            text = "删除这个区块（会先备份 .bak）"
+            setOnClickListener { confirmDeleteChunk() }
+        })
+
         load()
     }
 
@@ -312,6 +324,47 @@ class ChunkMapActivity : AppCompatActivity() {
         } catch (t: Throwable) {
             Err.fail(t, "保存区域文件")
             toast("保存失败：${t.message ?: ""}")
+        }
+    }
+
+    /** 删除当前区块：二次确认 + 备份 + 真删 */
+    private fun confirmDeleteChunk() {
+        val r = region ?: return
+        if (slot < 0) { toast("还没选中区块"); return }
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("删除这个区块？")
+            .setMessage(
+                "会把区块 (${slot % 32}, ${slot / 32}) 从区域文件里整块移除。\n\n" +
+                    "移除后游戏再次进入该区域时，会按当前版本重新生成地形；" +
+                    "你在那里建过的东西不会回来。\n\n" +
+                    "原文件会先备份为 .bak。"
+            )
+            .setPositiveButton("删除") { _, _ -> deleteChunk(r) }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun deleteChunk(r: McaEdit.Region) {
+        try {
+            if (!r.remove(slot)) { toast("这个区块本来就是空的"); return }
+            val out = r.build()
+            if (filePath.isNotBlank()) {
+                val f = File(filePath)
+                runCatching { f.copyTo(File(f.parentFile, f.name + ".bak"), true) }
+                f.writeBytes(out)
+            } else {
+                contentResolver.openOutputStream(fileUri!!, "wt")?.use { it.write(out) }
+                    ?: throw java.io.IOException("打不开输出流")
+            }
+            chunkTag = null
+            secs = emptyList()
+            dirty = false
+            btnSave.isEnabled = false
+            refresh()
+            toast("已删除，原文件备份为 .bak")
+        } catch (t: Throwable) {
+            Err.fail(t, "删除区块")
+            toast("删除失败：${t.message ?: ""}")
         }
     }
 
