@@ -26,26 +26,52 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mapReleaseSourceSetPaths
 > Task :app:generateReleaseResources
 > Task :app:packageReleaseResources
-> Task :app:mergeReleaseResources FAILED
+> Task :app:createReleaseCompatibleScreenManifests
+> Task :app:extractDeepLinksRelease
 > Task :app:parseReleaseLocalResources
+> Task :app:mergeReleaseResources
+> Task :app:processReleaseMainManifest
+> Task :app:processReleaseManifest
+> Task :app:javaPreCompileRelease
+> Task :app:extractProguardFiles
+> Task :app:mergeReleaseJniLibFolders
+> Task :app:mergeReleaseNativeLibs
+> Task :app:processReleaseManifestForPackage
+> Task :app:checkReleaseDuplicateClasses
+
+> Task :app:stripReleaseDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libgojni.so, libtranslate_jni.so.
+
+> Task :app:mergeReleaseArtProfile
+> Task :app:mergeReleaseShaders
+> Task :app:extractReleaseNativeSymbolTables
+> Task :app:compileReleaseShaders NO-SOURCE
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :app:generateReleaseAssets UP-TO-DATE
+> Task :app:mergeReleaseAssets
+> Task :app:compressReleaseAssets
+> Task :app:collectReleaseDependencies
+> Task :app:sdkReleaseDependencyData
+> Task :app:validateSigningRelease
+> Task :app:writeReleaseAppMetadata
+> Task :app:writeReleaseSigningConfigVersions
+> Task :app:processReleaseResources
+> Task :app:desugarReleaseFileDependencies
+> Task :app:compileReleaseKotlin
+> Task :app:mergeExtDexRelease
+> Task :app:optimizeReleaseResources
+
+> Task :app:compileReleaseKotlin FAILED
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LauncherSplash.kt:166:9 This annotation is not applicable to target 'expression'
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WorldsFragment.kt:173:44 Type mismatch: inferred type is File but String? was expected
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WorldsFragment.kt:205:41 Type mismatch: inferred type is File but String? was expected
 
 FAILURE: Build failed with an exception.
 
 * What went wrong:
-Execution failed for task ':app:mergeReleaseResources'.
-> Multiple task action failures occurred:
-   > A failure occurred while executing com.android.build.gradle.internal.res.Aapt2CompileRunnable
-      > Android resource compilation failed
-        ERROR: /home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/res/drawable-nodpi/ic_launcher_other.png: AAPT: error: file failed to compile.
-            
-   > A failure occurred while executing com.android.build.gradle.internal.res.Aapt2CompileRunnable
-      > Android resource compilation failed
-        ERROR: /home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/res/drawable-nodpi/ic_launcher_mio.png: AAPT: error: file failed to compile.
-            
-   > A failure occurred while executing com.android.build.gradle.internal.res.Aapt2CompileRunnable
-      > Android resource compilation failed
-        ERROR: /home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/res/drawable-nodpi/ic_launcher_zalith2.png: AAPT: error: file failed to compile.
-            
+Execution failed for task ':app:compileReleaseKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
 
 * Try:
 > Run with --stacktrace option to get the stack trace.
@@ -53,5 +79,5 @@ Execution failed for task ':app:mergeReleaseResources'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 50s
-8 actionable tasks: 8 executed
+BUILD FAILED in 2m 26s
+34 actionable tasks: 34 executed
