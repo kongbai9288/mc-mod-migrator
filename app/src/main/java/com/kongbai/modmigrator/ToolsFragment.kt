@@ -114,6 +114,11 @@ class ToolsFragment : Fragment() {
             "137 个生成器，无需联网；结果可直接写进存档", "打开"
         ) { openDatapack() })
 
+        root.addView(UiCards.infoCard(
+            ctx, R.drawable.ic_inventory, "区块编辑器（.mca）",
+            "打开存档的区域文件，图形化查看并修改区块方块，保存前自动备份", "打开"
+        ) { openMca() })
+
         // ---------- 跨设备传输 ----------
         // QuickTransfer.shareFiles() 一直**没有任何调用方**——
         // 打包分享的代码写好了，界面上却点不到，等于没做。
@@ -223,23 +228,93 @@ class ToolsFragment : Fragment() {
         }
     }
 
-    /** 在 SAF 树里递归找 .dat / .nbt，限深度 4 层、上限 40 个 */
+    /**
+     * 在 SAF 树里递归找指定后缀的文件。
+     *
+     * @param exts 后缀集合，如 listOf(".dat", ".nbt")
+     * @param maxDepth 目录层级上限。默认 4 对 .dat 够用，
+     *   但 .mca 藏在 saves/<世界>/region/ 下，需要放宽到 6。
+     */
     private fun collectSafNbt(
-        ctx: android.content.Context, uriStr: String, out: ArrayList<Pair<String, Any>>
+        ctx: android.content.Context, uriStr: String, out: ArrayList<Pair<String, Any>>,
+        exts: List<String> = listOf(".dat", ".nbt"), maxDepth: Int = 4
     ) {
         val tree = Fs.tree(ctx, uriStr) ?: return
         fun walk(d: androidx.documentfile.provider.DocumentFile, depth: Int) {
-            if (out.size >= 40 || depth > 4) return
+            if (out.size >= 40 || depth > maxDepth) return
             for (c in d.listFiles()) {
                 if (out.size >= 40) return
                 if (c.isDirectory) walk(c, depth + 1)
                 else {
                     val n = c.name ?: continue
-                    if (n.endsWith(".dat") || n.endsWith(".nbt")) out.add(n to c.uri)
+                    if (exts.any { n.endsWith(it) }) out.add(n to c.uri)
                 }
             }
         }
         walk(tree, 0)
+    }
+
+    /**
+     * 区块编辑器入口。
+     *
+     * .mca 在 `<世界>/region/`，所以扫描深度要比 .dat 更深一层，
+     * 否则永远找不到（表现为"没找到区域文件"）。
+     * 和 NBT 一样两条路都走：真实路径 + SAF 授权目录。
+     */
+    private fun openMca() {
+        val ctx = context ?: return
+        exec.execute {
+            val found = ArrayList<Pair<String, Any>>()
+            val game = Prefs.get(ctx).getString(K.GAME_DIR, "") ?: ""
+            if (game.isNotBlank() && !game.startsWith("content://")) {
+                runCatching {
+                    java.io.File(game).walkTopDown()
+                        .filter { it.isFile && it.name.endsWith(".mca") }
+                        .take(40)
+                        .forEach { found.add(it.name to it) }
+                }
+            }
+            if (game.startsWith("content://")) {
+                runCatching {
+                    collectSafNbt(ctx, game, found, listOf(".mca"), 6)
+                }
+            }
+            if (found.isEmpty() && Perms.allFiles()) {
+                for ((_, dir) in LauncherDirs.detect(ctx)) {
+                    runCatching {
+                        dir.walkTopDown()
+                            .filter { it.isFile && it.name.endsWith(".mca") }
+                            .take(40)
+                            .forEach { found.add(it.name to it) }
+                    }
+                }
+            }
+            safePost(handler) {
+                if (!isAdded) return@safePost
+                if (found.isEmpty()) {
+                    com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                        .setTitle("没找到区域文件")
+                        .setMessage(
+                            "没在游戏目录里找到 .mca。\n" +
+                                "它位于「存档目录/世界名/region/」下。\n" +
+                                "请先在「设置 → 存储」把游戏目录指到 .minecraft。"
+                        )
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show()
+                } else {
+                    val names = found.map { it.first }.toTypedArray()
+                    com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                        .setTitle("打开哪个区域文件（共 ${found.size} 个）")
+                        .setItems(names) { _, w ->
+                            val v = found[w].second
+                            if (v is java.io.File) ChunkMapActivity.open(ctx, v)
+                            else ChunkMapActivity.openUri(ctx, v as android.net.Uri)
+                        }
+                        .setNegativeButton(R.string.cancel, null)
+                        .show()
+                }
+            }
+        }
     }
 
     private fun askNbtPath(ctx: android.content.Context) {

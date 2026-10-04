@@ -49,6 +49,7 @@ class MisodeView @JvmOverloads constructor(
 		const val DOMAIN: String = "misode.local"
 		private const val ROOT = "https://$DOMAIN/assets/misode/index.html"
 		private const val ASSET_ROOT = "misode"
+		private const val ASSET_PREFIX = "assets/"
 	}
 
 	private val mainHandler = Handler(Looper.getMainLooper())
@@ -118,9 +119,25 @@ class MisodeView @JvmOverloads constructor(
 		}
 	}
 
-	/** True when the requested path exists inside the bundled assets. */
+	/**
+	 * True when the requested path exists inside the bundled assets.
+	 *
+	 * ⚠️ 这里之前拼错了，是"一直提示载入中"的直接原因：
+	 * 旧写法是 `"$ASSET_ROOT/$path"`，而 path 已经带着 `assets/` 前缀，
+	 * 拼出来就成了 `misode/assets/misode/...`，永远不存在 →
+	 * assetExists 恒为 false → **每个请求都被重写成 index.html** →
+	 * 浏览器拿到的 .js 内容其实是 HTML，JS 解析直接失败，
+	 * READY 事件永远不来，界面就一直停在"正在载入"。
+	 *
+	 * 正确映射：handler 注册的是 `/assets/`，AssetsPathHandler 会把
+	 * 该前缀之后的剩余部分当作 assets 里的相对路径。
+	 * 即 `/assets/misode/index.html` → `misode/index.html`。
+	 * 上游 vite 用 `base: './'`，所以子资源是
+	 * `/assets/misode/assets/xxx.js` → `misode/assets/xxx.js`，同样成立。
+	 */
 	private fun assetExists(path: String): Boolean {
-		val assetPath = "$ASSET_ROOT/$path"
+		val assetPath = path.removePrefix(ASSET_PREFIX)
+		if (assetPath.isEmpty()) return false
 		return try {
 			context.assets.open(assetPath).use { true }
 		} catch (_: IOException) {
