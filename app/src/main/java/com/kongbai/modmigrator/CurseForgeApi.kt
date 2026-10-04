@@ -47,14 +47,27 @@ object CurseForgeApi {
             // 加载器混在 gameVersions 里（形如 ["1.20.1","Fabric","Forge"]）。
             // 这里把它们挑出来：命中已知加载器的留下，
             // 版本号会 normalize 成 "auto"，正好被过滤掉。
+            //
+            // ⚠️ 之前只看 latestFiles[0]：那是**某一个文件**的加载器。
+            // 绝大多数模组的第一个文件是 Forge 版，于是卡片上
+            // 永远只画出一个 Forge 图标，Fabric 版明明存在却看不见 ——
+            // 表现就是"只有少部分是 forge 支持，没有大量覆盖"。
+            // 现在把 latestFiles **全部**扫一遍取并集：
+            // 这个模组支持过的加载器都能显示出来。
+            //
             var cfLoaders: List<String> = emptyList()
             if (lf != null && lf.size() > 0) {
                 val f0 = lf.get(0)
                 fileId = Json.s(f0, "id")
                 fileName = Json.s(f0, "fileName")
+                val all = ArrayList<String>()
+                for (i in 0 until lf.size()) {
+                    val f = lf.get(i)
+                    all.addAll(Json.sa(f, "gameVersions"))
+                }
                 // 用 Loaders.clean：归一化 + 丢掉认不出来的 + 去重 + 稳定排序，
                 // 与 Modrinth 那条路径保持一致（不然两个来源显示顺序会不一样）
-                cfLoaders = Loaders.clean(Json.sa(f0, "gameVersions"))
+                cfLoaders = Loaders.clean(all)
             }
             out.add(
                 MarketMod(

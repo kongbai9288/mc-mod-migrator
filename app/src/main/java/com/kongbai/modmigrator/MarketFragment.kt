@@ -73,8 +73,11 @@ class MarketFragment : Fragment() {
      * 用户没法按"只要优化类"来筛。这里按当前结果里实际出现的分类
      * 动态生成可点标签，点一下选中、再点取消，可多选（同时满足）。
      */
-    private lateinit var rowFilter: WrapRow
+    private lateinit var rowFilter: android.widget.HorizontalScrollView
+    private lateinit var chipBox: android.widget.LinearLayout
     private val activeCats = LinkedHashSet<String>()
+    /** 一行最多放几个分类标签，其余收进「更多」 */
+    private val CHIP_LIMIT = 10
     private lateinit var spSort: Spinner
     private lateinit var btnFav: Button
 
@@ -125,13 +128,40 @@ class MarketFragment : Fragment() {
 
         tvListTitle = v.findViewById(R.id.tvListTitle)
         // 筛选行插在标题下面：没有分类时整行隐藏，不留空白
-        rowFilter = WrapRow(requireContext()).apply {
-            visibility = View.GONE
+        //
+        // ⚠️ 之前插在 tvListTitle.parent，也就是**标题那一行**。
+        // 那行是 horizontal 的，塞一个 MATCH_PARENT 的子 View 进去，
+        // 会把同一行右边的「排序」标签和排序下拉整个挤出屏幕 ——
+        // 表现就是"排序功能没了"。
+        // 而且 WrapRow 会自动换行，分类一多就叠成好几行，
+        // 把下面的列表挤到只剩一条缝（"屏幕挡完了"）。
+        //
+        // 现在两处都改：
+        //   1. 插到标题行的**外层**（垂直容器），独占一行，不再挤走排序；
+        //   2. 容器换成横向滚动的单行，高度恒定，分类再多也不会挡屏幕，
+        //      放不下的收进「更多」里。
+        //
+        chipBox = android.widget.LinearLayout(requireContext()).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
             val pd = (4 * resources.displayMetrics.density).toInt()
             setPadding(0, pd, 0, pd)
         }
-        (tvListTitle.parent as? android.widget.LinearLayout)?.let { host ->
-            val idx = host.indexOfChild(tvListTitle)
+        rowFilter = android.widget.HorizontalScrollView(requireContext()).apply {
+            visibility = View.GONE
+            isHorizontalScrollBarEnabled = false
+            addView(
+                chipBox,
+                android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+        val titleRow = tvListTitle.parent as? android.widget.LinearLayout
+        val outer = titleRow?.parent as? android.widget.LinearLayout
+        (outer ?: titleRow)?.let { host ->
+            val anchor = if (outer != null) titleRow!! else tvListTitle
+            val idx = host.indexOfChild(anchor)
             host.addView(
                 rowFilter, idx + 1,
                 android.widget.LinearLayout.LayoutParams(
@@ -530,7 +560,14 @@ class MarketFragment : Fragment() {
             // 多选之间是「且」：选了「优化 + 科技」就只留两类都占的
             activeCats.all { a -> cs.any { it.contains(a.lowercase()) } }
         }
-        if (!structural && appended > 0 && activeCats.isEmpty() &&
+        //
+        // 增量插入的前提是"顺序本来就是对的"。
+        // 只有选了「相关度（原顺序）」才成立；选了下载量/更新时间/名称时，
+        // 新追加的一批是按数据源顺序塞进去的，会把排好的结果搅乱 ——
+        // 表现就是"排序没了"。所以非原序时一律走整表重排。
+        //
+        val keepOrder = ::spSort.isInitialized && spSort.selectedItemPosition == 3
+        if (!structural && appended > 0 && activeCats.isEmpty() && keepOrder &&
             results.size + appended == filtered.size
         ) {
             val start = results.size
@@ -567,7 +604,7 @@ class MarketFragment : Fragment() {
         }
         // 按出现次数排序，多的排前面
         val keys = counts.entries.sortedByDescending { it.value }.map { it.key }
-        rowFilter.removeAllViews()
+        chipBox.removeAllViews()
         if (keys.isEmpty()) {
             rowFilter.visibility = View.GONE
             return
@@ -577,17 +614,48 @@ class MarketFragment : Fragment() {
         val d = ctx.resources.displayMetrics.density
 
         // 「全部」：一键清掉筛选
-        rowFilter.addView(chip(ctx, d, "全部", activeCats.isEmpty()) {
+        chipBox.addView(chip(ctx, d, "全部", activeCats.isEmpty()) {
             activeCats.clear()
             refreshList(structural = true)
         })
-        for (k in keys) {
+
+        // 选中的一定排在最前，否则筛了一半之后，
+        // 已选的标签可能被挤到「更多」里看不见，像是筛选失效了。
+        val ordered = keys.sortedWith(compareBy({ !activeCats.contains(it) }, { keys.indexOf(it) }))
+        val shown = ordered.take(CHIP_LIMIT)
+        for (k in shown) {
             val on = activeCats.contains(k)
-            rowFilter.addView(chip(ctx, d, "$k ${counts[k]}", on) {
+            chipBox.addView(chip(ctx, d, "$k ${counts[k]}", on) {
                 if (on) activeCats.remove(k) else activeCats.add(k)
                 refreshList(structural = true)
             })
         }
+        // 放不下的收进「更多」，弹窗里全列出并可多选
+        if (ordered.size > shown.size) {
+            chipBox.addView(chip(ctx, d, "更多 ${ordered.size - shown.size}", false) {
+                showAllCats(ctx, ordered, counts)
+            })
+        }
+    }
+
+    /** 「更多」弹窗：列出全部分类，可多选 */
+    private fun showAllCats(
+        ctx: android.content.Context, keys: List<String>, counts: Map<String, Int>
+    ) {
+        val labels = keys.map { "$it（${counts[it] ?: 0}）" }.toTypedArray()
+        val checked = keys.map { activeCats.contains(it) }.toBooleanArray()
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+            .setTitle("分类筛选（可多选，同时满足）")
+            .setMultiChoiceItems(labels, checked) { _, w, isChecked ->
+                if (isChecked) activeCats.add(keys[w]) else activeCats.remove(keys[w])
+            }
+            .setPositiveButton("应用") { _, _ -> refreshList(structural = true) }
+            .setNeutralButton("清空") { _, _ ->
+                activeCats.clear()
+                refreshList(structural = true)
+            }
+            .setNegativeButton(R.string.cancel) { _, _ -> refreshList(structural = true) }
+            .show()
     }
 
     private fun chip(
