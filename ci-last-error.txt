@@ -1,0 +1,116 @@
+# 最近一次构建失败摘录
+run: 37193683813
+> Task :app:compileReleaseKotlin FAILED
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListClient.kt:176:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListClient.kt:247:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:80:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:98:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:121:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:140:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:185:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:195:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:208:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:226:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:247:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:258:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:269:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:287:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:298:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+BUILD FAILED in 1m 41s
+
+## 末尾 80 行
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :app:mergeReleaseArtProfile
+> Task :app:mergeReleaseShaders
+> Task :app:compileReleaseShaders NO-SOURCE
+> Task :app:generateReleaseAssets UP-TO-DATE
+> Task :app:mergeReleaseAssets
+> Task :app:compressReleaseAssets
+> Task :app:collectReleaseDependencies
+> Task :app:sdkReleaseDependencyData
+> Task :app:validateSigningRelease
+> Task :app:writeReleaseAppMetadata
+> Task :app:writeReleaseSigningConfigVersions
+> Task :app:processReleaseResources
+> Task :app:desugarReleaseFileDependencies
+> Task :app:compileReleaseKotlin
+> Task :app:mergeExtDexRelease
+> Task :app:optimizeReleaseResources
+
+> Task :app:compileReleaseKotlin FAILED
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListClient.kt:176:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+public final fun failure(message: String): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListClient.kt:247:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+public final fun failure(message: String): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:80:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+public final fun failure(message: String): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:98:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+public final fun failure(message: String): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:121:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+public final fun failure(message: String): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:140:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+public final fun failure(message: String): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:185:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+public final fun failure(message: String): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:195:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+public final fun failure(message: String): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:208:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+public final fun failure(message: String): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:226:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+public final fun failure(message: String): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:247:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+public final fun failure(message: String): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:258:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+public final fun failure(message: String): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:269:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+public final fun failure(message: String): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:287:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+public final fun failure(message: String): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:298:28 None of the following functions can be called with the arguments supplied: 
+public final fun failure(error: OpenListException): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+public final fun failure(message: String): OpenListResult<Nothing> defined in com.opentransfer.openlist.OpenListResult.Companion
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileReleaseKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 1m 41s
+34 actionable tasks: 34 executed
