@@ -48,6 +48,11 @@ class WebActivity : AppCompatActivity() {
         private const val EXTRA_TITLE = "title"
         private const val EXTRA_LOGIN = "login"
 
+        /** 桌面版 UA，登录时用（见 onCreate 里的说明） */
+        private const val DESKTOP_UA =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+                "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
         fun open(ctx: Context, url: String, title: String = "") {
             val i = Intent(ctx, WebActivity::class.java)
             i.putExtra(EXTRA_URL, url)
@@ -183,6 +188,16 @@ class WebActivity : AppCompatActivity() {
         }
 
         loginMode = intent.getBooleanExtra(EXTRA_LOGIN, false)
+        //
+        // 登录模式默认用**桌面版 UA**。
+        // GitHub 的登录页会根据 UA 决定推什么登录方式：
+        // 移动端/未知 UA 更容易被推到 passkey（通行密钥），
+        // 而 WebView 不支持系统级凭据绑定，页面会卡在
+        // "Sign in with a passkey" 既不报错也不前进。
+        // 桌面 UA 下 GitHub 给的是常规账号密码表单，
+        // 并且明确提供「用密码登录」入口，这条路在 WebView 里走得通。
+        //
+        if (loginMode) desktopUa = true
         // 自动翻译开关（设置里控制）
         val autoTrans = Prefs.get(this).getBoolean(K.AUTO_TRANS_PAGE, false)
 
@@ -204,7 +219,8 @@ class WebActivity : AppCompatActivity() {
                 CookieManager.getInstance().setAcceptThirdPartyCookies(web, true)
             } catch (t: Throwable) { Err.ignore(t, "CookieManager.getInstance().setAcceptThirdPartyCoo") }
             // 3) 移动端 UA + 标识
-            userAgentString = WebSettings.getDefaultUserAgent(this@WebActivity)
+            userAgentString = if (desktopUa) DESKTOP_UA
+            else WebSettings.getDefaultUserAgent(this@WebActivity)
                 .replace("; wv)", ")") + " ModMigrator/" + versionName()
             // 缩放适配
             textZoom = 100
@@ -483,8 +499,7 @@ class WebActivity : AppCompatActivity() {
             6 -> {
                 desktopUa = !desktopUa
                 web.settings.userAgentString = if (desktopUa) {
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-                        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                    DESKTOP_UA
                 } else {
                     WebSettings.getDefaultUserAgent(this).replace("; wv)", ")") +
                         " ModMigrator/" + versionName()

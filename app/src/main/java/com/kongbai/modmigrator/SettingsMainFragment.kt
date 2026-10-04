@@ -328,21 +328,34 @@ class SettingsMainFragment : Fragment() {
     }
 
     /**
-     * 是否在内置浏览器里登录。
+     * 走哪条路登录。
      *
-     * ⚠️ 默认改成 **false（用系统浏览器）**。
+     * ⚠️ 默认改成 **false（内置浏览器）**。
      *
-     * 之前默认内置 WebView，而 GitHub 的登录页现在默认推
-     * **passkey（通行密钥）** 登录 —— 这需要系统级凭据绑定，
-     * 嵌入式浏览器**根本不支持**，于是页面永远停在
-     * "Sign in with a passkey" 这一步：不报错、不前进，
-     * 表现为"完全没法登录"，连日志都只有"拉起浏览器"之后就断了。
+     * 之前默认用系统浏览器（Chrome），目的是绕开
+     * passkey（通行密钥）在 WebView 里卡住的问题。
+     * 但这会带来一个更致命的后果：**state 校验必然失败**。
      *
-     * 系统浏览器（Chrome）支持 passkey，也支持常规账号密码登录，
-     * 这条路才走得通。代价是会话 cookie 落在浏览器里、应用读不到，
-     * 所以授权完回到应用仍显示未登录 —— 这是预期行为，界面会说明清楚。
+     * 完整链路是这样的：
+     *   1. 应用用 OkHttp 请求后端 /api/auth/login
+     *   2. 后端在响应里 Set-Cookie: mm_oauth_state=xxx
+     *      —— 这个 cookie 被写进**应用内**的 WebView CookieManager
+     *   3. 浏览器打开 GitHub 授权页 → 用户授权
+     *   4. GitHub 重定向到后端 /api/auth/callback?code=..&state=..
+     *   5. 后端拿 URL 里的 state 和**请求带来的 cookie** 比对
+     *
+     * 第 2 步的 cookie 在应用里，而第 4 步的请求是**浏览器**发出的，
+     * 浏览器的 jar 里根本没有 mm_oauth_state —— 于是第 5 步必然对不上，
+     * 后端直接返回 {"error":"state 校验失败，请重新登录"}。
+     * 用户看到的正是这一句，而且全程没有任何提示说"cookie 不在浏览器里"。
+     *
+     * 换回内置浏览器后，第 2 步和第 4 步发生在同一个 WebView 里，
+     * cookie 对得上，state 校验就能过。
+     *
+     * passkey 的问题另外解决：登录模式改用桌面版 UA（见 WebActivity），
+     * GitHub 在桌面 UA 下给的是常规账号密码表单，不再优先推 passkey。
      */
-    private fun login(useExternal: Boolean = true) {
+    private fun login(useExternal: Boolean = false) {
         val ctx = requireContext()
         //
         // 登录链路一共 4 步，任何一步断了表现都一模一样（就是登不上）。
@@ -530,8 +543,8 @@ class SettingsMainFragment : Fragment() {
             .setItems(
                 arrayOf(
                     "用访问令牌登录（推荐，直连 GitHub）",
-                    "用浏览器登录（推荐）",
-                    "用内置浏览器登录（可能卡在 passkey）",
+                    "用内置浏览器登录（推荐）",
+                    "用系统浏览器登录（会 state 校验失败，仅作备用）",
                     "登录诊断（看卡在哪）",
                     "复制登录日志",
                     "退出登录"
@@ -539,8 +552,8 @@ class SettingsMainFragment : Fragment() {
             ) { _, w ->
                 when (w) {
                     0 -> manualToken()
-                    1 -> loginExternal()
-                    2 -> login(useExternal = false)
+                    1 -> login(useExternal = false)
+                    2 -> loginExternal()
                     3 -> runLoginDiag()
                     4 -> copyLoginLog()
                     5 -> doLogout()
@@ -564,10 +577,12 @@ class SettingsMainFragment : Fragment() {
             ctx.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
             Toast.makeText(
                 ctx,
-                "已在浏览器打开 GitHub 登录页。\n" +
-                    "完成授权后回到本页，点「登录诊断」确认状态。\n\n" +
-                    "注意：浏览器的登录态不会同步到应用内。\n" +
-                    "要让应用内也处于登录态，请用「用访问令牌登录」。",
+                "已在系统浏览器打开 GitHub 登录页。\n\n" +
+                    "注意：这条路大概率会报\n" +
+                    "「state 校验失败，请重新登录」，\n" +
+                    "因为后端的 state cookie 存在应用内，浏览器里没有。\n\n" +
+                    "要让登录态真正生效，请用「用内置浏览器登录」\n" +
+                    "或「用访问令牌登录」。",
                 Toast.LENGTH_LONG
             ).show()
         } catch (t: Throwable) {
@@ -579,12 +594,16 @@ class SettingsMainFragment : Fragment() {
     /**
      * 用系统浏览器完成授权。
      *
-     * 内置浏览器走的是 WebView，GitHub 对嵌入式浏览器的支持并不完整，
-     * 部分账号会卡在授权页或跳不回来。系统浏览器（Chrome）没有这个问题。
+     * ⚠️ 这条路**一定会 state 校验失败**：
+     * 后端种下的 mm_oauth_state cookie 存在应用内
+     * （OkHttp 请求 /api/auth/login 后写进 WebView CookieManager），
+     * 系统浏览器的 jar 里没有它。于是回调时后端比不上，直接返回
+     * {"error":"state 校验失败，请重新登录"}。
      *
-     * 代价：会话 cookie 落在浏览器里，本应用读不到，
-     * 所以回到应用后仍显示未登录——这是预期行为，不是故障。
-     * 真正要让应用内也处于登录态，请改用「用访问令牌登录」。
+     * 保留它只有一个用途：内置浏览器万一卡住，
+     * 至少能在真正的 Chrome 里完成 GitHub 那一步。
+     * 登录态回不到应用是预期行为，界面上必须讲清楚，
+     * 否则用户只会以为是登录功能坏了。
      */
     private fun loginExternal() {
         val ctx = context ?: return
