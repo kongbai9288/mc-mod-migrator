@@ -147,6 +147,27 @@ jobs:
           echo "===== last 60 lines ====="
           tail -60 /tmp/build.log
 
+      - name: Publish build errors for diagnosis
+        if: failure()
+        run: |
+          set +e
+          # 日志下载需要额外授权，读不到；
+          # 这里把编译错误摘出来提交回仓库，方便定位。
+          # 用 [skip ci] 避免提交自己再触发一轮构建。
+          {
+            echo "# 最近一次构建失败摘录"
+            echo "run: $GITHUB_RUN_ID"
+            grep -E "^(e: |.*error:|.*FAILED)" /tmp/build.log | head -60
+            echo
+            echo "## 末尾 80 行"
+            tail -80 /tmp/build.log
+          } > ci-last-error.txt 2>&1
+          git config user.name "ci"
+          git config user.email "ci@example.com"
+          git add -f ci-last-error.txt
+          git commit -m "ci: 记录构建失败摘录 [skip ci]" || exit 0
+          git push || exit 0
+
       - name: Rename APK to a stable name
         run: |
           set -e
