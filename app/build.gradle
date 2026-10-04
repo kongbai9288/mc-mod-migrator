@@ -11,8 +11,8 @@ android {
         applicationId "com.kongbai.modmigrator"
         minSdk 26
         targetSdk 34
-        versionCode 30
-        versionName "2.2.2"
+        versionCode 31
+        versionName "2.2.3"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -118,13 +118,24 @@ dependencies {
     implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
 
     // ---- NBT 与数据包生成器（MIT，非传染性）----
-    // vianbt：ViaNBT 的零依赖安卓版，读写 Minecraft 的 .dat / .nbt
-    // misode-android：misode.github.io 的 137 个生成器整站离线打包（WebView）
-    // 两个 AAR 由 CI 在编译前下载到 app/libs/（见 .github/workflows/build-apk.yml），
-    // 不进 git —— 仓库里放二进制会持续占用存储配额。
-    implementation files('libs/vianbt-release.aar')
-    implementation files('libs/misode-android-release.aar')
-    // misode-android 依赖 androidx.webkit（WebViewAssetLoader）
+    //
+    // ⚠️ 之前是以 AAR 形式在编译期引入（vianbt + misode-android），
+    // 但 AAR 是**黑盒**：里面的类打没打进去、资源带没带上，
+    // 出问题时本地也验证不了，只能靠猜。反馈里"还是没办法用"
+    // 正是这种不可见性造成的。
+    //
+    // 现在改成**源码级融合**：
+    //   · com/viaversion/nbt/**      —— ViaNBT 全部 40 个源文件，直接进本工程编译
+    //   · io/misode/mobile/**        —— MisodeView 与事件模型，同样进本工程编译
+    // 两者都是 MIT，许可已在「设置 → 关于 → 开源许可」中单独声明。
+    // 好处：能读、能改、能断点，不会再出现"编译过了但功能残缺"。
+    //
+    // 网页生成器所需的静态资源（HTML/JS/JSON）不是代码，
+    // 由 CI 从上游发布页取 misode-web-assets.zip 解压到 assets/misode/。
     implementation 'androidx.webkit:webkit:1.8.0'
+    implementation 'androidx.annotation:annotation:1.7.0'
+    // ViaNBT 源码里用了 org.jetbrains.annotations.Nullable，
+    // 融合进本工程后这个注解必须有出处，否则整包编译不过。
+    implementation 'org.jetbrains:annotations:24.1.0'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
 }

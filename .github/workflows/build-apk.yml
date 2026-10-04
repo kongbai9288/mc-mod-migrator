@@ -69,20 +69,29 @@ jobs:
           echo "tag=v$V" >> $GITHUB_OUTPUT
           echo "app version: v$V"
 
-      - name: Fetch NBT / datapack AARs
+      - name: Fetch Misode web bundle
         run: |
           set -e
-          # 两个 AAR 是 MIT 许可的第三方库，由 kongbai9288/misode-vianbt-android
-          # 的 Release 提供。**不进 git** —— 仓库里放二进制会持续占用存储配额，
-          # 这里在编译前拉取即可。
-          mkdir -p app/libs
+          # NBT 与 MisodeView 的代码已经**源码级融合**进本工程
+          # （app/src/main/java/com/viaversion/nbt 与 io/misode/mobile），
+          # 不再依赖任何 AAR。
+          # 这里只取生成器的静态网页资源（HTML/JS/JSON，非代码），
+          # 解到 assets/misode/ 供 WebViewAssetLoader 读取。
+          mkdir -p app/src/main/assets/misode
           BASE=https://github.com/kongbai9288/misode-vianbt-android/releases/download/v1.1.0
-          curl -sSL --retry 3 -o app/libs/vianbt-release.aar "$BASE/vianbt-release.aar"
-          curl -sSL --retry 3 -o app/libs/misode-android-release.aar "$BASE/misode-android-release.aar"
-          ls -la app/libs
-          # 拉不到就让编译直接失败，避免"编译过了但功能残缺"
-          test -s app/libs/vianbt-release.aar
-          test -s app/libs/misode-android-release.aar
+          curl -sSL --retry 3 -o /tmp/misode-web.zip "$BASE/misode-web-assets.zip"
+          ls -la /tmp/misode-web.zip
+          test -s /tmp/misode-web.zip
+          unzip -q -o /tmp/misode-web.zip -d /tmp/misode-web
+          # zip 里可能带一层目录，统一摊平到 assets/misode/
+          if [ -f /tmp/misode-web/index.html ]; then
+            cp -r /tmp/misode-web/. app/src/main/assets/misode/
+          else
+            cp -r /tmp/misode-web/*/. app/src/main/assets/misode/
+          fi
+          test -s app/src/main/assets/misode/index.html
+          echo "bundle files:"
+          find app/src/main/assets/misode -type f | wc -l
 
       - name: Decode keystore
         run: |
@@ -109,6 +118,19 @@ jobs:
           fi
           echo "===== apk find ====="
           find . -name "*.apk" -type f -exec ls -la {} \;
+          echo "===== misode bundle inside apk ====="
+          # ⚠️ 离线生成器靠 assets/misode/index.html 启动。
+          # 之前只看到"编译成功"，却没人验证过这个包到底进没进 APK ——
+          # 没进去的表现就是点开一片空白，而构建日志一片绿。
+          # 这里直接列出，数量为 0 就让构建失败，不再带着残缺包发布。
+          APK=$(find . -path "*release*.apk" -type f | head -1)
+          N=$(unzip -l "$APK" | grep -c "assets/misode/" || true)
+          echo "assets/misode 文件数: $N"
+          unzip -l "$APK" | grep "assets/misode/" | head -5
+          if [ "$N" -lt 5 ]; then
+            echo "!! 离线生成器资源未打进 APK，终止发布"
+            exit 1
+          fi
           echo "===== last 60 lines ====="
           tail -60 /tmp/build.log
 
