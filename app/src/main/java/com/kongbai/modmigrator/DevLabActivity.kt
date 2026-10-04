@@ -1,5 +1,7 @@
 package com.kongbai.modmigrator
 
+import android.content.Intent
+
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -85,6 +87,36 @@ class DevLabActivity : AppCompatActivity() {
             setTextIsSelectable(true)
         }
         root.addView(out)
+
+        // ── 启动器开场动画 ──────────────────────────────────
+        // 这段动画只有**真的从某个启动器进来**才会播，
+        // 自己打开应用永远看不到，也就没法调。
+        // 所以这里给每个品牌一个手动入口，想看哪个点哪个。
+        root.addView(TextView(this).apply {
+            text = "启动器开场动画"
+            textSize = 14f
+            setPadding(0, (18 * resources.displayMetrics.density).toInt(), 0, 4)
+        })
+        for (b in LauncherBrand.all()) {
+            root.addView(MaterialButton(this).apply {
+                text = "播放：${b.label}"
+                gravity = Gravity.START
+                setOnClickListener {
+                    LauncherSplash.play(
+                        this@DevLabActivity,
+                        LauncherBrand.Handoff(b, b.label, "1.0.0")
+                    )
+                }
+            })
+        }
+        root.addView(MaterialButton(this).apply {
+            text = "依次播放全部"
+            setOnClickListener { playAllSplash() }
+        })
+        root.addView(MaterialButton(this).apply {
+            text = "模拟从启动器进来（重启主界面）"
+            setOnClickListener { askLauncherName() }
+        })
 
         var lastGroup = ""
         for (c in cases()) {
@@ -174,6 +206,58 @@ class DevLabActivity : AppCompatActivity() {
                 btnAll.isEnabled = true
             }
         }
+    }
+
+    /** 依次播放全部品牌，每个之间留出动画本身的时长 */
+    private fun playAllSplash() {
+        if (splashBusy) {
+            append("正在依次播放，稍等\n")
+            return
+        }
+        val all = LauncherBrand.all()
+        splashBusy = true
+        append("=== 依次播放 ${all.size} 个启动器动画 ===\n")
+        var i = 0
+        fun step() {
+            if (i >= all.size) {
+                splashBusy = false
+                append("=== 播放结束 ===\n\n")
+                return
+            }
+            val b = all[i]
+            append("▶ ${b.label}\n")
+            LauncherSplash.play(this, LauncherBrand.Handoff(b, b.label, "1.0.0"))
+            i++
+            // 动画固定 3 秒，多留一点确保上一轮 running 已复位
+            handler.postDelayed({ step() }, 3600)
+        }
+        step()
+    }
+
+    private var splashBusy = false
+
+    /** 输入一个启动器名字，假装是它把我们拉起来的 */
+    private fun askLauncherName() {
+        val et = android.widget.EditText(this).apply {
+            setText("Zalith Launcher 2")
+            setSingleLine(true)
+        }
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("启动器名字（随便填，用于测试识别）")
+            .setView(et)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton("用它启动主界面") { _, _ ->
+                val name = et.text.toString().trim()
+                val i = Intent(this, MainActivity::class.java)
+                i.putExtra(LauncherBrand.EXTRA_LAUNCHER_NAME, name)
+                i.putExtra(LauncherBrand.EXTRA_LAUNCHER_VERSION, "9.9.9")
+                // 强制新建，确保 MainActivity 走 onCreate 读到新的 extra
+                i.addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                )
+                startActivity(i)
+            }
+            .show()
     }
 
     private fun append(s: String) {
