@@ -26,7 +26,6 @@ class ServerFragment : Fragment() {
     private val cred = ServerPanelApi.Cred()
     private lateinit var etDir: EditText
     private lateinit var boxPanel: android.widget.LinearLayout
-    private lateinit var boxRemote: android.widget.LinearLayout
     private lateinit var tvConnMode: android.widget.TextView
     private lateinit var etVersion: EditText
     private lateinit var spLoader: Spinner
@@ -67,7 +66,6 @@ class ServerFragment : Fragment() {
         etKey = v.findViewById(R.id.etPanelKey)
         etDir = v.findViewById(R.id.etPanelDir)
         boxPanel = v.findViewById(R.id.boxPanel)
-        boxRemote = v.findViewById(R.id.boxRemote)
         tvConnMode = v.findViewById(R.id.tvConnMode)
         etVersion = v.findViewById(R.id.etVersion)
         spLoader = v.findViewById(R.id.spLoader)
