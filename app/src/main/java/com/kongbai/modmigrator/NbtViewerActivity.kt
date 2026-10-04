@@ -54,6 +54,7 @@ class NbtViewerActivity : AppCompatActivity() {
     private lateinit var tvTree: TextView
     private lateinit var etSnbt: android.widget.EditText
     private lateinit var btnSave: MaterialButton
+    private lateinit var btnSaveTop: MaterialButton
     private lateinit var tvState: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -130,6 +131,27 @@ class NbtViewerActivity : AppCompatActivity() {
         }
         root.addView(btnSave)
 
+        //
+        // ⚠️ 树很长时，「写回」按钮在整页滚动容器的**最末尾**，
+        // 要一路滑到底才够得着；而 SNBT 编辑框本身也会抢焦点、
+        // 把内容顶上去，实际使用中基本等于点不到。
+        // 现在在顶部复制一份同样的按钮，两处等价。
+        //
+        btnSaveTop = MaterialButton(this).apply {
+            text = "写回文件（先自动备份 .bak）"
+            isEnabled = false
+            setOnClickListener { save() }
+        }
+        root.addView(btnSaveTop, 0)
+
+        // 用其他应用打开（MT 管理器等）。
+        // 有些编辑（批量替换、十六进制看结构）外部工具更顺手，
+        // 没必要什么都自己做一遍。
+        root.addView(MaterialButton(this).apply {
+            text = "用其他应用打开（MT 管理器等）"
+            setOnClickListener { openExternal() }
+        }, 0)
+
         load()
     }
 
@@ -166,6 +188,7 @@ class NbtViewerActivity : AppCompatActivity() {
                 if (tag == null) {
                     tvState.text = "读取失败：这个文件不是有效的 NBT，或已损坏"
                     btnSave.isEnabled = false
+                    btnSaveTop.isEnabled = false
                     return@post
                 }
                 this.root = tag
@@ -173,6 +196,7 @@ class NbtViewerActivity : AppCompatActivity() {
                 tvTree.text = tree
                 etSnbt.setText(snbt)
                 btnSave.isEnabled = true
+                btnSaveTop.isEnabled = true
             }
         }
     }
@@ -214,12 +238,40 @@ class NbtViewerActivity : AppCompatActivity() {
         return sb.toString()
     }
 
+    /** 交给外部应用处理当前文件（MT 管理器、文本编辑器等） */
+    private fun openExternal() {
+        val u = uri
+        val target: Uri = if (u != null) u else {
+            val f = file ?: return
+            runCatching {
+                androidx.core.content.FileProvider.getUriForFile(
+                    this, "$packageName.fileprovider", f
+                )
+            }.getOrNull() ?: run {
+                Toast.makeText(this, "这个文件没法交给外部应用", Toast.LENGTH_SHORT).show()
+                return
+            }
+        }
+        val i = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(target, "application/octet-stream")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            startActivity(Intent.createChooser(i, "用其他应用打开"))
+        } catch (t: Throwable) {
+            Err.ignore(t, "外部打开 NBT 文件")
+            Toast.makeText(this, "没有找到可以打开它的应用", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun save() {
         val f = file
         val u = uri
         if (f == null && u == null) return
         val txt = etSnbt.text.toString()
         btnSave.isEnabled = false
+        btnSaveTop.isEnabled = false
         tvState.text = "正在写回…"
         exec.execute {
             val msg = try {
@@ -244,9 +296,11 @@ class NbtViewerActivity : AppCompatActivity() {
             handler.post {
                 tvState.text = msg
                 btnSave.isEnabled = true
+                btnSaveTop.isEnabled = true
                 Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
                 if (!msg.startsWith("失败") && !msg.startsWith("写回失败")) {
                     btnSave.isEnabled = true
+                    btnSaveTop.isEnabled = true
                     load()
                 }
             }

@@ -175,13 +175,53 @@ class ChunkMapActivity : AppCompatActivity() {
             finish()
             return
         }
-        tvInfo.text = "区域文件：共 ${slots.size} 个区块"
-        val labels = slots.map { "区块 (${it % 32}, ${it / 32})" }.toTypedArray()
-        MaterialAlertDialogBuilder(this)
-            .setTitle("打开哪个区块（共 ${slots.size} 个）")
-            .setItems(labels) { _, i -> loadChunk(slots[i]) }
-            .setOnCancelListener { finish() }
-            .show()
+        //
+        // ⚠️ 之前直接把所有槽位列出来让用户选，标的是「区块 (x, z)」——
+        // 但那是**区域内的相对坐标**，玩家熟悉的是世界坐标，
+        // 于是"根本不知道点的是哪儿"（用户原话）。
+        // 而且空区块也照样列着，点进去就是一句"没有方块数据"再退出。
+        //
+        // 现在改成：后台先把每个区块扫一遍，
+        // 只列出**真的有方块**的，标题用世界区块坐标（xPos/zPos）。
+        // 1024 个槽位逐个解析在主线程会卡死，所以放后台。
+        //
+        tvInfo.text = "正在扫描 ${slots.size} 个区块…"
+        val exec = java.util.concurrent.Executors.newSingleThreadExecutor()
+        val h = android.os.Handler(android.os.Looper.getMainLooper())
+        exec.execute {
+            // [slot, cx, cz, 层数]
+            val items = ArrayList<IntArray>()
+            for (s in slots) {
+                val tag = try { r.chunk(s) } catch (_: Throwable) { null } ?: continue
+                val secs = try { McaEdit.sections(tag) } catch (_: Throwable) {
+                    emptyList<McaEdit.Sec>()
+                }
+                if (secs.isEmpty()) continue
+                // 世界区块坐标：优先用区块自己记的 xPos/zPos，
+                // 没有就退回区域内的相对坐标
+                val lvl = tag.getCompoundTag("Level")
+                val cx = tag.getIntTag("xPos")?.getValue() ?: lvl?.getIntTag("xPos")?.getValue()
+                val cz = tag.getIntTag("zPos")?.getValue() ?: lvl?.getIntTag("zPos")?.getValue()
+                items.add(intArrayOf(s, cx ?: (s % 32), cz ?: (s / 32), secs.size))
+            }
+            h.post {
+                if (isFinishing || isDestroyed) return@post
+                if (items.isEmpty()) {
+                    toast("这个区域文件里没有带方块数据的区块")
+                    finish()
+                    return@post
+                }
+                tvInfo.text = "共 ${items.size} 个有方块的区块（已过滤空区块）"
+                val labels = items.map {
+                    "区块 ${it[1]}, ${it[2]}　·　${it[3]} 层"
+                }.toTypedArray()
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                    .setTitle("打开哪个区块（${items.size} 个）")
+                    .setItems(labels) { _, i -> loadChunk(items[i][0]) }
+                    .setOnCancelListener { finish() }
+                    .show()
+            }
+        }
     }
 
     private fun loadChunk(s: Int) {

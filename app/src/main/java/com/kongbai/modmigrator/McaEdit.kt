@@ -5,6 +5,8 @@ import com.viaversion.nbt.limiter.TagLimiter
 import com.viaversion.nbt.tag.CompoundTag
 import com.viaversion.nbt.tag.ListTag
 import com.viaversion.nbt.tag.LongArrayTag
+import com.viaversion.nbt.tag.NumberTag
+import com.viaversion.nbt.tag.StringTag
 import com.viaversion.nbt.tag.Tag
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -160,11 +162,36 @@ object McaEdit {
      * 1.16–1.17 则藏在 `Level.Sections` 下，字段名首字母大写且没有 block_states 这层。
      * 这里两种都认，用 key 名区分。
      */
-    class Sec(val y: Int, val tag: CompoundTag) {
+    /**
+     * ⚠️ Y 在 1.18+ **既可能是 Byte 也可能是 Int**（Minecraft Wiki 原文：
+     * "[Byte] Y ... Can also be an INT in 1.18+"）。
+     * 之前只取 ByteTag，遇到 IntTag 直接 continue，
+     * 于是**所有 section 被跳过** → 列表为空 →
+     * 界面弹"这个区块里没有方块数据（可能是空区块）"。
+     * 这正是"点了全提示无数据"的主因。
+     */
+    class Sec(var y: Int, val tag: CompoundTag) {
         val holder: CompoundTag = tag.getCompoundTag("block_states") ?: tag
         val paletteKey: String = if (tag.getCompoundTag("block_states") != null) "palette" else "Palette"
         val dataKey: String = if (tag.getCompoundTag("block_states") != null) "data" else "BlockStates"
+        /**
+         * 写回新方块时用哪个字段名。
+         * 26.3 snap 起 `Name` 改叫 `id`，照旧写 Name 会让新版游戏读不出来。
+         * 按当前调色板实际用的字段来回写，不动既有结构。
+         */
+        val nameKey: String = when {
+            tag.getCompoundTag("block_states") == null -> "Name"
+            paletteOf(this)?.getValue()?.any { (it as? CompoundTag)?.contains("id") == true } ?: false -> "id"
+            else -> "Name"
+        }
     }
+
+    /** 取 section 的调色板原始 list（可能是 compound 列表，也可能是字符串列表） */
+    fun paletteOf(sec: Sec): com.viaversion.nbt.tag.ListTag<*>? = sec.holder.getListTag(sec.paletteKey)
+
+    /** 取 section 的 Y：Byte / Short / Int 都认 */
+    private fun secY(c: CompoundTag): Int =
+        (c.get("Y") as? NumberTag)?.getValue()?.toInt() ?: Int.MIN_VALUE
 
     fun sections(chunk: CompoundTag): List<Sec> {
         val out = ArrayList<Sec>()
@@ -172,7 +199,7 @@ object McaEdit {
         if (modern != null) {
             for (t in modern.getValue()) {
                 val c = t as? CompoundTag ?: continue
-                val y = c.getByteTag("Y")?.getValue()?.toInt() ?: continue
+                val y = secY(c)
                 out.add(Sec(y, c))
             }
         } else {
@@ -180,22 +207,48 @@ object McaEdit {
             if (legacy != null) {
                 for (t in legacy.getValue()) {
                     val c = t as? CompoundTag ?: continue
-                    val y = c.getByteTag("Y")?.getValue()?.toInt() ?: continue
+                    val y = secY(c)
                     out.add(Sec(y, c))
                 }
             }
         }
+        // Y 全都读不到时，按 chunk 的 yPos 依次推（1.18+ 有 yPos）。
+        // 读不到就丢弃 section 的话，整个区块会被判成"没有方块数据"。
+        if (out.all { it.y == Int.MIN_VALUE }) {
+            val base = chunk.getIntTag("yPos")?.getValue()
+                ?: chunk.getCompoundTag("Level")?.getIntTag("yPos")?.getValue()
+            if (base != null) out.forEachIndexed { i, sec -> sec.y = base + i }
+            else out.forEachIndexed { i, sec -> sec.y = i }
+        }
+        out.removeAll { it.y == Int.MIN_VALUE }
         // 按高度排序，界面上从上往下看才对
         out.sortByDescending { it.y }
         return out
     }
 
+    /**
+     * 调色板里的方块名。
+     *
+     * ⚠️ 三种写法都要认，认不全就会整段渲染成空气（看上去"没数据"）：
+     *   · 1.18 ~ 26.2：compound 里的 `Name`
+     *   · 26.3 snap 起：`Name`→`id`、`Properties`→`properties`
+     *   · 26.3 snap 起：调色板**可以是字符串列表**，不再是 compound 列表
+     *   · 26.3 snap 起：compound 里可以只有一个空 key：`{"": "minecraft:stone"}`
+     */
     fun paletteNames(sec: Sec): List<String> {
         val lt = sec.holder.getListTag(sec.paletteKey) ?: return emptyList()
         val out = ArrayList<String>()
         for (t in lt.getValue()) {
-            val c = t as? CompoundTag
-            out.add(c?.getString("Name") ?: "minecraft:air")
+            when (t) {
+                is StringTag -> out.add(t.getValue())
+                is CompoundTag -> {
+                    val n = (t.get("Name") as? StringTag)?.getValue()
+                        ?: (t.get("id") as? StringTag)?.getValue()
+                        ?: (t.get("") as? StringTag)?.getValue()
+                    out.add(n ?: "minecraft:air")
+                }
+                else -> out.add("minecraft:air")
+            }
         }
         return out
     }
@@ -248,7 +301,7 @@ object McaEdit {
         var idx = oldNames.indexOf(name)
         if (idx < 0) {
             val nc = CompoundTag()
-            nc.putString("Name", name)
+            nc.putString(sec.nameKey, name)
             lt.add(nc)
             idx = oldNames.size
         }
