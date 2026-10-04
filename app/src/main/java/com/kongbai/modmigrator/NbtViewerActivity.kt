@@ -78,10 +78,10 @@ class NbtViewerActivity : AppCompatActivity() {
         setContentView(scroll, ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
         ))
-        title = "NBT：${f.name}"
+        title = "NBT：${displayName()}"
 
         tvPath = TextView(this).apply {
-            text = f.absolutePath
+            text = displayName()
             textSize = 11f
             setTextColor(resources.getColor(R.color.textSecondary, null))
             setPadding(0, 0, 0, (8 * resources.displayMetrics.density).toInt())
@@ -131,6 +131,17 @@ class NbtViewerActivity : AppCompatActivity() {
         root.addView(btnSave)
 
         load()
+    }
+
+    /** 展示用的文件标识：真实路径优先，SAF 下退化为 URI */
+    private fun displayName(): String {
+        file?.let { return it.absolutePath }
+        uri?.let {
+            return runCatching {
+                DocumentFile.fromSingleUri(this, it)?.name ?: it.toString()
+            }.getOrElse { it.toString() }
+        }
+        return ""
     }
 
     private fun load() {

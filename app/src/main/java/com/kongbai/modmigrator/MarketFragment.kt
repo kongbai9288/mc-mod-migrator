@@ -65,6 +65,16 @@ class MarketFragment : Fragment() {
         get() = MarketState.loader
         set(v) { MarketState.loader = v }
     private lateinit var tvListTitle: android.widget.TextView
+
+    /**
+     * 分类筛选行。
+     *
+     * ⚠️ 之前卡片上会画出分类标签，但那些标签**只是装饰**：点了没反应，
+     * 用户没法按"只要优化类"来筛。这里按当前结果里实际出现的分类
+     * 动态生成可点标签，点一下选中、再点取消，可多选（同时满足）。
+     */
+    private lateinit var rowFilter: WrapRow
+    private val activeCats = LinkedHashSet<String>()
     private lateinit var spSort: Spinner
     private lateinit var btnFav: Button
 
@@ -582,16 +592,16 @@ class MarketFragment : Fragment() {
 
     private fun chip(
         ctx: android.content.Context, d: Float, text: String, on: Boolean, click: () -> Unit
-    ): TextView {
-        return TextView(ctx).apply {
+    ): android.widget.TextView {
+        return android.widget.TextView(ctx).apply {
             this.text = text
             textSize = 11f
             setPadding((d * 7).toInt(), (d * 3).toInt(), (d * 7).toInt(), (d * 3).toInt())
             val tint = try {
                 if (android.os.Build.VERSION.SDK_INT >= 23) ctx.getColor(
-                    if (on) R.color.colorPrimary else R.color.textSecondary
+                    if (on) R.color.primary else R.color.textSecondary
                 ) else @Suppress("DEPRECATION") ctx.resources.getColor(
-                    if (on) R.color.colorPrimary else R.color.textSecondary
+                    if (on) R.color.primary else R.color.textSecondary
                 )
             } catch (t: Throwable) { android.graphics.Color.GRAY }
             setTextColor(tint)

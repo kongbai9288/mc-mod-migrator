@@ -110,8 +110,14 @@ class MainActivity : AppCompatActivity() {
         val page = currentPage
         if (page.isBlank()) return
         LogCenter.w("Main", "页面内容为空，重建「$page」")
-        replace(pageFragment(page) ?: return)
+        if (page == "more") { replace(MoreFragment()); return }
+        val p = NavConfig.find(page) ?: return
+        replace(try { p.make() } catch (t: Throwable) { MigrationFragment() })
     }
+
+    /** 当前一级页 key，空白重建时用 */
+    private val currentPage: String
+        get() = if (currentTabId == ID_MORE) "more" else (NavConfig.keyOfId(currentTabId) ?: "")
 
     /** 供设置页改动导航栏后调用重建 */
     fun rebuildNav() {
