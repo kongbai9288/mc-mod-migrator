@@ -5,47 +5,23 @@
     android:orientation="vertical"
     android:padding="12dp">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="面板连接（Pterodactyl Client API）"
-        android:textStyle="bold" />
-
-    <EditText
-        android:id="@+id/etPanelBase"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="面板地址，如 https://panel.example.com"
-        android:inputType="textUri"
-        android:singleLine="true" />
-
-    <EditText
-        android:id="@+id/etPanelKey"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Client API Key（ptlc_...）"
-        android:inputType="textPassword"
-        android:singleLine="true" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/panel_auth_hint"
-        android:textColor="@color/textSecondary"
-        android:textSize="12sp" />
-
-    <!-- 连接方式：面板 API（要 ptlc_ Key）或 FTP/SFTP（用账号密码）。
-         面板 API 不是每台服务器都有，而 FTP/SSH 基本是标配，
-         没有面板 Key 时至少有路可走。 -->
+    <!-- ⚠️ 之前这个下拉放在**面板地址框下面**，而顶部标题写死
+         「面板连接（Pterodactyl Client API）」。
+         结果是：一进页面只看到面板那套字段，压根不知道还能切成 FTP；
+         就算切了，顶部标题还写着「面板连接」，下面的框却全变成了
+         主机/用户名/密码 —— 标题和内容对不上，人直接懵。
+         现在选择器放最顶，两组字段各自成块、互斥显示。 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:gravity="center_vertical"
         android:orientation="horizontal">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="连接方式：" />
+            android:text="连接方式："
+            android:textStyle="bold" />
 
         <Spinner
             android:id="@+id/spRemoteKind"
@@ -55,6 +31,52 @@
             android:entries="@array/remote_kinds" />
     </LinearLayout>
 
+    <TextView
+        android:id="@+id/tvConnMode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="2dp"
+        android:textColor="@color/textSecondary"
+        android:textSize="12sp" />
+
+    <!-- 面板 API 的连接参数。选了 FTP/SFTP 时整块隐藏。 -->
+    <LinearLayout
+        android:id="@+id/boxPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="面板连接（Pterodactyl Client API）"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etPanelBase"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="面板地址，如 https://panel.example.com"
+            android:inputType="textUri"
+            android:singleLine="true" />
+
+        <EditText
+            android:id="@+id/etPanelKey"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Client API Key（ptlc_...）"
+            android:inputType="textPassword"
+            android:singleLine="true" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/panel_auth_hint"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
+    </LinearLayout>
+
     <!-- FTP/SFTP 的连接参数。选了面板 API 时整块隐藏，不占地方。 -->
     <LinearLayout
         android:id="@+id/boxRemote"
@@ -62,6 +84,13 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="FTP / SFTP 直连"
+            android:textStyle="bold" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -178,6 +207,9 @@
         android:layout_marginTop="4dp"
         android:text="存放位置：默认" />
 
+    <!-- ⚠️ 之前版本框 + 两个下拉 + 按钮全挤在一行，
+         屏宽不够时最右边的「检测更新」被挤出屏幕外，点不到。
+         现在拆成两行：第一行版本 + 检测更新，第二行加载器 + 端。 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -192,23 +224,31 @@
             android:inputType="text"
             android:singleLine="true" />
 
-        <Spinner
-            android:id="@+id/spLoader"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:entries="@array/loaders" />
-
-        <Spinner
-            android:id="@+id/spSide"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:entries="@array/sides" />
-
         <Button
             android:id="@+id/btnCheckUpdates"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="检测更新" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Spinner
+            android:id="@+id/spLoader"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:entries="@array/loaders" />
+
+        <Spinner
+            android:id="@+id/spSide"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:entries="@array/sides" />
     </LinearLayout>
 
     <Button

@@ -11,7 +11,16 @@
          对应 Modrinth 的 environment 字段（client_side/server_side 已废弃）。
          注意顺序：第 0 项必须是「服务端」，ServerFragment.currentSide() 按位置取值。 -->
     <!-- 服务器连接方式。顺序必须和 RemoteFs.Kind 一致：Spinner 按位置取值 -->
+    <!-- ⚠️ 之前这里只有 3 项（FTP / FTPS / SFTP），
+         而代码按下标判断：0=面板 API、1=FTP、2=FTPS、3=SFTP。
+         数组和代码错开了一位，于是：
+           - 下拉显示「FTP」时，代码当面板 API 处理 → 下面却是面板地址 + Key 两个框
+           - 下拉显示「SFTP」时，代码按 FTPS 连
+           - 真正的「面板 API」这一项**根本不存在**，永远选不到
+         这就是"两个功能共用一个输入框、每次都懵"的根因。
+         现在补上第 0 项，与代码的判断对齐。 -->
     <string-array name="remote_kinds">
+        <item>面板 API（ptlc_ Key）</item>
         <item>FTP</item>
         <item>FTPS（显式 TLS）</item>
         <item>SFTP（SSH）</item>

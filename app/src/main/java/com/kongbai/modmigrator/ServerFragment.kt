@@ -25,6 +25,9 @@ class ServerFragment : Fragment() {
 
     private val cred = ServerPanelApi.Cred()
     private lateinit var etDir: EditText
+    private lateinit var boxPanel: android.widget.LinearLayout
+    private lateinit var boxRemote: android.widget.LinearLayout
+    private lateinit var tvConnMode: android.widget.TextView
     private lateinit var etVersion: EditText
     private lateinit var spLoader: Spinner
     private lateinit var spSide: Spinner
@@ -63,6 +66,9 @@ class ServerFragment : Fragment() {
         etBase = v.findViewById(R.id.etPanelBase)
         etKey = v.findViewById(R.id.etPanelKey)
         etDir = v.findViewById(R.id.etPanelDir)
+        boxPanel = v.findViewById(R.id.boxPanel)
+        boxRemote = v.findViewById(R.id.boxRemote)
+        tvConnMode = v.findViewById(R.id.tvConnMode)
         etVersion = v.findViewById(R.id.etVersion)
         spLoader = v.findViewById(R.id.spLoader)
         LoaderSpinner.attachByPref(spLoader)
@@ -293,14 +299,33 @@ class ServerFragment : Fragment() {
         }
     }
 
-    /** 按连接方式显示/隐藏对应输入框，避免"只有一个框"的困惑 */
-    /** 选了 FTP/SFTP 就隐藏面板地址那几行，只留远程参数，避免两栏都填了两遍 */
+    /**
+     * 按连接方式切换**整块**字段。
+     *
+     * ⚠️ 之前只把面板地址/Key 两个框设成 GONE，顶部标题
+     * 「面板连接（Pterodactyl Client API）」还留在那儿，
+     * 而下面出现的却是主机/用户名/密码 —— 标题说的是 A，
+     * 底下填的是 B，看的人根本不知道自己在用哪套。
+     *
+     * 现在两组字段各带自己的标题，整块互斥显示，
+     * 并且用 tvConnMode 一句话说清当前这套是什么、需要什么。
+     */
     private fun syncRemoteFields() {
+        if (!::boxPanel.isInitialized || !::boxRemote.isInitialized) return
         val remote = isRemote()
+        boxPanel.visibility = if (remote) View.GONE else View.VISIBLE
         boxRemote.visibility = if (remote) View.VISIBLE else View.GONE
-        val vis = if (remote) View.GONE else View.VISIBLE
-        etBase.visibility = vis
-        etKey.visibility = if (remote) View.GONE else View.VISIBLE
+        if (::tvConnMode.isInitialized) {
+            tvConnMode.text = if (remote) {
+                "用服务器的 FTP / SSH 账号密码直连，可以浏览并读取 mods、plugins 目录。"
+            } else {
+                "用面板的 Client API Key 连接（不是登录密码）。没有面板 Key 就改选上面的 FTP/SFTP。"
+            }
+        }
+        // 目录框两种模式共用，但含义不同，说清楚免得填错
+        if (::etDir.isInitialized) {
+            etDir.hint = if (remote) "远程目录，如 /mods" else "服务器内目录，如 /mods 或 /plugins"
+        }
     }
 
     /** 是否走 FTP/FTPS/SFTP（0 = 面板 API） */
