@@ -57,6 +57,11 @@ class ToolsFragment : Fragment() {
         ) { clearCache() })
 
         root.addView(UiCards.infoCard(
+            ctx, R.drawable.ic_cloud_upload, "云盘",
+            "一个入口接多家网盘：阿里云盘、百度网盘、夸克、天翼、123、115、WebDAV 等", "打开"
+        ) { CloudDriveActivity.open(ctx) })
+
+        root.addView(UiCards.infoCard(
             ctx, R.drawable.ic_folder, "存储用量",
             "看工作目录各子目录占了多少空间", "查看"
         ) { usage() })

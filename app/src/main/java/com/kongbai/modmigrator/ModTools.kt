@@ -17,8 +17,23 @@ object ModTools {
 
     data class Report(val title: String, val text: String)
 
+    /**
+     * 各类 Unicode 横杠/连字符变体。
+     *
+     * ⚠️ 这就是「带横杠的也被报进去」的真因：
+     * 模组名里常用的是 U+2013 en dash（–）、U+2014 em dash（—）、
+     * U+FF0D 全角连字符（－）、U+2212 减号（−）这些，
+     * 而旧的判断式只放行 ASCII 的 `-`，
+     * 于是这些**看起来完全正常**的文件名被判成"含非法字符"。
+     * 实际上游戏读不受影响，纯粹是误报。
+     */
+    private val DASHES = charArrayOf(
+        '-', '\u2010', '\u2011', '\u2012', '\u2013', '\u2014',
+        '\u2015', '\u2212', '\uFF0D', '\uFE58', '\uFE63', '\u02D7'
+    )
+
     /** 文件名里不该出现的字符：中文、空格、括号等，MC 加载时容易出问题 */
-    private val BAD_NAME = Regex("[^A-Za-z0-9._-]")
+    private val BAD_NAME = Regex("[^A-Za-z0-9._\u2010\u2011\u2012\u2013\u2014\u2015\u2212\uFF0D\uFE58\uFE63\u02D7-]")
 
     /**
      * 从模组文件名里提取「项目名」，用于判断重复。
@@ -29,14 +44,24 @@ object ModTools {
         var n = fileName.substringBeforeLast(".jar", "")
         if (n.isBlank()) n = fileName
         n = n.lowercase(Locale.ROOT)
-        // 去掉常见的版本段：纯数字与点组成的段、mc 版本号
-        val parts = n.split("-", "_", " ").filter { it.isNotBlank() }
+        // 去掉常见的版本段：纯数字与点组成的段、mc 版本号。
+        // 切分时同样要认所有横杠变体，否则 `Foo–Extra` 切不开、
+        // 与 `Foo-Extra` 判成两个项目，重复检测就漏了。
+        val parts = n.split(*DASHES, '_', ' ').filter { it.isNotBlank() }
         val kept = parts.filterNot { seg ->
             seg.matches(Regex("^[0-9]+(\\.[0-9]+)*[a-z]?$")) ||
                 seg.matches(Regex("^mc[0-9.]+$")) ||
                 seg in setOf("fabric", "forge", "neoforge", "quilt", "mc", "mod", "release", "beta", "alpha")
         }
-        return kept.firstOrNull() ?: n.takeWhile { it.isLetter() }.ifBlank { n }
+        //
+        // ⚠️ 之前只取第一段，于是 `sodium-fabric-…` 与 `sodium-extra-fabric-…`
+        // 都被归到 "sodium"，**凭空报出一组重复**；
+        // `jei` 与 `jei-extra` 同理。这是体检误报的另一大来源。
+        // 现在保留全部有意义的段：只有每段都一样才认为是同一项目。
+        //
+        val kept2 = kept.filterNot { it.isBlank() }
+        if (kept2.isNotEmpty()) return kept2.joinToString("-")
+        return n.takeWhile { it.isLetter() }.ifBlank { n }
     }
 
     /** 模组体检：重复、可疑文件名、超大文件 */

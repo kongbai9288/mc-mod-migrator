@@ -11,8 +11,8 @@ android {
         applicationId "com.kongbai.modmigrator"
         minSdk 26
         targetSdk 34
-        versionCode 37
-        versionName "2.2.9"
+        versionCode 38
+        versionName "2.3.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -109,6 +109,14 @@ dependencies {
     // 图片加载（含 SVG / GIF / WebP 解码），替代手写图片加载与缩放
     implementation 'io.coil-kt:coil-svg:2.5.0'
     implementation 'io.coil-kt:coil-gif:2.5.0'
+
+    // ── 云盘：OpenList Android SDK ──────────────────────────────
+    // 一个 SDK 覆盖 20+ 种后端（阿里云盘 / 百度网盘 / 夸克 / 天翼 /
+    // 123 / 115 / Google Drive / OneDrive / WebDAV / S3 等），
+    // 不用为每一家单独接 SDK、也不用各家单独申请 key。
+    // bridge 是 gomobile 编译产物（13MB），不进仓库，由 CI 拉取。
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    implementation files('libs/openlistbridge.aar')
 
     // 说明：下载库（Fetch）与依赖注入（Koin）这次**没有**引入。
     // 它们要真正发挥作用必须重写 Downloader / 全站构造方式，

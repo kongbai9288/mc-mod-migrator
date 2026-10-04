@@ -93,6 +93,19 @@ jobs:
           echo "bundle files:"
           find app/src/main/assets/misode -type f | wc -l
 
+      - name: Fetch OpenList bridge AAR
+        run: |
+          set -e
+          # 云盘 SDK 的 gomobile 桥接产物（约 13MB）。
+          # 不进仓库（持续占配额），构建时从上游仓库按文件内容拉取。
+          mkdir -p app/libs
+          curl -sSL --retry 3 -o app/libs/openlistbridge.aar \
+            "https://github.com/linuxwff789/openlist-android-sdk/raw/main/openlist-sdk/libs/openlistbridge.aar"
+          ls -la app/libs/openlistbridge.aar
+          test -s app/libs/openlistbridge.aar
+          # 必须是 zip（AAR 本质是 zip），拉到 HTML/错误页的话要立刻失败
+          unzip -l app/libs/openlistbridge.aar > /dev/null
+
       - name: Decode keystore
         run: |
           set -e
