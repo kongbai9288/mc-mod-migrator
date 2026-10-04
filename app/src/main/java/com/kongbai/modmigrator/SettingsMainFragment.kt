@@ -327,7 +327,22 @@ class SettingsMainFragment : Fragment() {
         }
     }
 
-    private fun login() {
+    /**
+     * 是否在内置浏览器里登录。
+     *
+     * ⚠️ 默认改成 **false（用系统浏览器）**。
+     *
+     * 之前默认内置 WebView，而 GitHub 的登录页现在默认推
+     * **passkey（通行密钥）** 登录 —— 这需要系统级凭据绑定，
+     * 嵌入式浏览器**根本不支持**，于是页面永远停在
+     * "Sign in with a passkey" 这一步：不报错、不前进，
+     * 表现为"完全没法登录"，连日志都只有"拉起浏览器"之后就断了。
+     *
+     * 系统浏览器（Chrome）支持 passkey，也支持常规账号密码登录，
+     * 这条路才走得通。代价是会话 cookie 落在浏览器里、应用读不到，
+     * 所以授权完回到应用仍显示未登录 —— 这是预期行为，界面会说明清楚。
+     */
+    private fun login(useExternal: Boolean = true) {
         val ctx = requireContext()
         //
         // 登录链路一共 4 步，任何一步断了表现都一模一样（就是登不上）。
@@ -335,7 +350,7 @@ class SettingsMainFragment : Fragment() {
         // 现在每一步都写进运行日志，并给一个「复制登录日志」的入口，
         // 用户可以直接把这条链路的完整记录发出来。
         //
-        LogCenter.i("Login", "1. 用户点击登录，开始向后端要授权地址")
+        LogCenter.i("Login", "1. 开始登录：向后端请求授权地址")
         toast("正在打开授权页…")
         exec.execute {
             val start = try {
@@ -376,10 +391,13 @@ class SettingsMainFragment : Fragment() {
                     "Login",
                     "2. 已拿到授权地址（state cookie ${if (start.stateCookieOk) "已写入" else "缺失"}）"
                 )
+                if (useExternal) {
+                    openExternal(ctx, start.url)
+                    return@post
+                }
                 try {
-                    // 用内置浏览器登录：cookie 存在 WebView 里，
+                    // 内置浏览器：cookie 存在 WebView 里，
                     // OkHttp 通过 cookie 桥能读到，登录状态才对得上。
-                    // 用结果回调启动，登录完成后会自动回到这里刷新状态。
                     LogCenter.i("Login", "3. 拉起内置浏览器：${maskUrl(start.url)}")
                     val i = Intent(requireContext(), WebActivity::class.java)
                     i.putExtra("url", start.url)
@@ -512,8 +530,8 @@ class SettingsMainFragment : Fragment() {
             .setItems(
                 arrayOf(
                     "用访问令牌登录（推荐，直连 GitHub）",
-                    "走后端 OAuth 登录",
-                    "用系统浏览器登录",
+                    "用浏览器登录（推荐）",
+                    "用内置浏览器登录（可能卡在 passkey）",
                     "登录诊断（看卡在哪）",
                     "复制登录日志",
                     "退出登录"
@@ -521,8 +539,8 @@ class SettingsMainFragment : Fragment() {
             ) { _, w ->
                 when (w) {
                     0 -> manualToken()
-                    1 -> login()
-                    2 -> loginExternal()
+                    1 -> loginExternal()
+                    2 -> login(useExternal = false)
                     3 -> runLoginDiag()
                     4 -> copyLoginLog()
                     5 -> doLogout()
@@ -530,6 +548,32 @@ class SettingsMainFragment : Fragment() {
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
+    }
+
+    /**
+     * 在系统浏览器里打开授权地址。
+     *
+     * 之所以默认走这里：GitHub 登录页现在默认推荐 passkey（通行密钥），
+     * 它依赖系统级凭据绑定，**内置 WebView 不支持**，
+     * 页面会一直停在 "Sign in with a passkey" 既不报错也不前进。
+     * 系统浏览器支持 passkey 与常规账号密码，这条路才走得通。
+     */
+    private fun openExternal(ctx: android.content.Context, url: String) {
+        LogCenter.i("Login", "3. 在系统浏览器打开：${maskUrl(url)}")
+        try {
+            ctx.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+            Toast.makeText(
+                ctx,
+                "已在浏览器打开 GitHub 登录页。\n" +
+                    "完成授权后回到本页，点「登录诊断」确认状态。\n\n" +
+                    "注意：浏览器的登录态不会同步到应用内。\n" +
+                    "要让应用内也处于登录态，请用「用访问令牌登录」。",
+                Toast.LENGTH_LONG
+            ).show()
+        } catch (t: Throwable) {
+            Err.fail(t, "调起系统浏览器")
+            Toast.makeText(ctx, "打不开浏览器", Toast.LENGTH_LONG).show()
+        }
     }
 
     /**
@@ -544,7 +588,7 @@ class SettingsMainFragment : Fragment() {
      */
     private fun loginExternal() {
         val ctx = context ?: return
-        LogCenter.i("Login", "用户选择用系统浏览器登录")
+        LogCenter.i("Login", "改用系统浏览器登录")
         exec.execute {
             val start = try {
                 BackendApi.loginUrl(ctx)
@@ -558,22 +602,7 @@ class SettingsMainFragment : Fragment() {
                     Toast.makeText(ctx, "拿不到登录地址：${start.error}", Toast.LENGTH_LONG).show()
                     return@post
                 }
-                LogCenter.i("Login", "已在系统浏览器打开 ${maskUrl(start.url)}")
-                try {
-                    ctx.startActivity(
-                        Intent(Intent.ACTION_VIEW, android.net.Uri.parse(start.url))
-                    )
-                    Toast.makeText(
-                        ctx,
-                        "已在浏览器打开。授权完成后回到本页点「登录诊断」确认状态。\n" +
-                            "注意：系统浏览器的登录态不会同步到应用内，\n" +
-                            "需要应用内登录请用「用访问令牌登录」。",
-                        Toast.LENGTH_LONG
-                    ).show()
-                } catch (t: Throwable) {
-                    Err.fail(t, "调起系统浏览器")
-                    Toast.makeText(ctx, "打不开浏览器：${t.message}", Toast.LENGTH_LONG).show()
-                }
+                openExternal(ctx, start.url)
             }
         }
     }

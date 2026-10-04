@@ -262,7 +262,7 @@ object Egg {
             }
             dlg.show()
         } catch (t: Throwable) {
-            Toast.makeText(ctx, "调色板打开失败：${t.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, "调色板打开失败：${Err.humanMessage(t)}", Toast.LENGTH_SHORT).show()
         }
     }
 

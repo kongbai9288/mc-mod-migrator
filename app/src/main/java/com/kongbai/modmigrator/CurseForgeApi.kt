@@ -69,9 +69,25 @@ object CurseForgeApi {
                     fileName = fileName,
                     source = "curseforge",
                     updated = Json.s(d, "dateModified").ifBlank { Json.s(d, "dateReleased") },
-                    loaders = cfLoaders
+                    loaders = cfLoaders,
+                    // CurseForge 的 categories 是 [{id,name,slug,...}] 的对象数组，
+                    // 与 Modrinth 的字符串数组不同，这里先取 name 再走同一套过滤。
+                    // 之前没填，于是搜 CurseForge 时卡片上永远没有分类标签，
+                    // 看起来就像"tag 分类功能没做"。
+                    categories = ModCats.clean(cfCats(d))
                 )
             )
+        }
+        return out
+    }
+
+    /** CurseForge 的分类是对象数组，取出 name 组成字符串数组 */
+    private fun cfCats(e: JsonElement?): List<String> {
+        val arr = Json.a(e, "categories") ?: return emptyList()
+        val out = ArrayList<String>()
+        for (c in arr) {
+            val n = Json.s(c, "slug").ifBlank { Json.s(c, "name") }
+            if (n.isNotBlank()) out.add(n)
         }
         return out
     }

@@ -159,41 +159,102 @@ class ToolsFragment : Fragment() {
         }
     }
 
+    /**
+     * NBT 编辑器入口。
+     *
+     * ⚠️ 之前只从「游戏目录」里用 File 扫 .dat/.nbt。
+     * 而现在游戏目录几乎都是 **SAF 授权 URI**（Android 11+ 下 File API
+     * 进不去 Android/data，启动器的 .minecraft 基本都在那儿），
+     * 于是候选永远是空的，只能退化成"手填完整路径"——
+     * 用户根本不知道路径，功能等于不可用。
+     *
+     * 现在两条路都扫：
+     *   1. 有「所有文件访问」权限 → File 扫真实路径（能进 Android/data）
+     *   2. SAF 授权目录 → 用 DocumentFile 递归找（限制深度与数量）
+     * 找到就列出来点选，再不济才手填路径。
+     */
     private fun openNbt() {
         val ctx = context ?: return
-        //
-        // 让用户挑 .minecraft 下的文件。直接给一个输入框填路径体验很差
-        // （用户不知道路径），所以先从游戏目录里列出候选 .dat/.nbt。
-        // 找不到就退化为手动填路径。
-        //
-        val game = Prefs.get(ctx).getString(K.GAME_DIR, "") ?: ""
-        val base = if (game.isNotBlank() && !game.startsWith("content://")) java.io.File(game) else null
-        val cand = ArrayList<java.io.File>()
-        base?.let { b ->
-            b.walkTopDown()
-                .filter { it.isFile && (it.name.endsWith(".dat") || it.name.endsWith(".nbt")) }
-                .take(60)
-                .forEach { cand.add(it) }
-        }
-        if (cand.isEmpty()) {
-            val et = android.widget.EditText(ctx).apply { setSingleLine(true) }
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-                .setTitle("NBT 文件路径")
-                .setMessage("没在游戏目录里找到 .dat，也可以直接填完整路径")
-                .setView(et)
-                .setPositiveButton("打开") { _, _ ->
-                    val p = et.text.toString().trim()
-                    if (p.isBlank()) return@setPositiveButton
-                    NbtViewerActivity.open(ctx, java.io.File(p))
+        exec.execute {
+            val found = ArrayList<Pair<String, Any>>()
+            // 路 1：真实路径
+            val game = Prefs.get(ctx).getString(K.GAME_DIR, "") ?: ""
+            if (game.isNotBlank() && !game.startsWith("content://")) {
+                runCatching {
+                    java.io.File(game).walkTopDown()
+                        .filter { it.isFile && (it.name.endsWith(".dat") || it.name.endsWith(".nbt")) }
+                        .take(40)
+                        .forEach { found.add(it.name to it) }
                 }
-                .setNegativeButton(R.string.cancel, null)
-                .show()
-            return
+            }
+            // 路 2：SAF 授权目录
+            if (game.startsWith("content://")) {
+                runCatching { collectSafNbt(ctx, game, found) }
+            }
+            // 路 3：已知启动器目录（需要「所有文件访问」）
+            if (found.isEmpty() && Perms.allFiles()) {
+                for ((_, dir) in LauncherDirs.detect(ctx)) {
+                    runCatching {
+                        dir.walkTopDown()
+                            .filter { it.isFile && (it.name.endsWith(".dat") || it.name.endsWith(".nbt")) }
+                            .take(40)
+                            .forEach { found.add(it.name to it) }
+                    }
+                }
+            }
+            safePost(handler) {
+                if (!isAdded) return@safePost
+                if (found.isEmpty()) {
+                    askNbtPath(ctx)
+                } else {
+                    val names = found.map { it.first }.toTypedArray()
+                    com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                        .setTitle("打开哪个文件（共 ${found.size} 个）")
+                        .setItems(names) { _, w ->
+                            val v = found[w].second
+                            if (v is java.io.File) NbtViewerActivity.open(ctx, v)
+                            else NbtViewerActivity.openUri(ctx, v as android.net.Uri)
+                        }
+                        .setNeutralButton("手填路径") { _, _ -> askNbtPath(ctx) }
+                        .setNegativeButton(R.string.cancel, null)
+                        .show()
+                }
+            }
         }
-        val names = cand.map { it.name + "  (" + it.parentFile?.name + ")" }.toTypedArray()
+    }
+
+    /** 在 SAF 树里递归找 .dat / .nbt，限深度 4 层、上限 40 个 */
+    private fun collectSafNbt(
+        ctx: android.content.Context, uriStr: String, out: ArrayList<Pair<String, Any>>
+    ) {
+        val tree = Fs.tree(ctx, uriStr) ?: return
+        fun walk(d: androidx.documentfile.provider.DocumentFile, depth: Int) {
+            if (out.size >= 40 || depth > 4) return
+            for (c in d.listFiles()) {
+                if (out.size >= 40) return
+                if (c.isDirectory) walk(c, depth + 1)
+                else {
+                    val n = c.name ?: continue
+                    if (n.endsWith(".dat") || n.endsWith(".nbt")) out.add(n to c.uri)
+                }
+            }
+        }
+        walk(tree, 0)
+    }
+
+    private fun askNbtPath(ctx: android.content.Context) {
+        val et = android.widget.EditText(ctx).apply { setSingleLine(true) }
         com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-            .setTitle("打开哪个文件")
-            .setItems(names) { _, w -> NbtViewerActivity.open(ctx, cand[w]) }
+            .setTitle("NBT 文件路径")
+            .setMessage("没在游戏目录里找到 .dat。\n" +
+                "先在「设置 → 存储」把游戏目录指到 .minecraft，\n" +
+                "或在这里直接填完整路径。")
+            .setView(et)
+            .setPositiveButton("打开") { _, _ ->
+                val p = et.text.toString().trim()
+                if (p.isBlank()) return@setPositiveButton
+                NbtViewerActivity.open(ctx, java.io.File(p))
+            }
             .setNegativeButton(R.string.cancel, null)
             .show()
     }

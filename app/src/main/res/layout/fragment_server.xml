@@ -19,42 +19,6 @@
         android:inputType="textUri"
         android:singleLine="true" />
 
-    <RadioGroup
-        android:id="@+id/rgAuth"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-        <RadioButton
-            android:id="@+id/rbLogin"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:checked="true"
-            android:text="@string/panel_mode_login" />
-
-        <RadioButton
-            android:id="@+id/rbKey"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/panel_mode_key" />
-    </RadioGroup>
-
-    <EditText
-        android:id="@+id/etPanelUser"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="@string/panel_user"
-        android:inputType="textEmailAddress"
-        android:singleLine="true" />
-
-    <EditText
-        android:id="@+id/etPanelPass"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="@string/panel_pass"
-        android:inputType="textPassword"
-        android:singleLine="true" />
-
     <EditText
         android:id="@+id/etPanelKey"
         android:layout_width="match_parent"

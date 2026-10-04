@@ -279,7 +279,7 @@ class ModpackFragment : Fragment() {
                         .show()
                 }
             } catch (t: Throwable) {
-                toast("下载失败：${t.message}")
+                toast("下载失败：${Err.humanMessage(t)}")
             }
         }
     }

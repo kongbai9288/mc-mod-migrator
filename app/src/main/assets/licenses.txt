@@ -108,6 +108,37 @@ ModMigrator 第三方开源许可
     说明：用于读取 release 与仓库文件，遵循 GitHub 服务条款。
 
 ============================================================
+三之二、NBT 读写与数据包生成器（2.2.0 起）
+============================================================
+
+本项为可选的便捷功能，用于查看世界存档、编辑 NBT 数据以及离线生成
+数据包。它与迁移、模组市场、服务器管理等主流程相互独立，移除后
+应用其余部分不受影响。
+
+1. ViaNBT
+   许可：MIT License
+   来源：https://github.com/ViaVersion/ViaNBT
+   版权：Steveice10、Nassim Jahnke 及 ViaVersion 贡献者
+   用途：读写 level.dat 等 NBT 格式文件
+
+2. misode.github.io
+   许可：MIT License
+   来源：https://github.com/misode/misode.github.io
+   版权：Misode
+   用途：数据包与资源包生成器，共 137 个生成器，离线内置于本应用
+
+3. misode-vianbt-android
+   许可：MIT License
+   来源：https://github.com/kongbai9288/misode-vianbt-android
+   说明：上述两个上游项目的安卓适配版本，由本项目维护者整理发布。
+   内容包括将 ViaNBT 的 fastutil 依赖替换为等价 JDK 实现以获得零
+   运行时依赖，以及将 misode 站点改造为移动端布局并打包为离线资源。
+   适配部分同样以 MIT License 发布。
+
+上述组件以 AAR 形式在编译期由持续集成从发布页获取，不随本仓库源码
+分发。
+
+============================================================
 四、许可全文
 ============================================================
 

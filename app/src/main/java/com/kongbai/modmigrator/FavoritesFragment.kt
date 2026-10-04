@@ -162,7 +162,7 @@ class FavoritesFragment : Fragment() {
                     ).show()
                 }
             } catch (t: Throwable) {
-                main { Toast.makeText(ctx, "安装失败：${t.message}", Toast.LENGTH_SHORT).show() }
+                main { Toast.makeText(ctx, "安装失败：${Err.humanMessage(t)}", Toast.LENGTH_SHORT).show() }
             }
         }.start()
     }

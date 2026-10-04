@@ -106,7 +106,7 @@ object CrashShare {
             Toast.makeText(ctx, "已保存到：${f.absolutePath}", Toast.LENGTH_LONG).show()
             f
         } catch (t: Throwable) {
-            Toast.makeText(ctx, "保存失败：${t.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, "保存失败：${Err.humanMessage(t)}", Toast.LENGTH_SHORT).show()
             null
         }
     }

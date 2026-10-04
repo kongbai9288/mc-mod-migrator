@@ -168,14 +168,8 @@ class MarketAdapter(
             iv.layoutParams = lp
             h.rowLoaders.addView(iv)
         }
-        h.downloads.text = "${compactCount(downloads)} 次下载"
-        val dlp = ViewGroup.MarginLayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        )
-        dlp.marginStart = (d * 2).toInt()
-        h.downloads.layoutParams = dlp
-        h.rowLoaders.addView(h.downloads)
+        // 下载量不再挂在这一行末尾，改到右侧文字区独占一行
+        h.downloads.text = "下载 ${compactCount(downloads)}"
     }
 
     override fun getItemCount(): Int = items.size

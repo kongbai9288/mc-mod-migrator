@@ -116,6 +116,19 @@ object AggregateSearch {
                 try {
                     val list = call()
                     val fresh = push(list, name)
+                    //
+                    // ⚠️ 偏移必须按**该源实际消费的原始条数**推进，
+                    // 不能用去重后的 fresh.size。
+                    //
+                    // 之前 MarketFragment 里写的是 `advance(source, batch.size)`，
+                    // 而 batch 是去重后的结果。比如某源返回 20 条、
+                    // 其中 8 条与别的源重名被滤掉，fresh 只有 12 条，
+                    // 偏移却只推了 12 —— 下一页从旧位置再取 20 条，
+                    // 那 8 条又原样出现一次。翻页越往下重复越多，
+                    // 看起来就是"去重坏了"。
+                    //
+                    // 移到这里推进，用的是 list.size（真正消费掉的量）。
+                    MarketState.advance(name, list.size)
                     if (fresh.isNotEmpty()) {
                         main { onBatch(fresh, name, false) }
                     } else {

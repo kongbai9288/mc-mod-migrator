@@ -20,10 +20,9 @@ import java.util.concurrent.Executors
 class ServerFragment : Fragment() {
 
     private lateinit var etBase: EditText
-    private lateinit var etUser: EditText
-    private lateinit var etPass: EditText
+
     private lateinit var etKey: EditText
-    private lateinit var rgAuth: android.widget.RadioGroup
+
     private val cred = ServerPanelApi.Cred()
     private lateinit var etDir: EditText
     private lateinit var etVersion: EditText
@@ -62,10 +61,7 @@ class ServerFragment : Fragment() {
         // 下面恢复 FTP/SFTP 表单时要读它，必须先取到
         val p = Prefs.get(requireContext())
         etBase = v.findViewById(R.id.etPanelBase)
-        etUser = v.findViewById(R.id.etPanelUser)
-        etPass = v.findViewById(R.id.etPanelPass)
         etKey = v.findViewById(R.id.etPanelKey)
-        rgAuth = v.findViewById(R.id.rgAuth)
         etDir = v.findViewById(R.id.etPanelDir)
         etVersion = v.findViewById(R.id.etVersion)
         spLoader = v.findViewById(R.id.spLoader)
@@ -103,22 +99,13 @@ class ServerFragment : Fragment() {
         rv.adapter = adapter
 
         etBase.setText(p.getString(K.PANEL_BASE, "") ?: "")
-        etUser.setText(p.getString(K.PANEL_USER, "") ?: "")
-        etPass.setText(p.getString(K.PANEL_PASS, "") ?: "")
         etKey.setText(p.getString(K.PANEL_KEY, "") ?: "")
-        if (p.getBoolean(K.PANEL_MODE_KEY, false)) {
-            rgAuth.check(R.id.rbKey)
-        } else {
-            rgAuth.check(R.id.rbLogin)
-        }
-        syncAuthFields()
         etDir.setText(p.getString(K.PANEL_DIR, "/mods") ?: "/mods")
         etVersion.setText(p.getString(K.DEF_VERSION, "") ?: "")
 
         v.findViewById<Button>(R.id.btnConnect).setOnClickListener { connect() }
         v.findViewById<Button>(R.id.btnScanFiles).setOnClickListener { scanFiles() }
         v.findViewById<Button>(R.id.btnProbeDir)?.setOnClickListener { probeDirs() }
-        rgAuth.setOnCheckedChangeListener { _, _ -> syncAuthFields() }
         v.findViewById<Button>(R.id.btnCheckUpdates).setOnClickListener { checkUpdates() }
         v.findViewById<Button>(R.id.btnDownloadAll).setOnClickListener { downloadAll() }
         // 目录浏览器：连上之后逐级进入目录，边逛边看这个目录里有哪些 jar
@@ -230,8 +217,8 @@ class ServerFragment : Fragment() {
             val token = try {
                 ServerPanelApi.tokenOf(c)
             } catch (t: Throwable) {
-                log("认证失败：${t.message}")
-                safePost(handler) { toast("认证失败：${t.message}") }
+                log("认证失败：${Err.humanMessage(t)}")
+                safePost(handler) { toast("认证失败：${Err.humanMessage(t)}") }
                 return@bg
             }
             if (token == null) {
@@ -306,24 +293,14 @@ class ServerFragment : Fragment() {
         }
     }
 
-    /** 按认证方式显示/隐藏对应输入框，避免"只有一个框"的困惑 */
-    private fun syncAuthFields() {
-        val useKey = rgAuth.checkedRadioButtonId == R.id.rbKey
-        etKey.visibility = if (useKey) View.VISIBLE else View.GONE
-        etUser.visibility = if (useKey) View.GONE else View.VISIBLE
-        etPass.visibility = if (useKey) View.GONE else View.VISIBLE
-    }
-
+    /** 按连接方式显示/隐藏对应输入框，避免"只有一个框"的困惑 */
     /** 选了 FTP/SFTP 就隐藏面板地址那几行，只留远程参数，避免两栏都填了两遍 */
     private fun syncRemoteFields() {
         val remote = isRemote()
         boxRemote.visibility = if (remote) View.VISIBLE else View.GONE
         val vis = if (remote) View.GONE else View.VISIBLE
         etBase.visibility = vis
-        rgAuth.visibility = vis
-        etKey.visibility = if (remote) View.GONE else etKey.visibility
-        etUser.visibility = if (remote) View.GONE else etUser.visibility
-        etPass.visibility = if (remote) View.GONE else etPass.visibility
+        etKey.visibility = if (remote) View.GONE else View.VISIBLE
     }
 
     /** 是否走 FTP/FTPS/SFTP（0 = 面板 API） */
@@ -363,19 +340,15 @@ class ServerFragment : Fragment() {
         val p = Prefs.get(requireContext())
         val c = ServerPanelApi.Cred(
             base = etBase.text.toString().trim(),
-            mode = if (rgAuth.checkedRadioButtonId == R.id.rbKey)
-                ServerPanelApi.Mode.KEY else ServerPanelApi.Mode.LOGIN,
-            key = etKey.text.toString().trim(),
-            user = etUser.text.toString().trim(),
-            pass = etPass.text.toString().trim()
+            mode = ServerPanelApi.Mode.KEY,
+            key = etKey.text.toString().trim()
         )
         // 保存（密码走加密 Prefs）
         p.edit()
             .putString(K.PANEL_BASE, c.base)
-            .putString(K.PANEL_USER, c.user)
-            .putString(K.PANEL_PASS, c.pass)
+
             .putString(K.PANEL_KEY, c.key)
-            .putBoolean(K.PANEL_MODE_KEY, c.mode == ServerPanelApi.Mode.KEY)
+
             .apply()
         return c
     }
@@ -434,8 +407,8 @@ class ServerFragment : Fragment() {
             val token = try {
                 ServerPanelApi.tokenOf(c)
             } catch (t: Throwable) {
-                log("认证失败：${t.message}")
-                toast("认证失败：${t.message}")
+                log("认证失败：${Err.humanMessage(t)}")
+                toast("认证失败：${Err.humanMessage(t)}")
                 return@bg
             }
             if (token == null) {
@@ -506,33 +479,21 @@ class ServerFragment : Fragment() {
             toast("请填写面板地址")
             return
         }
-        if (c.mode == ServerPanelApi.Mode.KEY && c.key.isBlank()) {
+        if (c.key.isBlank()) {
             toast("请填写 Client API Key")
-            return
-        }
-        // 账号密码这条路根本走不通，没必要先发一轮网络请求再告诉用户。
-        // 直接在这里拦下来说明白。
-        if (c.mode == ServerPanelApi.Mode.LOGIN) {
-            showLoginUnsupported()
             return
         }
         // 提前校验 Key 形态：填成应用 Key（ptla_）会直接 403，
         // 而面板返回的 403 信息对用户等于天书，这里先拦下来说明白
-        if (c.mode == ServerPanelApi.Mode.KEY) {
-            val hint = ServerPanelApi.keyHint(c.key)
-            if (hint != null) {
-                log("Key 检查：$hint")
-                MaterialAlertDialogBuilder(requireContext())
-                    .setTitle("API Key 可能不对")
-                    .setMessage(hint)
-                    .setPositiveButton("仍然连接") { _, _ -> doConnect(c) }
-                    .setNegativeButton(R.string.cancel, null)
-                    .show()
-                return
-            }
-        }
-        if (c.mode == ServerPanelApi.Mode.LOGIN && (c.user.isBlank() || c.pass.isBlank())) {
-            toast("请填写面板账号和密码")
+        val hint = ServerPanelApi.keyHint(c.key)
+        if (hint != null) {
+            log("Key 检查：$hint")
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle("API Key 可能不对")
+                .setMessage(hint)
+                .setPositiveButton("仍然连接") { _, _ -> doConnect(c) }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
             return
         }
         doConnect(c)
@@ -651,8 +612,8 @@ class ServerFragment : Fragment() {
             val token = try {
                 ServerPanelApi.tokenOf(c)
             } catch (t: Throwable) {
-                log("认证失败：${t.message}")
-                safePost(handler) { toast("认证失败：${t.message}") }
+                log("认证失败：${Err.humanMessage(t)}")
+                safePost(handler) { toast("认证失败：${Err.humanMessage(t)}") }
                 return@bg
             }
             if (token == null) {
@@ -735,8 +696,8 @@ class ServerFragment : Fragment() {
             val token = try {
                 ServerPanelApi.tokenOf(c)
             } catch (t: Throwable) {
-                log("认证失败：${t.message}")
-                safePost(handler) { toast("认证失败：${t.message}") }
+                log("认证失败：${Err.humanMessage(t)}")
+                safePost(handler) { toast("认证失败：${Err.humanMessage(t)}") }
                 return@bg
             }
             if (token == null) {

@@ -132,7 +132,7 @@ class EditorActivity : AppCompatActivity() {
                 Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show()
                 return
             } catch (t: Throwable) {
-                Toast.makeText(this, "保存失败：${t.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "保存失败：${Err.humanMessage(t)}", Toast.LENGTH_SHORT).show()
                 return
             }
         }
@@ -153,7 +153,7 @@ class EditorActivity : AppCompatActivity() {
             dirty = false
             Toast.makeText(this, "已保存 $name", Toast.LENGTH_SHORT).show()
         } catch (t: Throwable) {
-            Toast.makeText(this, "保存失败：${t.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "保存失败：${Err.humanMessage(t)}", Toast.LENGTH_SHORT).show()
         }
     }
 

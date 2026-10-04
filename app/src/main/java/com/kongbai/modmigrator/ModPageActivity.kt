@@ -135,7 +135,7 @@ class ModPageActivity : AppCompatActivity() {
         val script = try {
             OfflineTranslate.webScript(this)
         } catch (t: Throwable) {
-            toast("词典加载失败：${t.message}")
+            toast("词典加载失败：${Err.humanMessage(t)}")
             return
         }
         pendingScript = script

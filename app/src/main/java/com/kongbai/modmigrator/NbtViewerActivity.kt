@@ -14,6 +14,8 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 import com.viaversion.nbt.tag.CompoundTag
+import android.net.Uri
+import androidx.documentfile.provider.DocumentFile
 import java.io.File
 import java.util.concurrent.Executors
 
@@ -33,7 +35,19 @@ class NbtViewerActivity : AppCompatActivity() {
     private val exec = Executors.newSingleThreadExecutor()
     private val handler = Handler(Looper.getMainLooper())
 
+    /**
+     * 两种来源，二选一：
+     *  · file —— 真实路径（有「所有文件访问」权限时）
+     *  · uri  —— SAF 授权目录里的文件（**绝大多数情况**）
+     *
+     * ⚠️ 之前只支持 File。而现在的游戏目录是 SAF 授权的
+     * （Android 11+ 下 File API 进不去 Android/data，
+     *  启动器的 .minecraft 基本都在那儿），
+     * 于是 NBT 编辑器只能退化成"手填路径"，等于不可用。
+     * 现在两条路都走通：读都是拿 InputStream，写都是拿 OutputStream。
+     */
     private var file: File? = null
+    private var uri: Uri? = null
     private var root: CompoundTag? = null
 
     private lateinit var tvPath: TextView
@@ -45,9 +59,14 @@ class NbtViewerActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val path = intent.getStringExtra(EXTRA_PATH)
-        if (path.isNullOrBlank()) { finish(); return }
-        val f = File(path)
-        file = f
+        val uriStr = intent.getStringExtra(EXTRA_URI)
+        if (!uriStr.isNullOrBlank()) {
+            uri = Uri.parse(uriStr)
+        } else if (!path.isNullOrBlank()) {
+            file = File(path)
+        } else {
+            finish(); return
+        }
 
         val scroll = android.widget.ScrollView(this)
         val root = LinearLayout(this).apply {
@@ -115,10 +134,17 @@ class NbtViewerActivity : AppCompatActivity() {
     }
 
     private fun load() {
-        val f = file ?: return
+        val f = file
+        val u = uri
+        if (f == null && u == null) return
         exec.execute {
             val tag = try {
-                NbtFile.read(f)
+                if (u != null) {
+                    contentResolver.openInputStream(u)?.use { NbtFile.readStream(it) }
+                        ?: throw java.io.IOException("打不开这个文件")
+                } else {
+                    NbtFile.read(f!!)
+                }
             } catch (t: Throwable) {
                 Err.fail(t, "读取 NBT 失败")
                 null
@@ -178,18 +204,28 @@ class NbtViewerActivity : AppCompatActivity() {
     }
 
     private fun save() {
-        val f = file ?: return
+        val f = file
+        val u = uri
+        if (f == null && u == null) return
         val txt = etSnbt.text.toString()
         btnSave.isEnabled = false
         tvState.text = "正在写回…"
         exec.execute {
             val msg = try {
                 val parsed = NbtFile.fromSnbt(txt)
-                // 备份：写坏了还能救回来
-                val bak = File(f.parentFile, f.name + ".bak")
-                if (f.exists()) runCatching { f.copyTo(bak, true) }
-                NbtFile.write(f, parsed, true)
-                "已写回（原文件备份为 ${bak.name}）"
+                val bytes = NbtFile.toBytes(parsed, true)
+                // 备份：写坏了还能救回来。两条路都先复制一份再覆盖。
+                if (u != null) {
+                    val bakUri = runCatching { backupSaf(u) }.getOrNull()
+                    contentResolver.openOutputStream(u, "wt")?.use { it.write(bytes) }
+                        ?: throw java.io.IOException("无法写入（授权可能已失效）")
+                    if (bakUri != null) "已写回（原文件已备份）" else "已写回（未能备份）"
+                } else {
+                    val bak = File(f!!.parentFile, f.name + ".bak")
+                    if (f.exists()) runCatching { f.copyTo(bak, true) }
+                    NbtFile.write(f, parsed, true)
+                    "已写回（原文件备份为 ${bak.name}）"
+                }
             } catch (t: Throwable) {
                 Err.fail(t, "写回 NBT 失败")
                 "写回失败：${t.message ?: t.javaClass.simpleName}"
@@ -212,11 +248,65 @@ class NbtViewerActivity : AppCompatActivity() {
         exec.shutdownNow()
     }
 
+    /**
+     * SAF 下没法直接 copyTo，只能读出来再写一份 .bak。
+     * 写 .bak 也失败就返回 null —— 备份是保险，不能因为它挡住正常保存。
+     */
+    private fun backupSaf(src: Uri): Uri? {
+        return try {
+            val name = DocumentFile.fromSingleUri(this, src)?.name ?: return null
+            val bytes = contentResolver.openInputStream(src)?.use { it.readBytes() }
+                ?: return null
+            val out = createSibling(src, "$name.bak")
+            contentResolver.openOutputStream(out, "wt")?.use { it.write(bytes) }
+            out
+        } catch (t: Throwable) {
+            Err.ignore(t, "NBT 备份失败")
+            null
+        }
+    }
+
+    /** 在同一目录下创建文件：用 DocumentFile 的树能力，URI 形态不兼容时返回 null */
+    private fun createSibling(src: Uri, name: String): Uri {
+        val df = DocumentFile.fromSingleUri(this, src)
+            ?: throw java.io.IOException("打不开这个文件")
+        val parentUri = parentTreeUri(src)
+        if (parentUri != null) {
+            val tree = androidx.documentfile.provider.DocumentFile.fromTreeUri(this, parentUri)
+            val existing = tree?.findFile(name)
+            return existing?.uri ?: tree?.createFile("application/octet-stream", name)?.uri
+                ?: throw java.io.IOException("无法创建备份文件")
+        }
+        throw java.io.IOException("无法定位所在目录")
+    }
+
+    /** 从 single document uri 还原出父树 uri（形如 .../document/xx:path/to/dir） */
+    private fun parentTreeUri(src: Uri): Uri? {
+        return try {
+            val id = android.provider.DocumentsContract.getDocumentId(src)
+            val parentId = id.substringBeforeLast('/', "")
+            if (parentId.isEmpty()) return null
+            android.provider.DocumentsContract.buildDocumentUriUsingTree(src, parentId)
+        } catch (t: Throwable) {
+            null
+        }
+    }
+
     companion object {
         private const val EXTRA_PATH = "path"
+        private const val EXTRA_URI = "uri"
+
         fun open(ctx: Context, f: File) {
             val i = Intent(ctx, NbtViewerActivity::class.java)
                 .putExtra(EXTRA_PATH, f.absolutePath)
+            if (ctx !is Activity) i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            ctx.startActivity(i)
+        }
+
+        /** SAF 授权目录下的文件：传 URI，读写都走 contentResolver */
+        fun openUri(ctx: Context, uri: android.net.Uri) {
+            val i = Intent(ctx, NbtViewerActivity::class.java)
+                .putExtra(EXTRA_URI, uri.toString())
             if (ctx !is Activity) i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             ctx.startActivity(i)
         }

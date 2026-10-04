@@ -109,7 +109,7 @@ object QuickTransfer {
             chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             ctx.startActivity(chooser)
         } catch (t: Throwable) {
-            Toast.makeText(ctx, "无法分享：${t.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(ctx, "无法分享：${Err.humanMessage(t)}", Toast.LENGTH_LONG).show()
         }
     }
 

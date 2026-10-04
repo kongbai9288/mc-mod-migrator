@@ -88,6 +88,29 @@ class MainActivity : AppCompatActivity() {
         try {
             UpdateInstaller.checkPendingInstallations(this)
         } catch (t: Throwable) { Err.ignore(t, "补捡待安装更新") }
+        //
+        // 兜底"页面一片空白"。
+        // 内存紧张时系统会回收 Fragment（或 commit 因状态保存被丢弃），
+        // 容器里就什么都不剩 —— 界面全白、点了没反应，
+        // 而用户只能杀进程重开。这里检测到容器为空就重建当前页。
+        //
+        try { ensureContentVisible() } catch (t: Throwable) { Err.ignore(t, "检查页面内容") }
+    }
+
+    /**
+     * 容器里没有 Fragment 就重建当前页。
+     *
+     * 注意：**不能无条件重建**，否则每次 onResume 都会把页面重置一次，
+     * 滚动位置、已加载的列表全丢，比空白还难受。
+     */
+    private fun ensureContentVisible() {
+        val fm = supportFragmentManager
+        val has = fm.findFragmentById(R.id.fragment_container)
+        if (has != null && has.view != null) return
+        val page = currentPage
+        if (page.isBlank()) return
+        LogCenter.w("Main", "页面内容为空，重建「$page」")
+        replace(pageFragment(page) ?: return)
     }
 
     /** 供设置页改动导航栏后调用重建 */

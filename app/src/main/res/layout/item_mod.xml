@@ -5,12 +5,30 @@
     android:orientation="horizontal"
     android:padding="8dp">
 
-    <ImageView
-        android:id="@+id/ivIcon"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:contentDescription="@string/app_name"
-        android:src="@drawable/ic_extension" />
+    <!-- 左列：模组图标 + 它支持的加载器图标。
+         之前加载器图标画在右侧文字区，和「平台 · 下载量」那一行挤在一起，
+         两者都往下延伸，卡片高度被撑开且看着混乱。
+         现在按反馈挪到图标正下方，自成一组：图标管"长什么样"，
+         下面的小图标管"能在哪些加载器上跑"，视觉上是一件事。 -->
+    <LinearLayout
+        android:layout_width="52dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <ImageView
+            android:id="@+id/ivIcon"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:contentDescription="@string/app_name"
+            android:src="@drawable/ic_extension" />
+
+        <com.kongbai.modmigrator.WrapRow
+            android:id="@+id/rowLoaders"
+            android:layout_width="48dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:visibility="gone" />
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="0dp"
@@ -34,26 +52,14 @@
             android:textColor="@color/textSecondary"
             android:textSize="12sp" />
 
-        <!-- 加载器图标 + 下载量。
-             图标由代码动态添加（数量不固定），tvDownloads 始终在最后。
-             用 WrapRow 而不是横向 LinearLayout：
-             一个模组支持 5 个以上加载器时，LinearLayout 放不下只能砍成
-             4 个 + "+N"，用户看到的是"图标不全"；WrapRow 会自动换行，
-             图标只有 14dp，换到第二行没有阅读负担。
-             只有模组实际声明了支持的加载器时才显示这一行。 -->
-        <com.kongbai.modmigrator.WrapRow
-            android:id="@+id/rowLoaders"
+        <!-- 下载量。之前和加载器图标挤同一行，现在单独一行，
+             与平台、更新时间这些元信息对齐。 -->
+        <TextView
+            android:id="@+id/tvDownloads"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="1dp">
-
-            <TextView
-                android:id="@+id/tvDownloads"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="@color/textSecondary"
-                android:textSize="11sp" />
-        </com.kongbai.modmigrator.WrapRow>
+            android:textColor="@color/textSecondary"
+            android:textSize="11sp" />
 
         <!-- 分类标签（优化 / 科技 / 魔法 …）。
              内容分类才是"这个模组是干什么的"，

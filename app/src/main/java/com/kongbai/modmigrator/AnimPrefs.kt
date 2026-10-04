@@ -40,16 +40,41 @@ object AnimPrefs {
      * 用户只会觉得速率功能是坏的（反馈原话："应用动画速率也有问题"）。
      * 真正跑不动动画的是 2GB 以下的那批，按这个判。
      */
+    /**
+     * 这台设备算不算低端。
+     *
+     * ⚠️ 判定只保留**总内存 < 1.5GB** 这一条硬指标，
+     * 不再采信 `isLowRamDevice`。
+     *
+     * 原因：反馈"动画还是调不了"。查下来是国产 ROM（尤其 EMUI/MIUI）
+     * 会把 `ActivityManager.isLowRamDevice` 标成 true，
+     * 于是"跟随设备"模式下动画被静默关掉 —— 用户改速率、
+     * 改开关都看不到任何变化，只会觉得这功能坏了。
+     * 而 isLowRamDevice 的语义是"系统级低内存模式"，
+     * 并不代表跑不动 150ms 的淡入。
+     */
     fun isLowEnd(ctx: Context): Boolean {
         try {
             val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
-            if (am != null && am.isLowRamDevice) return true
             val mi = ActivityManager.MemoryInfo()
             am?.getMemoryInfo(mi)
-            // 总内存小于 2GB 才算低端
-            if (mi.totalMem > 0 && mi.totalMem < 2L * 1024 * 1024 * 1024) return true
+            // 总内存小于 1.5GB 才算低端
+            if (mi.totalMem > 0 && mi.totalMem < 1536L * 1024 * 1024) return true
         } catch (t: Throwable) { Err.ignore(t, "判定低端设备") }
         return false
+    }
+
+    /** 判定依据的一句话说明，摆在设置页让用户知道为什么 */
+    fun lowEndReason(ctx: Context): String {
+        val gb = try {
+            val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+            val mi = ActivityManager.MemoryInfo()
+            am?.getMemoryInfo(mi)
+            if (mi.totalMem > 0) mi.totalMem / (1024.0 * 1024 * 1024) else -1.0
+        } catch (t: Throwable) { -1.0 }
+        return if (gb > 0) "设备总内存 %.1f GB%s".format(gb,
+            if (isLowEnd(ctx)) "（判定为低端，默认关闭）" else "（正常，动画可用）")
+        else "无法读取内存信息（按正常设备处理）"
     }
 
     /** 当前是否应该播放动画 */
@@ -194,6 +219,7 @@ object AnimPrefs {
             else -> "跟随设备（当前${if (low) "判定为低端机 → 关闭" else "判定为正常机 → 开启"}）"
         }
         return "动画：${if (cur) "已开启" else "已关闭"}\n模式：$modeTxt\n" +
+            "依据：${lowEndReason(ctx)}\n" +
             "速率：${speedLabel(ctx)}" +
             // ⚠️ 必须写明这一点，否则用户改速率看不到任何变化，
             // 只会以为速率功能是坏的。

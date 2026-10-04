@@ -339,7 +339,11 @@ object BackendApi {
                         // slimMod 里有 dateModified，之前没解析，
                         // 导致"按更新时间排序"时后端来源的项永远排在最后。
                         updated = Json.s(d, "dateModified"),
-                        source = "backend"
+                        source = "backend",
+                        // 后端 slimMod 里带 categories（字符串数组），
+                        // 之前没取，于是走后端来源时卡片上没有分类标签。
+                        categories = ModCats.clean(Json.sa(d, "categories")),
+                        loaders = Loaders.clean(Json.sa(d, "loaders"))
                     )
                 )
             }

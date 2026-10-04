@@ -287,7 +287,7 @@ class MigrationFragment : Fragment() {
             }
             cm.setPrimaryClip(android.content.ClipData.newPlainText("运行日志", txt))
             toast("已复制全部日志（${txt.length} 字符）")
-        }.onFailure { toast("复制失败：${it.message}") }
+        }.onFailure { toast("复制失败：${Err.humanMessage(it)}") }
     }
 
     override fun onResume() {

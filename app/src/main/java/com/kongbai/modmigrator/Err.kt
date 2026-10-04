@@ -88,6 +88,27 @@ object Err {
      * 包一层，吞掉异常但留痕。
      * 用于"失败也无所谓"的清理/兜底场景，替代裸 try-catch。
      */
+    /**
+     * 把异常信息清洗成能给人看的一句话。
+     *
+     * 为什么要洗：Android 抛的异常里经常带**内部路径与包名**，例如
+     *   `Failed to find configured root that contains
+     *    /data/data/com.kongbai.modmigrator/cache/...`
+     * 直接弹给用户，他既看不懂，也无从下手 ——
+     * 他根本不是从那个路径打开应用的，那串东西对他毫无意义。
+     *
+     * 这里去掉私有路径与包名，只留结论。
+     */
+    fun humanMessage(t: Throwable): String {
+        var m = t.message ?: return t.javaClass.simpleName
+        // 去掉 /data/data/... 、 /storage/...Android/data/... 这类内部路径
+        m = m.replace(Regex("/(data|storage|sdcard)/[^\\s,;)\"]*(/[A-Za-z0-9._\\-]+)*"), "内部路径")
+        // 去掉包名
+        m = m.replace(Regex("\b(?:com|net|org)\\.[A-Za-z0-9_.]+\\b"), "")
+        m = m.replace(Regex("\\s{2,}"), " ").trim()
+        return m.ifBlank { t.javaClass.simpleName }
+    }
+
     inline fun swallow(what: String = "", block: () -> Unit) {
         try {
             block()

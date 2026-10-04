@@ -114,6 +114,22 @@ class MarketFragment : Fragment() {
         rvLinks.isNestedScrollingEnabled = false
 
         tvListTitle = v.findViewById(R.id.tvListTitle)
+        // 筛选行插在标题下面：没有分类时整行隐藏，不留空白
+        rowFilter = WrapRow(requireContext()).apply {
+            visibility = View.GONE
+            val pd = (4 * resources.displayMetrics.density).toInt()
+            setPadding(0, pd, 0, pd)
+        }
+        (tvListTitle.parent as? android.widget.LinearLayout)?.let { host ->
+            val idx = host.indexOfChild(tvListTitle)
+            host.addView(
+                rowFilter, idx + 1,
+                android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
         spSort = v.findViewById(R.id.spSort)
         btnFav = v.findViewById(R.id.btnFavorites)
 
@@ -145,6 +161,7 @@ class MarketFragment : Fragment() {
                 p0: android.widget.AdapterView<*>?, p1: View?, pos: Int, p3: Long
             ) {
                 applySort()
+                resAdapter.notifyDataSetChanged()
             }
             override fun onNothingSelected(p0: android.widget.AdapterView<*>?) {}
         }
@@ -202,7 +219,7 @@ class MarketFragment : Fragment() {
             try {
                 block()
             } catch (t: Throwable) {
-                toast("出错：${t.message}")
+                toast("出错：${Err.humanMessage(t)}")
             } finally {
                 // 同 MigrationFragment：Progress 是全局单例，
                 // 异常/提前 return 时不复位会永久卡在"运行中"，
@@ -259,9 +276,7 @@ class MarketFragment : Fragment() {
             if (batch.isNotEmpty()) {
                 searchResults.addAll(batch)
                 roundGot += batch.size
-                // 按来源分别推进：见 MarketState.offsets 的说明
-                MarketState.advance(source, batch.size)
-                refreshList()
+                refreshList(batch.size)
                 toast("$source 返回 ${batch.size} 个（共 ${searchResults.size}）")
                 autoTranslate(batch)
             }
@@ -309,12 +324,11 @@ class MarketFragment : Fragment() {
                 }
                 if (fresh.isNotEmpty()) {
                     searchResults.addAll(fresh)
-                    refreshList()
+                    refreshList(fresh.size)
                     toast("$source 又返回 ${fresh.size} 个（共 ${searchResults.size}）")
                     autoTranslate(fresh)
                 }
                 roundGot += batch.size
-                MarketState.advance(source, batch.size)
             }
             if (finished) {
                 loadingMore = false
@@ -485,12 +499,120 @@ class MarketFragment : Fragment() {
      * 把当前页签对应的列表灌进展示列表，并应用排序。
      * 搜索结果和收藏各自独立存放，切换不会丢。
      */
-    private fun refreshList() {
+    /**
+     * 刷新列表。
+     *
+     * ⚠️ 之前每来一批就整表重排 + 全量重绘。
+     * 翻页时批次多、列表已经很长，一次 notifyDataSetChanged 会把
+     * 屏幕上所有卡片全部重新绑定一遍（图片重新解码、图标重新染
+     * 色），滑动和加载都跟着卡。
+     *
+     * 现在按需分发：只追加新条目时用 `notifyItemRangeInserted`，
+     * 老卡片原地不动；只有排序/筛选条件真的变了才整体重排。
+     *
+     * @param appended 本次新增的条目数（>0 时走增量插入）
+     * @param structural 排序或筛选条件变了，必须整表重排
+     */
+    private fun refreshList(appended: Int = 0, structural: Boolean = false) {
         val src = if (currentTab == "search") searchResults else favResults
+        val filtered = if (activeCats.isEmpty()) src else src.filter { m ->
+            val cs = m.categories.map { it.lowercase() }
+            // 多选之间是「且」：选了「优化 + 科技」就只留两类都占的
+            activeCats.all { a -> cs.any { it.contains(a.lowercase()) } }
+        }
+        if (!structural && appended > 0 && activeCats.isEmpty() &&
+            results.size + appended == filtered.size
+        ) {
+            val start = results.size
+            val add = filtered.subList(start, filtered.size).toMutableList()
+            results.addAll(add)
+            resAdapter.notifyItemRangeInserted(start, add.size)
+            updateTitle()
+            updateFilterChips()
+            return
+        }
         results.clear()
-        results.addAll(src)
+        results.addAll(filtered)
         applySort()
-        // 标题随页签变，让用户知道自己在看哪个列表
+        resAdapter.notifyDataSetChanged()
+        updateTitle()
+        updateFilterChips()
+    }
+
+    /**
+     * 按当前结果里实际出现的分类生成可点标签。
+     *
+     * 只列**结果里真的有**的分类：列一堆点了之后啥也没有的标签，
+     * 比没有筛选更让人困惑。
+     */
+    private fun updateFilterChips() {
+        if (!::rowFilter.isInitialized) return
+        val counts = LinkedHashMap<String, Int>()
+        val src = if (currentTab == "search") searchResults else favResults
+        for (m in src) {
+            for (c in m.categories) {
+                if (c.isBlank()) continue
+                counts[c] = (counts[c] ?: 0) + 1
+            }
+        }
+        // 按出现次数排序，多的排前面
+        val keys = counts.entries.sortedByDescending { it.value }.map { it.key }
+        rowFilter.removeAllViews()
+        if (keys.isEmpty()) {
+            rowFilter.visibility = View.GONE
+            return
+        }
+        rowFilter.visibility = View.VISIBLE
+        val ctx = context ?: return
+        val d = ctx.resources.displayMetrics.density
+
+        // 「全部」：一键清掉筛选
+        rowFilter.addView(chip(ctx, d, "全部", activeCats.isEmpty()) {
+            activeCats.clear()
+            refreshList(structural = true)
+        })
+        for (k in keys) {
+            val on = activeCats.contains(k)
+            rowFilter.addView(chip(ctx, d, "$k ${counts[k]}", on) {
+                if (on) activeCats.remove(k) else activeCats.add(k)
+                refreshList(structural = true)
+            })
+        }
+    }
+
+    private fun chip(
+        ctx: android.content.Context, d: Float, text: String, on: Boolean, click: () -> Unit
+    ): TextView {
+        return TextView(ctx).apply {
+            this.text = text
+            textSize = 11f
+            setPadding((d * 7).toInt(), (d * 3).toInt(), (d * 7).toInt(), (d * 3).toInt())
+            val tint = try {
+                if (android.os.Build.VERSION.SDK_INT >= 23) ctx.getColor(
+                    if (on) R.color.colorPrimary else R.color.textSecondary
+                ) else @Suppress("DEPRECATION") ctx.resources.getColor(
+                    if (on) R.color.colorPrimary else R.color.textSecondary
+                )
+            } catch (t: Throwable) { android.graphics.Color.GRAY }
+            setTextColor(tint)
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(
+                    if (on) tint and 0x00FFFFFF or 0x22000000
+                    else android.graphics.Color.TRANSPARENT
+                )
+                cornerRadius = d * 10
+                setStroke((d * 1).toInt().coerceAtLeast(1), tint)
+            }
+            setOnClickListener { click() }
+            layoutParams = ViewGroup.MarginLayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginEnd = (d * 5).toInt(); topMargin = (d * 3).toInt() }
+        }
+    }
+
+    private fun updateTitle() {
+        if (!::tvListTitle.isInitialized) return
         tvListTitle.text = if (currentTab == "search")
             getString(R.string.tab_search_results) + "（${results.size}）"
         else
