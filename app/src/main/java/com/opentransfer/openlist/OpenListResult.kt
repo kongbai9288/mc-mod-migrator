@@ -32,7 +32,21 @@ sealed class OpenListResult<out T> {
     
     companion object {
         fun <T> success(data: T): OpenListResult<T> = Success(data)
-        fun failure(error: OpenListException): OpenListResult<Nothing> = Failure(error)
-        fun failure(message: String): OpenListResult<Nothing> = Failure(OpenListException(message))
+
+        //
+        // ⚠️ 上游 SDK 源码自身编译不过：
+        // 调用方到处写 `OpenListResult.failure(e)`，而 e 是 Exception；
+        // 这里原来只声明了 `failure(error: OpenListException)`，
+        // 于是整包 Kotlin 编译失败（README 里是写了 failure(message) 的，
+        // 但源码里没给 Exception 的重载）。
+        //
+        // 补两个重载：Throwable 与 String 都收。
+        // 注意返回类型写成泛型 T —— 原来固定 Nothing，
+        // 在需要 OpenListResult<RemoteFile> 的地方会推导不出来。
+        //
+        fun <T> failure(error: OpenListException): OpenListResult<T> = Failure(error)
+        fun <T> failure(t: Throwable): OpenListResult<T> =
+            Failure(OpenListException(t.message ?: t.javaClass.simpleName))
+        fun <T> failure(message: String): OpenListResult<T> = Failure(OpenListException(message))
     }
 }
