@@ -22,8 +22,8 @@ class ModPageActivity : AppCompatActivity() {
     private lateinit var tvUrl: TextView
     private lateinit var tvMarked: TextView
     private var url = ""
-    private val exec = Executors.newSingleThreadExecutor()
-    private val handler = Handler(Looper.getMainLooper())
+    private val exec = Bg.io
+    private val handler = Bg.ui
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // 必须在 super 之前 setTheme，否则这个页面用的是 Manifest 里的默认主题，

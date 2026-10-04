@@ -33,8 +33,8 @@ import java.util.concurrent.Executors
  */
 class NbtViewerActivity : AppCompatActivity() {
 
-    private val exec = Executors.newSingleThreadExecutor()
-    private val handler = Handler(Looper.getMainLooper())
+    private val exec = Bg.io
+    private val handler = Bg.ui
 
     /**
      * 两种来源，二选一：
@@ -332,7 +332,8 @@ class NbtViewerActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         runCatching { handler.removeCallbacksAndMessages(null) }
-        exec.shutdownNow()
+        // exec 是全局共享池，不能 shutdown
+        handler.removeCallbacksAndMessages(null)
     }
 
     /**

@@ -78,6 +78,12 @@
             android:screenOrientation="portrait" />
 
         <activity
+            android:name=".CloudDriveActivity"
+            android:exported="false"
+            android:label="云盘"
+            android:screenOrientation="portrait" />
+
+        <activity
             android:name=".DevLabActivity"
             android:exported="false"
             android:label="开发者模式"

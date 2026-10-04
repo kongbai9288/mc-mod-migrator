@@ -33,8 +33,8 @@ import java.util.concurrent.Executors
  */
 class SettingsLabFragment : Fragment() {
 
-    private val exec = Executors.newSingleThreadExecutor()
-    private val handler = Handler(Looper.getMainLooper())
+    private val exec = Bg.io
+    private val handler = Bg.ui
     private lateinit var root: LinearLayout
     /** 「清理卸载残留」按钮：数量要后台读，先占位后更新文字 */
     private lateinit var residueBtn: Button

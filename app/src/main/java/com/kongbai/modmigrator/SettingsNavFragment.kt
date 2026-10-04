@@ -22,7 +22,7 @@ import com.google.android.material.button.MaterialButton
  */
 class SettingsNavFragment : Fragment() {
 
-    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val handler = Bg.ui
 
     private lateinit var boxBottom: LinearLayout
     private lateinit var boxMore: LinearLayout

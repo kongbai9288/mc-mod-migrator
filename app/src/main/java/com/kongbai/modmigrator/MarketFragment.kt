@@ -81,8 +81,8 @@ class MarketFragment : Fragment() {
     private lateinit var spSort: Spinner
     private lateinit var btnFav: Button
 
-    private val exec = Executors.newSingleThreadExecutor()
-    private val handler = Handler(Looper.getMainLooper())
+    private val exec = Bg.io
+    private val handler = Bg.ui
 
     override fun onCreateView(
         inflater: LayoutInflater,

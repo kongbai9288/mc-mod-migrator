@@ -30,8 +30,8 @@ import java.util.concurrent.Executors
  */
 class DevLabActivity : AppCompatActivity() {
 
-    private val exec = Executors.newSingleThreadExecutor()
-    private val handler = Handler(Looper.getMainLooper())
+    private val exec = Bg.io
+    private val handler = Bg.ui
     private lateinit var out: TextView
     private lateinit var btnAll: Button
     private var busy = false
@@ -269,7 +269,9 @@ class DevLabActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        runCatching { exec.shutdownNow() }
+        // 注意：exec 现在是全局共享池（Bg.io），**不能**在这里 shutdown，
+        // 否则会把别的界面正在用的线程一起关掉。
+        handler.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
 

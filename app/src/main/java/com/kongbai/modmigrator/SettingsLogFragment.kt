@@ -20,7 +20,7 @@ class SettingsLogFragment : Fragment() {
 
     private lateinit var tv: TextView
     private lateinit var tvInfo: TextView
-    private val handler = Handler(Looper.getMainLooper())
+    private val handler = Bg.ui
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?

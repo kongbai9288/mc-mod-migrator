@@ -22,8 +22,8 @@ class SettingsBackendFragment : Fragment() {
     private lateinit var btnProbe: Button
     private lateinit var tv: TextView
     private lateinit var tvCb: TextView
-    private val exec = Executors.newSingleThreadExecutor()
-    private val handler = Handler(Looper.getMainLooper())
+    private val exec = Bg.io
+    private val handler = Bg.ui
 
     private val saveRunnable = Runnable {
         runCatching {

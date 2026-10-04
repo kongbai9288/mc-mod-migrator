@@ -50,8 +50,8 @@ class MigrationFragment : Fragment() {
     private val mods = mutableListOf<ModEntry>()
     private lateinit var adapter: ModAdapter
     private val sb = StringBuilder()
-    private val exec = Executors.newSingleThreadExecutor()
-    private val handler = Handler(Looper.getMainLooper())
+    private val exec = Bg.io
+    private val handler = Bg.ui
 
     /**
      * 进度回调。

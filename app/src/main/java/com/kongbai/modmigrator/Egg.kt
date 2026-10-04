@@ -24,7 +24,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
  */
 object Egg {
 
-    private val handler = Handler(Looper.getMainLooper())
+    private val handler = Bg.ui
 
     @Volatile
     private var playing = false

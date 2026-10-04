@@ -28,7 +28,7 @@ import java.util.concurrent.Executors
  */
 class WorldsFragment : Fragment() {
 
-    private val exec = Executors.newSingleThreadExecutor()
+    private val exec = Bg.io
     private lateinit var box: LinearLayout
     private lateinit var tvState: TextView
     private var worlds: List<WorldInfo.World> = emptyList()
@@ -231,7 +231,7 @@ class WorldsFragment : Fragment() {
             .show()
     }
 
-    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val handler = Bg.ui
 
     private fun safePost(h: android.os.Handler, b: () -> Unit) {
         if (!isAdded) return

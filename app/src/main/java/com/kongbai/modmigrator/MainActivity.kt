@@ -17,6 +17,9 @@ class MainActivity : AppCompatActivity() {
     private val ID_MORE = 1900
     private var nav: BottomNavigationView? = null
 
+    /** 主线程 handler，用于切换后的兜底校验 */
+    private val handler = Bg.ui
+
     /** 语言拓展包在这层注入，之后所有 getString 都会走译文 */
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(LangPack.wrap(newBase))
@@ -92,6 +95,8 @@ class MainActivity : AppCompatActivity() {
         try {
             buildNav()
         } catch (t: Throwable) { Err.ignore(t, "buildNav()") }
+        // 从后台回来时容器可能是空的（进程被回收后恢复失败），补一次校验
+        handler.post { ensureContainerFilled() }
         // 补捡"下载完了但没能自动弹出安装"的更新包。
         // 之前只靠动态注册的广播接收下载完成：用户切后台后进程被回收，
         // Receiver 就没了，APK 下完也没人来调起安装。
@@ -464,14 +469,55 @@ class MainActivity : AppCompatActivity() {
     private fun replace(f: Fragment) {
         try {
             val tx = supportFragmentManager.beginTransaction()
-            // 开启动画时用系统过渡，关闭时直接替换
+            //
+            // ⚠️ 之前进出都用淡入淡出，新旧两个页面会**同时**处在半透明状态，
+            // 中间那一瞬能看见两层内容重叠在一起——就是反馈里说的"叠化"。
+            // 现在旧页面用空动画（立刻消失），只有新页面淡入，
+            // 不再有两层共存的一瞬。淡入时长也缩短到 120ms。
+            //
             if (AnimPrefs.enabled(this)) {
-                tx.setCustomAnimations(
-                    android.R.anim.fade_in, android.R.anim.fade_out
-                )
+                tx.setCustomAnimations(R.anim.fade_in_fast, R.anim.no_anim)
             }
             tx.replace(R.id.fragment_container, f)
-            tx.commit()
-        } catch (t: Throwable) { Err.ignore(t, "tx.commit()") }
+            //
+            // commit() 在 onSaveInstanceState 之后调用会抛
+            // IllegalStateException（"Can not perform this action after..."）。
+            // 之前这个异常被 catch 吞掉，于是 currentTabId 已经改了、
+            // 但界面没切换成功 —— 表现就是"页面空白"。
+            // 改用 AllowingStateLoss 保证切得过去；切完再校验一次，
+            // 真没切成功就退回默认页，不再留一个空容器。
+            //
+            tx.commitAllowingStateLoss()
+            handler.post { ensureContainerFilled() }
+        } catch (t: Throwable) {
+            Err.ignore(t, "切换页面")
+            handler.post { ensureContainerFilled() }
+        }
+    }
+
+    /**
+     * 兜底：容器里如果一个 Fragment 都没有，界面就是一片空白。
+     * 这种情况出现过多次（commit 失败、状态恢复异常、内存不足被回收），
+     * 这里发现空就直接重建当前 tab 对应的页面。
+     */
+    private fun ensureContainerFilled() {
+        if (isFinishing || isDestroyed) return
+        if (supportFragmentManager.isStateSaved) return
+        val has = supportFragmentManager.findFragmentById(R.id.fragment_container) != null
+        if (has) return
+        val key = NavConfig.keyOfId(currentTabId) ?: return
+        val p = NavConfig.find(key) ?: return
+        try {
+            val f = try {
+                p.make()
+            } catch (t: Throwable) {
+                MigrationFragment()
+            }
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, f)
+                .commitAllowingStateLoss()
+        } catch (t: Throwable) {
+            Err.ignore(t, "恢复空白页面")
+        }
     }
 }

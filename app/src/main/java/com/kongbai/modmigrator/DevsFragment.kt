@@ -25,8 +25,8 @@ import java.util.concurrent.Executors
  */
 class DevsFragment : Fragment() {
 
-    private val exec = Executors.newSingleThreadExecutor()
-    private val handler = Handler(Looper.getMainLooper())
+    private val exec = Bg.io
+    private val handler = Bg.ui
 
     private var eggClicks = 0
     private lateinit var box: LinearLayout

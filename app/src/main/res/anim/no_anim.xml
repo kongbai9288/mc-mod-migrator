@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  空动画：立刻到位、不改变任何属性。
+
+  用在 Fragment 切换的**退出**那一侧。
+  之前进出都用淡入淡出，新旧两个页面会同时处于半透明状态，
+  中间有一瞬能看见两层内容重叠（用户反馈的"叠化"）。
+  旧页面不做动画、直接消失，就不会有这一瞬。
+-->
+<alpha xmlns:android="http://schemas.android.com/apk/res/android"
+    android:fromAlpha="1.0"
+    android:toAlpha="1.0"
+    android:duration="1" />

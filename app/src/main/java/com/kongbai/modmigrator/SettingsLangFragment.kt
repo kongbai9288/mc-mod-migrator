@@ -26,7 +26,7 @@ import java.util.Locale
 class SettingsLangFragment : Fragment() {
 
     private val exec = java.util.concurrent.Executors.newSingleThreadExecutor()
-    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val handler = Bg.ui
 
     override fun onCreateView(
         inflater: LayoutInflater,

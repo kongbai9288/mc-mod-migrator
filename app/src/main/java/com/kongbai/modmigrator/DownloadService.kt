@@ -115,7 +115,7 @@ class DownloadService : Service() {
         }
     }
 
-    private val exec = Executors.newSingleThreadExecutor()
+    private val exec = java.util.concurrent.Executors.newSingleThreadExecutor()
 
     override fun onBind(intent: Intent?): IBinder? = null
 

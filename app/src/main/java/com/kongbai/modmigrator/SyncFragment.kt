@@ -24,8 +24,8 @@ class SyncFragment : Fragment() {
 
     private val devices = mutableListOf<RemoteDevice>()
     private lateinit var adapter: DeviceAdapter
-    private val exec = Executors.newSingleThreadExecutor()
-    private val handler = Handler(Looper.getMainLooper())
+    private val exec = Bg.io
+    private val handler = Bg.ui
 
     override fun onCreateView(
         inflater: LayoutInflater,

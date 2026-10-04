@@ -139,16 +139,24 @@ object LauncherSplash {
                 val p = t / HIT_AT
                 dist * (1f - p) * (1f - p * 0.25f)
             } else {
-                // 撞击后反弹：先弹起一小段再落回，幅度随残余速度衰减
+                //
+                // 撞击后反弹。
+                // ⚠️ 之前这里算出来是**负值**，而负值表示在中心点**上方**——
+                // 于是图标撞完往上跑，盖在本应用图标上面，看着像"穿过去了"。
+                // 物理上它是从下面冲上来的，撞完应该往**回**（下方）弹，
+                // 所以反弹位移必须为正。这里改成 +，并让它先弹开再逐渐落定。
+                //
                 val p = (t - HIT_AT) / (1f - HIT_AT)
-                val bounce = -0.16f * dist * kotlin.math.sin((p * Math.PI).toFloat() * 1.2f)
-                (bounce * (1f - p)).coerceAtMost(0f) + 0f
+                // sin(0..π) 先增后减：弹开 → 回落
+                val bounce = 0.20f * dist * kotlin.math.sin((p * Math.PI).toFloat())
+                bounce * (1f - p * 0.55f)
             }
             ldIcon.translationY = y
             // 上升时稍微带点旋转，落定时归零
             ldIcon.rotation = if (t < HIT_AT) (1f - t / HIT_AT) * 8f else 0f
             // 出场前一小段淡入
-            ldIcon.alpha = (t / 0.08f).coerceAtMost(1f)
+            ldIcon.alpha = if (t < HIT_AT) (t / 0.08f).coerceAtMost(1f)
+            else (1f - (t - HIT_AT) / 0.35f).coerceIn(0f, 1f)
 
             // ── 本应用图标被撞：放大 + 透明 ────────────────
             val fp = ((t - FADE_FROM) / (1f - FADE_FROM)).coerceIn(0f, 1f)

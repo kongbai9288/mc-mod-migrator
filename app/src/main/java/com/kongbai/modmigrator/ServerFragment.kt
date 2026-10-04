@@ -51,8 +51,8 @@ class ServerFragment : Fragment() {
     /** FTP/SFTP 模式下"已选中的目录"，充当面板模式里的服务器 */
     private var remoteDir: String? = null
 
-    private val exec = Executors.newSingleThreadExecutor()
-    private val handler = Handler(Looper.getMainLooper())
+    private val exec = Bg.io
+    private val handler = Bg.ui
 
     override fun onCreateView(
         inflater: LayoutInflater,

@@ -39,8 +39,8 @@ class SettingsFragment : Fragment() {
     private lateinit var tvLauncher: TextView
 
     private var loading = true
-    private val exec = Executors.newSingleThreadExecutor()
-    private val handler = Handler(Looper.getMainLooper())
+    private val exec = Bg.io
+    private val handler = Bg.ui
 
     override fun onCreateView(
         inflater: LayoutInflater,

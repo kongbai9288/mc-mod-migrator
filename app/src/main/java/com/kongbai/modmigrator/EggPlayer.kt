@@ -18,7 +18,7 @@ import android.os.Looper
  */
 object EggPlayer {
 
-    private val handler = Handler(Looper.getMainLooper())
+    private val handler = Bg.ui
     private var playing = false
 
     /**

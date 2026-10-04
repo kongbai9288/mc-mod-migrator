@@ -24,8 +24,8 @@ import java.util.concurrent.Executors
  */
 class SettingsPatchFragment : Fragment() {
 
-    private val exec = Executors.newSingleThreadExecutor()
-    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val exec = Bg.io
+    private val handler = Bg.ui
     private lateinit var box: LinearLayout
 
     override fun onCreateView(
@@ -120,6 +120,7 @@ class SettingsPatchFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         runCatching { handler.removeCallbacksAndMessages(null) }
-        exec.shutdownNow()
+        // 全局共享池，不 shutdown
+        handler.removeCallbacksAndMessages(null)
     }
 }

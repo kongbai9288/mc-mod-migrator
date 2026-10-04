@@ -35,8 +35,8 @@ class SettingsMainFragment : Fragment() {
     private lateinit var swUpdate: SwitchMaterial
     private lateinit var swOffline: SwitchMaterial
 
-    private val exec = Executors.newSingleThreadExecutor()
-    private val handler = Handler(Looper.getMainLooper())
+    private val exec = Bg.io
+    private val handler = Bg.ui
 
     /**
      * 登录结果回调。

@@ -27,8 +27,8 @@ import java.util.concurrent.Executors
  */
 class ModManagerFragment : Fragment() {
 
-    private val exec = Executors.newSingleThreadExecutor()
-    private val handler = Handler(Looper.getMainLooper())
+    private val exec = Bg.io
+    private val handler = Bg.ui
     private lateinit var box: LinearLayout
     private lateinit var tvState: TextView
     private lateinit var cbAll: android.widget.CheckBox
