@@ -48,6 +48,7 @@ object LauncherSplash {
      * 播放。已经在播就忽略（避免快速开关页面叠出两个动画层）。
      * @param onEnd 动画结束（或跳过）后回调，调用方在这里收尾
      */
+    @SuppressLint("ClickableViewAccessibility")
     fun play(a: Activity, h: LauncherBrand.Handoff, onEnd: () -> Unit = {}) {
         if (running) {
             onEnd()
@@ -163,7 +164,6 @@ object LauncherSplash {
             if (t >= 0.999f) finish()
         }
 
-        @SuppressLint("ClickableViewAccessibility")
         layer.setOnClickListener { finish() }
 
         anim.start()

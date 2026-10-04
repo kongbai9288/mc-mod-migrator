@@ -170,7 +170,7 @@ class WorldsFragment : Fragment() {
         }
         // 这台机器上可能装着好几个启动器，存档目录名又各不相同，
         // 光看路径分不清这个存档属于谁。按路径认出品牌，配一枚图标。
-        val brand = LauncherBrand.fromPath(w.dir)
+        val brand = LauncherBrand.fromPath(w.dir.absolutePath)
         val card = UiCards.infoCard(
             ctx, R.drawable.ic_folder, w.name, desc, "详情",
             badge = brand.icon, badgeHint = "属于 ${brand.label}"
@@ -202,7 +202,7 @@ class WorldsFragment : Fragment() {
             }
             ll.addView(img)
         }
-        val b2 = LauncherBrand.fromPath(w.dir)
+        val b2 = LauncherBrand.fromPath(w.dir.absolutePath)
         val rowBrand = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
