@@ -1292,6 +1292,17 @@ class MigrationFragment : Fragment() {
             Progress.start("下载模组", todo.size)
             log("开始下载 ${todo.size} 个模组（并发 $parallel）")
 
+            // ── 断点续做 ───────────────────────────────────────
+            // 这一阶段动辄几十个文件、十几分钟，最容易被划掉或关机打断。
+            // 把待办清单落盘、每完成一个勾掉一个，
+            // 下次打开就能接着下，已下好的不重复。
+            // key 用下载地址：续做时靠它就能重新下载，
+            // 不必依赖内存里的 mods 列表（进程被杀后那些早没了）
+            val todoItems = todo.map {
+                it.targetUrl to (it.targetFileName.ifBlank { Downloader.guessName(it.targetUrl) })
+            }
+            Resume.begin(ctx, Resume.KIND_MIGRATE, "迁移：下载模组", todoItems)
+
             // 记录每一项失败的原因，最后统一告诉用户哪些没下成、为什么
             val failed = java.util.Collections.synchronizedList(ArrayList<String>())
             for (m in todo) {
@@ -1305,8 +1316,12 @@ class MigrationFragment : Fragment() {
                         null
                     }
                     val n = doneCnt.incrementAndGet()
-                    if (f != null) okCnt.incrementAndGet()
-                    else failed.add("${m.name.ifBlank { m.fileName }}：$err")
+                    if (f != null) {
+                        okCnt.incrementAndGet()
+                        // 只勾成功的：失败的留着，续做时会再试一次。
+                        // key 用 url，与登记时一致。
+                        Resume.mark(ctx, m.targetUrl)
+                    } else failed.add("${m.name.ifBlank { m.fileName }}：$err")
                     log("${if (f == null) "失败（$err）" else "已安装"}：${m.name} ${m.targetVersion}")
                     Progress.update("下载模组", n, todo.size)
                     safePost(handler) {
@@ -1328,6 +1343,9 @@ class MigrationFragment : Fragment() {
             val ok = okCnt.get()
             val total = todo.size
             val bad = ArrayList(failed)
+            // 走到这里说明这一轮已经跑完（哪怕有失败的），
+            // 清掉断点记录，下次不再提示"要不要继续"。
+            Resume.finish(ctx)
             Progress.done("迁移完成：模组 $ok/$total")
             log("迁移完成：模组 $ok/$total")
             safePost(handler) {

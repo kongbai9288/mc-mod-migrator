@@ -95,6 +95,86 @@ class MainActivity : AppCompatActivity() {
         // 而用户只能杀进程重开。这里检测到容器为空就重建当前页。
         //
         try { ensureContentVisible() } catch (t: Throwable) { Err.ignore(t, "检查页面内容") }
+        //
+        // 断点续做：上次没跑完的长任务。
+        // 迁移、批量下载这类操作中途被划掉或手机关机，
+        // 进程直接消失、没有任何回调，下次打开界面一片干净，
+        // 用户不知道做到哪儿了，只能凭记忆重来（已下好的还会重复下一遍）。
+        // 只在这个入口问一次，避免每次回前台都弹。
+        //
+        try { checkResume() } catch (t: Throwable) { Err.ignore(t, "检查未完成任务") }
+    }
+
+    /** 上次中断的任务，只问一次 */
+    private var resumeAsked = false
+
+    private fun checkResume() {
+        if (resumeAsked) return
+        resumeAsked = true
+        val j = Resume.peek(this) ?: return
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("上次没做完")
+            .setMessage(
+                buildString {
+                    append(j.title)
+                    append("\n\n已完成 ${j.finished}/${j.total}，还剩 ${j.remaining.size} 项。\n\n")
+                    append("要接着做吗？已经完成的那部分不会重复。")
+                }
+            )
+            .setPositiveButton("继续") { _, _ -> runResume(j) }
+            .setNegativeButton("不用了") { _, _ -> Resume.clear(this) }
+            .setOnCancelListener { Resume.clear(this) }
+            .show()
+    }
+
+    private fun runResume(j: Resume.Journal) {
+        val ctx = this
+        val dstUri = Prefs.get(ctx).getString(K.DST_URI, null)
+        val d = ProgressDialog.show(ctx, "继续：${j.title}")
+        //
+        // 续做只依赖两样东西：记录里的下载地址 + 已授权的目标目录。
+        // 不依赖内存中的模组列表 —— 进程被杀后那些早就没了，
+        // 这也是当初把"下载地址"而不是"模组名"作为记录主键的原因。
+        //
+        java.util.concurrent.Executors.newSingleThreadExecutor().execute {
+            var ok = 0
+            val still = ArrayList<String>()
+            val rem = j.remaining
+            val dir = if (dstUri.isNullOrBlank()) null
+            else runCatching {
+                val t = Fs.tree(ctx, dstUri)
+                if (t == null) null else Fs.ensureDir(t, "mods")
+            }.getOrNull()
+
+            if (dir == null) {
+                still.add("目标 mods 目录不可用，请先在迁移页授权")
+            } else {
+                for ((i, key) in rem.withIndex()) {
+                    runOnUiThread { d.update(i.toLong(), rem.size.toLong()) }
+                    val name = j.nameOf(key)
+                    val f = runCatching { Downloader.download(ctx, key, dir, name) }.getOrNull()
+                    if (f != null) ok++ else still.add(name)
+                }
+            }
+            runOnUiThread {
+                d.dismiss()
+                Resume.clear(ctx)
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                    .setTitle("续做完成")
+                    .setMessage(
+                        buildString {
+                            append("成功 $ok / ${rem.size}。")
+                            if (still.isNotEmpty()) {
+                                append("\n\n没下成的：\n")
+                                still.take(8).forEach { append("  · $it\n") }
+                                if (still.size > 8) append("  …等 ${still.size} 个\n")
+                            }
+                        }
+                    )
+                    .setPositiveButton(R.string.ok, null)
+                    .show()
+            }
+        }
     }
 
     /**
