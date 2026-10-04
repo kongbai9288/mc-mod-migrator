@@ -302,7 +302,7 @@ class DevLabActivity : AppCompatActivity() {
                 LauncherBrand.describe(runCatching { LauncherBrand.handoff(this) }.getOrNull())
             },
             Case("本机", "工作目录") { ctx, _ ->
-                runCatching { "${WorkDir.root(ctx)?.absolutePath}" }.getOrElse { "不可用：${it.message}" }
+                runCatching { "${WorkDir.root(ctx)?.uri}" }.getOrElse { "不可用：${it.message}" }
             },
             Case("本机", "断点续做记录") { ctx, _ ->
                 val j = Resume.peek(ctx)
