@@ -29,8 +29,27 @@ class SettingsAboutFragment : Fragment() {
         v.findViewById<Button>(R.id.btnPrivacy).setOnClickListener {
             openInfo("privacy.txt", getString(R.string.privacy_title))
         }
-        v.findViewById<Button>(R.id.btnLicenses).setOnClickListener {
+        val btnLic = v.findViewById<Button>(R.id.btnLicenses)
+        btnLic.setOnClickListener {
             openInfo("licenses.txt", getString(R.string.license_title))
+        }
+        //
+        // 长按「第三方开源许可」进入开发者模式。
+        // 正常流程里很多接口根本碰不到（后端连不上就走不到登录、
+        // 没有存档就走不到区域解析），出问题时没法复现。
+        // 开发者模式把接口逐个列出来手动触发，见 DevLabActivity。
+        // 放在长按下是为了不打扰普通用户，也不占界面位置。
+        //
+        btnLic.setOnLongClickListener {
+            runCatching {
+                startActivity(
+                    Intent(requireContext(), DevLabActivity::class.java)
+                )
+            }
+            android.widget.Toast.makeText(
+                requireContext(), "开发者模式", android.widget.Toast.LENGTH_SHORT
+            ).show()
+            true
         }
         v.findViewById<Button>(R.id.btnCrash).setOnClickListener { showCrash() }
         v.findViewById<Button>(R.id.btnClear).setOnClickListener {

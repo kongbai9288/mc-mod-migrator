@@ -1,0 +1,349 @@
+package com.kongbai.modmigrator
+
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.Gravity
+import android.view.ViewGroup
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.button.MaterialButton
+import java.util.concurrent.Executors
+
+/**
+ * 开发者模式：把全程序的对外接口集中在这里，逐个手动触发。
+ *
+ * 入口：设置 → 关于 → **长按**「第三方开源许可」。
+ *
+ * 存在的理由：很多接口在正常使用中根本碰不到——
+ * 后端连不上就永远走不到登录，没有存档就永远走不到区域解析，
+ * 于是这些代码出问题时没有任何办法复现。这里给每个接口一个手动入口，
+ * 点了就把返回值、耗时、异常原样显示出来。
+ *
+ * 所有调用都在后台线程执行，结果回到主线程打印。
+ * 有副作用的（登出、清缓存、写文件）单独放在最后一节，默认不自动跑。
+ */
+class DevLabActivity : AppCompatActivity() {
+
+    private val exec = Executors.newSingleThreadExecutor()
+    private val handler = Handler(Looper.getMainLooper())
+    private lateinit var out: TextView
+    private lateinit var btnAll: Button
+    private var busy = false
+
+    /** 一项可测的接口 */
+    private data class Case(
+        val group: String,
+        val name: String,
+        val desc: String = "",
+        /** 需要输入参数时给个提示语，null 表示不用参数 */
+        val param: String? = null,
+        val paramDefault: String = "",
+        /** true = 有副作用，不进"全部跑一遍" */
+        val risky: Boolean = false,
+        val run: (ctx: android.content.Context, arg: String) -> String
+    )
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        title = "开发者模式"
+
+        val scroll = ScrollView(this)
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val p = (14 * resources.displayMetrics.density).toInt()
+            setPadding(p, p, p, p)
+        }
+        scroll.addView(root)
+        setContentView(
+            scroll,
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
+
+        root.addView(TextView(this).apply {
+            text = "逐个触发接口，结果直接显示在下方。\n" +
+                "带「!」的是有副作用的操作，点「全部跑一遍」时不会执行。"
+            textSize = 12f
+            setPadding(0, 0, 0, (10 * resources.displayMetrics.density).toInt())
+        })
+
+        btnAll = MaterialButton(this).apply {
+            text = "全部跑一遍（安全项）"
+            setOnClickListener { runAll() }
+        }
+        root.addView(btnAll)
+
+        out = TextView(this).apply {
+            textSize = 11f
+            setPadding(0, (12 * resources.displayMetrics.density).toInt(), 0, 0)
+            setTextIsSelectable(true)
+        }
+        root.addView(out)
+
+        var lastGroup = ""
+        for (c in cases()) {
+            if (c.group != lastGroup) {
+                lastGroup = c.group
+                root.addView(TextView(this).apply {
+                    text = c.group
+                    textSize = 14f
+                    setPadding(0, (18 * resources.displayMetrics.density).toInt(), 0, 4)
+                })
+            }
+            root.addView(MaterialButton(this).apply {
+                text = (if (c.risky) "! " else "") + c.name +
+                    (if (c.desc.isNotBlank()) "\n" + c.desc else "")
+                gravity = Gravity.START
+                setOnClickListener { askAndRun(c) }
+            })
+        }
+    }
+
+    /** 需要参数的先弹个输入框 */
+    private fun askAndRun(c: Case) {
+        val ctx = this
+        if (c.param == null) {
+            runOne(c, c.paramDefault)
+            return
+        }
+        val et = android.widget.EditText(ctx).apply {
+            setText(c.paramDefault)
+            setSingleLine(true)
+        }
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+            .setTitle(c.param)
+            .setView(et)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton("执行") { _, _ -> runOne(c, et.text.toString().trim()) }
+            .show()
+    }
+
+    private fun runOne(c: Case, arg: String) {
+        if (busy) {
+            append("正在跑上一个，稍等\n")
+            return
+        }
+        busy = true
+        btnAll.isEnabled = false
+        val ctx: android.content.Context = this
+        append("── ${c.group} / ${c.name}${if (arg.isNotBlank()) "  [$arg]" else ""}\n")
+        exec.execute {
+            val t0 = System.currentTimeMillis()
+            val r = try {
+                c.run(ctx, arg)
+            } catch (t: Throwable) {
+                "异常 ${t.javaClass.simpleName}: ${t.message}\n" +
+                    (t.stackTrace.take(3).joinToString("\n") { "    at $it" })
+            }
+            val ms = System.currentTimeMillis() - t0
+            handler.post {
+                append("$r\n耗时 ${ms}ms\n\n")
+                busy = false
+                btnAll.isEnabled = true
+            }
+        }
+    }
+
+    private fun runAll() {
+        if (busy) return
+        val safe = cases().filter { !it.risky }
+        append("=== 全部跑一遍：${safe.size} 项 ===\n")
+        busy = true
+        btnAll.isEnabled = false
+        val ctx: android.content.Context = this
+        exec.execute {
+            for (c in safe) {
+                val t0 = System.currentTimeMillis()
+                val r = try {
+                    c.run(ctx, c.paramDefault)
+                } catch (t: Throwable) {
+                    "异常 ${t.javaClass.simpleName}: ${t.message}"
+                }
+                val ms = System.currentTimeMillis() - t0
+                handler.post { append("· ${c.name}：${r.take(200)}  (${ms}ms)\n") }
+            }
+            handler.post {
+                append("=== 结束 ===\n\n")
+                busy = false
+                btnAll.isEnabled = true
+            }
+        }
+    }
+
+    private fun append(s: String) {
+        handler.post {
+            val cur = out.text.toString()
+            // 结果区不无限增长，超长砍掉最早的
+            out.text = if (cur.length > 24000) (cur.takeLast(16000) + s) else (cur + s)
+        }
+    }
+
+    override fun onDestroy() {
+        runCatching { exec.shutdownNow() }
+        super.onDestroy()
+    }
+
+    // ── 接口清单 ─────────────────────────────────────────────
+    private fun cases(): List<Case> {
+
+        /** 结果太长时截断，避免刷屏 */
+        fun cut(s: String, n: Int = 600) =
+            if (s.length > n) s.take(n) + "…（共 ${s.length} 字符）" else s
+
+        return listOf(
+            // ── Modrinth ──
+            Case("Modrinth", "项目版本列表", "取某个项目在指定版本/加载器下可用的文件",
+                "项目 ID 或 slug", "sodium") { ctx, a ->
+                val v = ModrinthApi.versions(a, "", "")
+                if (v.isEmpty()) "空（可能项目名不对或网络不通）"
+                else v.take(5).joinToString("\n") { "${it.name} ${it.version} ${it.fileName}" }
+            },
+            Case("Modrinth", "哈希查项目", "给一个 sha1，看能不能认出是哪个项目",
+                "sha1", "") { _, a ->
+                val m = ModrinthApi.lookupHashes(listOf(a))
+                if (m.isEmpty()) "空" else m.entries.joinToString("\n") { "${it.key.take(12)} → ${it.value}" }
+            },
+            Case("Modrinth", "哈希查最新版", "批量接口，这里只喂一个 sha1",
+                "sha1", "") { _, a ->
+                val m = ModrinthApi.latestForHashes(listOf(a), "", "")
+                if (m.isEmpty()) "空" else m.entries.joinToString("\n") { "${it.key.take(12)} → ${it.value.name} ${it.value.version}" }
+            },
+            Case("Modrinth", "刷新项目缓存", "单个项目") { _, a ->
+                ModrinthApi.refresh(a.ifBlank { "sodium" }); "已刷新"
+            },
+
+            // ── CurseForge ──
+            Case("CurseForge", "搜索", "需要 API Key，没填会直接失败",
+                "关键词", "jei") { ctx, a ->
+                val key = Prefs.get(ctx).getString("cf_key", "") ?: ""
+                if (key.isBlank()) "未填 CurseForge API Key"
+                else {
+                    val r = CurseForgeApi.search(a, "", "", key, 5, 0)
+                    if (r.isEmpty()) "空" else r.joinToString("\n") { "${it.name} ← ${it.source}" }
+                }
+            },
+
+            // ── 后端 ──
+            Case("后端", "已知地址", "列出所有候选入口") { ctx, _ ->
+                BackendApi.candidates(ctx).joinToString("\n")
+            },
+            Case("后端", "取配置 /config") { ctx, _ ->
+                val c = BackendApi.config(ctx)
+                if (c == null) "null（连不上或没这个接口）" else cut(c.toString())
+            },
+            Case("后端", "登录态 /auth/me") { ctx, _ ->
+                val u = BackendApi.me(ctx)
+                if (u == null) "未登录或连不上" else cut(u.toString())
+            },
+            Case("后端", "取授权地址", "GitHub 登录第一步") { ctx, _ ->
+                val s = BackendApi.loginUrl(ctx)
+                "url=${s.url}\nstateCookieOk=${s.stateCookieOk}\nerror=${s.error}"
+            },
+            Case("后端", "回调地址清单") { ctx, _ ->
+                BackendApi.allCallbackUrls().joinToString("\n")
+            },
+            Case("后端", "登录诊断", "把整条登录链路跑一遍") { ctx, _ ->
+                val r = LoginDiag.run(ctx)
+                cut(LoginDiag.format(r))
+            },
+
+            // ── GitHub ──
+            Case("GitHub", "最新发行版") { ctx, _ ->
+                val r = UpdateChecker.latest(ctx)
+                if (r == null) "null" else "${r.tag} ${r.name} ${r.apkUrl}"
+            },
+            Case("GitHub", "镜像下载链接", "给定 tag 与文件名拼出镜像地址",
+                "tag", "v2.3.2") { ctx, a ->
+                UpdateChecker.mirrorUrls(
+                    UpdateChecker.owner(ctx).ifBlank { UpdateChecker.defaultOwner() },
+                    UpdateChecker.repo(ctx).ifBlank { UpdateChecker.defaultRepo() },
+                    a, "ModMigrator-release.apk"
+                ).joinToString("\n")
+            },
+
+            // ── 公告 / 补丁 ──
+            Case("公告", "拉取公告", "强制刷新，跳过节流") { ctx, _ ->
+                val n = Announcement.fetch(ctx, true)
+                if (n == null) "null（仓库里可能没有 announcement.json）" else cut(n.toString())
+            },
+            Case("补丁", "全部更新", "强制拉一次远端清单") { ctx, _ ->
+                val kinds = PatchCenter.all()
+                kinds.joinToString("\n") { k ->
+                    "${k.key}: ${if (PatchCenter.update(ctx, k, true)) "成功" else "失败"}"
+                }
+            },
+            Case("补丁", "上次更新时间") { ctx, _ ->
+                PatchCenter.all().joinToString("\n") { k ->
+                    "${k.key}: ${PatchCenter.timeText(PatchCenter.lastAt(ctx, k))}"
+                }
+            },
+
+            // ── 本机能力 ──
+            Case("本机", "探测启动器目录") { ctx, _ ->
+                val r = LauncherDirs.detect(ctx)
+                if (r.isEmpty()) "一个都没探测到"
+                else r.joinToString("\n") { "${it.first.name} → ${it.second.absolutePath}" }
+            },
+            Case("本机", "启动器清单", "含未安装的") { _, _ ->
+                LauncherDirs.all().joinToString("\n") { "${it.name}  ${it.rel}" }
+            },
+            Case("本机", "网络开关状态") { ctx, _ ->
+                NetGate.Area.values().joinToString("\n") {
+                    "${it.name}: ${if (NetGate.allow(ctx, it)) "开" else "关"}"
+                }
+            },
+            Case("本机", "来源启动器", "这次是不是从某个启动器进来的") { _, _ ->
+                LauncherBrand.describe(runCatching { LauncherBrand.handoff(this) }.getOrNull())
+            },
+            Case("本机", "工作目录") { ctx, _ ->
+                runCatching { "${WorkDir.root(ctx)?.absolutePath}" }.getOrElse { "不可用：${it.message}" }
+            },
+            Case("本机", "断点续做记录") { ctx, _ ->
+                val j = Resume.peek(ctx)
+                if (j == null) "没有未完成的任务"
+                else "${j.title}  ${j.finished}/${j.total}"
+            },
+            Case("本机", "HTTP 直连测试", "给个 URL，看通不通",
+                "URL", "https://api.modrinth.com/v2/project/sodium") { _, a ->
+                cut(Http.get(a), 300)
+            },
+            Case("本机", "区域文件解析", "给一个 .mca 的完整路径",
+                "文件路径", "") { _, a ->
+                if (a.isBlank()) "请先填 .mca 路径"
+                else {
+                    val f = java.io.File(a)
+                    if (!f.exists()) "文件不存在"
+                    else {
+                        val r = McaEdit.Region(f.readBytes())
+                        "非空区块 ${r.present().size} 个：${r.present().take(12).joinToString(",")}"
+                    }
+                }
+            },
+
+            // ── 有副作用 ──
+            Case("副作用", "登出后端", "清掉本地登录态", risky = true) { ctx, _ ->
+                BackendApi.logout(ctx); "已登出"
+            },
+            Case("副作用", "清公告记录", "清掉已读标记", risky = true) { ctx, _ ->
+                Announcement.clearAll(ctx); "已清"
+            },
+            Case("副作用", "造一条断点记录", "用来测续做弹窗", risky = true) { ctx, _ ->
+                Resume.begin(
+                    ctx, Resume.KIND_DOWNLOAD, "测试：手动造的续做记录",
+                    listOf("https://example.com/a.jar" to "a.jar",
+                        "https://example.com/b.jar" to "b.jar")
+                )
+                "已写入，回到主界面即可看到提示"
+            },
+            Case("副作用", "清断点记录", risky = true) { ctx, _ ->
+                Resume.clear(ctx); "已清"
+            },
+        )
+    }
+}
