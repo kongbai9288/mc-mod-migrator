@@ -47,18 +47,75 @@ class MisodeView @JvmOverloads constructor(
 	companion object {
 		/** Fake origin the offline bundle is served from. */
 		const val DOMAIN: String = "misode.local"
-		private const val ROOT = "https://$DOMAIN/assets/misode/index.html"
+		/**
+		 * ⚠️ 之前是 `https://$DOMAIN/assets/misode/index.html`。
+		 *
+		 * misode 是个单页应用，它自己解析 URL 路径做路由。
+		 * 把 `/assets/misode/index.html` 当根路径加载，
+		 * 它的路由就会把这一段当成生成器名字去匹配，
+		 * 于是首页直接报 `Cannot find generator "/assets/misode/index.html"`。
+		 *
+		 * 根必须是 `/`：SPA 路由才会落在首页。
+		 * 真实资源在 assets 的 `misode/` 子目录下，由下面的
+		 * MisodePathHandler 做映射，两者解耦。
+		 */
+		private const val ROOT = "https://$DOMAIN/"
 		private const val ASSET_ROOT = "misode"
-		private const val ASSET_PREFIX = "assets/"
 	}
 
 	private val mainHandler = Handler(Looper.getMainLooper())
 	private val listeners = mutableListOf<(MisodeEventData) -> Unit>()
 	private lateinit var webView: WebView
 
+	/**
+	 * 把 `/<任意路径>` 映射到 assets 的 `misode/<任意路径>`。
+	 *
+	 * 为什么不直接用 AssetsPathHandler：
+	 * 它只能把某个 URL 前缀映射到 assets 的**根**，
+	 * 而打包时资源在 `assets/misode/` 子目录下，对不上。
+	 *
+	 * 另外这是 SPA：路由产生的路径（如某个生成器页）在 assets 里
+	 * 并不存在，这时必须回退到 index.html，
+	 * 否则一点进去就是 404 白屏。
+	 */
+	private class MisodePathHandler(private val ctx: Context) : WebViewAssetLoader.PathHandler {
+		override fun handle(path: String): WebResourceResponse? {
+			val rel = if (path.isEmpty() || path == "/") "$ASSET_ROOT/index.html"
+			else "$ASSET_ROOT/" + path.trimStart('/')
+			return try {
+				WebResourceResponse(mimeOf(rel), null, ctx.assets.open(rel))
+			} catch (_: Throwable) {
+				// SPA 回退：路由路径在 assets 里没有实体文件
+				try {
+					WebResourceResponse("text/html", null, ctx.assets.open("$ASSET_ROOT/index.html"))
+				} catch (_: Throwable) {
+					null
+				}
+			}
+		}
+
+		/**
+		 * Android 自带的 guessContentTypeFromName 对 .js / .mjs 常返回 null，
+		 * 返回 null 的 mime 会让 WebView 拒绝执行脚本（表现为页面空白）。
+		 * 这里显式补上打包里会出现的几种。
+		 */
+		private fun mimeOf(name: String): String = when {
+			name.endsWith(".js") || name.endsWith(".mjs") -> "application/javascript"
+			name.endsWith(".css") -> "text/css"
+			name.endsWith(".json") -> "application/json"
+			name.endsWith(".html") -> "text/html"
+			name.endsWith(".svg") -> "image/svg+xml"
+			name.endsWith(".png") -> "image/png"
+			name.endsWith(".woff2") -> "font/woff2"
+			name.endsWith(".woff") -> "font/woff"
+			name.endsWith(".wasm") -> "application/wasm"
+			else -> "application/octet-stream"
+		}
+	}
+
 	private val assetLoader = WebViewAssetLoader.Builder()
 		.setDomain(DOMAIN)
-		.addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
+		.addPathHandler("/", MisodePathHandler(context))
 		.build()
 
 	init {
@@ -108,9 +165,9 @@ class MisodeView @JvmOverloads constructor(
 		): WebResourceResponse? {
 			val url = request.url
 			if (url.host != DOMAIN) return null
-			val path = (url.path ?: "").trimStart('/')
-			val target = if (path.isEmpty() || !assetExists(path)) Uri.parse(ROOT) else url
-			return assetLoader.shouldInterceptRequest(target)
+			// 交由 MisodePathHandler 处理：命中就返回实体，
+			// 不命中回退 index.html（SPA 路由）。
+			return assetLoader.shouldInterceptRequest(url)
 		}
 
 		override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -119,31 +176,6 @@ class MisodeView @JvmOverloads constructor(
 		}
 	}
 
-	/**
-	 * True when the requested path exists inside the bundled assets.
-	 *
-	 * ⚠️ 这里之前拼错了，是"一直提示载入中"的直接原因：
-	 * 旧写法是 `"$ASSET_ROOT/$path"`，而 path 已经带着 `assets/` 前缀，
-	 * 拼出来就成了 `misode/assets/misode/...`，永远不存在 →
-	 * assetExists 恒为 false → **每个请求都被重写成 index.html** →
-	 * 浏览器拿到的 .js 内容其实是 HTML，JS 解析直接失败，
-	 * READY 事件永远不来，界面就一直停在"正在载入"。
-	 *
-	 * 正确映射：handler 注册的是 `/assets/`，AssetsPathHandler 会把
-	 * 该前缀之后的剩余部分当作 assets 里的相对路径。
-	 * 即 `/assets/misode/index.html` → `misode/index.html`。
-	 * 上游 vite 用 `base: './'`，所以子资源是
-	 * `/assets/misode/assets/xxx.js` → `misode/assets/xxx.js`，同样成立。
-	 */
-	private fun assetExists(path: String): Boolean {
-		val assetPath = path.removePrefix(ASSET_PREFIX)
-		if (assetPath.isEmpty()) return false
-		return try {
-			context.assets.open(assetPath).use { true }
-		} catch (_: IOException) {
-			false
-		}
-	}
 
 	/* ------------------------------------------------------------------ *
 	 * Native -> JS plumbing

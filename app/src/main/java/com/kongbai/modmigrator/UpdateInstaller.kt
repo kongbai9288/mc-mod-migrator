@@ -197,7 +197,17 @@ object UpdateInstaller {
             }
             // 没有能处理安装的应用时别硬跳（某些精简 ROM 会直接抛 ActivityNotFound）
             if (i.resolveActivity(ctx.packageManager) == null) {
-                Toast.makeText(ctx, "没有找到可处理安装的应用", Toast.LENGTH_LONG).show()
+                // ⚠️ 之前只弹一句提示就结束，用户卡在这儿没路可走
+                // （"去更新会卡住"）。现在兜底用浏览器打开下载页，
+                // 至少能拿到 APK，之后自己在文件管理器里装。
+                val page = "https://github.com/kongbai9288/mc-mod-migrator/releases/latest"
+                runCatching {
+                    ctx.startActivity(
+                        Intent(Intent.ACTION_VIEW, Uri.parse(page))
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                }
+                Toast.makeText(ctx, "没有找到可处理安装的应用，已改用浏览器打开下载页", Toast.LENGTH_LONG).show()
                 return
             }
             ctx.startActivity(i)

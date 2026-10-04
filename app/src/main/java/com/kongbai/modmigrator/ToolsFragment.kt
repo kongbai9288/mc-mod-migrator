@@ -189,7 +189,7 @@ class ToolsFragment : Fragment() {
                     java.io.File(game).walkTopDown()
                         .filter { it.isFile && (it.name.endsWith(".dat") || it.name.endsWith(".nbt")) }
                         .take(40)
-                        .forEach { found.add(it.name to it) }
+                        .forEach { found.add(labelOf(it.name, it) to it) }
                 }
             }
             // 路 2：SAF 授权目录
@@ -203,7 +203,7 @@ class ToolsFragment : Fragment() {
                         dir.walkTopDown()
                             .filter { it.isFile && (it.name.endsWith(".dat") || it.name.endsWith(".nbt")) }
                             .take(40)
-                            .forEach { found.add(it.name to it) }
+                            .forEach { found.add(labelOf(it.name, it) to it) }
                     }
                 }
             }
@@ -247,11 +247,34 @@ class ToolsFragment : Fragment() {
                 if (c.isDirectory) walk(c, depth + 1)
                 else {
                     val n = c.name ?: continue
-                    if (exts.any { n.endsWith(it) }) out.add(n to c.uri)
+                    if (exts.any { n.endsWith(it) }) out.add(labelOf(n, c) to c.uri)
                 }
             }
         }
         walk(tree, 0)
+    }
+
+    /**
+     * 列表里怎么称呼一个文件。
+     *
+     * ⚠️ 之前直接显示文件名：level.dat / r.0.0.mca 在每个世界里都叫这个，
+     * 一排同名摆在一起根本分不清是哪个世界的。
+     * 现在带上所属世界名，形如「新的世界 / level.dat」。
+     */
+    private fun labelOf(fileName: String, f: java.io.File): String {
+        val p0 = f.parentFile
+        val p0n = p0?.name
+        // region/ / poi/ / entities/ 这层没有信息量，再往上一层才是世界名
+        val wn = if (p0n == "region" || p0n == "poi" || p0n == "entities")
+            p0?.parentFile?.name else p0n
+        return if (wn.isNullOrBlank()) fileName else "$wn / $fileName"
+    }
+
+    private fun labelOf(fileName: String, d: androidx.documentfile.provider.DocumentFile): String {
+        val parent = d.parentFile?.name
+        val wn = if (parent == "region" || parent == "poi" || parent == "entities")
+            d.parentFile?.parentFile?.name else parent
+        return if (wn.isNullOrBlank()) fileName else "$wn / $fileName"
     }
 
     /**
@@ -271,7 +294,7 @@ class ToolsFragment : Fragment() {
                     java.io.File(game).walkTopDown()
                         .filter { it.isFile && it.name.endsWith(".mca") }
                         .take(40)
-                        .forEach { found.add(it.name to it) }
+                        .forEach { found.add(labelOf(it.name, it) to it) }
                 }
             }
             if (game.startsWith("content://")) {
@@ -285,7 +308,7 @@ class ToolsFragment : Fragment() {
                         dir.walkTopDown()
                             .filter { it.isFile && it.name.endsWith(".mca") }
                             .take(40)
-                            .forEach { found.add(it.name to it) }
+                            .forEach { found.add(labelOf(it.name, it) to it) }
                     }
                 }
             }
