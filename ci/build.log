@@ -36,31 +36,29 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:extractProguardFiles
 > Task :app:mergeReleaseJniLibFolders
 > Task :app:mergeReleaseNativeLibs
-> Task :app:processReleaseManifestForPackage
+> Task :app:desugarReleaseFileDependencies
 > Task :app:checkReleaseDuplicateClasses
+> Task :app:mergeReleaseArtProfile
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
 
+> Task :app:processReleaseManifestForPackage
+> Task :app:mergeExtDexRelease
 > Task :app:extractReleaseNativeSymbolTables
-> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:mergeReleaseShaders
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
-> Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseAssets
 > Task :app:collectReleaseDependencies
+> Task :app:compressReleaseAssets
 > Task :app:sdkReleaseDependencyData
 > Task :app:validateSigningRelease
 > Task :app:writeReleaseAppMetadata
 > Task :app:writeReleaseSigningConfigVersions
 > Task :app:processReleaseResources
-> Task :app:compressReleaseAssets
-> Task :app:desugarReleaseFileDependencies
-> Task :app:compileReleaseKotlin
-> Task :app:mergeExtDexRelease
 > Task :app:optimizeReleaseResources
-
 > Task :app:compileReleaseKotlin
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:73:13 Variable 'p' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:85:41 Parameter 'source' is never used
@@ -130,7 +128,12 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/UpdateInstaller.kt:90:29 Condition 'pid != null' is always 'true'
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebActivity.kt:501:20 'onBackPressed(): Unit' is deprecated. Deprecated in Java
 
-> Task :app:compileReleaseJavaWithJavac NO-SOURCE
+> Task :app:compileReleaseJavaWithJavac
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+
 > Task :app:dexBuilderRelease
 > Task :app:mergeReleaseGlobalSynthetics
 > Task :app:processReleaseJavaRes
@@ -144,8 +147,8 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 > Task :app:lintVitalRelease
 > Task :app:assembleRelease
 
-BUILD SUCCESSFUL in 3m 24s
-45 actionable tasks: 45 executed
+BUILD SUCCESSFUL in 3m 48s
+46 actionable tasks: 46 executed
 To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
 Daemon will be stopped at the end of the build 
 > Task :app:preBuild UP-TO-DATE
@@ -168,23 +171,22 @@ Daemon will be stopped at the end of the build
 > Task :app:compileDebugShaders NO-SOURCE
 > Task :app:generateDebugAssets UP-TO-DATE
 > Task :app:mergeDebugAssets
-> Task :app:compressDebugAssets
 > Task :app:processDebugManifestForPackage
-> Task :app:checkDebugDuplicateClasses
+> Task :app:compressDebugAssets
+> Task :app:desugarDebugFileDependencies
 > Task :app:mergeDebugJniLibFolders
-> Task :app:mergeLibDexDebug
+> Task :app:checkDebugDuplicateClasses
 > Task :app:mergeDebugNativeLibs
 > Task :app:processDebugResources
-> Task :app:desugarDebugFileDependencies
-> Task :app:validateSigningDebug
-> Task :app:compileDebugKotlin
 > Task :app:mergeExtDexDebug
-> Task :app:writeDebugAppMetadata
-> Task :app:writeDebugSigningConfigVersions
+> Task :app:mergeLibDexDebug
 
 > Task :app:stripDebugDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
 
+> Task :app:validateSigningDebug
+> Task :app:writeDebugAppMetadata
+> Task :app:writeDebugSigningConfigVersions
 > Task :app:compileDebugKotlin
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:73:13 Variable 'p' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:85:41 Parameter 'source' is never used
@@ -254,7 +256,12 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/UpdateInstaller.kt:90:29 Condition 'pid != null' is always 'true'
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebActivity.kt:501:20 'onBackPressed(): Unit' is deprecated. Deprecated in Java
 
-> Task :app:compileDebugJavaWithJavac NO-SOURCE
+> Task :app:compileDebugJavaWithJavac
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+
 > Task :app:dexBuilderDebug
 > Task :app:mergeDebugGlobalSynthetics
 > Task :app:processDebugJavaRes
@@ -264,5 +271,5 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 > Task :app:createDebugApkListingFileRedirect
 > Task :app:assembleDebug
 
-BUILD SUCCESSFUL in 2m 3s
-35 actionable tasks: 35 executed
+BUILD SUCCESSFUL in 2m 2s
+36 actionable tasks: 36 executed
