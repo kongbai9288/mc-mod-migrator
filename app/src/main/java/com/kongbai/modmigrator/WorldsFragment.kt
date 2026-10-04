@@ -168,8 +168,12 @@ class WorldsFragment : Fragment() {
             if (w.allowCommands) append("\n允许作弊：是")
             if (w.dataVersion > 0) append("\n数据版本 ${w.dataVersion}")
         }
+        // 这台机器上可能装着好几个启动器，存档目录名又各不相同，
+        // 光看路径分不清这个存档属于谁。按路径认出品牌，配一枚图标。
+        val brand = LauncherBrand.fromPath(w.dir)
         val card = UiCards.infoCard(
-            ctx, R.drawable.ic_folder, w.name, desc, "详情"
+            ctx, R.drawable.ic_folder, w.name, desc, "详情",
+            badge = brand.icon, badgeHint = "属于 ${brand.label}"
         ) {
             showDetail(ctx, w)
         }
@@ -198,6 +202,25 @@ class WorldsFragment : Fragment() {
             }
             ll.addView(img)
         }
+        val b2 = LauncherBrand.fromPath(w.dir)
+        val rowBrand = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(0, 0, 0, (8 * resources.displayMetrics.density).toInt())
+            addView(ImageView(ctx).apply {
+                setImageResource(b2.icon)
+                val s = (24 * resources.displayMetrics.density).toInt()
+                layoutParams = LinearLayout.LayoutParams(s, s).apply {
+                    marginEnd = (8 * resources.displayMetrics.density).toInt()
+                }
+            })
+            addView(TextView(ctx).apply {
+                text = "属于 ${b2.label}"
+                textSize = 12f
+            })
+        }
+        ll.addView(rowBrand, 0)
+
         com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
             .setTitle(w.name)
             .setView(ll)

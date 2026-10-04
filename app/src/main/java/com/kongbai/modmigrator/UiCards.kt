@@ -311,6 +311,13 @@ object UiCards {
         title: String,
         desc: String,
         actionLabel: String = "",
+        /**
+         * 右侧角标图标（0 表示不要）。
+         * 与左边的 icon 不同，**这个不染色**——
+         * 启动器图标是彩色的，套主题色会糊成一块。
+         */
+        badge: Int = 0,
+        badgeHint: String = "",
         onClick: () -> Unit
     ): View {
         val card = LinearLayout(ctx).apply {
@@ -361,12 +368,24 @@ object UiCards {
         }
         card.addView(texts)
 
+        if (badge != 0) {
+            card.addView(ImageView(ctx).apply {
+                setImageResource(badge)
+                val s = dp(ctx, 22)
+                layoutParams = LinearLayout.LayoutParams(s, s).apply {
+                    marginStart = dp(ctx, 8)
+                }
+                if (badgeHint.isNotBlank()) contentDescription = badgeHint
+            })
+        }
+
         if (actionLabel.isNotBlank()) {
             card.addView(TextView(ctx).apply {
                 text = actionLabel
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
                 setTextColor(primary(ctx))
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setPadding(dp(ctx, 8), 0, 0, 0)
             })
         }
         return card

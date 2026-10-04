@@ -117,6 +117,8 @@ object K {
     const val REPO = "gh_repo"
     const val BRANCH = "gh_branch"
     const val DEVICE_ID = "device_id"
+    /** 是否播放"从启动器进来"的开场动画（默认开） */
+    const val SPLASH_ANIM = "splash_anim"
     const val DEVICE_LABEL = "device_label"
     const val SRC_URI = "src_uri"
     const val DST_URI = "dst_uri"

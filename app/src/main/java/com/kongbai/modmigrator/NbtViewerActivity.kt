@@ -8,6 +8,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.ViewGroup
 import android.widget.HorizontalScrollView
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -88,6 +89,27 @@ class NbtViewerActivity : AppCompatActivity() {
             setPadding(0, 0, 0, (8 * resources.displayMetrics.density).toInt())
         }
         root.addView(tvPath)
+
+        // 这个文件属于哪个启动器：同一台机器上可能装着好几个，
+        // 光看路径分不清是谁的存档，配一枚图标一眼可辨。
+        val b = LauncherBrand.fromPath(displayName())
+        root.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(0, 0, 0, (8 * resources.displayMetrics.density).toInt())
+            addView(ImageView(this@NbtViewerActivity).apply {
+                setImageResource(b.icon)
+                val s = (22 * resources.displayMetrics.density).toInt()
+                layoutParams = LinearLayout.LayoutParams(s, s).apply {
+                    marginEnd = (6 * resources.displayMetrics.density).toInt()
+                }
+            })
+            addView(TextView(this@NbtViewerActivity).apply {
+                text = "属于 ${b.label}"
+                textSize = 11f
+                setTextColor(resources.getColor(R.color.textSecondary, null))
+            })
+        })
 
         tvState = TextView(this).apply {
             text = "正在读取…"

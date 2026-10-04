@@ -70,6 +70,17 @@ class MainActivity : AppCompatActivity() {
              }
 
         CrashReport.showIfAny(this)
+
+        // ── 开场动画：从哪个启动器进来，就放哪家的图标 ──────────
+        // 启动器通过 Intent extra 自报名字与版本（见 LauncherBrand 的说明），
+        // 不做包名校验——fork 版改了包名也照样能认。
+        // 动画占满 3 秒有点久，所以设置里给了开关，点击任意处也能跳过。
+        runCatching {
+            val h = LauncherBrand.handoff(this)
+            if (h != null && Prefs.get(this).getBoolean(K.SPLASH_ANIM, true)) {
+                LauncherSplash.play(this, h)
+            }
+        }
     }
 
     /**

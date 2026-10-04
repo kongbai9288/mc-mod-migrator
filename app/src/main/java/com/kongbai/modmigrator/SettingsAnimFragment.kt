@@ -110,6 +110,58 @@ class SettingsAnimFragment : Fragment() {
             setOnClickListener { playDemo(ctx, box) }
         })
 
+        // ── 开场动画（从启动器进来时播放） ────────────────────
+        // 单独放一节：它和上面的界面动画是两回事——
+        // 上面管的是列表/切换的动效，这一项管的是开场那 3 秒。
+        // 有人嫌开场慢，所以默认开、但随时能关。
+        root.addView(TextView(ctx).apply {
+            text = "开场动画"
+            textSize = 14f
+            setTextColor(textColorPrimary(ctx))
+            setPadding(0, 24, 0, 4)
+        })
+        val tvSplashDesc = TextView(ctx).apply {
+            textSize = 12f
+            setTextColor(textColorPrimary(ctx))
+            setPadding(0, 0, 0, 8)
+        }
+        root.addView(tvSplashDesc)
+
+        val swSplash = com.google.android.material.materialswitch.MaterialSwitch(ctx).apply {
+            text = "从启动器进来时播放"
+            isChecked = Prefs.get(ctx).getBoolean(K.SPLASH_ANIM, true)
+        }
+        root.addView(swSplash)
+
+        root.addView(MaterialButton(ctx).apply {
+            text = "预览开场动画"
+            setOnClickListener {
+                val h = LauncherBrand.Handoff(
+                    LauncherBrand.byKey("zalith2"), "Zalith Launcher 2", "2.0.7"
+                )
+                LauncherSplash.play(requireActivity(), h)
+            }
+        })
+
+        fun refreshSplash() {
+            val h = runCatching { LauncherBrand.handoff(requireActivity()) }.getOrNull()
+            tvSplashDesc.text = buildString {
+                append("固定 3 秒，播放时点任意位置可跳过。\n")
+                append("当前这次：")
+                append(LauncherBrand.describe(h))
+                if (h == null) append("\n（直接打开本应用时不会播放）")
+            }
+        }
+        refreshSplash()
+
+        swSplash.setOnCheckedChangeListener { _, on ->
+            Prefs.get(ctx).edit().putBoolean(K.SPLASH_ANIM, on).apply()
+            android.widget.Toast.makeText(
+                ctx, if (on) "开场动画已开启" else "开场动画已关闭，之后直接进主界面",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+
         fun refresh() {
             tvState.text = AnimPrefs.describe(ctx)
         }
