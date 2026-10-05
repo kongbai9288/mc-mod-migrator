@@ -26,9 +26,9 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mapReleaseSourceSetPaths
 > Task :app:generateReleaseResources
 > Task :app:packageReleaseResources
-> Task :app:mergeReleaseResources
 > Task :app:createReleaseCompatibleScreenManifests
 > Task :app:extractDeepLinksRelease
+> Task :app:mergeReleaseResources
 > Task :app:parseReleaseLocalResources
 > Task :app:processReleaseMainManifest
 > Task :app:processReleaseManifest
@@ -37,8 +37,9 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mergeReleaseJniLibFolders
 > Task :app:mergeReleaseNativeLibs
 > Task :app:desugarReleaseFileDependencies
-> Task :app:processReleaseManifestForPackage
 > Task :app:checkReleaseDuplicateClasses
+> Task :app:processReleaseManifestForPackage
+> Task :app:mergeReleaseArtProfile
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
@@ -47,7 +48,6 @@ Unable to strip the following libraries, packaging them as they are: libconscryp
 > Task :app:processReleaseResources
 > Task :app:mergeExtDexRelease
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
-> Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
@@ -60,238 +60,12 @@ Unable to strip the following libraries, packaging them as they are: libconscryp
 > Task :app:writeReleaseSigningConfigVersions
 > Task :app:optimizeReleaseResources
 > Task :app:compileReleaseKotlin
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:143:42 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:144:36 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:145:38 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:151:75 Type mismatch: inferred type is OpenListResult<Unit> but OpenListResult<RemoteFile> was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:152:9 Type mismatch: inferred type is Unit but RemoteFile was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:156:38 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:157:32 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:158:34 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:161:17 Overload resolution ambiguity: 
-public inline fun <T> Array<out TypeVariable(T)>.firstOrNull(predicate: (TypeVariable(T)) -> Boolean): TypeVariable(T)? defined in kotlin.collections
-public inline fun BooleanArray.firstOrNull(predicate: (Boolean) -> Boolean): Boolean? defined in kotlin.collections
-public inline fun ByteArray.firstOrNull(predicate: (Byte) -> Boolean): Byte? defined in kotlin.collections
-public inline fun CharArray.firstOrNull(predicate: (Char) -> Boolean): Char? defined in kotlin.collections
-public inline fun CharSequence.firstOrNull(predicate: (Char) -> Boolean): Char? defined in kotlin.text
-public inline fun DoubleArray.firstOrNull(predicate: (Double) -> Boolean): Double? defined in kotlin.collections
-public inline fun FloatArray.firstOrNull(predicate: (Float) -> Boolean): Float? defined in kotlin.collections
-public inline fun IntArray.firstOrNull(predicate: (Int) -> Boolean): Int? defined in kotlin.collections
-public inline fun LongArray.firstOrNull(predicate: (Long) -> Boolean): Long? defined in kotlin.collections
-public inline fun ShortArray.firstOrNull(predicate: (Short) -> Boolean): Short? defined in kotlin.collections
-public inline fun UByteArray.firstOrNull(predicate: (UByte) -> Boolean): UByte? defined in kotlin.collections
-public inline fun UIntArray.firstOrNull(predicate: (UInt) -> Boolean): UInt? defined in kotlin.collections
-public inline fun ULongArray.firstOrNull(predicate: (ULong) -> Boolean): ULong? defined in kotlin.collections
-public inline fun UShortArray.firstOrNull(predicate: (UShort) -> Boolean): UShort? defined in kotlin.collections
-public inline fun <T> Iterable<TypeVariable(T)>.firstOrNull(predicate: (TypeVariable(T)) -> Boolean): TypeVariable(T)? defined in kotlin.collections
-public inline fun <T> Sequence<TypeVariable(T)>.firstOrNull(predicate: (TypeVariable(T)) -> Boolean): TypeVariable(T)? defined in kotlin.sequences
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:161:31 Unresolved reference: it
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:177:38 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:178:32 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:179:34 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:184:32 Cannot find a parameter with this name: name
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:194:31 Type mismatch: inferred type is OpenListResult<Unit?> but OpenListResult<Unit> was expected
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:195:9 Type mismatch: inferred type is Unit? but Unit was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:199:38 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:200:32 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:201:34 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:211:38 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:212:32 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:213:34 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:222:38 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:223:32 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:224:34 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:238:50 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:238:77 Unresolved reference: it
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:239:44 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:239:71 Unresolved reference: it
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:240:46 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:240:71 Unresolved reference: it
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:246:50 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:247:44 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:248:46 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:256:74 Type mismatch: inferred type is OpenListResult<Unit> but OpenListResult<Boolean> was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:257:9 Type mismatch: inferred type is Unit but Boolean was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:261:38 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:262:32 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:263:34 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:266:17 Overload resolution ambiguity: 
-public inline fun <T> Array<out TypeVariable(T)>.any(predicate: (TypeVariable(T)) -> Boolean): Boolean defined in kotlin.collections
-public inline fun BooleanArray.any(predicate: (Boolean) -> Boolean): Boolean defined in kotlin.collections
-public inline fun ByteArray.any(predicate: (Byte) -> Boolean): Boolean defined in kotlin.collections
-public inline fun CharArray.any(predicate: (Char) -> Boolean): Boolean defined in kotlin.collections
-public inline fun CharSequence.any(predicate: (Char) -> Boolean): Boolean defined in kotlin.text
-public inline fun DoubleArray.any(predicate: (Double) -> Boolean): Boolean defined in kotlin.collections
-public inline fun FloatArray.any(predicate: (Float) -> Boolean): Boolean defined in kotlin.collections
-public inline fun IntArray.any(predicate: (Int) -> Boolean): Boolean defined in kotlin.collections
-public inline fun LongArray.any(predicate: (Long) -> Boolean): Boolean defined in kotlin.collections
-public inline fun ShortArray.any(predicate: (Short) -> Boolean): Boolean defined in kotlin.collections
-public inline fun UByteArray.any(predicate: (UByte) -> Boolean): Boolean defined in kotlin.collections
-public inline fun UIntArray.any(predicate: (UInt) -> Boolean): Boolean defined in kotlin.collections
-public inline fun ULongArray.any(predicate: (ULong) -> Boolean): Boolean defined in kotlin.collections
-public inline fun UShortArray.any(predicate: (UShort) -> Boolean): Boolean defined in kotlin.collections
-public inline fun <T> Iterable<TypeVariable(T)>.any(predicate: (TypeVariable(T)) -> Boolean): Boolean defined in kotlin.collections
-public inline fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.any(predicate: (Map.Entry<TypeVariable(K), TypeVariable(V)>) -> Boolean): Boolean defined in kotlin.collections
-public inline fun <T> Sequence<TypeVariable(T)>.any(predicate: (TypeVariable(T)) -> Boolean): Boolean defined in kotlin.sequences
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:266:23 Unresolved reference: it
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:274:42 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:275:36 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:276:38 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:297:9 Type mismatch: inferred type is OpenListResult<Unit> but OpenListResult<Long> was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:298:13 Type mismatch: inferred type is Unit but Long was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:300:42 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:301:36 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:302:38 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:305:21 Overload resolution ambiguity: 
-public inline fun <T> Array<out TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> BigDecimal): BigDecimal defined in kotlin.collections
-public inline fun <T> Array<out TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> BigInteger): BigInteger defined in kotlin.collections
-public inline fun <T> Array<out TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> Double): Double defined in kotlin.collections
-public inline fun <T> Array<out TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> Int): Int defined in kotlin.collections
-public inline fun <T> Array<out TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> Long): Long defined in kotlin.collections
-public inline fun <T> Array<out TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> UInt): UInt defined in kotlin.collections
-public inline fun <T> Array<out TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> ULong): ULong defined in kotlin.collections
-public inline fun BooleanArray.sumOf(selector: (Boolean) -> BigDecimal): BigDecimal defined in kotlin.collections
-public inline fun BooleanArray.sumOf(selector: (Boolean) -> BigInteger): BigInteger defined in kotlin.collections
-public inline fun BooleanArray.sumOf(selector: (Boolean) -> Double): Double defined in kotlin.collections
-public inline fun BooleanArray.sumOf(selector: (Boolean) -> Int): Int defined in kotlin.collections
-public inline fun BooleanArray.sumOf(selector: (Boolean) -> Long): Long defined in kotlin.collections
-public inline fun BooleanArray.sumOf(selector: (Boolean) -> UInt): UInt defined in kotlin.collections
-public inline fun BooleanArray.sumOf(selector: (Boolean) -> ULong): ULong defined in kotlin.collections
-public inline fun ByteArray.sumOf(selector: (Byte) -> BigDecimal): BigDecimal defined in kotlin.collections
-public inline fun ByteArray.sumOf(selector: (Byte) -> BigInteger): BigInteger defined in kotlin.collections
-public inline fun ByteArray.sumOf(selector: (Byte) -> Double): Double defined in kotlin.collections
-public inline fun ByteArray.sumOf(selector: (Byte) -> Int): Int defined in kotlin.collections
-public inline fun ByteArray.sumOf(selector: (Byte) -> Long): Long defined in kotlin.collections
-public inline fun ByteArray.sumOf(selector: (Byte) -> UInt): UInt defined in kotlin.collections
-public inline fun ByteArray.sumOf(selector: (Byte) -> ULong): ULong defined in kotlin.collections
-public inline fun CharArray.sumOf(selector: (Char) -> BigDecimal): BigDecimal defined in kotlin.collections
-public inline fun CharArray.sumOf(selector: (Char) -> BigInteger): BigInteger defined in kotlin.collections
-public inline fun CharArray.sumOf(selector: (Char) -> Double): Double defined in kotlin.collections
-public inline fun CharArray.sumOf(selector: (Char) -> Int): Int defined in kotlin.collections
-public inline fun CharArray.sumOf(selector: (Char) -> Long): Long defined in kotlin.collections
-public inline fun CharArray.sumOf(selector: (Char) -> UInt): UInt defined in kotlin.collections
-public inline fun CharArray.sumOf(selector: (Char) -> ULong): ULong defined in kotlin.collections
-public inline fun CharSequence.sumOf(selector: (Char) -> BigDecimal): BigDecimal defined in kotlin.text
-public inline fun CharSequence.sumOf(selector: (Char) -> BigInteger): BigInteger defined in kotlin.text
-public inline fun CharSequence.sumOf(selector: (Char) -> Double): Double defined in kotlin.text
-public inline fun CharSequence.sumOf(selector: (Char) -> Int): Int defined in kotlin.text
-public inline fun CharSequence.sumOf(selector: (Char) -> Long): Long defined in kotlin.text
-public inline fun CharSequence.sumOf(selector: (Char) -> UInt): UInt defined in kotlin.text
-public inline fun CharSequence.sumOf(selector: (Char) -> ULong): ULong defined in kotlin.text
-public inline fun DoubleArray.sumOf(selector: (Double) -> BigDecimal): BigDecimal defined in kotlin.collections
-public inline fun DoubleArray.sumOf(selector: (Double) -> BigInteger): BigInteger defined in kotlin.collections
-public inline fun DoubleArray.sumOf(selector: (Double) -> Double): Double defined in kotlin.collections
-public inline fun DoubleArray.sumOf(selector: (Double) -> Int): Int defined in kotlin.collections
-public inline fun DoubleArray.sumOf(selector: (Double) -> Long): Long defined in kotlin.collections
-public inline fun DoubleArray.sumOf(selector: (Double) -> UInt): UInt defined in kotlin.collections
-public inline fun DoubleArray.sumOf(selector: (Double) -> ULong): ULong defined in kotlin.collections
-public inline fun FloatArray.sumOf(selector: (Float) -> BigDecimal): BigDecimal defined in kotlin.collections
-public inline fun FloatArray.sumOf(selector: (Float) -> BigInteger): BigInteger defined in kotlin.collections
-public inline fun FloatArray.sumOf(selector: (Float) -> Double): Double defined in kotlin.collections
-public inline fun FloatArray.sumOf(selector: (Float) -> Int): Int defined in kotlin.collections
-public inline fun FloatArray.sumOf(selector: (Float) -> Long): Long defined in kotlin.collections
-public inline fun FloatArray.sumOf(selector: (Float) -> UInt): UInt defined in kotlin.collections
-public inline fun FloatArray.sumOf(selector: (Float) -> ULong): ULong defined in kotlin.collections
-public inline fun IntArray.sumOf(selector: (Int) -> BigDecimal): BigDecimal defined in kotlin.collections
-public inline fun IntArray.sumOf(selector: (Int) -> BigInteger): BigInteger defined in kotlin.collections
-public inline fun IntArray.sumOf(selector: (Int) -> Double): Double defined in kotlin.collections
-public inline fun IntArray.sumOf(selector: (Int) -> Int): Int defined in kotlin.collections
-public inline fun IntArray.sumOf(selector: (Int) -> Long): Long defined in kotlin.collections
-public inline fun IntArray.sumOf(selector: (Int) -> UInt): UInt defined in kotlin.collections
-public inline fun IntArray.sumOf(selector: (Int) -> ULong): ULong defined in kotlin.collections
-public inline fun LongArray.sumOf(selector: (Long) -> BigDecimal): BigDecimal defined in kotlin.collections
-public inline fun LongArray.sumOf(selector: (Long) -> BigInteger): BigInteger defined in kotlin.collections
-public inline fun LongArray.sumOf(selector: (Long) -> Double): Double defined in kotlin.collections
-public inline fun LongArray.sumOf(selector: (Long) -> Int): Int defined in kotlin.collections
-public inline fun LongArray.sumOf(selector: (Long) -> Long): Long defined in kotlin.collections
-public inline fun LongArray.sumOf(selector: (Long) -> UInt): UInt defined in kotlin.collections
-public inline fun LongArray.sumOf(selector: (Long) -> ULong): ULong defined in kotlin.collections
-public inline fun ShortArray.sumOf(selector: (Short) -> BigDecimal): BigDecimal defined in kotlin.collections
-public inline fun ShortArray.sumOf(selector: (Short) -> BigInteger): BigInteger defined in kotlin.collections
-public inline fun ShortArray.sumOf(selector: (Short) -> Double): Double defined in kotlin.collections
-public inline fun ShortArray.sumOf(selector: (Short) -> Int): Int defined in kotlin.collections
-public inline fun ShortArray.sumOf(selector: (Short) -> Long): Long defined in kotlin.collections
-public inline fun ShortArray.sumOf(selector: (Short) -> UInt): UInt defined in kotlin.collections
-public inline fun ShortArray.sumOf(selector: (Short) -> ULong): ULong defined in kotlin.collections
-public inline fun UByteArray.sumOf(selector: (UByte) -> BigDecimal): BigDecimal defined in kotlin.collections
-public inline fun UByteArray.sumOf(selector: (UByte) -> BigInteger): BigInteger defined in kotlin.collections
-public inline fun UByteArray.sumOf(selector: (UByte) -> Double): Double defined in kotlin.collections
-public inline fun UByteArray.sumOf(selector: (UByte) -> Int): Int defined in kotlin.collections
-public inline fun UByteArray.sumOf(selector: (UByte) -> Long): Long defined in kotlin.collections
-public inline fun UByteArray.sumOf(selector: (UByte) -> UInt): UInt defined in kotlin.collections
-public inline fun UByteArray.sumOf(selector: (UByte) -> ULong): ULong defined in kotlin.collections
-public inline fun UIntArray.sumOf(selector: (UInt) -> BigDecimal): BigDecimal defined in kotlin.collections
-public inline fun UIntArray.sumOf(selector: (UInt) -> BigInteger): BigInteger defined in kotlin.collections
-public inline fun UIntArray.sumOf(selector: (UInt) -> Double): Double defined in kotlin.collections
-public inline fun UIntArray.sumOf(selector: (UInt) -> Int): Int defined in kotlin.collections
-public inline fun UIntArray.sumOf(selector: (UInt) -> Long): Long defined in kotlin.collections
-public inline fun UIntArray.sumOf(selector: (UInt) -> UInt): UInt defined in kotlin.collections
-public inline fun UIntArray.sumOf(selector: (UInt) -> ULong): ULong defined in kotlin.collections
-public inline fun ULongArray.sumOf(selector: (ULong) -> BigDecimal): BigDecimal defined in kotlin.collections
-public inline fun ULongArray.sumOf(selector: (ULong) -> BigInteger): BigInteger defined in kotlin.collections
-public inline fun ULongArray.sumOf(selector: (ULong) -> Double): Double defined in kotlin.collections
-public inline fun ULongArray.sumOf(selector: (ULong) -> Int): Int defined in kotlin.collections
-public inline fun ULongArray.sumOf(selector: (ULong) -> Long): Long defined in kotlin.collections
-public inline fun ULongArray.sumOf(selector: (ULong) -> UInt): UInt defined in kotlin.collections
-public inline fun ULongArray.sumOf(selector: (ULong) -> ULong): ULong defined in kotlin.collections
-public inline fun UShortArray.sumOf(selector: (UShort) -> BigDecimal): BigDecimal defined in kotlin.collections
-public inline fun UShortArray.sumOf(selector: (UShort) -> BigInteger): BigInteger defined in kotlin.collections
-public inline fun UShortArray.sumOf(selector: (UShort) -> Double): Double defined in kotlin.collections
-public inline fun UShortArray.sumOf(selector: (UShort) -> Int): Int defined in kotlin.collections
-public inline fun UShortArray.sumOf(selector: (UShort) -> Long): Long defined in kotlin.collections
-public inline fun UShortArray.sumOf(selector: (UShort) -> UInt): UInt defined in kotlin.collections
-public inline fun UShortArray.sumOf(selector: (UShort) -> ULong): ULong defined in kotlin.collections
-public inline fun <T> Iterable<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> BigDecimal): BigDecimal defined in kotlin.collections
-public inline fun <T> Iterable<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> BigInteger): BigInteger defined in kotlin.collections
-public inline fun <T> Iterable<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> Double): Double defined in kotlin.collections
-public inline fun <T> Iterable<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> Int): Int defined in kotlin.collections
-public inline fun <T> Iterable<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> Long): Long defined in kotlin.collections
-public inline fun <T> Iterable<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> UInt): UInt defined in kotlin.collections
-public inline fun <T> Iterable<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> ULong): ULong defined in kotlin.collections
-public inline fun <T> Sequence<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> BigDecimal): BigDecimal defined in kotlin.sequences
-public inline fun <T> Sequence<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> BigInteger): BigInteger defined in kotlin.sequences
-public inline fun <T> Sequence<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> Double): Double defined in kotlin.sequences
-public inline fun <T> Sequence<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> Int): Int defined in kotlin.sequences
-public inline fun <T> Sequence<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> Long): Long defined in kotlin.sequences
-public inline fun <T> Sequence<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> UInt): UInt defined in kotlin.sequences
-public inline fun <T> Sequence<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> ULong): ULong defined in kotlin.sequences
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:305:29 Unresolved reference: it
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:406:41 Cannot find a parameter with this name: name
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:446:63 Cannot find a parameter with this name: name
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:504:67 Cannot find a parameter with this name: name
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:407:41 Cannot find a parameter with this name: name
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:447:63 Cannot find a parameter with this name: name
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:505:67 Cannot find a parameter with this name: name
 
 > Task :app:compileReleaseKotlin FAILED
 
@@ -308,5 +82,5 @@ Execution failed for task ':app:compileReleaseKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 2m 23s
+BUILD FAILED in 2m 28s
 34 actionable tasks: 34 executed
