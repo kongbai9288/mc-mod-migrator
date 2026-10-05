@@ -115,7 +115,7 @@ internal class OpenListDrive(
         try {
             OpenListResult.success(block())
         } catch (e: Exception) {
-            OpenListResult.failure(OpenListException(friendly(e)))
+            OpenListResult.failure(friendly(e))
         }
 
     private fun abs(path: String): String {
@@ -281,7 +281,7 @@ internal class OpenListDrive(
 
     override suspend fun copy(source: String, destination: String): OpenListResult<Unit> =
         withContext(Dispatchers.IO) {
-            OpenListResult.failure(OpenListException("这个协议不支持直接复制远端文件，请先下载再上传"))
+            OpenListResult.failure("这个协议不支持直接复制远端文件，请先下载再上传")
         }
 
     override suspend fun getDownloadUrl(path: String): OpenListResult<String> =
@@ -289,7 +289,7 @@ internal class OpenListDrive(
             when (kind()) {
                 "webdav" -> OpenListResult.success(host() + abs(path))
                 else -> OpenListResult.failure(
-                    OpenListException("只有 WebDAV 能直接给出下载地址；FTP/SFTP 请直接下载"))
+                    "只有 WebDAV 能直接给出下载地址；FTP/SFTP 请直接下载")
             }
         }
 
@@ -320,7 +320,7 @@ internal class OpenListDrive(
         .followRedirects(true)
         .build()
 
-    private inner class Dav {
+    private inner class Dav : java.io.Closeable {
         private val c = ok()
         private val base = host()
         private val auth = Credentials.basic(user(), pwd())
@@ -358,6 +358,7 @@ internal class OpenListDrive(
 
         fun del(path: String) { req(base + path.replace(" ", "%20"), "DELETE").close() }
         fun mkcol(path: String) { runCatching { req(base + path.replace(" ", "%20"), "MKCOL").close() } }
+        override fun close() {}
 
         fun move(from: String, to: String) {
             val b = Request.Builder()
@@ -413,7 +414,7 @@ internal class OpenListDrive(
         return out
     }
 
-    private inner class Ftp {
+    private inner class Ftp : java.io.Closeable {
         private val c: FTPClient = if (host().startsWith("ftps", true) ||
             first("ssl", "tls", "implicit_tls").equals("true", true)) FTPSClient() else FTPClient()
 
@@ -479,12 +480,12 @@ internal class OpenListDrive(
             if (!c.rename(from, to)) throw OpenListException("改名失败：${c.replyString}")
         }
 
-        fun close() { runCatching { c.logout() }; runCatching { c.disconnect() } }
+        override fun close() { runCatching { c.logout() }; runCatching { c.disconnect() } }
     }
 
     private fun ftp() = Ftp()
 
-    private inner class Sftp {
+    private inner class Sftp : java.io.Closeable {
         private val ssh = SSHClient()
 
         init {
@@ -519,7 +520,7 @@ internal class OpenListDrive(
         fun rm(path: String) { s().use { c -> runCatching { c.rm(path) }; runCatching { c.rmdir(path) } } }
         fun mkdir(path: String) { s().use { c -> c.mkdir(path) } }
         fun mv(from: String, to: String) { s().use { c -> c.rename(from, to) } }
-        fun close() { runCatching { ssh.disconnect() } }
+        override fun close() { runCatching { ssh.disconnect() } }
     }
 
     private fun sftp() = Sftp()
