@@ -252,9 +252,11 @@ class CloudDriveActivity : AppCompatActivity() {
         val labels = ordered.map {
             if (it.easy) "${it.name}" else "${it.name}（需要令牌）"
         }.toTypedArray()
+        // 说明放进标题：MaterialAlertDialog 同时 setMessage + setItems 时，
+        // 列表会被那段文字挤掉（实测弹窗里只剩说明、选项一条不剩）。
+        // 文字放标题里，列表一定会显示出来。
         MaterialAlertDialogBuilder(this)
-            .setTitle("用哪个网盘")
-            .setMessage("前面几个填账号密码就行，后面几个要先去网盘后台取令牌。")
+            .setTitle("用哪个网盘（前几个填账号密码即可）")
             .setItems(labels) { _, i ->
                 val d = ordered[i]
                 askFields(d)
