@@ -181,7 +181,7 @@ internal class OpenListDrive(
             }
             onProgress?.invoke(local.length())
             RemoteFile(
-                path = target, name = name, size = local.length(),
+                path = target, size = local.length(),
                 modifiedAt = System.currentTimeMillis(), isDirectory = false
             )
         }
@@ -202,6 +202,7 @@ internal class OpenListDrive(
                 else -> unsupported()
             }
             onProgress?.invoke(local.length())
+            Unit
         }
     }
 
@@ -404,7 +405,7 @@ internal class OpenListDrive(
                     val name = raw.substringAfterLast('/')
                     if (name.isNotBlank()) {
                         out.add(RemoteFile(
-                            path = raw, name = name, size = len,
+                            path = raw, size = len,
                             modifiedAt = mod, isDirectory = isDir))
                     }
                 }
@@ -444,8 +445,7 @@ internal class OpenListDrive(
             val arr = c.listFiles(path) ?: return emptyList()
             return arr.filter { it.name != "." && it.name != ".." }.map {
                 RemoteFile(
-                    path = path.trimEnd('/') + "/" + it.name, name = it.name,
-                    size = it.size, modifiedAt = it.timestamp?.timeInMillis ?: 0,
+                    path = path.trimEnd('/') + "/" + it.name, size = it.size, modifiedAt = it.timestamp?.timeInMillis ?: 0,
                     isDirectory = it.isDirectory)
             }
         }
@@ -502,8 +502,7 @@ internal class OpenListDrive(
             s().use { c ->
                 return c.ls(path).filter { it.name != "." && it.name != ".." }.map {
                     RemoteFile(
-                        path = path.trimEnd('/') + "/" + it.name, name = it.name,
-                        size = it.attributes.size, modifiedAt = it.attributes.mtime * 1000L,
+                        path = path.trimEnd('/') + "/" + it.name, size = it.attributes.size, modifiedAt = it.attributes.mtime * 1000L,
                         isDirectory = it.isDirectory)
                 }
             }
