@@ -27,13 +27,13 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:generateReleaseResources
 > Task :app:packageReleaseResources
 > Task :app:createReleaseCompatibleScreenManifests
-> Task :app:mergeReleaseResources
 > Task :app:extractDeepLinksRelease
 > Task :app:parseReleaseLocalResources
+> Task :app:mergeReleaseResources
 > Task :app:processReleaseMainManifest
 > Task :app:processReleaseManifest
-> Task :app:extractProguardFiles
 > Task :app:javaPreCompileRelease
+> Task :app:extractProguardFiles
 > Task :app:mergeReleaseJniLibFolders
 > Task :app:mergeReleaseNativeLibs
 > Task :app:processReleaseManifestForPackage
@@ -44,22 +44,94 @@ Unable to strip the following libraries, packaging them as they are: libconscryp
 
 > Task :app:extractReleaseNativeSymbolTables
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
-> Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
+> Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseAssets
-> Task :app:collectReleaseDependencies
 > Task :app:compressReleaseAssets
+> Task :app:collectReleaseDependencies
 > Task :app:sdkReleaseDependencyData
 > Task :app:validateSigningRelease
 > Task :app:writeReleaseAppMetadata
-> Task :app:writeReleaseSigningConfigVersions
 > Task :app:processReleaseResources
+> Task :app:writeReleaseSigningConfigVersions
+> Task :app:optimizeReleaseResources
+
 > Task :app:desugarReleaseFileDependencies
+WARNING: D8: Unexpected error during rewriting of Kotlin metadata for class 'net.querz.mcaselector.android.MinecraftCoordinates':
+com.android.tools.r8.internal.A10: Should never be called
+	at com.android.tools.r8.internal.cA.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:3)
+	at com.android.tools.r8.internal.Yz.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:57)
+	at com.android.tools.r8.internal.Yz.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:56)
+	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:41)
+	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:52)
+	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:40)
+	at com.google.common.util.concurrent.TrustedListenableFutureTask$TrustedFutureInterruptibleTask.runInterruptibly(TrustedListenableFutureTask.java:131)
+	at com.google.common.util.concurrent.InterruptibleTask.run(InterruptibleTask.java:74)
+	at com.google.common.util.concurrent.TrustedListenableFutureTask.run(TrustedListenableFutureTask.java:82)
+	at com.google.common.util.concurrent.MoreExecutors$DirectExecutorService.execute(MoreExecutors.java:323)
+	at java.base/java.util.concurrent.AbstractExecutorService.submit(AbstractExecutorService.java:145)
+	at com.google.common.util.concurrent.AbstractListeningExecutorService.submit(AbstractListeningExecutorService.java:69)
+	at com.google.common.util.concurrent.AbstractListeningExecutorService.submit(AbstractListeningExecutorService.java:36)
+	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:39)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:9)
+	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:51)
+	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:44)
+	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:42)
+	at com.android.tools.r8.internal.Yz.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:35)
+	at com.android.tools.r8.D8.b(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:17)
+	at com.android.tools.r8.utils.y3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:45)
+	at com.android.tools.r8.D8.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:69)
+	at com.android.tools.r8.D8.d(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:129)
+	at com.android.tools.r8.D8.b(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:1)
+	at com.android.tools.r8.utils.R0.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:28)
+	at com.android.tools.r8.utils.R0.b(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:2)
+	at com.android.tools.r8.D8.run(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:11)
+	at com.android.builder.dexing.D8DexArchiveBuilder.convert(D8DexArchiveBuilder.java:125)
+	at com.android.builder.dexing.DexArchiveBuilder.convert$default(DexArchiveBuilder.kt:44)
+	at com.android.build.gradle.internal.tasks.DexFileDependenciesTask$DexFileDependenciesWorkerAction.run(DexFileDependenciesTask.kt:154)
+	at com.android.build.gradle.internal.profile.ProfileAwareWorkAction.execute(ProfileAwareWorkAction.kt:74)
+	at org.gradle.workers.internal.DefaultWorkerServer.execute(DefaultWorkerServer.java:63)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:66)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:62)
+	at org.gradle.internal.classloader.ClassLoaderUtils.executeInClassloader(ClassLoaderUtils.java:100)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.lambda$execute$0(NoIsolationWorkerFactory.java:62)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:44)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:41)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:199)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:157)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+	at org.gradle.internal.operations.DefaultBuildOperationExecutor.call(DefaultBuildOperationExecutor.java:73)
+	at org.gradle.workers.internal.AbstractWorker.executeWrappedInBuildOperation(AbstractWorker.java:41)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.execute(NoIsolationWorkerFactory.java:59)
+	at org.gradle.workers.internal.DefaultWorkerExecutor.lambda$submitWork$0(DefaultWorkerExecutor.java:170)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runExecution(DefaultConditionalExecutionQueue.java:187)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.access$700(DefaultConditionalExecutionQueue.java:120)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner$1.run(DefaultConditionalExecutionQueue.java:162)
+	at org.gradle.internal.Factories$1.create(Factories.java:31)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:249)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:109)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:114)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runBatch(DefaultConditionalExecutionQueue.java:157)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.run(DefaultConditionalExecutionQueue.java:126)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:539)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
+	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:47)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+
+
 > Task :app:compileReleaseKotlin
 > Task :app:mergeExtDexRelease
-> Task :app:optimizeReleaseResources
 
 > Task :app:compileReleaseKotlin
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:73:13 Variable 'p' is never used
@@ -70,10 +142,6 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:236:16 Parameter 'ctx' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:295:50 Parameter 'loader' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:437:45 Parameter 'loader' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:215:49 'getValue(): Int!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:215:87 'getValue(): Int!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:216:49 'getValue(): Int!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:216:87 'getValue(): Int!' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CloudDriveActivity.kt:403:23 'startActivityForResult(Intent, Int): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CrashHandler.kt:66:58 'versionCode: Int' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CrashShare.kt:31:60 'versionCode: Int' is deprecated. Deprecated in Java
@@ -161,7 +229,7 @@ Note: Recompile with -Xlint:unchecked for details.
 > Task :app:lintVitalRelease
 > Task :app:assembleRelease
 
-BUILD SUCCESSFUL in 3m 7s
+BUILD SUCCESSFUL in 2m 52s
 46 actionable tasks: 46 executed
 To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
 Daemon will be stopped at the end of the build 
@@ -178,7 +246,6 @@ Daemon will be stopped at the end of the build
 > Task :app:extractDeepLinksDebug
 > Task :app:parseDebugLocalResources
 > Task :app:processDebugMainManifest
-> Task :app:mergeDebugResources
 > Task :app:processDebugManifest
 > Task :app:javaPreCompileDebug
 > Task :app:mergeDebugShaders
@@ -186,21 +253,95 @@ Daemon will be stopped at the end of the build
 > Task :app:generateDebugAssets UP-TO-DATE
 > Task :app:mergeDebugAssets
 > Task :app:processDebugManifestForPackage
+> Task :app:mergeDebugResources
 > Task :app:compressDebugAssets
-> Task :app:checkDebugDuplicateClasses
 > Task :app:mergeDebugJniLibFolders
-> Task :app:mergeLibDexDebug
-> Task :app:desugarDebugFileDependencies
+> Task :app:checkDebugDuplicateClasses
 > Task :app:mergeDebugNativeLibs
+> Task :app:mergeLibDexDebug
 > Task :app:processDebugResources
-> Task :app:validateSigningDebug
-> Task :app:compileDebugKotlin
-> Task :app:mergeExtDexDebug
-> Task :app:writeDebugAppMetadata
-> Task :app:writeDebugSigningConfigVersions
 
 > Task :app:stripDebugDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libgojni.so, libtranslate_jni.so.
+
+> Task :app:validateSigningDebug
+> Task :app:writeDebugAppMetadata
+> Task :app:writeDebugSigningConfigVersions
+
+> Task :app:desugarDebugFileDependencies
+WARNING: D8: Unexpected error during rewriting of Kotlin metadata for class 'net.querz.mcaselector.android.MinecraftCoordinates':
+com.android.tools.r8.internal.A10: Should never be called
+	at com.android.tools.r8.internal.cA.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:3)
+	at com.android.tools.r8.internal.Yz.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:57)
+	at com.android.tools.r8.internal.Yz.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:56)
+	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:41)
+	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:52)
+	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:40)
+	at com.google.common.util.concurrent.TrustedListenableFutureTask$TrustedFutureInterruptibleTask.runInterruptibly(TrustedListenableFutureTask.java:131)
+	at com.google.common.util.concurrent.InterruptibleTask.run(InterruptibleTask.java:74)
+	at com.google.common.util.concurrent.TrustedListenableFutureTask.run(TrustedListenableFutureTask.java:82)
+	at com.google.common.util.concurrent.MoreExecutors$DirectExecutorService.execute(MoreExecutors.java:323)
+	at java.base/java.util.concurrent.AbstractExecutorService.submit(AbstractExecutorService.java:145)
+	at com.google.common.util.concurrent.AbstractListeningExecutorService.submit(AbstractListeningExecutorService.java:69)
+	at com.google.common.util.concurrent.AbstractListeningExecutorService.submit(AbstractListeningExecutorService.java:36)
+	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:39)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:9)
+	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:51)
+	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:44)
+	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:42)
+	at com.android.tools.r8.internal.Yz.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:35)
+	at com.android.tools.r8.D8.b(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:17)
+	at com.android.tools.r8.utils.y3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:45)
+	at com.android.tools.r8.D8.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:69)
+	at com.android.tools.r8.D8.d(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:129)
+	at com.android.tools.r8.D8.b(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:1)
+	at com.android.tools.r8.utils.R0.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:28)
+	at com.android.tools.r8.utils.R0.b(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:2)
+	at com.android.tools.r8.D8.run(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:11)
+	at com.android.builder.dexing.D8DexArchiveBuilder.convert(D8DexArchiveBuilder.java:125)
+	at com.android.builder.dexing.DexArchiveBuilder.convert$default(DexArchiveBuilder.kt:44)
+	at com.android.build.gradle.internal.tasks.DexFileDependenciesTask$DexFileDependenciesWorkerAction.run(DexFileDependenciesTask.kt:154)
+	at com.android.build.gradle.internal.profile.ProfileAwareWorkAction.execute(ProfileAwareWorkAction.kt:74)
+	at org.gradle.workers.internal.DefaultWorkerServer.execute(DefaultWorkerServer.java:63)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:66)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:62)
+	at org.gradle.internal.classloader.ClassLoaderUtils.executeInClassloader(ClassLoaderUtils.java:100)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.lambda$execute$0(NoIsolationWorkerFactory.java:62)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:44)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:41)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:199)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:157)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+	at org.gradle.internal.operations.DefaultBuildOperationExecutor.call(DefaultBuildOperationExecutor.java:73)
+	at org.gradle.workers.internal.AbstractWorker.executeWrappedInBuildOperation(AbstractWorker.java:41)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.execute(NoIsolationWorkerFactory.java:59)
+	at org.gradle.workers.internal.DefaultWorkerExecutor.lambda$submitWork$0(DefaultWorkerExecutor.java:170)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runExecution(DefaultConditionalExecutionQueue.java:187)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.access$700(DefaultConditionalExecutionQueue.java:120)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner$1.run(DefaultConditionalExecutionQueue.java:162)
+	at org.gradle.internal.Factories$1.create(Factories.java:31)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:249)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:109)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:114)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runBatch(DefaultConditionalExecutionQueue.java:157)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.run(DefaultConditionalExecutionQueue.java:126)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:539)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
+	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:47)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+
+
+> Task :app:compileDebugKotlin
+> Task :app:mergeExtDexDebug
 
 > Task :app:compileDebugKotlin
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:73:13 Variable 'p' is never used
@@ -211,10 +352,6 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:236:16 Parameter 'ctx' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:295:50 Parameter 'loader' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:437:45 Parameter 'loader' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:215:49 'getValue(): Int!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:215:87 'getValue(): Int!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:216:49 'getValue(): Int!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:216:87 'getValue(): Int!' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CloudDriveActivity.kt:403:23 'startActivityForResult(Intent, Int): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CrashHandler.kt:66:58 'versionCode: Int' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CrashShare.kt:31:60 'versionCode: Int' is deprecated. Deprecated in Java
@@ -298,5 +435,5 @@ Note: Recompile with -Xlint:unchecked for details.
 > Task :app:createDebugApkListingFileRedirect
 > Task :app:assembleDebug
 
-BUILD SUCCESSFUL in 1m 42s
+BUILD SUCCESSFUL in 1m 39s
 36 actionable tasks: 36 executed
