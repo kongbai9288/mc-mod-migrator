@@ -36,404 +36,300 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:extractProguardFiles
 > Task :app:mergeReleaseJniLibFolders
 > Task :app:mergeReleaseNativeLibs
-> Task :app:processReleaseManifestForPackage
+> Task :app:desugarReleaseFileDependencies
 > Task :app:checkReleaseDuplicateClasses
+> Task :app:mergeReleaseArtProfile
 
 > Task :app:stripReleaseDebugSymbols
-Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libgojni.so, libtranslate_jni.so.
+Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
 
+> Task :app:processReleaseManifestForPackage
+> Task :app:mergeExtDexRelease
+> Task :app:mergeReleaseShaders
 > Task :app:extractReleaseNativeSymbolTables
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
-> Task :app:mergeReleaseShaders
-> Task :app:mergeReleaseArtProfile
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
 > Task :app:mergeReleaseAssets
-> Task :app:compressReleaseAssets
 > Task :app:collectReleaseDependencies
+> Task :app:compressReleaseAssets
 > Task :app:sdkReleaseDependencyData
 > Task :app:validateSigningRelease
 > Task :app:writeReleaseAppMetadata
 > Task :app:writeReleaseSigningConfigVersions
 > Task :app:processReleaseResources
-
-> Task :app:desugarReleaseFileDependencies
-WARNING: D8: Unexpected error during rewriting of Kotlin metadata for class 'net.querz.mcaselector.android.MinecraftCoordinates':
-com.android.tools.r8.internal.A10: Should never be called
-	at com.android.tools.r8.internal.cA.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:3)
-	at com.android.tools.r8.internal.Yz.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:57)
-	at com.android.tools.r8.internal.Yz.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:56)
-	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:41)
-	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:52)
-	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:40)
-	at com.google.common.util.concurrent.TrustedListenableFutureTask$TrustedFutureInterruptibleTask.runInterruptibly(TrustedListenableFutureTask.java:131)
-	at com.google.common.util.concurrent.InterruptibleTask.run(InterruptibleTask.java:74)
-	at com.google.common.util.concurrent.TrustedListenableFutureTask.run(TrustedListenableFutureTask.java:82)
-	at com.google.common.util.concurrent.MoreExecutors$DirectExecutorService.execute(MoreExecutors.java:323)
-	at java.base/java.util.concurrent.AbstractExecutorService.submit(AbstractExecutorService.java:145)
-	at com.google.common.util.concurrent.AbstractListeningExecutorService.submit(AbstractListeningExecutorService.java:69)
-	at com.google.common.util.concurrent.AbstractListeningExecutorService.submit(AbstractListeningExecutorService.java:36)
-	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:39)
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
-	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:9)
-	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:51)
-	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:44)
-	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:42)
-	at com.android.tools.r8.internal.Yz.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:35)
-	at com.android.tools.r8.D8.b(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:17)
-	at com.android.tools.r8.utils.y3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:45)
-	at com.android.tools.r8.D8.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:69)
-	at com.android.tools.r8.D8.d(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:129)
-	at com.android.tools.r8.D8.b(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:1)
-	at com.android.tools.r8.utils.R0.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:28)
-	at com.android.tools.r8.utils.R0.b(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:2)
-	at com.android.tools.r8.D8.run(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:11)
-	at com.android.builder.dexing.D8DexArchiveBuilder.convert(D8DexArchiveBuilder.java:125)
-	at com.android.builder.dexing.DexArchiveBuilder.convert$default(DexArchiveBuilder.kt:44)
-	at com.android.build.gradle.internal.tasks.DexFileDependenciesTask$DexFileDependenciesWorkerAction.run(DexFileDependenciesTask.kt:154)
-	at com.android.build.gradle.internal.profile.ProfileAwareWorkAction.execute(ProfileAwareWorkAction.kt:74)
-	at org.gradle.workers.internal.DefaultWorkerServer.execute(DefaultWorkerServer.java:63)
-	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:66)
-	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:62)
-	at org.gradle.internal.classloader.ClassLoaderUtils.executeInClassloader(ClassLoaderUtils.java:100)
-	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.lambda$execute$0(NoIsolationWorkerFactory.java:62)
-	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:44)
-	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:41)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:199)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:157)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
-	at org.gradle.internal.operations.DefaultBuildOperationExecutor.call(DefaultBuildOperationExecutor.java:73)
-	at org.gradle.workers.internal.AbstractWorker.executeWrappedInBuildOperation(AbstractWorker.java:41)
-	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.execute(NoIsolationWorkerFactory.java:59)
-	at org.gradle.workers.internal.DefaultWorkerExecutor.lambda$submitWork$0(DefaultWorkerExecutor.java:170)
-	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runExecution(DefaultConditionalExecutionQueue.java:187)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.access$700(DefaultConditionalExecutionQueue.java:120)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner$1.run(DefaultConditionalExecutionQueue.java:162)
-	at org.gradle.internal.Factories$1.create(Factories.java:31)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:249)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:109)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:114)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runBatch(DefaultConditionalExecutionQueue.java:157)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.run(DefaultConditionalExecutionQueue.java:126)
-	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:539)
-	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
-	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
-	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:47)
-	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
-	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
-	at java.base/java.lang.Thread.run(Thread.java:840)
-
-
 > Task :app:optimizeReleaseResources
 > Task :app:compileReleaseKotlin
-> Task :app:mergeExtDexRelease
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DatapackActivity.kt:396:23 Unresolved reference: pack
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:27:43 Type mismatch: inferred type is IntegerLiteralType[Long] but Int was expected
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:27:43 Type mismatch: inferred type is Map<String, Long> but Map<String, Int> was expected
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:142:34 The integer literal does not conform to the expected type Int?
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:144:38 Type mismatch: inferred type is IntegerLiteralType[Long] but Int? was expected
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:145:38 The integer literal does not conform to the expected type Int?
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:146:83 Type mismatch: inferred type is IntegerLiteralType[Long] but Int? was expected
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:158:38 Type mismatch: inferred type is IntegerLiteralType[Long] but Int? was expected
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:172:93 The integer literal does not conform to the expected type Int
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:177:35 The integer literal does not conform to the expected type Int?
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:178:64 The integer literal does not conform to the expected type Int?
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:179:122 The integer literal does not conform to the expected type Int?
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:180:43 The integer literal does not conform to the expected type Int?
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:181:41 The integer literal does not conform to the expected type Int?
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:182:37 The integer literal does not conform to the expected type Int?
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:183:36 The integer literal does not conform to the expected type Int?
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:184:38 The integer literal does not conform to the expected type Int?
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:185:37 The integer literal does not conform to the expected type Int?
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:186:37 The integer literal does not conform to the expected type Int?
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:187:36 The integer literal does not conform to the expected type Int?
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:188:61 The integer literal does not conform to the expected type Int?
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:193:42 Type mismatch: inferred type is IntegerLiteralType[Long] but Int was expected
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:193:42 Type mismatch: inferred type is Map<String, Long> but Map<String, Int> was expected
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:143:42 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:144:36 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:145:38 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:151:75 Type mismatch: inferred type is OpenListResult<Unit> but OpenListResult<RemoteFile> was expected
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:152:9 Type mismatch: inferred type is Unit but RemoteFile was expected
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:156:38 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:157:32 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:158:34 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:161:17 Overload resolution ambiguity: 
+public inline fun <T> Array<out TypeVariable(T)>.firstOrNull(predicate: (TypeVariable(T)) -> Boolean): TypeVariable(T)? defined in kotlin.collections
+public inline fun BooleanArray.firstOrNull(predicate: (Boolean) -> Boolean): Boolean? defined in kotlin.collections
+public inline fun ByteArray.firstOrNull(predicate: (Byte) -> Boolean): Byte? defined in kotlin.collections
+public inline fun CharArray.firstOrNull(predicate: (Char) -> Boolean): Char? defined in kotlin.collections
+public inline fun CharSequence.firstOrNull(predicate: (Char) -> Boolean): Char? defined in kotlin.text
+public inline fun DoubleArray.firstOrNull(predicate: (Double) -> Boolean): Double? defined in kotlin.collections
+public inline fun FloatArray.firstOrNull(predicate: (Float) -> Boolean): Float? defined in kotlin.collections
+public inline fun IntArray.firstOrNull(predicate: (Int) -> Boolean): Int? defined in kotlin.collections
+public inline fun LongArray.firstOrNull(predicate: (Long) -> Boolean): Long? defined in kotlin.collections
+public inline fun ShortArray.firstOrNull(predicate: (Short) -> Boolean): Short? defined in kotlin.collections
+public inline fun UByteArray.firstOrNull(predicate: (UByte) -> Boolean): UByte? defined in kotlin.collections
+public inline fun UIntArray.firstOrNull(predicate: (UInt) -> Boolean): UInt? defined in kotlin.collections
+public inline fun ULongArray.firstOrNull(predicate: (ULong) -> Boolean): ULong? defined in kotlin.collections
+public inline fun UShortArray.firstOrNull(predicate: (UShort) -> Boolean): UShort? defined in kotlin.collections
+public inline fun <T> Iterable<TypeVariable(T)>.firstOrNull(predicate: (TypeVariable(T)) -> Boolean): TypeVariable(T)? defined in kotlin.collections
+public inline fun <T> Sequence<TypeVariable(T)>.firstOrNull(predicate: (TypeVariable(T)) -> Boolean): TypeVariable(T)? defined in kotlin.sequences
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:161:31 Unresolved reference: it
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:177:38 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:178:32 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:179:34 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:184:32 Cannot find a parameter with this name: name
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:194:31 Type mismatch: inferred type is OpenListResult<Unit?> but OpenListResult<Unit> was expected
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:195:9 Type mismatch: inferred type is Unit? but Unit was expected
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:199:38 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:200:32 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:201:34 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:211:38 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:212:32 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:213:34 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:222:38 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:223:32 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:224:34 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:238:50 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:238:77 Unresolved reference: it
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:239:44 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:239:71 Unresolved reference: it
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:240:46 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:240:71 Unresolved reference: it
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:246:50 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:247:44 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:248:46 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:256:74 Type mismatch: inferred type is OpenListResult<Unit> but OpenListResult<Boolean> was expected
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:257:9 Type mismatch: inferred type is Unit but Boolean was expected
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:261:38 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:262:32 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:263:34 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:266:17 Overload resolution ambiguity: 
+public inline fun <T> Array<out TypeVariable(T)>.any(predicate: (TypeVariable(T)) -> Boolean): Boolean defined in kotlin.collections
+public inline fun BooleanArray.any(predicate: (Boolean) -> Boolean): Boolean defined in kotlin.collections
+public inline fun ByteArray.any(predicate: (Byte) -> Boolean): Boolean defined in kotlin.collections
+public inline fun CharArray.any(predicate: (Char) -> Boolean): Boolean defined in kotlin.collections
+public inline fun CharSequence.any(predicate: (Char) -> Boolean): Boolean defined in kotlin.text
+public inline fun DoubleArray.any(predicate: (Double) -> Boolean): Boolean defined in kotlin.collections
+public inline fun FloatArray.any(predicate: (Float) -> Boolean): Boolean defined in kotlin.collections
+public inline fun IntArray.any(predicate: (Int) -> Boolean): Boolean defined in kotlin.collections
+public inline fun LongArray.any(predicate: (Long) -> Boolean): Boolean defined in kotlin.collections
+public inline fun ShortArray.any(predicate: (Short) -> Boolean): Boolean defined in kotlin.collections
+public inline fun UByteArray.any(predicate: (UByte) -> Boolean): Boolean defined in kotlin.collections
+public inline fun UIntArray.any(predicate: (UInt) -> Boolean): Boolean defined in kotlin.collections
+public inline fun ULongArray.any(predicate: (ULong) -> Boolean): Boolean defined in kotlin.collections
+public inline fun UShortArray.any(predicate: (UShort) -> Boolean): Boolean defined in kotlin.collections
+public inline fun <T> Iterable<TypeVariable(T)>.any(predicate: (TypeVariable(T)) -> Boolean): Boolean defined in kotlin.collections
+public inline fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.any(predicate: (Map.Entry<TypeVariable(K), TypeVariable(V)>) -> Boolean): Boolean defined in kotlin.collections
+public inline fun <T> Sequence<TypeVariable(T)>.any(predicate: (TypeVariable(T)) -> Boolean): Boolean defined in kotlin.sequences
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:266:23 Unresolved reference: it
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:274:42 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:275:36 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:276:38 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:297:9 Type mismatch: inferred type is OpenListResult<Unit> but OpenListResult<Long> was expected
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:298:13 Type mismatch: inferred type is Unit but Long was expected
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:300:42 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:301:36 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:302:38 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:305:21 Overload resolution ambiguity: 
+public inline fun <T> Array<out TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> BigDecimal): BigDecimal defined in kotlin.collections
+public inline fun <T> Array<out TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> BigInteger): BigInteger defined in kotlin.collections
+public inline fun <T> Array<out TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> Double): Double defined in kotlin.collections
+public inline fun <T> Array<out TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> Int): Int defined in kotlin.collections
+public inline fun <T> Array<out TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> Long): Long defined in kotlin.collections
+public inline fun <T> Array<out TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> UInt): UInt defined in kotlin.collections
+public inline fun <T> Array<out TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> ULong): ULong defined in kotlin.collections
+public inline fun BooleanArray.sumOf(selector: (Boolean) -> BigDecimal): BigDecimal defined in kotlin.collections
+public inline fun BooleanArray.sumOf(selector: (Boolean) -> BigInteger): BigInteger defined in kotlin.collections
+public inline fun BooleanArray.sumOf(selector: (Boolean) -> Double): Double defined in kotlin.collections
+public inline fun BooleanArray.sumOf(selector: (Boolean) -> Int): Int defined in kotlin.collections
+public inline fun BooleanArray.sumOf(selector: (Boolean) -> Long): Long defined in kotlin.collections
+public inline fun BooleanArray.sumOf(selector: (Boolean) -> UInt): UInt defined in kotlin.collections
+public inline fun BooleanArray.sumOf(selector: (Boolean) -> ULong): ULong defined in kotlin.collections
+public inline fun ByteArray.sumOf(selector: (Byte) -> BigDecimal): BigDecimal defined in kotlin.collections
+public inline fun ByteArray.sumOf(selector: (Byte) -> BigInteger): BigInteger defined in kotlin.collections
+public inline fun ByteArray.sumOf(selector: (Byte) -> Double): Double defined in kotlin.collections
+public inline fun ByteArray.sumOf(selector: (Byte) -> Int): Int defined in kotlin.collections
+public inline fun ByteArray.sumOf(selector: (Byte) -> Long): Long defined in kotlin.collections
+public inline fun ByteArray.sumOf(selector: (Byte) -> UInt): UInt defined in kotlin.collections
+public inline fun ByteArray.sumOf(selector: (Byte) -> ULong): ULong defined in kotlin.collections
+public inline fun CharArray.sumOf(selector: (Char) -> BigDecimal): BigDecimal defined in kotlin.collections
+public inline fun CharArray.sumOf(selector: (Char) -> BigInteger): BigInteger defined in kotlin.collections
+public inline fun CharArray.sumOf(selector: (Char) -> Double): Double defined in kotlin.collections
+public inline fun CharArray.sumOf(selector: (Char) -> Int): Int defined in kotlin.collections
+public inline fun CharArray.sumOf(selector: (Char) -> Long): Long defined in kotlin.collections
+public inline fun CharArray.sumOf(selector: (Char) -> UInt): UInt defined in kotlin.collections
+public inline fun CharArray.sumOf(selector: (Char) -> ULong): ULong defined in kotlin.collections
+public inline fun CharSequence.sumOf(selector: (Char) -> BigDecimal): BigDecimal defined in kotlin.text
+public inline fun CharSequence.sumOf(selector: (Char) -> BigInteger): BigInteger defined in kotlin.text
+public inline fun CharSequence.sumOf(selector: (Char) -> Double): Double defined in kotlin.text
+public inline fun CharSequence.sumOf(selector: (Char) -> Int): Int defined in kotlin.text
+public inline fun CharSequence.sumOf(selector: (Char) -> Long): Long defined in kotlin.text
+public inline fun CharSequence.sumOf(selector: (Char) -> UInt): UInt defined in kotlin.text
+public inline fun CharSequence.sumOf(selector: (Char) -> ULong): ULong defined in kotlin.text
+public inline fun DoubleArray.sumOf(selector: (Double) -> BigDecimal): BigDecimal defined in kotlin.collections
+public inline fun DoubleArray.sumOf(selector: (Double) -> BigInteger): BigInteger defined in kotlin.collections
+public inline fun DoubleArray.sumOf(selector: (Double) -> Double): Double defined in kotlin.collections
+public inline fun DoubleArray.sumOf(selector: (Double) -> Int): Int defined in kotlin.collections
+public inline fun DoubleArray.sumOf(selector: (Double) -> Long): Long defined in kotlin.collections
+public inline fun DoubleArray.sumOf(selector: (Double) -> UInt): UInt defined in kotlin.collections
+public inline fun DoubleArray.sumOf(selector: (Double) -> ULong): ULong defined in kotlin.collections
+public inline fun FloatArray.sumOf(selector: (Float) -> BigDecimal): BigDecimal defined in kotlin.collections
+public inline fun FloatArray.sumOf(selector: (Float) -> BigInteger): BigInteger defined in kotlin.collections
+public inline fun FloatArray.sumOf(selector: (Float) -> Double): Double defined in kotlin.collections
+public inline fun FloatArray.sumOf(selector: (Float) -> Int): Int defined in kotlin.collections
+public inline fun FloatArray.sumOf(selector: (Float) -> Long): Long defined in kotlin.collections
+public inline fun FloatArray.sumOf(selector: (Float) -> UInt): UInt defined in kotlin.collections
+public inline fun FloatArray.sumOf(selector: (Float) -> ULong): ULong defined in kotlin.collections
+public inline fun IntArray.sumOf(selector: (Int) -> BigDecimal): BigDecimal defined in kotlin.collections
+public inline fun IntArray.sumOf(selector: (Int) -> BigInteger): BigInteger defined in kotlin.collections
+public inline fun IntArray.sumOf(selector: (Int) -> Double): Double defined in kotlin.collections
+public inline fun IntArray.sumOf(selector: (Int) -> Int): Int defined in kotlin.collections
+public inline fun IntArray.sumOf(selector: (Int) -> Long): Long defined in kotlin.collections
+public inline fun IntArray.sumOf(selector: (Int) -> UInt): UInt defined in kotlin.collections
+public inline fun IntArray.sumOf(selector: (Int) -> ULong): ULong defined in kotlin.collections
+public inline fun LongArray.sumOf(selector: (Long) -> BigDecimal): BigDecimal defined in kotlin.collections
+public inline fun LongArray.sumOf(selector: (Long) -> BigInteger): BigInteger defined in kotlin.collections
+public inline fun LongArray.sumOf(selector: (Long) -> Double): Double defined in kotlin.collections
+public inline fun LongArray.sumOf(selector: (Long) -> Int): Int defined in kotlin.collections
+public inline fun LongArray.sumOf(selector: (Long) -> Long): Long defined in kotlin.collections
+public inline fun LongArray.sumOf(selector: (Long) -> UInt): UInt defined in kotlin.collections
+public inline fun LongArray.sumOf(selector: (Long) -> ULong): ULong defined in kotlin.collections
+public inline fun ShortArray.sumOf(selector: (Short) -> BigDecimal): BigDecimal defined in kotlin.collections
+public inline fun ShortArray.sumOf(selector: (Short) -> BigInteger): BigInteger defined in kotlin.collections
+public inline fun ShortArray.sumOf(selector: (Short) -> Double): Double defined in kotlin.collections
+public inline fun ShortArray.sumOf(selector: (Short) -> Int): Int defined in kotlin.collections
+public inline fun ShortArray.sumOf(selector: (Short) -> Long): Long defined in kotlin.collections
+public inline fun ShortArray.sumOf(selector: (Short) -> UInt): UInt defined in kotlin.collections
+public inline fun ShortArray.sumOf(selector: (Short) -> ULong): ULong defined in kotlin.collections
+public inline fun UByteArray.sumOf(selector: (UByte) -> BigDecimal): BigDecimal defined in kotlin.collections
+public inline fun UByteArray.sumOf(selector: (UByte) -> BigInteger): BigInteger defined in kotlin.collections
+public inline fun UByteArray.sumOf(selector: (UByte) -> Double): Double defined in kotlin.collections
+public inline fun UByteArray.sumOf(selector: (UByte) -> Int): Int defined in kotlin.collections
+public inline fun UByteArray.sumOf(selector: (UByte) -> Long): Long defined in kotlin.collections
+public inline fun UByteArray.sumOf(selector: (UByte) -> UInt): UInt defined in kotlin.collections
+public inline fun UByteArray.sumOf(selector: (UByte) -> ULong): ULong defined in kotlin.collections
+public inline fun UIntArray.sumOf(selector: (UInt) -> BigDecimal): BigDecimal defined in kotlin.collections
+public inline fun UIntArray.sumOf(selector: (UInt) -> BigInteger): BigInteger defined in kotlin.collections
+public inline fun UIntArray.sumOf(selector: (UInt) -> Double): Double defined in kotlin.collections
+public inline fun UIntArray.sumOf(selector: (UInt) -> Int): Int defined in kotlin.collections
+public inline fun UIntArray.sumOf(selector: (UInt) -> Long): Long defined in kotlin.collections
+public inline fun UIntArray.sumOf(selector: (UInt) -> UInt): UInt defined in kotlin.collections
+public inline fun UIntArray.sumOf(selector: (UInt) -> ULong): ULong defined in kotlin.collections
+public inline fun ULongArray.sumOf(selector: (ULong) -> BigDecimal): BigDecimal defined in kotlin.collections
+public inline fun ULongArray.sumOf(selector: (ULong) -> BigInteger): BigInteger defined in kotlin.collections
+public inline fun ULongArray.sumOf(selector: (ULong) -> Double): Double defined in kotlin.collections
+public inline fun ULongArray.sumOf(selector: (ULong) -> Int): Int defined in kotlin.collections
+public inline fun ULongArray.sumOf(selector: (ULong) -> Long): Long defined in kotlin.collections
+public inline fun ULongArray.sumOf(selector: (ULong) -> UInt): UInt defined in kotlin.collections
+public inline fun ULongArray.sumOf(selector: (ULong) -> ULong): ULong defined in kotlin.collections
+public inline fun UShortArray.sumOf(selector: (UShort) -> BigDecimal): BigDecimal defined in kotlin.collections
+public inline fun UShortArray.sumOf(selector: (UShort) -> BigInteger): BigInteger defined in kotlin.collections
+public inline fun UShortArray.sumOf(selector: (UShort) -> Double): Double defined in kotlin.collections
+public inline fun UShortArray.sumOf(selector: (UShort) -> Int): Int defined in kotlin.collections
+public inline fun UShortArray.sumOf(selector: (UShort) -> Long): Long defined in kotlin.collections
+public inline fun UShortArray.sumOf(selector: (UShort) -> UInt): UInt defined in kotlin.collections
+public inline fun UShortArray.sumOf(selector: (UShort) -> ULong): ULong defined in kotlin.collections
+public inline fun <T> Iterable<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> BigDecimal): BigDecimal defined in kotlin.collections
+public inline fun <T> Iterable<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> BigInteger): BigInteger defined in kotlin.collections
+public inline fun <T> Iterable<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> Double): Double defined in kotlin.collections
+public inline fun <T> Iterable<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> Int): Int defined in kotlin.collections
+public inline fun <T> Iterable<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> Long): Long defined in kotlin.collections
+public inline fun <T> Iterable<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> UInt): UInt defined in kotlin.collections
+public inline fun <T> Iterable<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> ULong): ULong defined in kotlin.collections
+public inline fun <T> Sequence<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> BigDecimal): BigDecimal defined in kotlin.sequences
+public inline fun <T> Sequence<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> BigInteger): BigInteger defined in kotlin.sequences
+public inline fun <T> Sequence<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> Double): Double defined in kotlin.sequences
+public inline fun <T> Sequence<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> Int): Int defined in kotlin.sequences
+public inline fun <T> Sequence<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> Long): Long defined in kotlin.sequences
+public inline fun <T> Sequence<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> UInt): UInt defined in kotlin.sequences
+public inline fun <T> Sequence<TypeVariable(T)>.sumOf(selector: (TypeVariable(T)) -> ULong): ULong defined in kotlin.sequences
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:305:29 Unresolved reference: it
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:406:41 Cannot find a parameter with this name: name
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:446:63 Cannot find a parameter with this name: name
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:504:67 Cannot find a parameter with this name: name
 
-> Task :app:compileReleaseKotlin
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:73:13 Variable 'p' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:85:41 Parameter 'source' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/App.kt:182:13 Type mismatch: inferred type is Boolean? but Boolean was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/App.kt:191:21 Variable 'line' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:148:18 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:236:16 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:295:50 Parameter 'loader' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:437:45 Parameter 'loader' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CloudDriveActivity.kt:403:23 'startActivityForResult(Intent, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CrashHandler.kt:66:58 'versionCode: Int' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CrashShare.kt:31:60 'versionCode: Int' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CrossLoader.kt:87:9 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DelayedDownload.kt:158:52 Unnecessary non-null assertion (!!) on a non-null receiver of type Runnable
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DelayedDownload.kt:160:28 Unnecessary safe call on a non-null receiver of type Runnable?
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DevLabActivity.kt:288:45 Parameter 'ctx' is never used, could be renamed to _
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DevLabActivity.kt:334:36 Parameter 'ctx' is never used, could be renamed to _
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DevTeam.kt:26:31 Parameter 'name' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DownloadService.kt:251:17 'stopForeground(Boolean): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/EditorActivity.kt:170:19 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Egg.kt:79:35 'constructor AudioTrack(Int, Int, Int, Int, Int, Int)' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Fs.kt:41:17 Condition 'arr == null' is always 'false'
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/HardLink.kt:65:59 Type mismatch: inferred type is File? but File was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/InstanceCreator.kt:44:18 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/InstanceScanner.kt:499:17 Variable 'n' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/InstanceScanner.kt:573:17 Variable 'n' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LangPack.kt:77:9 'constructor Resources(AssetManager!, DisplayMetrics!, Configuration!)' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LauncherBrand.kt:122:14 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LogCenter.kt:121:13 Type mismatch: inferred type is Boolean? but Boolean was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:57:25 Variable 'cfgDetail' initializer is redundant
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:69:25 Variable 'urlDetail' initializer is redundant
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:110:28 Variable 'cookieDetail' initializer is redundant
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:129:24 Variable 'meDetail' initializer is redundant
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MainActivity.kt:466:15 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:163:53 Unnecessary non-null assertion (!!) on a non-null receiver of type LinearLayout
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:729:23 There is more than one label with such a name in this scope
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McFeed.kt:207:34 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:237:49 'getValue(): Int!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:238:70 'getValue(): Int!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:458:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:503:9 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:583:29 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModManagerFragment.kt:152:69 Parameter 'doing' is never used, could be renamed to _
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModManagerFragment.kt:451:13 Variable 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModMeta.kt:362:50 Unnecessary safe call on a non-null receiver of type Result<TomlArray?>
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModPageActivity.kt:226:19 'onReceivedError(WebView!, Int, String!, String!): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModPageActivity.kt:306:54 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModrinthApi.kt:80:39 Parameter 'side' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/NbtViewerActivity.kt:359:13 Variable 'df' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/NetGate.kt:46:28 Parameter 'area' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/OfflineTranslate.kt:194:19 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:27:30 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:36:30 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:43:23 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:45:38 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:85:22 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:170:25 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:184:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:604:51 Parameter 'i' is never used, could be renamed to _
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:716:13 Variable 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerPanelApi.kt:213:15 Parameter 'base' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerPanelApi.kt:213:29 Parameter 'user' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerPanelApi.kt:213:43 Parameter 'pass' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsAboutFragment.kt:244:53 There is more than one label with such a name in this scope
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsHostActivity.kt:199:15 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsMainFragment.kt:66:13 Variable 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsMainFragment.kt:442:13 Variable 'dlg' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsNavFragment.kt:96:15 Variable 'i' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsStorageFragment.kt:225:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SyncManager.kt:231:25 Name shadowed: f
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ToolsFragment.kt:274:15 Unnecessary safe call on a non-null receiver of type File!
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Translator.kt:80:9 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Translator.kt:283:21 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/TrashFragment.kt:138:49 Parameter 'total' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/UpdateInstaller.kt:90:29 Condition 'pid != null' is always 'true'
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebActivity.kt:516:20 'onBackPressed(): Unit' is deprecated. Deprecated in Java
+> Task :app:compileReleaseKotlin FAILED
 
-> Task :app:compileReleaseJavaWithJavac
-Note: Some input files use or override a deprecated API.
-Note: Recompile with -Xlint:deprecation for details.
-Note: Some input files use unchecked or unsafe operations.
-Note: Recompile with -Xlint:unchecked for details.
+FAILURE: Build failed with an exception.
 
-> Task :app:dexBuilderRelease
-> Task :app:mergeReleaseGlobalSynthetics
-> Task :app:processReleaseJavaRes
-> Task :app:mergeReleaseJavaResource
-> Task :app:mergeDexRelease
-> Task :app:compileReleaseArtProfile
-> Task :app:packageRelease
-> Task :app:createReleaseApkListingFileRedirect
-> Task :app:lintVitalAnalyzeRelease
-> Task :app:lintVitalReportRelease
-> Task :app:lintVitalRelease
-> Task :app:assembleRelease
+* What went wrong:
+Execution failed for task ':app:compileReleaseKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
 
-BUILD SUCCESSFUL in 3m 10s
-46 actionable tasks: 46 executed
-To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
-Daemon will be stopped at the end of the build 
-> Task :app:preBuild UP-TO-DATE
-> Task :app:preDebugBuild UP-TO-DATE
-> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
-> Task :app:checkKotlinGradlePluginConfigurationErrors
-> Task :app:generateDebugResValues
-> Task :app:checkDebugAarMetadata
-> Task :app:mapDebugSourceSetPaths
-> Task :app:generateDebugResources
-> Task :app:packageDebugResources
-> Task :app:createDebugCompatibleScreenManifests
-> Task :app:extractDeepLinksDebug
-> Task :app:parseDebugLocalResources
-> Task :app:mergeDebugResources
-> Task :app:processDebugMainManifest
-> Task :app:processDebugManifest
-> Task :app:javaPreCompileDebug
-> Task :app:mergeDebugShaders
-> Task :app:compileDebugShaders NO-SOURCE
-> Task :app:generateDebugAssets UP-TO-DATE
-> Task :app:mergeDebugAssets
-> Task :app:processDebugManifestForPackage
-> Task :app:compressDebugAssets
-> Task :app:mergeDebugJniLibFolders
-> Task :app:checkDebugDuplicateClasses
-> Task :app:mergeDebugNativeLibs
-> Task :app:mergeLibDexDebug
-> Task :app:processDebugResources
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
 
-> Task :app:stripDebugDebugSymbols
-Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libgojni.so, libtranslate_jni.so.
-
-> Task :app:validateSigningDebug
-> Task :app:writeDebugAppMetadata
-> Task :app:writeDebugSigningConfigVersions
-
-> Task :app:desugarDebugFileDependencies
-WARNING: D8: Unexpected error during rewriting of Kotlin metadata for class 'net.querz.mcaselector.android.MinecraftCoordinates':
-com.android.tools.r8.internal.A10: Should never be called
-	at com.android.tools.r8.internal.cA.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:3)
-	at com.android.tools.r8.internal.Yz.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:57)
-	at com.android.tools.r8.internal.Yz.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:56)
-	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:41)
-	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:52)
-	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:40)
-	at com.google.common.util.concurrent.TrustedListenableFutureTask$TrustedFutureInterruptibleTask.runInterruptibly(TrustedListenableFutureTask.java:131)
-	at com.google.common.util.concurrent.InterruptibleTask.run(InterruptibleTask.java:74)
-	at com.google.common.util.concurrent.TrustedListenableFutureTask.run(TrustedListenableFutureTask.java:82)
-	at com.google.common.util.concurrent.MoreExecutors$DirectExecutorService.execute(MoreExecutors.java:323)
-	at java.base/java.util.concurrent.AbstractExecutorService.submit(AbstractExecutorService.java:145)
-	at com.google.common.util.concurrent.AbstractListeningExecutorService.submit(AbstractListeningExecutorService.java:69)
-	at com.google.common.util.concurrent.AbstractListeningExecutorService.submit(AbstractListeningExecutorService.java:36)
-	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:39)
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
-	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:9)
-	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:51)
-	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:44)
-	at com.android.tools.r8.utils.c3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:42)
-	at com.android.tools.r8.internal.Yz.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:35)
-	at com.android.tools.r8.D8.b(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:17)
-	at com.android.tools.r8.utils.y3.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:45)
-	at com.android.tools.r8.D8.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:69)
-	at com.android.tools.r8.D8.d(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:129)
-	at com.android.tools.r8.D8.b(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:1)
-	at com.android.tools.r8.utils.R0.a(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:28)
-	at com.android.tools.r8.utils.R0.b(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:2)
-	at com.android.tools.r8.D8.run(R8_8.1.68_081071c36a35dea9a8e7845c23af618c2d62fb486760a022308124c1698d2e82:11)
-	at com.android.builder.dexing.D8DexArchiveBuilder.convert(D8DexArchiveBuilder.java:125)
-	at com.android.builder.dexing.DexArchiveBuilder.convert$default(DexArchiveBuilder.kt:44)
-	at com.android.build.gradle.internal.tasks.DexFileDependenciesTask$DexFileDependenciesWorkerAction.run(DexFileDependenciesTask.kt:154)
-	at com.android.build.gradle.internal.profile.ProfileAwareWorkAction.execute(ProfileAwareWorkAction.kt:74)
-	at org.gradle.workers.internal.DefaultWorkerServer.execute(DefaultWorkerServer.java:63)
-	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:66)
-	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:62)
-	at org.gradle.internal.classloader.ClassLoaderUtils.executeInClassloader(ClassLoaderUtils.java:100)
-	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.lambda$execute$0(NoIsolationWorkerFactory.java:62)
-	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:44)
-	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:41)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:199)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:157)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
-	at org.gradle.internal.operations.DefaultBuildOperationExecutor.call(DefaultBuildOperationExecutor.java:73)
-	at org.gradle.workers.internal.AbstractWorker.executeWrappedInBuildOperation(AbstractWorker.java:41)
-	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.execute(NoIsolationWorkerFactory.java:59)
-	at org.gradle.workers.internal.DefaultWorkerExecutor.lambda$submitWork$0(DefaultWorkerExecutor.java:170)
-	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runExecution(DefaultConditionalExecutionQueue.java:187)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.access$700(DefaultConditionalExecutionQueue.java:120)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner$1.run(DefaultConditionalExecutionQueue.java:162)
-	at org.gradle.internal.Factories$1.create(Factories.java:31)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:249)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:109)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:114)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runBatch(DefaultConditionalExecutionQueue.java:157)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.run(DefaultConditionalExecutionQueue.java:126)
-	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:539)
-	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
-	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
-	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:47)
-	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
-	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
-	at java.base/java.lang.Thread.run(Thread.java:840)
-
-
-> Task :app:compileDebugKotlin
-> Task :app:mergeExtDexDebug
-
-> Task :app:compileDebugKotlin
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:73:13 Variable 'p' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:85:41 Parameter 'source' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/App.kt:182:13 Type mismatch: inferred type is Boolean? but Boolean was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/App.kt:191:21 Variable 'line' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:148:18 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:236:16 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:295:50 Parameter 'loader' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:437:45 Parameter 'loader' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CloudDriveActivity.kt:403:23 'startActivityForResult(Intent, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CrashHandler.kt:66:58 'versionCode: Int' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CrashShare.kt:31:60 'versionCode: Int' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CrossLoader.kt:87:9 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DelayedDownload.kt:158:52 Unnecessary non-null assertion (!!) on a non-null receiver of type Runnable
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DelayedDownload.kt:160:28 Unnecessary safe call on a non-null receiver of type Runnable?
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DevLabActivity.kt:288:45 Parameter 'ctx' is never used, could be renamed to _
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DevLabActivity.kt:334:36 Parameter 'ctx' is never used, could be renamed to _
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DevTeam.kt:26:31 Parameter 'name' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DownloadService.kt:251:17 'stopForeground(Boolean): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/EditorActivity.kt:170:19 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Egg.kt:79:35 'constructor AudioTrack(Int, Int, Int, Int, Int, Int)' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Fs.kt:41:17 Condition 'arr == null' is always 'false'
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/HardLink.kt:65:59 Type mismatch: inferred type is File? but File was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/InstanceCreator.kt:44:18 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/InstanceScanner.kt:499:17 Variable 'n' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/InstanceScanner.kt:573:17 Variable 'n' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LangPack.kt:77:9 'constructor Resources(AssetManager!, DisplayMetrics!, Configuration!)' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LauncherBrand.kt:122:14 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LogCenter.kt:121:13 Type mismatch: inferred type is Boolean? but Boolean was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:57:25 Variable 'cfgDetail' initializer is redundant
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:69:25 Variable 'urlDetail' initializer is redundant
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:110:28 Variable 'cookieDetail' initializer is redundant
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:129:24 Variable 'meDetail' initializer is redundant
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MainActivity.kt:466:15 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:163:53 Unnecessary non-null assertion (!!) on a non-null receiver of type LinearLayout
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:729:23 There is more than one label with such a name in this scope
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McFeed.kt:207:34 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:237:49 'getValue(): Int!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:238:70 'getValue(): Int!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:458:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:503:9 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:583:29 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModManagerFragment.kt:152:69 Parameter 'doing' is never used, could be renamed to _
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModManagerFragment.kt:451:13 Variable 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModMeta.kt:362:50 Unnecessary safe call on a non-null receiver of type Result<TomlArray?>
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModPageActivity.kt:226:19 'onReceivedError(WebView!, Int, String!, String!): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModPageActivity.kt:306:54 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModrinthApi.kt:80:39 Parameter 'side' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/NbtViewerActivity.kt:359:13 Variable 'df' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/NetGate.kt:46:28 Parameter 'area' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/OfflineTranslate.kt:194:19 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:27:30 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:36:30 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:43:23 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:45:38 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:85:22 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:170:25 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:184:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:604:51 Parameter 'i' is never used, could be renamed to _
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:716:13 Variable 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerPanelApi.kt:213:15 Parameter 'base' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerPanelApi.kt:213:29 Parameter 'user' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerPanelApi.kt:213:43 Parameter 'pass' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsAboutFragment.kt:244:53 There is more than one label with such a name in this scope
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsHostActivity.kt:199:15 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsMainFragment.kt:66:13 Variable 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsMainFragment.kt:442:13 Variable 'dlg' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsNavFragment.kt:96:15 Variable 'i' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsStorageFragment.kt:225:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SyncManager.kt:231:25 Name shadowed: f
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ToolsFragment.kt:274:15 Unnecessary safe call on a non-null receiver of type File!
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Translator.kt:80:9 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Translator.kt:283:21 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/TrashFragment.kt:138:49 Parameter 'total' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/UpdateInstaller.kt:90:29 Condition 'pid != null' is always 'true'
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebActivity.kt:516:20 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-
-> Task :app:compileDebugJavaWithJavac
-Note: Some input files use or override a deprecated API.
-Note: Recompile with -Xlint:deprecation for details.
-Note: Some input files use unchecked or unsafe operations.
-Note: Recompile with -Xlint:unchecked for details.
-
-> Task :app:dexBuilderDebug
-> Task :app:mergeDebugGlobalSynthetics
-> Task :app:processDebugJavaRes
-> Task :app:mergeProjectDexDebug
-> Task :app:mergeDebugJavaResource
-> Task :app:packageDebug
-> Task :app:createDebugApkListingFileRedirect
-> Task :app:assembleDebug
-
-BUILD SUCCESSFUL in 1m 43s
-36 actionable tasks: 36 executed
+BUILD FAILED in 2m 31s
+34 actionable tasks: 34 executed
