@@ -21,6 +21,13 @@ import android.os.Bundle
 class OAuthRedirectActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // ⚠️ manifest 里这个 Activity 是 @android:style/Theme.Translucent.NoTitleBar
+        // （它是个纯中转页，不该有界面）。但那是**平台主题**，不是 AppCompat 系，
+        // MaterialAlertDialogBuilder 一构造就会抛
+        // "requires your app theme to be Theme.AppCompat (or a descendant)"。
+        // 所以这里换成应用自己的主题，窗口也不再透明 —— 否则下面那几行黑字
+        // 直接叠在桌面上，根本看不清。
+        setTheme(ThemePrefs.styleRes(this))
         super.onCreate(savedInstanceState)
         handle(intent)
     }
@@ -29,6 +36,13 @@ class OAuthRedirectActivity : Activity() {
         super.onNewIntent(intent)
         handle(intent)
     }
+
+    /**
+     * 弹窗一律用这个 context。
+     * Material 组件要求 AppCompat 系主题，直接传 this 在透明主题下必崩。
+     */
+    private fun themed(): android.content.Context =
+        androidx.appcompat.view.ContextThemeWrapper(this, ThemePrefs.styleRes(this))
 
     private fun handle(i: Intent?) {
         val data: Uri? = i?.data
@@ -74,7 +88,7 @@ class OAuthRedirectActivity : Activity() {
             }
             Bg.post {
                 if (msg.startsWith("已登录")) back(msg)
-                else failDialog(code, verifier, msg)
+                else safeFail(code, verifier, msg)
             }
         }
     }
@@ -87,23 +101,24 @@ class OAuthRedirectActivity : Activity() {
      * 否则他得回设置页翻菜单、再从头授权一遍。
      */
     private fun failDialog(code: String, verifier: String, msg: String) {
-        val et = android.widget.EditText(this).apply { setSingleLine(true) }
-        val box = android.widget.LinearLayout(this).apply {
+        val c = themed()
+        val et = android.widget.EditText(c).apply { setSingleLine(true) }
+        val box = android.widget.LinearLayout(c).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             val p = (16 * resources.displayMetrics.density).toInt()
             setPadding(p, p / 2, p, 0)
         }
-        box.addView(android.widget.TextView(this).apply {
+        box.addView(android.widget.TextView(c).apply {
             text = msg
             textSize = 12f
         })
-        box.addView(android.widget.TextView(this).apply {
+        box.addView(android.widget.TextView(c).apply {
             text = "\nClient ID 不对的话，在这里改：\n" +
                 "注意要填 **OAuth App**（不是 GitHub App）的 Client ID。"
             textSize = 12f
         })
         box.addView(et)
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(c)
             .setTitle("登录失败")
             .setView(box)
             .setNegativeButton("关闭") { _, _ -> back("登录失败") }
@@ -131,6 +146,26 @@ class OAuthRedirectActivity : Activity() {
             .show()
     }
 
+    /**
+     * 登录失败本来就要靠弹窗告诉用户原因，弹窗自己再崩一次就彻底没信息了。
+     * 所以这里再兜一层：Material 弹窗起不来就退回系统弹窗。
+     */
+    private fun safeFail(code: String, verifier: String, msg: String) {
+        try {
+            failDialog(code, verifier, msg)
+        } catch (t: Throwable) {
+            Err.fail(t, "登录失败弹窗")
+            runCatching {
+                android.app.AlertDialog.Builder(this)
+                    .setTitle("登录失败")
+                    .setMessage(msg)
+                    .setNegativeButton("关闭") { _, _ -> back("登录失败") }
+                    .setCancelable(false)
+                    .show()
+            }.onFailure { back("登录失败：$msg") }
+        }
+    }
+
     private fun retry(code: String, verifier: String) {
         android.widget.Toast.makeText(this, "正在重试…", android.widget.Toast.LENGTH_SHORT).show()
         Bg.run {
@@ -153,7 +188,7 @@ class OAuthRedirectActivity : Activity() {
                 LogCenter.e("Login", "PKCE 重试失败：$msg")
             }
             Bg.post {
-                if (msg.startsWith("已登录")) back(msg) else failDialog(code, verifier, msg)
+                if (msg.startsWith("已登录")) back(msg) else safeFail(code, verifier, msg)
             }
         }
     }
