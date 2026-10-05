@@ -11,8 +11,8 @@ android {
         applicationId "com.kongbai.modmigrator"
         minSdk 26
         targetSdk 34
-        versionCode 46
-        versionName "2.3.8"
+        versionCode 47
+        versionName "2.4.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -120,6 +120,16 @@ dependencies {
     // bridge 是 gomobile 编译产物（13MB），不进仓库，由 CI 拉取。
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
     implementation files('libs/openlistbridge.aar')
+
+    // ── 区块渲染 / .mca 解析：MCA Selector 的 Android 移植版 ────
+    // 它用 implementation 声明依赖，发布出来的 AAR **不带**依赖，
+    // 所以下面三个必须由使用方补上。少了 classindex 时
+    // VersionHandler.init() 会在 ClassIndex 上抛 NoClassDefFoundError，
+    // 版本实现全注册不上 —— 不报错，但所有区块都读不出数据。
+    implementation files('libs/mcaselector.aar')
+    implementation 'com.google.code.gson:gson:2.11.0'
+    implementation 'org.lz4:lz4-java:1.8.0'          // 新版本的区块用 LZ4 压缩
+    implementation 'org.atteo.classindex:classindex:3.13'
 
     // 说明：下载库（Fetch）与依赖注入（Koin）这次**没有**引入。
     // 它们要真正发挥作用必须重写 Downloader / 全站构造方式，
