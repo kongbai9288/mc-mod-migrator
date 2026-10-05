@@ -26,177 +26,177 @@ object McaRender {
 
     private val FIXED: Map<String, Int> = mapOf(
         "minecraft:air" to 0, "minecraft:cave_air" to 0, "minecraft:void_air" to 0,
-        "minecraft:grass_block" to 0xFF5FAE3C,
-        "minecraft:dirt" to 0xFF8B6B45,
-        "minecraft:coarse_dirt" to 0xFF7A5C3A,
-        "minecraft:podzol" to 0xFF6B4A22,
-        "minecraft:rooted_dirt" to 0xFF7A5A38,
-        "minecraft:mud" to 0xFF3F3226,
-        "minecraft:packed_mud" to 0xFF8E7355,
-        "minecraft:farmland" to 0xFF6B4A2A,
-        "minecraft:dirt_path" to 0xFF9A7A50,
-        "minecraft:stone" to 0xFF8A8A8A,
-        "minecraft:andesite" to 0xFF8E8E8E,
-        "minecraft:diorite" to 0xFFD0D0D0,
-        "minecraft:granite" to 0xFFA06B52,
-        "minecraft:cobblestone" to 0xFF7A7A7A,
-        "minecraft:mossy_cobblestone" to 0xFF6B7A5A,
-        "minecraft:stone_bricks" to 0xFF7D7D7D,
-        "minecraft:mossy_stone_bricks" to 0xFF6E7A66,
-        "minecraft:deepslate" to 0xFF4A4A52,
-        "minecraft:cobbled_deepslate" to 0xFF4C4C54,
-        "minecraft:deepslate_bricks" to 0xFF45454D,
-        "minecraft:tuff" to 0xFF6B6B5A,
-        "minecraft:calcite" to 0xFFE2E0DC,
-        "minecraft:dripstone_block" to 0xFF8A6B55,
-        "minecraft:bedrock" to 0xFF3F3F3F,
-        "minecraft:sand" to 0xFFE0D3A0,
-        "minecraft:red_sand" to 0xFFC97A45,
-        "minecraft:sandstone" to 0xFFDFD3A6,
-        "minecraft:red_sandstone" to 0xFFC08A55,
-        "minecraft:gravel" to 0xFF8B8480,
-        "minecraft:clay" to 0xFFA0A8B8,
-        "minecraft:terracotta" to 0xFFB07050,
-        "minecraft:water" to 0xFF3B6FD4,
-        "minecraft:lava" to 0xFFE25822,
-        "minecraft:ice" to 0xFF9ED0F5,
-        "minecraft:packed_ice" to 0xFF7FB6E8,
-        "minecraft:blue_ice" to 0xFF6FA8DE,
-        "minecraft:frosted_ice" to 0xFFA8DCF5,
-        "minecraft:snow_block" to 0xFFF5FAFF,
-        "minecraft:snow" to 0xFFF0F6FF,
-        "minecraft:obsidian" to 0xFF1E1526,
-        "minecraft:nether_portal" to 0xFFB060FF,
-        "minecraft:end_portal" to 0xFF101018,
-        "minecraft:end_stone" to 0xFFE0DE9A,
-        "minecraft:end_stone_bricks" to 0xFFD6D48C,
-        "minecraft:purpur_block" to 0xFFAE7BB0,
-        "minecraft:netherrack" to 0xFF8B3A3A,
-        "minecraft:crimson_nylium" to 0xFF9B3A5A,
-        "minecraft:warped_nylium" to 0xFF2E6B6B,
-        "minecraft:soul_sand" to 0xFF6B4A32,
-        "minecraft:soul_soil" to 0xFF5A3A28,
-        "minecraft:magma_block" to 0xFF8B3A1A,
-        "minecraft:nether_bricks" to 0xFF52282B,
-        "minecraft:nether_wart_block" to 0xFF8B2030,
-        "minecraft:crimson_hyphae" to 0xFF8B3A55,
-        "minecraft:warped_hyphae" to 0xFF2E7B7B,
-        "minecraft:crimson_planks" to 0xFF9B4A60,
-        "minecraft:warped_planks" to 0xFF3E8B8B,
-        "minecraft:blackstone" to 0xFF2E2A30,
-        "minecraft:basalt" to 0xFF4A4A50,
-        "minecraft:ancient_debris" to 0xFF5A4038,
-        "minecraft:glowstone" to 0xFFD8B060,
-        "minecraft:amethyst_block" to 0xFF9B6BD8,
-        "minecraft:moss_block" to 0xFF5A8B3A,
-        "minecraft:moss_carpet" to 0xFF6B9B45,
-        "minecraft:torch" to 0xFFFFD050,
-        "minecraft:soul_torch" to 0xFF7FD0E8,
-        "minecraft:lantern" to 0xFFFFD060,
-        "minecraft:glass" to 0xFFC8E8F5,
-        "minecraft:tinted_glass" to 0xFF3A3A3A,
-        "minecraft:hay_block" to 0xFFC8A838,
-        "minecraft:cobweb" to 0xFFE8E8E8,
-        "minecraft:sponge" to 0xFFD8D060,
-        "minecraft:wet_sponge" to 0xFFB8A84A,
-        "minecraft:mycelium" to 0xFF8B6B7A,
-        "minecraft:slime_block" to 0xFF6BB05A,
-        "minecraft:honeycomb_block" to 0xFFD8A838,
-        "minecraft:bookshelf" to 0xFFA87A45,
-        "minecraft:crafting_table" to 0xFFA87A45,
-        "minecraft:furnace" to 0xFF7A7A7A,
-        "minecraft:chest" to 0xFFA87A45,
-        "minecraft:dispenser" to 0xFF8A8A8A,
-        "minecraft:dropper" to 0xFF8A8A8A,
-        "minecraft:observer" to 0xFF6B6B6B,
-        "minecraft:piston" to 0xFF9A8A6B,
-        "minecraft:redstone_block" to 0xFFC02020,
-        "minecraft:iron_block" to 0xFFE0E0E0,
-        "minecraft:gold_block" to 0xFFE8C020,
-        "minecraft:diamond_block" to 0xFF60E0E0,
-        "minecraft:emerald_block" to 0xFF40C060,
-        "minecraft:lapis_block" to 0xFF2040C0,
-        "minecraft:netherite_block" to 0xFF3A3538,
-        "minecraft:coal_block" to 0xFF202020,
-        "minecraft:coal_ore" to 0xFF6B6B6B,
-        "minecraft:iron_ore" to 0xFFB89478,
-        "minecraft:gold_ore" to 0xFFD8B44A,
-        "minecraft:diamond_ore" to 0xFF60C8D8,
-        "minecraft:emerald_ore" to 0xFF40B060,
-        "minecraft:lapis_ore" to 0xFF3A5AA8,
-        "minecraft:redstone_ore" to 0xFFA83030,
-        "minecraft:nether_quartz_ore" to 0xFFC8B4A0,
-        "minecraft:deepslate_coal_ore" to 0xFF5A5A5A,
-        "minecraft:deepslate_iron_ore" to 0xFFA88062,
-        "minecraft:deepslate_gold_ore" to 0xFFC09A38,
-        "minecraft:deepslate_diamond_ore" to 0xFF4EB0C0,
-        "minecraft:deepslate_emerald_ore" to 0xFF309050,
-        "minecraft:copper_ore" to 0xFFB87333,
-        "minecraft:deepslate_copper_ore" to 0xFF9A5C28,
-        "minecraft:clay_ore" to 0xFFA0A8B8
+        "minecraft:grass_block" to 0xFF5FAE3C.toInt(),
+        "minecraft:dirt" to 0xFF8B6B45.toInt(),
+        "minecraft:coarse_dirt" to 0xFF7A5C3A.toInt(),
+        "minecraft:podzol" to 0xFF6B4A22.toInt(),
+        "minecraft:rooted_dirt" to 0xFF7A5A38.toInt(),
+        "minecraft:mud" to 0xFF3F3226.toInt(),
+        "minecraft:packed_mud" to 0xFF8E7355.toInt(),
+        "minecraft:farmland" to 0xFF6B4A2A.toInt(),
+        "minecraft:dirt_path" to 0xFF9A7A50.toInt(),
+        "minecraft:stone" to 0xFF8A8A8A.toInt(),
+        "minecraft:andesite" to 0xFF8E8E8E.toInt(),
+        "minecraft:diorite" to 0xFFD0D0D0.toInt(),
+        "minecraft:granite" to 0xFFA06B52.toInt(),
+        "minecraft:cobblestone" to 0xFF7A7A7A.toInt(),
+        "minecraft:mossy_cobblestone" to 0xFF6B7A5A.toInt(),
+        "minecraft:stone_bricks" to 0xFF7D7D7D.toInt(),
+        "minecraft:mossy_stone_bricks" to 0xFF6E7A66.toInt(),
+        "minecraft:deepslate" to 0xFF4A4A52.toInt(),
+        "minecraft:cobbled_deepslate" to 0xFF4C4C54.toInt(),
+        "minecraft:deepslate_bricks" to 0xFF45454D.toInt(),
+        "minecraft:tuff" to 0xFF6B6B5A.toInt(),
+        "minecraft:calcite" to 0xFFE2E0DC.toInt(),
+        "minecraft:dripstone_block" to 0xFF8A6B55.toInt(),
+        "minecraft:bedrock" to 0xFF3F3F3F.toInt(),
+        "minecraft:sand" to 0xFFE0D3A0.toInt(),
+        "minecraft:red_sand" to 0xFFC97A45.toInt(),
+        "minecraft:sandstone" to 0xFFDFD3A6.toInt(),
+        "minecraft:red_sandstone" to 0xFFC08A55.toInt(),
+        "minecraft:gravel" to 0xFF8B8480.toInt(),
+        "minecraft:clay" to 0xFFA0A8B8.toInt(),
+        "minecraft:terracotta" to 0xFFB07050.toInt(),
+        "minecraft:water" to 0xFF3B6FD4.toInt(),
+        "minecraft:lava" to 0xFFE25822.toInt(),
+        "minecraft:ice" to 0xFF9ED0F5.toInt(),
+        "minecraft:packed_ice" to 0xFF7FB6E8.toInt(),
+        "minecraft:blue_ice" to 0xFF6FA8DE.toInt(),
+        "minecraft:frosted_ice" to 0xFFA8DCF5.toInt(),
+        "minecraft:snow_block" to 0xFFF5FAFF.toInt(),
+        "minecraft:snow" to 0xFFF0F6FF.toInt(),
+        "minecraft:obsidian" to 0xFF1E1526.toInt(),
+        "minecraft:nether_portal" to 0xFFB060FF.toInt(),
+        "minecraft:end_portal" to 0xFF101018.toInt(),
+        "minecraft:end_stone" to 0xFFE0DE9A.toInt(),
+        "minecraft:end_stone_bricks" to 0xFFD6D48C.toInt(),
+        "minecraft:purpur_block" to 0xFFAE7BB0.toInt(),
+        "minecraft:netherrack" to 0xFF8B3A3A.toInt(),
+        "minecraft:crimson_nylium" to 0xFF9B3A5A.toInt(),
+        "minecraft:warped_nylium" to 0xFF2E6B6B.toInt(),
+        "minecraft:soul_sand" to 0xFF6B4A32.toInt(),
+        "minecraft:soul_soil" to 0xFF5A3A28.toInt(),
+        "minecraft:magma_block" to 0xFF8B3A1A.toInt(),
+        "minecraft:nether_bricks" to 0xFF52282B.toInt(),
+        "minecraft:nether_wart_block" to 0xFF8B2030.toInt(),
+        "minecraft:crimson_hyphae" to 0xFF8B3A55.toInt(),
+        "minecraft:warped_hyphae" to 0xFF2E7B7B.toInt(),
+        "minecraft:crimson_planks" to 0xFF9B4A60.toInt(),
+        "minecraft:warped_planks" to 0xFF3E8B8B.toInt(),
+        "minecraft:blackstone" to 0xFF2E2A30.toInt(),
+        "minecraft:basalt" to 0xFF4A4A50.toInt(),
+        "minecraft:ancient_debris" to 0xFF5A4038.toInt(),
+        "minecraft:glowstone" to 0xFFD8B060.toInt(),
+        "minecraft:amethyst_block" to 0xFF9B6BD8.toInt(),
+        "minecraft:moss_block" to 0xFF5A8B3A.toInt(),
+        "minecraft:moss_carpet" to 0xFF6B9B45.toInt(),
+        "minecraft:torch" to 0xFFFFD050.toInt(),
+        "minecraft:soul_torch" to 0xFF7FD0E8.toInt(),
+        "minecraft:lantern" to 0xFFFFD060.toInt(),
+        "minecraft:glass" to 0xFFC8E8F5.toInt(),
+        "minecraft:tinted_glass" to 0xFF3A3A3A.toInt(),
+        "minecraft:hay_block" to 0xFFC8A838.toInt(),
+        "minecraft:cobweb" to 0xFFE8E8E8.toInt(),
+        "minecraft:sponge" to 0xFFD8D060.toInt(),
+        "minecraft:wet_sponge" to 0xFFB8A84A.toInt(),
+        "minecraft:mycelium" to 0xFF8B6B7A.toInt(),
+        "minecraft:slime_block" to 0xFF6BB05A.toInt(),
+        "minecraft:honeycomb_block" to 0xFFD8A838.toInt(),
+        "minecraft:bookshelf" to 0xFFA87A45.toInt(),
+        "minecraft:crafting_table" to 0xFFA87A45.toInt(),
+        "minecraft:furnace" to 0xFF7A7A7A.toInt(),
+        "minecraft:chest" to 0xFFA87A45.toInt(),
+        "minecraft:dispenser" to 0xFF8A8A8A.toInt(),
+        "minecraft:dropper" to 0xFF8A8A8A.toInt(),
+        "minecraft:observer" to 0xFF6B6B6B.toInt(),
+        "minecraft:piston" to 0xFF9A8A6B.toInt(),
+        "minecraft:redstone_block" to 0xFFC02020.toInt(),
+        "minecraft:iron_block" to 0xFFE0E0E0.toInt(),
+        "minecraft:gold_block" to 0xFFE8C020.toInt(),
+        "minecraft:diamond_block" to 0xFF60E0E0.toInt(),
+        "minecraft:emerald_block" to 0xFF40C060.toInt(),
+        "minecraft:lapis_block" to 0xFF2040C0.toInt(),
+        "minecraft:netherite_block" to 0xFF3A3538.toInt(),
+        "minecraft:coal_block" to 0xFF202020.toInt(),
+        "minecraft:coal_ore" to 0xFF6B6B6B.toInt(),
+        "minecraft:iron_ore" to 0xFFB89478.toInt(),
+        "minecraft:gold_ore" to 0xFFD8B44A.toInt(),
+        "minecraft:diamond_ore" to 0xFF60C8D8.toInt(),
+        "minecraft:emerald_ore" to 0xFF40B060.toInt(),
+        "minecraft:lapis_ore" to 0xFF3A5AA8.toInt(),
+        "minecraft:redstone_ore" to 0xFFA83030.toInt(),
+        "minecraft:nether_quartz_ore" to 0xFFC8B4A0.toInt(),
+        "minecraft:deepslate_coal_ore" to 0xFF5A5A5A.toInt(),
+        "minecraft:deepslate_iron_ore" to 0xFFA88062.toInt(),
+        "minecraft:deepslate_gold_ore" to 0xFFC09A38.toInt(),
+        "minecraft:deepslate_diamond_ore" to 0xFF4EB0C0.toInt(),
+        "minecraft:deepslate_emerald_ore" to 0xFF309050.toInt(),
+        "minecraft:copper_ore" to 0xFFB87333.toInt(),
+        "minecraft:deepslate_copper_ore" to 0xFF9A5C28.toInt(),
+        "minecraft:clay_ore" to 0xFFA0A8B8.toInt()
     )
 
     /** 后缀/关键词规则：木材、树叶、羊毛、混凝土这些有几十种，逐条列不完。 */
     private fun byRule(name: String): Int? {
         val n = name.removePrefix("minecraft:")
-        if (n == "water") return 0xFF3B6FD4
+        if (n == "water") return 0xFF3B6FD4.toInt()
         return when {
-            n.endsWith("_leaves") -> if (n.startsWith("cherry")) 0xFFF0A0C0 else if (n.startsWith("spruce")) 0xFF2E6B4A else 0xFF4A9B32
-            n == "mangrove_roots" -> 0xFF7A4A2A
+            n.endsWith("_leaves") -> if (n.startsWith("cherry")) 0xFFF0A0C0.toInt() else if (n.startsWith("spruce")) 0xFF2E6B4A.toInt() else 0xFF4A9B32.toInt()
+            n == "mangrove_roots" -> 0xFF7A4A2A.toInt()
             n.endsWith("_log") || n.endsWith("_wood") || n.endsWith("_hyphae") -> when {
-                n.startsWith("oak") || n.startsWith("dark_oak") -> 0xFF8B6B41
-                n.startsWith("birch") -> 0xFFD8CBA0
-                n.startsWith("spruce") -> 0xFF6B4A24
-                n.startsWith("acacia") -> 0xFFB07040
-                n.startsWith("jungle") -> 0xFF9B7A52
-                n.startsWith("cherry") -> 0xFFC08070
-                n.startsWith("mangrove") -> 0xFF7A3A3A
-                n.startsWith("crimson") -> 0xFF8B3A55
-                n.startsWith("warped") -> 0xFF2E7B7B
-                else -> 0xFF8B6B41
+                n.startsWith("oak") || n.startsWith("dark_oak") -> 0xFF8B6B41.toInt()
+                n.startsWith("birch") -> 0xFFD8CBA0.toInt()
+                n.startsWith("spruce") -> 0xFF6B4A24.toInt()
+                n.startsWith("acacia") -> 0xFFB07040.toInt()
+                n.startsWith("jungle") -> 0xFF9B7A52.toInt()
+                n.startsWith("cherry") -> 0xFFC08070.toInt()
+                n.startsWith("mangrove") -> 0xFF7A3A3A.toInt()
+                n.startsWith("crimson") -> 0xFF8B3A55.toInt()
+                n.startsWith("warped") -> 0xFF2E7B7B.toInt()
+                else -> 0xFF8B6B41.toInt()
             }
             n.endsWith("_planks") -> when {
-                n.startsWith("oak") -> 0xFFB08A50
-                n.startsWith("birch") -> 0xFFE0CE9A
-                n.startsWith("spruce") -> 0xFF8B6B41
-                n.startsWith("acacia") -> 0xFFC08050
-                n.startsWith("jungle") -> 0xFFA8885A
-                n.startsWith("cherry") -> 0xFFD0A080
-                n.startsWith("dark_oak") -> 0xFF6B4A2A
-                n.startsWith("mangrove") -> 0xFF8B4A3A
-                else -> 0xFFB08A50
+                n.startsWith("oak") -> 0xFFB08A50.toInt()
+                n.startsWith("birch") -> 0xFFE0CE9A.toInt()
+                n.startsWith("spruce") -> 0xFF8B6B41.toInt()
+                n.startsWith("acacia") -> 0xFFC08050.toInt()
+                n.startsWith("jungle") -> 0xFFA8885A.toInt()
+                n.startsWith("cherry") -> 0xFFD0A080.toInt()
+                n.startsWith("dark_oak") -> 0xFF6B4A2A.toInt()
+                n.startsWith("mangrove") -> 0xFF8B4A3A.toInt()
+                else -> 0xFFB08A50.toInt()
             }
             n.endsWith("_wool") -> WOOL[n.removeSuffix("_wool")]
             n.endsWith("_concrete") -> WOOL[n.removeSuffix("_concrete")]
             n.endsWith("_concrete_powder") -> WOOL[n.removeSuffix("_concrete_powder")]?.let { it and 0xD0FFFFFF.toInt() }
-            n.endsWith("_terracotta") -> WOOL[n.removeSuffix("_terracotta")]?.let { mix(it, 0xFFB07050, 0.55f) }
+            n.endsWith("_terracotta") -> WOOL[n.removeSuffix("_terracotta")]?.let { mix(it, 0xFFB07050.toInt(), 0.55f) }
             n.endsWith("_glazed_terracotta") -> WOOL[n.removeSuffix("_glazed_terracotta")]
             n.endsWith("_stained_glass") -> WOOL[n.removeSuffix("_stained_glass")]
             n.endsWith("_carpet") -> WOOL[n.removeSuffix("_carpet")]
             n.endsWith("_bed") -> WOOL[n.removeSuffix("_bed")]
-            n.endsWith("_ore") -> 0xFF8A8A8A
-            n.endsWith("_block") && n.contains("deepslate") -> 0xFF45454D
-            n.startsWith("wheat") || n.startsWith("carrots") || n.startsWith("potatoes") || n.startsWith("beetroots") -> 0xFF6BA83A
-            n.contains("nether_brick") -> 0xFF52282B
-            n.contains("prismarine") -> 0xFF5AA88A
-            n.contains("purpur") -> 0xFFAE7BB0
-            n.contains("coral") -> 0xFFD85AA8
-            n.contains("shulker") -> 0xFF8B6BB0
-            n.contains("quartz") -> 0xFFE8E0D8
-            n.contains("bamboo") -> 0xFF7AB04A
-            n.contains("sculk") -> 0xFF12222A
-            n.contains("kelp") || n.contains("seagrass") -> 0xFF3A8B4A
+            n.endsWith("_ore") -> 0xFF8A8A8A.toInt()
+            n.endsWith("_block") && n.contains("deepslate") -> 0xFF45454D.toInt()
+            n.startsWith("wheat") || n.startsWith("carrots") || n.startsWith("potatoes") || n.startsWith("beetroots") -> 0xFF6BA83A.toInt()
+            n.contains("nether_brick") -> 0xFF52282B.toInt()
+            n.contains("prismarine") -> 0xFF5AA88A.toInt()
+            n.contains("purpur") -> 0xFFAE7BB0.toInt()
+            n.contains("coral") -> 0xFFD85AA8.toInt()
+            n.contains("shulker") -> 0xFF8B6BB0.toInt()
+            n.contains("quartz") -> 0xFFE8E0D8.toInt()
+            n.contains("bamboo") -> 0xFF7AB04A.toInt()
+            n.contains("sculk") -> 0xFF12222A.toInt()
+            n.contains("kelp") || n.contains("seagrass") -> 0xFF3A8B4A.toInt()
             else -> null
         }
     }
 
     private val WOOL: Map<String, Int> = mapOf(
-        "white" to 0xFFF0F0F0, "orange" to 0xFFE08A20, "magenta" to 0xFFC040C0,
-        "light_blue" to 0xFF60A8E8, "yellow" to 0xFFE8D040, "lime" to 0xFF80D020,
-        "pink" to 0xFFF080A0, "gray" to 0xFF606060, "light_gray" to 0xFFA8A8A8,
-        "cyan" to 0xFF30A0A0, "purple" to 0xFF8030C0, "blue" to 0xFF3050C0,
-        "brown" to 0xFF8B5A2A, "green" to 0xFF4A8B32, "red" to 0xFFB03030,
-        "black" to 0xFF202020
+        "white" to 0xFFF0F0F0.toInt(), "orange" to 0xFFE08A20.toInt(), "magenta" to 0xFFC040C0.toInt(),
+        "light_blue" to 0xFF60A8E8.toInt(), "yellow" to 0xFFE8D040.toInt(), "lime" to 0xFF80D020.toInt(),
+        "pink" to 0xFFF080A0.toInt(), "gray" to 0xFF606060.toInt(), "light_gray" to 0xFFA8A8A8.toInt(),
+        "cyan" to 0xFF30A0A0.toInt(), "purple" to 0xFF8030C0.toInt(), "blue" to 0xFF3050C0.toInt(),
+        "brown" to 0xFF8B5A2A.toInt(), "green" to 0xFF4A8B32.toInt(), "red" to 0xFFB03030.toInt(),
+        "black" to 0xFF202020.toInt()
     )
 
     private fun mix(a: Int, b: Int, t: Float): Int {

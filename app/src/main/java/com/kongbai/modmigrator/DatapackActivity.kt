@@ -356,7 +356,7 @@ class DatapackActivity : AppCompatActivity() {
             if (packDir.findFile("pack.mcmeta") == null) {
                 packDir.createFile("application/json", "pack.mcmeta")?.let { f ->
                     contentResolver.openOutputStream(f.uri, "wt")?.use {
-                        it.write(mcmeta().toByteArray())
+                        it.write(mcmeta(pack).toByteArray())
                     }
                 }
             }
@@ -387,13 +387,13 @@ class DatapackActivity : AppCompatActivity() {
         }
     }
 
-    private fun mcmeta(): String {
+    private fun mcmeta(name: String): String {
         val v = etMc.text.toString().trim()
         val fmt = packFormat(v)
         return """{
   "pack": {
     "pack_format": $fmt,
-    "description": "${pack.replace("\"", "")}"
+    "description": "${name.replace("\"", "")}"
   }
 }"""
     }
