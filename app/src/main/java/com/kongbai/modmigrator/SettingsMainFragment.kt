@@ -513,10 +513,39 @@ class SettingsMainFragment : Fragment() {
         }
     }
 
-    /** 后端连不上时只能让用户手填一次 Client ID */
-    private fun askClientId() {
+    /**
+     * 填 Client ID。
+     * force=true 时用于"之前填错了，要改"——连不上的时候
+     * 用户只能手填一次，填错就得有地方改回来。
+     */
+    private fun askClientId(force: Boolean = false) {
         val ctx = context ?: return
-        val et = android.widget.EditText(ctx).apply { setSingleLine(true) }
+        val cur = Prefs.get(ctx).getString(K.GH_CLIENT_ID, "") ?: ""
+        if (force && cur.isNotBlank()) {
+            MaterialAlertDialogBuilder(ctx)
+                .setTitle("当前保存的 Client ID")
+                .setMessage(
+                    "$cur\n\n" +
+                        "如果登录时报「client_id 不正确」，说明这个值不对。\n" +
+                        "确认它是 **OAuth App**（不是 GitHub App）的 Client ID。"
+                )
+                .setNegativeButton(R.string.cancel, null)
+                .setNeutralButton("清除") { _, _ ->
+                    Prefs.get(ctx).edit().remove(K.GH_CLIENT_ID).apply()
+                    toast("已清除，下次登录会重新问")
+                }
+                .setPositiveButton("重新填") { _, _ -> showClientIdInput(ctx, cur) }
+                .show()
+            return
+        }
+        showClientIdInput(ctx, cur)
+    }
+
+    private fun showClientIdInput(ctx: android.content.Context, cur: String) {
+        val et = android.widget.EditText(ctx).apply {
+            setSingleLine(true)
+            if (cur.isNotBlank()) setText(cur)
+        }
         MaterialAlertDialogBuilder(ctx)
             .setTitle("需要 GitHub OAuth Client ID")
             .setMessage(
@@ -556,7 +585,11 @@ class SettingsMainFragment : Fragment() {
         val v = GhPkce.newVerifier()
         GhPkce.saveVerifier(ctx, v)
         val url = GhPkce.authorizeUrl(clientId, v)
-        LogCenter.i("Login", "PKCE：拉起 Chrome Custom Tabs")
+        LogCenter.i(
+            "Login",
+            "PKCE：拉起 Chrome Custom Tabs（client_id=" +
+                clientId.take(4) + "…" + clientId.takeLast(4) + "，共 ${clientId.length} 位）"
+        )
         val uri = android.net.Uri.parse(url)
         try {
             val i = androidx.browser.customtabs.CustomTabsIntent.Builder()
@@ -646,6 +679,7 @@ class SettingsMainFragment : Fragment() {
             .setItems(
                 arrayOf(
                     "用 GitHub 登录（PKCE，推荐）",
+                    "重填 / 查看 GitHub Client ID",
                     "用访问令牌登录（直连 GitHub）",
                     "用内置浏览器登录（后端中转，可能卡在 passkey）",
                     "用系统浏览器登录（后端中转，会 state 校验失败）",
@@ -656,12 +690,13 @@ class SettingsMainFragment : Fragment() {
             ) { _, w ->
                 when (w) {
                     0 -> pkceLogin()
-                    1 -> manualToken()
-                    2 -> login(useExternal = false)
-                    3 -> loginExternal()
-                    4 -> runLoginDiag()
-                    5 -> copyLoginLog()
-                    6 -> doLogout()
+                    1 -> askClientId(force = true)
+                    2 -> manualToken()
+                    3 -> login(useExternal = false)
+                    4 -> loginExternal()
+                    5 -> runLoginDiag()
+                    6 -> copyLoginLog()
+                    7 -> doLogout()
                 }
             }
             .setNegativeButton(R.string.cancel, null)
