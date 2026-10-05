@@ -129,7 +129,7 @@ class SettingsMainFragment : Fragment() {
             toast(if (c) "已开启：加载器分类里会显示手机不支持的那些" else "已关闭")
         }
 
-        btnAccount.setOnClickListener { login() }
+        btnAccount.setOnClickListener { pkceLogin() }
         v.findViewById<Button>(R.id.btnGoBackend).setOnClickListener { go("backend") }
         v.findViewById<Button>(R.id.btnGoSearch).setOnClickListener { go("search") }
         v.findViewById<Button>(R.id.btnGoMigrate).setOnClickListener { go("migrate") }
@@ -302,7 +302,7 @@ class SettingsMainFragment : Fragment() {
                 } else {
                     tvAccount.text = getString(R.string.account_not_login)
                     btnAccount.text = getString(R.string.account_login)
-                    btnAccount.setOnClickListener { login() }
+                    btnAccount.setOnClickListener { pkceLogin() }
                     tvConnState.text = getString(R.string.account_hint_logged_out)
 
                     // 登不上时给两条后路：先看诊断，再不行就手动填 token。
@@ -312,7 +312,7 @@ class SettingsMainFragment : Fragment() {
                     // 整行账号区域也可点：之前只有按钮能点，
                     // 用户点昵称/头像那一大片没反应，会以为点不动。
                     runCatching {
-                        rowAccount.setOnClickListener { login() }
+                        rowAccount.setOnClickListener { pkceLogin() }
                         rowAccount.setOnLongClickListener {
                             showLoginMenu()
                             true
@@ -528,6 +528,17 @@ class SettingsMainFragment : Fragment() {
                     GhPkce.REDIRECT_URI
             )
             .setView(et)
+            .setNeutralButton("打开 GitHub 设置页") { _, _ ->
+                runCatching {
+                    startActivity(
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            android.net.Uri.parse("https://github.com/settings/developers")
+                        )
+                    )
+                }
+                askClientId()
+            }
             .setNegativeButton(R.string.cancel, null)
             .setPositiveButton("保存并登录") { _, _ ->
                 val id = et.text.toString().trim()
