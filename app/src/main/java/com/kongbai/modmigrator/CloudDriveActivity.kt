@@ -168,6 +168,7 @@ class CloudDriveActivity : AppCompatActivity() {
                 helpUrl = "https://alist.nn.ci/zh/guide/drivers/onedrive.html"
             ),
         )
+    }
 
     private lateinit var tvState: TextView
     private lateinit var box: LinearLayout
