@@ -477,6 +477,98 @@ class SettingsMainFragment : Fragment() {
      * 现在填完立刻调 `GitHubApi.verifyPat` 直连 GitHub 校验：
      * 成功就把账号信息落盘并显示，失败明确说为什么。
      */
+    /**
+     * PKCE 登录 —— 目前唯一一条能真正走通的路。
+     *
+     * 用 Chrome Custom Tabs（外部浏览器进程，passkey 可用）打开 GitHub，
+     * 授权后靠自定义 scheme 把 code 交回应用，
+     * 应用自己拿 code + verifier 去 GitHub 换 token。
+     * 全程不经过后端，也就不存在 state cookie 在不同 jar 之间对不上的问题。
+     */
+    private fun pkceLogin() {
+        val ctx = context ?: return
+        val saved = Prefs.get(ctx).getString(K.GH_CLIENT_ID, "") ?: ""
+        if (saved.isNotBlank()) {
+            launchPkce(ctx, saved)
+            return
+        }
+        // 后端 /api/config 公开了 clientId，先试着从那儿取，省得用户手填
+        toast("正在取 Client ID…")
+        exec.execute {
+            val id = try {
+                val b = BackendApi.authBase()
+                val o = Json.obj(Http.get(b + "/api/config"))
+                o?.let { Json.s(it, "githubClientId") } ?: ""
+            } catch (t: Throwable) {
+                ""
+            }
+            handler.post {
+                if (!isAdded) return@post
+                if (id.isBlank()) askClientId()
+                else {
+                    Prefs.get(ctx).edit().putString(K.GH_CLIENT_ID, id).apply()
+                    launchPkce(ctx, id)
+                }
+            }
+        }
+    }
+
+    /** 后端连不上时只能让用户手填一次 Client ID */
+    private fun askClientId() {
+        val ctx = context ?: return
+        val et = android.widget.EditText(ctx).apply { setSingleLine(true) }
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("需要 GitHub OAuth Client ID")
+            .setMessage(
+                "后端连不上，取不到 Client ID。\n\n" +
+                    "获取：GitHub → Settings → Developer settings →\n" +
+                    "OAuth Apps → 你的应用 → Client ID。\n\n" +
+                    "它不是机密，可以明文保存。\n\n" +
+                    "另外请确认该应用的回调地址里有这一条：\n" +
+                    GhPkce.REDIRECT_URI
+            )
+            .setView(et)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton("保存并登录") { _, _ ->
+                val id = et.text.toString().trim()
+                if (id.isBlank()) {
+                    toast("没填内容")
+                    return@setPositiveButton
+                }
+                Prefs.get(ctx).edit().putString(K.GH_CLIENT_ID, id).apply()
+                launchPkce(ctx, id)
+            }
+            .show()
+    }
+
+    private fun launchPkce(ctx: android.content.Context, clientId: String) {
+        val v = GhPkce.newVerifier()
+        GhPkce.saveVerifier(ctx, v)
+        val url = GhPkce.authorizeUrl(clientId, v)
+        LogCenter.i("Login", "PKCE：拉起 Chrome Custom Tabs")
+        val uri = android.net.Uri.parse(url)
+        try {
+            val i = androidx.browser.customtabs.CustomTabsIntent.Builder()
+                // 允许 https 链接交回系统（App Links 那条才可能生效）
+                .setSendToExternalDefaultHandlerEnabled(true)
+                .build()
+            i.intent.setData(uri)
+            startActivity(i.intent)
+        } catch (t: Throwable) {
+            // 没有 Custom Tabs 就退回普通浏览器，scheme 回调照样能接住
+            runCatching {
+                startActivity(Intent(Intent.ACTION_VIEW, uri))
+            }.onFailure { toast("打不开浏览器") }
+        }
+        android.widget.Toast.makeText(
+            ctx,
+            "在浏览器里完成授权，会自动回到本应用。\n\n" +
+                "如果 GitHub 提示 redirect_uri 不匹配，\n" +
+                "需要在 OAuth App 的回调地址里加上：\n" + GhPkce.REDIRECT_URI,
+            android.widget.Toast.LENGTH_LONG
+        ).show()
+    }
+
     private fun manualToken() {
         val ctx = context ?: return
         val et = android.widget.EditText(ctx).apply {
@@ -542,21 +634,23 @@ class SettingsMainFragment : Fragment() {
             .setTitle("登录")
             .setItems(
                 arrayOf(
-                    "用访问令牌登录（推荐，直连 GitHub）",
-                    "用内置浏览器登录（推荐）",
-                    "用系统浏览器登录（会 state 校验失败，仅作备用）",
+                    "用 GitHub 登录（PKCE，推荐）",
+                    "用访问令牌登录（直连 GitHub）",
+                    "用内置浏览器登录（后端中转，可能卡在 passkey）",
+                    "用系统浏览器登录（后端中转，会 state 校验失败）",
                     "登录诊断（看卡在哪）",
                     "复制登录日志",
                     "退出登录"
                 )
             ) { _, w ->
                 when (w) {
-                    0 -> manualToken()
-                    1 -> login(useExternal = false)
-                    2 -> loginExternal()
-                    3 -> runLoginDiag()
-                    4 -> copyLoginLog()
-                    5 -> doLogout()
+                    0 -> pkceLogin()
+                    1 -> manualToken()
+                    2 -> login(useExternal = false)
+                    3 -> loginExternal()
+                    4 -> runLoginDiag()
+                    5 -> copyLoginLog()
+                    6 -> doLogout()
                 }
             }
             .setNegativeButton(R.string.cancel, null)

@@ -11,8 +11,8 @@ android {
         applicationId "com.kongbai.modmigrator"
         minSdk 26
         targetSdk 34
-        versionCode 43
-        versionName "2.3.5"
+        versionCode 44
+        versionName "2.3.6"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -69,6 +69,9 @@ dependencies {
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'
     implementation 'androidx.work:work-runtime-ktx:2.9.0'
     implementation 'androidx.preference:preference-ktx:1.2.1'
+    // Chrome Custom Tabs：OAuth 必须在**外部浏览器进程**里跑（RFC 8252），
+    // 内置 WebView 不支持 passkey，会把 GitHub 登录页卡死
+    implementation 'androidx.browser:browser:1.8.0'
 
     // FTP / FTPS：Apache Commons Net（Apache-2.0，非传染性）
     implementation 'commons-net:commons-net:3.11.1'

@@ -77,6 +77,38 @@
             android:label="@string/cfg_pick_launcher"
             android:screenOrientation="portrait" />
 
+        <!--
+          OAuth 回调落点。
+          mm://oauth/callback 需要在 GitHub OAuth App 的回调地址里额外登记一条；
+          自定义 scheme 浏览器处理不了，会交回系统再送到这里。
+          https 那条是后端中转流程的地址，App Links 生效时也能接住。
+        -->
+        <activity
+            android:name=".OAuthRedirectActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="mm"
+                    android:host="oauth"
+                    android:pathPrefix="/callback" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="modmarket.3566500461.workers.dev"
+                    android:pathPrefix="/api/auth/callback" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".CloudDriveActivity"
             android:exported="false"

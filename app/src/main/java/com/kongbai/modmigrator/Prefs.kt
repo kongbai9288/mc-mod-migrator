@@ -113,6 +113,8 @@ object Prefs {
 
 object K {
     const val TOKEN = "gh_token"
+    /** GitHub OAuth App 的 Client ID（PKCE 登录用，非机密，可明文存） */
+    const val GH_CLIENT_ID = "gh_client_id"
     const val OWNER = "gh_owner"
     const val REPO = "gh_repo"
     const val BRANCH = "gh_branch"
