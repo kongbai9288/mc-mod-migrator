@@ -14,14 +14,17 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import net.querz.mcaselector.io.mca.RegionMCAFile
+import com.viaversion.nbt.tag.CompoundTag
 import java.io.File
 
 /**
  * 区块图形编辑器（.mca 区域文件）。
  *
- * 渲染与解析交给 MCA Selector（见 [McaBridge]），
- * 这里只负责：把区域文件画成俯视图 → 点区块 → 翻层看 → 删区块 → 写回。
+ * 解析走 [McaEdit]，画图走 [McaRender]，都是本工程自己的代码 ——
+ * 不再依赖移植的桌面库：那种库靠反射注册各版本实现，
+ * 一旦注册不上就静默画不出东西，出了事完全没法定位。
+ *
+ * 用法：区域总览 → 点一下进某个区块 → 上下翻层看 → 可删 → 保存写回。
  *
  * ⚠️ 区域文件是存档本体，改错了就是毁档：
  *   · 首次打开先给原文件留一份 .bak；
@@ -48,9 +51,15 @@ class ChunkMapActivity : AppCompatActivity() {
         /** 1.18 起区段号从 -4 开始，之前是 0 */
         private const val SEC_MIN = -4
         private const val SEC_MAX = 19
+
+        private const val IMG = 512
     }
 
-    private var mca: RegionMCAFile? = null
+    private var region: McaEdit.Region? = null
+    /** 已解析的区块，按槽位缓存 —— 区域总览和翻层都要反复用 */
+    private val cache = HashMap<Int, CompoundTag?>()
+    private var present: List<Int> = emptyList()
+
     private var work: File? = null
     private var srcPath: String = ""
     private var srcUri: Uri? = null
@@ -59,6 +68,9 @@ class ChunkMapActivity : AppCompatActivity() {
     private var secY = SEC_MIN
     private var layerMode = false
     private var dirty = false
+
+    private var tapX = 0f
+    private var tapY = 0f
 
     private lateinit var tvInfo: TextView
     private lateinit var image: ImageView
@@ -82,7 +94,7 @@ class ChunkMapActivity : AppCompatActivity() {
             )
         )
 
-        tvInfo = TextView(this).apply { textSize = 12f }
+        tvInfo = TextView(this).apply { textSize = 12f; text = "正在读取区域文件…" }
         root.addView(tvInfo)
 
         image = ImageView(this).apply {
@@ -99,7 +111,6 @@ class ChunkMapActivity : AppCompatActivity() {
             gravity = Gravity.CENTER
         }
         root.addView(row)
-
         row.addView(MaterialButton(this).apply {
             text = "上一层"
             setOnClickListener { step(-1) }
@@ -131,24 +142,44 @@ class ChunkMapActivity : AppCompatActivity() {
             setOnClickListener { save() }
         })
 
+        image.setOnTouchListener { v, ev ->
+            if (ev.action == android.view.MotionEvent.ACTION_UP) {
+                tapX = ev.x; tapY = ev.y
+                v.performClick()
+            }
+            true
+        }
+        image.setOnClickListener { onTap(it) }
+
         Thread { prepare() }.start()
+    }
+
+    private fun post(msg: String) = runOnUiThread {
+        tvInfo.text = msg
+    }
+
+    private fun toast(msg: String) = runOnUiThread {
+        Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
     }
 
     // ------------------------------------------------------------------ 载入
 
     /**
-     * MCA Selector 的读写都基于真实 File（内部用 RandomAccessFile），
-     * 而 SAF 的 content:// 拿不到 File。所以先落到自己的缓存目录，
+     * SAF 的 content:// 拿不到真实 File，所以统一先落到自己的缓存目录，
      * 改完再写回原处。顺带给原文件留一份 .bak。
      */
     private fun prepare() {
-        val cache = File(filesDir, "mca").apply { mkdirs() }
-        val dst = File(cache, "work.mca")
+        val cacheDir = File(filesDir, "mca").apply { mkdirs() }
+        val dst = File(cacheDir, "work.mca")
         try {
             val bytes = if (srcPath.isNotBlank()) File(srcPath).readBytes()
             else contentResolver.openInputStream(srcUri!!)?.use { it.readBytes() }
             if (bytes == null) {
                 post("读不了这个区域文件")
+                return
+            }
+            if (bytes.size < 8192) {
+                post("这个文件太小（${bytes.size} 字节），不像有效的 .mca")
                 return
             }
             dst.writeBytes(bytes)
@@ -161,104 +192,128 @@ class ChunkMapActivity : AppCompatActivity() {
             post("读取失败：${t.message ?: t.javaClass.simpleName}")
             return
         }
-        val m = try {
-            McaBridge.open(dst)
+        val r = try {
+            McaEdit.Region(dst.readBytes())
         } catch (t: Throwable) {
             Err.fail(t, "打开区域文件")
-            post("打开失败：${t.message ?: t.javaClass.simpleName}\n${t.cause?.message ?: ""}")
+            post("打开失败：${t.message ?: t.javaClass.simpleName}")
             return
         }
+        region = r
+        present = r.present()
         work = dst
-        mca = m
+        if (present.isEmpty()) {
+            post("这个区域文件里没有任何区块（空的）")
+            return
+        }
         runOnUiThread {
             slot = -1
             layerMode = false
             render()
-            image.setOnTouchListener { v, ev ->
-                if (ev.action == android.view.MotionEvent.ACTION_UP) {
-                    tapX = ev.x; tapY = ev.y
-                    v.performClick()
-                }
-                true
-            }
-            image.setOnClickListener { onTapRegion(it) }
         }
     }
 
-    private fun post(msg: String) = runOnUiThread {
-        tvInfo.text = msg
-        Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+    private fun chunkAt(s: Int): CompoundTag? {
+        if (s !in 0 until 1024) return null
+        if (cache.containsKey(s)) return cache[s]
+        val c = try {
+            region?.chunk(s)
+        } catch (t: Throwable) {
+            null
+        }
+        cache[s] = c
+        return c
     }
 
     // ------------------------------------------------------------------ 渲染
 
     private fun render() {
-        val m = mca ?: return
-        val t0 = System.currentTimeMillis()
+        val r = region
+        if (r == null) { post("区域文件还没准备好"); return }
         if (slot < 0) {
-            val px = IntArray(512 * 512)
-            val n = McaBridge.drawRegion(m, 1, px)
-            image.setImageBitmap(Bitmap.createBitmap(px, 512, 512, Bitmap.Config.ARGB_8888))
-            val ms = System.currentTimeMillis() - t0
-            tvInfo.text = "区域总览：$n 个区块　${ms}ms\n点一下想看的区块"
+            renderRegion()
         } else {
-            val c = m.getChunk(slot)
-            if (c == null || c.isEmpty()) {
-                tvInfo.text = "这个槽位是空的"
-                return
-            }
-            val scale = 32
-            val s = 16 * scale
-            val px = IntArray(s * s)
-            val ok = if (layerMode) {
-                McaBridge.drawLayer(c, secY, scale, px) && !McaBridge.layerEmpty(px)
-            } else {
-                McaBridge.drawChunk(c, scale, px)
-            }
-            val ms = System.currentTimeMillis() - t0
-            val dv = McaBridge.dataVersionOf(c)
-            val loc = c.absoluteLocation
-            if (ok) {
-                image.setImageBitmap(Bitmap.createBitmap(px, s, s, Bitmap.Config.ARGB_8888))
-            } else {
-                image.setImageBitmap(null)
-            }
-            tvInfo.text = buildString {
-                append("区块 (${loc.x}, ${loc.z})　DataVersion $dv\n")
-                append(if (layerMode) "第 $secY 段（y≈${secY * 16}）" else "整列俯视")
-                append("　${ms}ms")
-                if (!ok && layerMode) append("\n这一段是空的")
-            }
+            renderChunk()
         }
     }
 
-    private var tapX = 0f
-    private var tapY = 0f
+    private fun renderRegion() {
+        post("正在画区域总览（${present.size} 个区块）…")
+        Thread {
+            val px = IntArray(IMG * IMG)
+            // 背景：深灰，空区块的位置就留着，一眼能看出哪些没生成
+            for (i in px.indices) px[i] = 0xFF141414.toInt()
+            var drawn = 0
+            var empty = 0
+            for (s in present) {
+                val c = chunkAt(s)
+                if (c == null) { empty++; continue }
+                val cx = s and 31
+                val cz = (s shr 5) and 31
+                if (McaRender.drawTop(c, px, IMG, cx * 16, cz * 16, 1)) drawn++ else empty++
+            }
+            val bmp = Bitmap.createBitmap(px, IMG, IMG, Bitmap.Config.ARGB_8888)
+            runOnUiThread {
+                image.setImageBitmap(bmp)
+                post("区域总览：共 ${present.size} 个区块，画出 $drawn 个" +
+                    (if (empty > 0) "，空/读不出 $empty 个" else "") + "\n点一下进对应区块")
+            }
+        }.start()
+    }
 
-    private fun onTapRegion(v: android.view.View) {
-        val m = mca ?: return
+    private fun renderChunk() {
+        val c = chunkAt(slot)
+        if (c == null) { post("这个区块读不出来（可能已损坏或用了不支持的压缩）"); return }
+        val cx = slot and 31
+        val cz = (slot shr 5) and 31
+        val r = region ?: return
+        // 区域坐标 → 世界区块坐标：r.x.z.mca 的 x/z 从文件名来，这里用相对值兜底
+        val scale = IMG / 16
+        Thread {
+            val px = IntArray(IMG * IMG)
+            for (i in px.indices) px[i] = 0xFF101010.toInt()
+            val ok = if (layerMode) McaRender.drawLayer(c, secY, px, IMG, 0, 0, scale)
+            else McaRender.drawTop(c, px, IMG, 0, 0, scale)
+            val bmp = Bitmap.createBitmap(px, IMG, IMG, Bitmap.Config.ARGB_8888)
+            val dv = try {
+                c.getIntTag("DataVersion")?.getValue()
+            } catch (_: Throwable) { null }
+            val secs = McaEdit.sections(c).size
+            runOnUiThread {
+                image.setImageBitmap(bmp)
+                post(
+                    "区块 ($cx, $cz)　槽位 $slot\n" +
+                    (if (layerMode) "第 $secY 层（区段号）" else "整列俯视图") +
+                    "　段数 $secs" + (if (dv != null) "　DataVersion $dv" else "") +
+                    if (!ok) "\n（这一层没画出方块，可能是空的）" else ""
+                )
+            }
+        }.start()
+    }
+
+    private fun onTap(v: android.view.View) {
+        val r = region ?: return
         if (slot >= 0) return
         val w = v.width.toFloat()
         val h = v.height.toFloat()
-        // FIT_CENTER 下有留白，要按实际绘制区域换算
-        val scale = minOf(w / 512f, h / 512f)
-        val offX = (w - 512 * scale) / 2f
-        val offY = (h - 512 * scale) / 2f
-        val px = tapX - offX
-        val py = tapY - offY
-        if (px < 0 || py < 0) return
-        val cx = (px / scale / 16).toInt()
-        val cz = (py / scale / 16).toInt()
-        if (cx !in 0..31 || cz !in 0..31) return
-        val idx = cz * 32 + cx
-        val c = m.getChunk(idx)
-        if (c == null || c.isEmpty()) {
-            Toast.makeText(this, "这个区块是空的", Toast.LENGTH_SHORT).show()
+        if (w <= 0 || h <= 0) return
+        // ImageView 是 FIT_CENTER，图片实际区域可能比 view 小，按等比换算
+        val scale = minOf(w / IMG, h / IMG)
+        val offX = (w - IMG * scale) / 2f
+        val offY = (h - IMG * scale) / 2f
+        val ix = ((tapX - offX) / scale).toInt()
+        val iy = ((tapY - offY) / scale).toInt()
+        if (ix !in 0 until IMG || iy !in 0 until IMG) return
+        val cx = ix / 16
+        val cz = iy / 16
+        val s = cz * 32 + cx
+        if (!present.contains(s)) {
+            toast("这里没有区块（还没生成过）")
             return
         }
-        slot = idx
-        secY = SEC_MIN
+        slot = s
         layerMode = false
+        secY = SEC_MIN
         render()
     }
 
@@ -268,86 +323,85 @@ class ChunkMapActivity : AppCompatActivity() {
         render()
     }
 
-    private fun step(d: Int) {
-        if (slot < 0) return
-        layerMode = true
+    /** 上下翻层，自动跳过整片空的层 —— 否则要按二十几次才找到有东西的一层。 */
+    private fun step(dir: Int) {
+        val c = chunkAt(slot)
+        if (slot < 0 || c == null) { toast("先点一个区块"); return }
+        if (!layerMode) {
+            layerMode = true
+            // 从当前世界的实际段里找一个有内容的起点
+            val ys = McaEdit.sections(c).map { it.y }
+            if (ys.isEmpty()) { toast("这个区块没有段数据"); return }
+            secY = if (dir > 0) ys.minOrNull()!! else ys.maxOrNull()!!
+            if (McaRender.layerHasBlocks(c, secY)) { render(); return }
+        }
         var y = secY
-        var found = false
-        // 空段直接跳过去，不然得按 20 多次才看到东西
-        repeat(SEC_MAX - SEC_MIN + 1) {
-            y += d
-            if (y < SEC_MIN) y = SEC_MAX
-            if (y > SEC_MAX) y = SEC_MIN
-            val c = mca?.getChunk(slot) ?: return@repeat
-            val px = IntArray(16 * 16)
-            if (McaBridge.drawLayer(c, y, 1, px) && !McaBridge.layerEmpty(px)) {
+        repeat(48) {
+            y += dir
+            if (y < SEC_MIN || y > SEC_MAX) return@repeat
+            if (McaRender.layerHasBlocks(c, y)) {
                 secY = y
-                found = true
-                return@repeat
+                layerMode = true
+                render()
+                return
             }
         }
-        if (!found) secY = y
-        render()
+        toast("这个方向上没有更多有内容的层了")
     }
 
-    // ------------------------------------------------------------------ 写入
+    // ------------------------------------------------------------------ 删除 / 保存
 
     private fun askDelete() {
-        if (slot < 0) {
-            Toast.makeText(this, "先点一个区块", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val c = mca?.getChunk(slot) ?: return
-        val loc = c.absoluteLocation
+        val r = region ?: return
+        if (slot < 0) { toast("先在总览里点一个区块"); return }
+        val cx = slot and 31
+        val cz = (slot shr 5) and 31
         MaterialAlertDialogBuilder(this)
-            .setTitle("删除区块 (${loc.x}, ${loc.z})？")
+            .setTitle("删除区块 ($cx, $cz)？")
             .setMessage(
-                "这是**真删**：槽位表和方块数据一起抹掉。\n\n" +
-                    "之后游戏再次走到这片区域会按当前版本重新生成地形，" +
-                    "你在这里建过的东西不会回来。\n\n" +
-                    "存档本体的 .bak 备份在打开时已经留好了。"
+                "这个区块的数据会被整个抹掉。\n\n" +
+                "再次进入该区域时，游戏会按当前版本重新生成地形 —— " +
+                "之前在这里建过的东西不会回来。\n\n" +
+                "保存前不会写入原文件，可以先反悔。"
             )
-            .setNegativeButton(R.string.cancel, null)
+            .setNegativeButton("取消", null)
             .setPositiveButton("删除") { _, _ ->
-                McaBridge.deleteChunk(mca!!, slot)
-                dirty = true
-                slot = -1
-                layerMode = false
-                render()
-                Toast.makeText(this, "已删除，记得点保存", Toast.LENGTH_SHORT).show()
+                if (r.remove(slot)) {
+                    cache.remove(slot)
+                    present = r.present()
+                    dirty = true
+                    toast("已删除，记得点保存")
+                    backToRegion()
+                }
             }
             .show()
     }
 
     private fun save() {
-        if (!dirty) {
-            Toast.makeText(this, "没有改动", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val m = mca ?: return
+        val r = region ?: return
         val dst = work ?: return
+        if (!dirty) { toast("没有改动"); return }
         Thread {
-            val msg = try {
-                McaBridge.save(m)
-                val bytes = dst.readBytes()
-                if (srcPath.isNotBlank()) {
-                    File(srcPath).writeBytes(bytes)
-                } else {
-                    contentResolver.openOutputStream(srcUri!!, "wt")?.use { it.write(bytes) }
-                        ?: throw IllegalStateException("打不开原文件写入")
+            try {
+                val bytes = r.build()
+                dst.writeBytes(bytes)
+                if (srcPath.isNotBlank()) File(srcPath).writeBytes(bytes)
+                else contentResolver.openOutputStream(srcUri!!, "wt")?.use { it.write(bytes) }
+                runOnUiThread {
+                    dirty = false
+                    toast("已写回（${bytes.size / 1024} KB）")
+                    post("已保存")
                 }
-                dirty = false
-                "已写回原文件"
             } catch (t: Throwable) {
-                Err.fail(t, "写回区域文件")
-                "写回失败：${t.message ?: t.javaClass.simpleName}"
+                Err.fail(t, "保存区域文件")
+                runOnUiThread { post("保存失败：${t.message ?: t.javaClass.simpleName}") }
             }
-            runOnUiThread { Toast.makeText(this, msg, Toast.LENGTH_LONG).show() }
         }.start()
     }
 
     override fun onDestroy() {
-        mca = null
         super.onDestroy()
+        cache.clear()
+        region = null
     }
 }

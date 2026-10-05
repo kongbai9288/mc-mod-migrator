@@ -1,307 +1,426 @@
 package com.kongbai.modmigrator
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.text.InputType
+import android.view.Gravity
 import android.view.ViewGroup
-import android.widget.FrameLayout
+import android.widget.ArrayAdapter
+import android.widget.Button
+import android.widget.CheckBox
+import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.documentfile.provider.DocumentFile
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import io.misode.mobile.MisodeEvent
-import io.misode.mobile.MisodeView
-import java.io.File
+import org.json.JSONObject
 
 /**
- * 数据包 / 资源包生成器（离线）。
+ * 数据包生成器（自研）。
  *
- * 用的是 misode.github.io 的移动端打包（MIT），整站 137 个生成器
- * 已经打进 AAR 的 assets，**完全离线**，不需要联网。
+ * # 为什么不继续用离线网页版
  *
- * ⚠️ 这是个**便捷功能**，与迁移、商店等主流程无关。
- * 许可单独写在「更多 → 开源许可」里，归属 Misode（MIT）。
+ * 上一版是把 misode 的整站网页塞进 WebView。网页版依赖自己的路由和资源映射，
+ * 路径对不上就是一直「正在载入」，或者生成完写不出来 —— 而中间是黑盒，
+ * 出问题时连在哪一步断的都不知道。
  *
- * 生成结果可以一键写进某个存档的 datapacks 目录 —— 那一步才算"数据包写入"。
+ * 这里改成**原生表单**：内置若干常用生成器，每个是一张表单 + 一份 JSON 模板。
+ * 生成器种类没有网页版那 137 个多，但每一个都是「填完 → 一定能写出能用的 JSON」，
+ * 不需要网页运行时，也不受文件访问权限影响。
+ *
+ * 写入位置严格按数据包格式放在
+ * `datapacks/<包名>/data/<命名空间>/<类型>/<名字>.json`，
+ * 并自动补 `pack.mcmeta`（少了它游戏会直接忽略整个包）。
  */
 class DatapackActivity : AppCompatActivity() {
 
-    private var misode: MisodeView? = null
-    private lateinit var tvState: TextView
-    private lateinit var btnSave: MaterialButton
-    private var lastOutput: String = ""
+    // ---------------------------------------------------------------- 定义
+
+    private enum class Kind { TEXT, NUM, BOOL, SELECT, TEXTAREA }
+
+    private data class F(
+        val key: String, val label: String, val kind: Kind,
+        val def: String = "", val options: List<String> = emptyList()
+    )
+
+    private data class Gen(
+        val id: String, val title: String, val dir: String,
+        val fields: List<F>, val template: String
+    )
+
+    private val GENS: List<Gen> by lazy { listOf(
+        Gen("loot", "战利品表（方块 / 箱子 / 生物）", "loot_tables", listOf(
+            F("type", "类型", Kind.SELECT, "block", listOf("block", "chest", "entity", "fishing")),
+            F("rolls", "抽取次数", Kind.NUM, "1"),
+            F("bonus", "幸运加成次数", Kind.NUM, "0"),
+            F("item", "掉落物品", Kind.TEXT, "minecraft:diamond"),
+            F("count", "数量", Kind.NUM, "1")
+        ), """{
+  "type": "minecraft:{type}",
+  "pools": [
+    {
+      "rolls": {rolls},
+      "bonus_rolls": {bonus},
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "{item}",
+          "functions": [ { "function": "minecraft:set_count", "count": {count} } ]
+        }
+      ],
+      "conditions": [ { "condition": "minecraft:survives_explosion" } ]
+    }
+  ]
+}"""),
+        Gen("shaped", "有序合成配方", "recipes", listOf(
+            F("p1", "第 1 行（3 格，空格留空）", Kind.TEXT, "AAA"),
+            F("p2", "第 2 行", Kind.TEXT, " B "),
+            F("p3", "第 3 行", Kind.TEXT, " B "),
+            F("ch", "上面用的字母", Kind.TEXT, "A"),
+            F("ing", "该字母对应的物品", Kind.TEXT, "minecraft:diamond"),
+            F("res", "产物", Kind.TEXT, "minecraft:diamond_sword"),
+            F("count", "产物数量", Kind.NUM, "1")
+        ), """{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [ "{p1}", "{p2}", "{p3}" ],
+  "key": { "{ch}": { "item": "{ing}" } },
+  "result": { "id": "{res}", "count": {count} }
+}"""),
+        Gen("shapeless", "无序合成配方", "recipes", listOf(
+            F("ings", "材料（英文逗号分隔）", Kind.TEXT, "minecraft:diamond,minecraft:stick"),
+            F("res", "产物", Kind.TEXT, "minecraft:diamond_sword"),
+            F("count", "产物数量", Kind.NUM, "1")
+        ), """{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [ {ings} ],
+  "result": { "id": "{res}", "count": {count} }
+}"""),
+        Gen("smelt", "熔炼配方", "recipes", listOf(
+            F("ing", "原料", Kind.TEXT, "minecraft:iron_ore"),
+            F("res", "产物", Kind.TEXT, "minecraft:iron_ingot"),
+            F("xp", "经验", Kind.NUM, "0.7"),
+            F("time", "时间（tick）", Kind.NUM, "200")
+        ), """{
+  "type": "minecraft:smelting",
+  "ingredient": { "item": "{ing}" },
+  "result": "minecraft:{res}",
+  "experience": {xp},
+  "cookingtime": {time}
+}"""),
+        Gen("adv", "进度", "advancements", listOf(
+            F("title", "标题", Kind.TEXT, "我的进度"),
+            F("desc", "描述", Kind.TEXT, "做了点什么"),
+            F("icon", "图标物品", Kind.TEXT, "minecraft:diamond"),
+            F("item", "触发所需物品", Kind.TEXT, "minecraft:diamond"),
+            F("trigger", "触发条件", Kind.SELECT, "inventory_changed",
+                listOf("inventory_changed", "consume_item", "placed_block", "used_totem"))
+        ), """{
+  "display": {
+    "icon": { "id": "{icon}" },
+    "title": { "text": "{title}" },
+    "description": { "text": "{desc}" },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "criteria": {
+    "main": {
+      "trigger": "minecraft:{trigger}",
+      "conditions": { "items": [ { "items": [ "{item}" ] } ] }
+    }
+  }
+}"""),
+        Gen("tag_item", "物品标签", "tags/items", listOf(
+            F("values", "物品（英文逗号分隔）", Kind.TEXT, "minecraft:diamond,minecraft:emerald"),
+            F("replace", "覆盖原版标签", Kind.BOOL, "false")
+        ), """{ "replace": {replace}, "values": [ {values} ] }"""),
+        Gen("tag_block", "方块标签", "tags/blocks", listOf(
+            F("values", "方块（英文逗号分隔）", Kind.TEXT, "minecraft:stone,minecraft:dirt"),
+            F("replace", "覆盖原版标签", Kind.BOOL, "false")
+        ), """{ "replace": {replace}, "values": [ {values} ] }"""),
+        Gen("func", "函数（命令列表）", "functions", listOf(
+            F("cmds", "命令（每行一条）", Kind.TEXTAREA, "say hello\ngive @s minecraft:diamond 1")
+        ), """{cmds}"""),
+        Gen("pred", "谓词", "predicates", listOf(
+            F("item", "物品", Kind.TEXT, "minecraft:diamond"),
+            F("count", "最小数量", Kind.NUM, "1")
+        ), """{
+  "condition": "minecraft:match_tool",
+  "predicate": { "items": [ "{item}" ], "count": { "min": {count} } }
+}""")
+    ) }
+
+    // ---------------------------------------------------------------- 状态
+
+    private var gen: Gen? = null
+    private val inputs = LinkedHashMap<String, android.view.View>()
+    private var treeUri: Uri? = null
+    private var lastJson = ""
+
+    private lateinit var etPack: EditText
+    private lateinit var etNs: EditText
+    private lateinit var etName: EditText
+    private lateinit var etMc: EditText
+    private lateinit var tvDir: TextView
+    private lateinit var tvOut: TextView
+    private lateinit var formBox: LinearLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        title = "数据包生成器"
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            val p = (10 * resources.displayMetrics.density).toInt()
+            val p = (12 * resources.displayMetrics.density).toInt()
             setPadding(p, p, p, p)
         }
-        setContentView(root, ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
-        ))
+        val sc = ScrollView(this)
+        sc.addView(root, ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        setContentView(sc, ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
-        tvState = TextView(this).apply {
-            text = "正在载入离线生成器…"
-            textSize = 12f
-            setPadding(0, 0, 0, 6)
-        }
-        root.addView(tvState)
+        root.addView(btn("选择生成器") { pickGen() })
+        root.addView(label(""))
+        root.addView(label("数据包名（文件夹名）"))
+        etPack = edit("mypack"); root.addView(etPack)
+        root.addView(label("命名空间（小写英文）"))
+        etNs = edit("mypack"); root.addView(etNs)
+        root.addView(label("文件名（不含 .json）"))
+        etName = edit("generated"); root.addView(etName)
+        root.addView(label("游戏版本（决定 pack_format）"))
+        etMc = edit("1.21"); root.addView(etMc)
 
-        val container = FrameLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
-            )
-        }
-        root.addView(container)
+        root.addView(btn("选择存档目录") { pickDir.launch(null) })
+        tvDir = label("还没选存档目录"); root.addView(tvDir)
 
-        btnSave = MaterialButton(this).apply {
-            text = "把当前结果写入存档"
-            isEnabled = false
-            setOnClickListener { writeToWorld() }
-        }
-        root.addView(btnSave)
+        formBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        root.addView(formBox)
 
-        val v = MisodeView(this)
-        misode = v
-        container.addView(
-            v,
-            FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-        )
-        v.addListener { ev ->
-            when (ev.type) {
-                MisodeEvent.READY -> {
-                    tvState.text = "离线生成器已就绪（137 个生成器，无需联网）"
-                    btnSave.isEnabled = true
-                }
-                MisodeEvent.OUTPUT -> {
-                    lastOutput = ev.value ?: ""
-                }
-                MisodeEvent.TITLE -> {
-                    val t = ev.value
-                    if (!t.isNullOrBlank()) title = t
-                }
-                else -> Unit
-            }
-        }
+        root.addView(btn("生成并预览") { build(true) })
+        tvOut = TextView(this).apply { textSize = 11f; setTextIsSelectable(true) }
+        root.addView(tvOut)
+        root.addView(btn("写入存档") { write() })
     }
 
-    /**
-     * 把生成结果写进存档的 datapacks。
-     *
-     * ⚠️ 目录结构错了游戏**不会报错**，只是整个包不生效 —— 所以这里必须严格按
-     * `<world>/datapacks/<包名>/data/<命名空间>/<类型>/<名字>.json` 来放。
-     *
-     * 之前只写 `data/generated.json`：既没有命名空间也没有类型目录，
-     * 游戏里压根扫不到，表现就是"写不出来数据包"。
-     *
-     * 另一处：存档目录可能是 SAF 授权的 content://，
-     * 用 File() 直接拼路径会一步都走不动，这里两条路都铺了。
-     */
-    private fun writeToWorld() {
-        val ctx = this
-        val game = Prefs.get(ctx).getString(K.GAME_DIR, "") ?: ""
-        val worlds = LinkedHashMap<String, Any>()
-        if (game.isNotBlank() && !game.startsWith("content://")) {
-            val saves = File(game, "saves")
-            if (saves.isDirectory) {
-                saves.listFiles()?.filter { it.isDirectory }?.forEach { worlds[it.name] = it }
-            }
+    private fun label(t: String) = TextView(this).apply { text = t; textSize = 12f }
+    private fun edit(def: String) = EditText(this).apply {
+        setText(def); setSingleLine(true); textSize = 14f
+    }
+    private fun btn(t: String, fn: () -> Unit) = MaterialButton(this).apply {
+        text = t
+        setOnClickListener { fn() }
+    }
+
+    private val pickDir = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri == null) return@registerForActivityResult
+        runCatching {
+            contentResolver.takePersistableUriPermission(
+                uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
         }
-        // SAF：拿不到 File，只能拿 DocumentFile
-        val safUri = game.takeIf { it.startsWith("content://") }
-        if (safUri != null) {
-            val tree = Fs.tree(ctx, safUri)
-            val saves = tree?.findFile("saves") ?: tree
-            saves?.listFiles()?.forEach { if (it.isDirectory) worlds[it.name ?: "?"] = it }
-        }
-        if (worlds.isEmpty()) {
-            Toast.makeText(
-                ctx,
-                "没找到存档。先在设置 → 存储里把游戏目录指到 .minecraft",
-                Toast.LENGTH_LONG
-            ).show()
-            return
-        }
-        val names = worlds.keys.toTypedArray()
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("写到哪个存档")
-            .setItems(names) { _, which ->
-                askNamespace(ctx, names[which], worlds[names[which]]!!)
-            }
-            .setNegativeButton(R.string.cancel, null)
+        treeUri = uri
+        tvDir.text = "存档目录：${Uri.decode(uri.lastPathSegment ?: uri.toString())}"
+    }
+
+    private fun pickGen() {
+        val names = GENS.map { it.title }.toTypedArray()
+        MaterialAlertDialogBuilder(this)
+            .setTitle("用哪个生成器")
+            .setItems(names) { _, i -> setGen(GENS[i]) }
             .show()
     }
 
-    /** 命名空间 + 类型 + 文件名。这三样决定了游戏能不能扫到。 */
-    private fun askNamespace(ctx: android.content.Context, worldName: String, world: Any) {
-        val etNs = android.widget.EditText(ctx).apply {
-            setText("mymod"); setSingleLine(true)
-        }
-        val etId = android.widget.EditText(ctx).apply {
-            setText(suggestId()); setSingleLine(true)
-        }
-        val types = arrayOf(
-            "loot_tables", "advancements", "recipes", "predicates",
-            "item_modifiers", "damage_types", "tags/blocks", "tags/items",
-            "functions", "structures"
-        )
-        var typeIdx = types.indexOf(guessType()).let { if (it < 0) 0 else it }
-        val box = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            val p = (16 * resources.displayMetrics.density).toInt()
-            setPadding(p, p / 2, p, 0)
-            addView(TextView(ctx).apply { text = "命名空间（小写，不要空格）" })
-            addView(etNs)
-            addView(TextView(ctx).apply { text = "文件类型（决定放在哪个目录下）" })
-        }
-        val tvType = TextView(ctx).apply { text = types[typeIdx] }
-        box.addView(tvType)
-        box.addView(MaterialButton(ctx).apply {
-            text = "换一个类型"
-            setOnClickListener {
-                com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-                    .setTitle("文件类型")
-                    .setItems(types) { _, i -> typeIdx = i; tvType.text = types[i] }
-                    .show()
-            }
-        })
-        box.addView(TextView(ctx).apply { text = "文件名（不含扩展名）" })
-        box.addView(etId)
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("写入 $worldName")
-            .setView(box)
-            .setPositiveButton("写入") { _, _ ->
-                val ns = etNs.text.toString().trim().ifBlank { "mymod" }
-                val id = etId.text.toString().trim().ifBlank { "generated" }
-                if (!ns.matches(Regex("[a-z0-9_.-]+")) || !id.matches(Regex("[a-z0-9_./-]+"))) {
-                    Toast.makeText(
-                        ctx, "命名空间和文件名只能用小写字母、数字、下划线、点、连字符",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    return@setPositiveButton
+    private fun setGen(g: Gen) {
+        gen = g
+        inputs.clear()
+        formBox.removeAllViews()
+        formBox.addView(label("生成器：${g.title}　→　data/<ns>/${g.dir}/"))
+        for (f in g.fields) {
+            formBox.addView(label(f.label))
+            when (f.kind) {
+                Kind.SELECT -> {
+                    val sp = Spinner(this)
+                    sp.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, f.options)
+                    val idx = f.options.indexOf(f.def)
+                    if (idx >= 0) sp.setSelection(idx)
+                    inputs[f.key] = sp
+                    formBox.addView(sp)
                 }
-                doWrite(world, ns, types[typeIdx], id)
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
-
-    /** 从生成器标题猜类型，猜不中就让用户选 */
-    private fun guessType(): String {
-        val t = title?.toString() ?: ""
-        return when {
-            t.contains("Loot Table", true) -> "loot_tables"
-            t.contains("Advancement", true) -> "advancements"
-            t.contains("Recipe", true) -> "recipes"
-            t.contains("Predicate", true) -> "predicates"
-            t.contains("Item Modifier", true) -> "item_modifiers"
-            t.contains("Damage", true) -> "damage_types"
-            t.contains("Block Tag", true) -> "tags/blocks"
-            t.contains("Item Tag", true) -> "tags/items"
-            else -> "loot_tables"
-        }
-    }
-
-    private fun suggestId(): String {
-        val t = title?.toString() ?: ""
-        val slug = t.lowercase()
-            .replace(Regex("[^a-z0-9]+"), "_")
-            .trim('_')
-        return slug.ifBlank { "generated" }
-    }
-
-    private fun doWrite(world: Any, ns: String, type: String, id: String) {
-        Thread {
-            val msg = try {
-                val body = lastOutput.ifBlank { "{}" }
-                val ext = if (type == "functions") ".mcfunction" else ".json"
-                val rel = "datapacks/${safePackName()}/data/$ns/$type/$id$ext"
-                val metaRel = "datapacks/${safePackName()}/pack.mcmeta"
-                val meta = """
-                {
-                  "pack": {
-                    "pack_format": ${'$'}{packFormat()},
-                    "description": "由 ModMigrator 生成"
-                  }
+                Kind.BOOL -> {
+                    val cb = CheckBox(this).apply { isChecked = f.def == "true"; text = "是" }
+                    inputs[f.key] = cb
+                    formBox.addView(cb)
                 }
-                """.trimIndent()
-                when (world) {
-                    is File -> {
-                        val f = File(world, rel)
-                        f.parentFile?.mkdirs()
-                        f.writeText(body)
-                        val mf = File(world, metaRel)
-                        if (!mf.exists()) {
-                            mf.parentFile?.mkdirs()
-                            mf.writeText(meta)
-                        }
-                        "已写入：${f.absolutePath}"
+                Kind.TEXTAREA -> {
+                    val et = EditText(this).apply {
+                        setText(f.def); textSize = 13f
+                        setSingleLine(false); minLines = 4; gravity = Gravity.TOP
                     }
-                    is androidx.documentfile.provider.DocumentFile -> {
-                        writeSaf(world, rel, body)
-                        writeSaf(world, metaRel, meta)
-                        "已写入：$rel"
-                    }
-                    else -> "不支持的存档类型"
+                    inputs[f.key] = et
+                    formBox.addView(et)
                 }
-            } catch (t: Throwable) {
-                Err.fail(t, "写入数据包")
-                "写入失败：${t.message ?: t.javaClass.simpleName}"
+                Kind.NUM -> {
+                    val et = EditText(this).apply {
+                        setText(f.def); setSingleLine(true)
+                        inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+                    }
+                    inputs[f.key] = et
+                    formBox.addView(et)
+                }
+                else -> {
+                    val et = EditText(this).apply { setText(f.def); setSingleLine(true) }
+                    inputs[f.key] = et
+                    formBox.addView(et)
+                }
             }
-            runOnUiThread { Toast.makeText(this, msg, Toast.LENGTH_LONG).show() }
-        }.start()
+        }
+    }
+
+    private fun value(key: String): String {
+        return when (val v = inputs[key]) {
+            is EditText -> v.text.toString()
+            is Spinner -> v.selectedItem?.toString() ?: ""
+            is CheckBox -> v.isChecked.toString()
+            else -> ""
+        }
+    }
+
+    private fun build(preview: Boolean): Boolean {
+        val g = gen ?: run { toast("先选一个生成器"); return false }
+        var s = g.template
+        for (f in g.fields) {
+            val raw = value(f.key)
+            val rep = when (f.kind) {
+                Kind.NUM, Kind.BOOL -> raw.trim().ifBlank { "0" }
+                Kind.TEXT -> JSONObject.quote(raw.trim()).let { it.substring(1, it.length - 1) }
+                else -> raw.trim()
+            }
+            s = s.replace("{${f.key}}", rep)
+        }
+        // 两个特殊展开：材料列表、命令列表
+        if (s.contains("{ings}")) {
+            val list = value("ings").split(",").map { it.trim() }
+                .filter { it.isNotBlank() }.joinToString(",") { "{\"item\":\"$it\"}" }
+            s = s.replace("{ings}", list.ifBlank { "{\"item\":\"minecraft:air\"}" })
+        }
+        if (s.contains("{values}")) {
+            val list = value("values").split(",").map { it.trim() }
+                .filter { it.isNotBlank() }.joinToString(",") { "\"${it.removePrefix("minecraft:").let { v -> if (v.contains(":")) it else "minecraft:$v" }}\"" }
+            s = s.replace("{values}", list.ifBlank { "\"minecraft:air\"" })
+        }
+        if (s.contains("{cmds}")) {
+            // 函数文件不是 JSON，是每行一条命令的 .mcfunction
+            val cmds = value("cmds").lines().map { it.trim() }.filter { it.isNotBlank() }
+            s = cmds.joinToString("\n").ifBlank { "# 空函数" }
+        }
+        // 去掉没填的占位符残留
+        s = Regex("\\{[a-z0-9_]+\\}").replace(s) { "" }
+        lastJson = s
+        if (g.dir != "functions") {
+            val ok = runCatching { JSONObject(s) }.isSuccess
+            if (!ok) {
+                // 函数文件是纯文本，其他类型必须是合法 JSON
+                toast("生成的 JSON 有问题，检查一下填的内容")
+            }
+        }
+        if (preview) {
+            tvOut.text = if (s.length > 4000) s.take(4000) + "\n…（已截断）" else s
+        }
+        return true
+    }
+
+    private fun write() {
+        val g = gen ?: run { toast("先选一个生成器"); return }
+        if (!build(false)) return
+        val uri = treeUri ?: run { toast("先选存档目录"); return }
+        val pack = etPack.text.toString().trim().ifBlank { "mypack" }
+        val ns = etNs.text.toString().trim().ifBlank { "mypack" }
+            .lowercase().replace(Regex("[^a-z0-9_.-]"), "_")
+        val name = etName.text.toString().trim().ifBlank { "generated" }
+        val root = DocumentFile.fromTreeUri(this, uri) ?: run { toast("打开不了这个目录"); return }
+        try {
+            val dp = root.findFile("datapacks") ?: root.createDirectory("datapacks")
+                ?: run { toast("建不了 datapacks 目录"); return }
+            val packDir = dp.findFile(pack) ?: dp.createDirectory(pack)
+                ?: run { toast("建不了数据包目录"); return }
+            // pack.mcmeta 缺失的话游戏会直接忽略整个包
+            if (packDir.findFile("pack.mcmeta") == null) {
+                packDir.createFile("application/json", "pack.mcmeta")?.let { f ->
+                    contentResolver.openOutputStream(f.uri, "wt")?.use {
+                        it.write(mcmeta().toByteArray())
+                    }
+                }
+            }
+            var dir = packDir.findFile("data") ?: packDir.createDirectory("data")
+                ?: run { toast("建不了 data 目录"); return }
+            for (part in (g.dir + "/$ns").split("/")) {
+                if (part.isBlank()) continue
+                dir = dir.findFile(part) ?: dir.createDirectory(part)
+                    ?: run { toast("建不了 $part 目录"); return }
+            }
+            val isFunc = g.dir == "functions"
+            val fileName = if (isFunc) "$name.mcfunction" else "$name.json"
+            val mime = if (isFunc) "text/plain" else "application/json"
+            val existing = dir.findFile(fileName)
+            val file = existing ?: dir.createFile(mime, fileName)
+                ?: run { toast("建不了文件"); return }
+            contentResolver.openOutputStream(file.uri, "wt")?.use { it.write(lastJson.toByteArray()) }
+            val target = "datapacks/$pack/data/$ns/${g.dir}/$fileName"
+            MaterialAlertDialogBuilder(this)
+                .setTitle("已写入")
+                .setMessage("$target\n\n在游戏里用 /datapack list 能看到它；\n" +
+                    "新存档要在创建世界时启用，老存档用 /datapack enable \"file/$pack\"。")
+                .setPositiveButton("知道了", null)
+                .show()
+        } catch (t: Throwable) {
+            Err.fail(t, "写数据包")
+            toast("写入失败：${t.message ?: t.javaClass.simpleName}")
+        }
+    }
+
+    private fun mcmeta(): String {
+        val v = etMc.text.toString().trim()
+        val fmt = packFormat(v)
+        return """{
+  "pack": {
+    "pack_format": $fmt,
+    "description": "${pack.replace("\"", "")}"
+  }
+}"""
     }
 
     /**
-     * pack_format 写死 26 是不对的：这个值随版本变，
-     * 填高了游戏会提示"用更高版本创建"，填低了直接不认。
-     * 这里按当前存档/游戏版本推一个，推不出来再给个常见值。
+     * pack_format 写错的两个后果：
+     *  · 写高了 → 游戏提示数据包版本不符；
+     *  · 写低了 → 直接不认。
+     * 所以按版本号推一个接近的值，认不出来就用 26（1.20.5 起通用）。
      */
-    private fun packFormat(): Int {
-        val v = Prefs.get(this).getString(K.MC_VERSION, "") ?: ""
-        val m = Regex("(\\d+)\\.(\\d+)").find(v)
-        val minor = m?.groupValues?.get(2)?.toIntOrNull()
+    private fun packFormat(v: String): Int {
+        val m = Regex("""(\d+)\.(\d+)""").find(v) ?: return 26
+        val major = m.groupValues[1].toIntOrNull() ?: return 26
+        val minor = m.groupValues[2].toIntOrNull() ?: 0
         return when {
-            minor == null -> 26
-            minor >= 21 -> 26
-            minor == 20 -> 26
-            minor == 19 -> 12
-            minor == 18 -> 10
-            minor == 17 -> 8
-            minor == 16 -> 6
-            else -> 5
+            major >= 2 -> 26                       // 26.x 这一支
+            major == 1 && minor >= 21 -> if (minor >= 21) 34 else 26
+            major == 1 && minor == 20 -> if (minor >= 5) 26 else 15
+            major == 1 && minor == 19 -> 10
+            major == 1 && minor == 18 -> 9
+            else -> 26
         }
     }
 
-    private fun safePackName(): String {
-        val t = title?.toString()?.lowercase()
-            ?.replace(Regex("[^a-z0-9]+"), "_")?.trim('_')
-        return ("mm_" + (t?.take(24) ?: "pack")).ifBlank { "mm_pack" }
-    }
+    private fun toast(m: String) = Toast.makeText(this, m, Toast.LENGTH_LONG).show()
 
-    private fun writeSaf(root: androidx.documentfile.provider.DocumentFile, rel: String, body: String) {
-        var cur = root
-        val parts = rel.split("/")
-        for (i in 0 until parts.lastIndex) {
-            val next = cur.findFile(parts[i]) ?: cur.createDirectory(parts[i])
-            cur = next ?: throw IllegalStateException("建不了目录 ${parts[i]}")
-        }
-        val f = cur.findFile(parts.last()) ?: cur.createFile("application/json", parts.last())
-            ?: throw IllegalStateException("建不了文件 ${parts.last()}")
-        contentResolver.openOutputStream(f.uri, "wt")?.use { it.write(body.toByteArray()) }
-            ?: throw IllegalStateException("打不开 ${parts.last()} 写入")
-    }
-
-    override fun onDestroy() {
-        // 不 destroy 的话 WebView 会一直持有 Activity，反复进出必内存泄漏
-        runCatching { misode?.destroy() }
-        misode = null
-        super.onDestroy()
+    companion object {
+        fun open(ctx: Context) = ctx.startActivity(Intent(ctx, DatapackActivity::class.java))
     }
 }

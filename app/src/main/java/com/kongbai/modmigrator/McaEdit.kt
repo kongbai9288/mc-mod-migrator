@@ -155,6 +155,12 @@ object McaEdit {
             1 -> GZIPInputStream(ByteArrayInputStream(data)).use { it.readBytes() }
             2 -> InflaterInputStream(ByteArrayInputStream(data)).use { it.readBytes() }
             3 -> data
+            // 4 = LZ4。⚠️ 是 lz4-java 的**块**格式，不是标准 LZ4 frame：
+            // Minecraft 用 LZ4BlockOutputStream 写的，必须配对用
+            // LZ4BlockInputStream，用 frame 那个流会直接解出垃圾。
+            // 24w04a 起可在 server.properties 里开，新存档很常见；
+            // 之前缺这一支，遇到 LZ4 的区块就是「读不出数据」。
+            4 -> net.jpountz.lz4.LZ4BlockInputStream(ByteArrayInputStream(data)).use { it.readBytes() }
             else -> null
         }
     } catch (_: Throwable) {
