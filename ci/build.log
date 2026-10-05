@@ -37,52 +37,29 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mergeReleaseJniLibFolders
 > Task :app:mergeReleaseNativeLibs
 > Task :app:desugarReleaseFileDependencies
+> Task :app:processReleaseManifestForPackage
 > Task :app:checkReleaseDuplicateClasses
-> Task :app:mergeReleaseArtProfile
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
 
-> Task :app:processReleaseManifestForPackage
-> Task :app:mergeExtDexRelease
-> Task :app:mergeReleaseShaders
 > Task :app:extractReleaseNativeSymbolTables
+> Task :app:processReleaseResources
+> Task :app:mergeExtDexRelease
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :app:mergeReleaseArtProfile
+> Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
 > Task :app:mergeReleaseAssets
-> Task :app:collectReleaseDependencies
 > Task :app:compressReleaseAssets
+> Task :app:collectReleaseDependencies
 > Task :app:sdkReleaseDependencyData
 > Task :app:validateSigningRelease
 > Task :app:writeReleaseAppMetadata
 > Task :app:writeReleaseSigningConfigVersions
-> Task :app:processReleaseResources
 > Task :app:optimizeReleaseResources
 > Task :app:compileReleaseKotlin
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DatapackActivity.kt:396:23 Unresolved reference: pack
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:27:43 Type mismatch: inferred type is IntegerLiteralType[Long] but Int was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:27:43 Type mismatch: inferred type is Map<String, Long> but Map<String, Int> was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:142:34 The integer literal does not conform to the expected type Int?
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:144:38 Type mismatch: inferred type is IntegerLiteralType[Long] but Int? was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:145:38 The integer literal does not conform to the expected type Int?
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:146:83 Type mismatch: inferred type is IntegerLiteralType[Long] but Int? was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:158:38 Type mismatch: inferred type is IntegerLiteralType[Long] but Int? was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:172:93 The integer literal does not conform to the expected type Int
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:177:35 The integer literal does not conform to the expected type Int?
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:178:64 The integer literal does not conform to the expected type Int?
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:179:122 The integer literal does not conform to the expected type Int?
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:180:43 The integer literal does not conform to the expected type Int?
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:181:41 The integer literal does not conform to the expected type Int?
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:182:37 The integer literal does not conform to the expected type Int?
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:183:36 The integer literal does not conform to the expected type Int?
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:184:38 The integer literal does not conform to the expected type Int?
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:185:37 The integer literal does not conform to the expected type Int?
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:186:37 The integer literal does not conform to the expected type Int?
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:187:36 The integer literal does not conform to the expected type Int?
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:188:61 The integer literal does not conform to the expected type Int?
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:193:42 Type mismatch: inferred type is IntegerLiteralType[Long] but Int was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:193:42 Type mismatch: inferred type is Map<String, Long> but Map<String, Int> was expected
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:143:42 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
 public inline fun <T : Closeable?, R> TypeVariable(T).use(block: (TypeVariable(T)) -> TypeVariable(R)): TypeVariable(R) defined in kotlin.io
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:144:36 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
@@ -331,5 +308,5 @@ Execution failed for task ':app:compileReleaseKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 2m 31s
+BUILD FAILED in 2m 23s
 34 actionable tasks: 34 executed
