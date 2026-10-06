@@ -60,9 +60,11 @@ object McaTiles {
         val raw = dimDir.absolutePath
         val h = try {
             MessageDigest.getInstance("MD5").digest(raw.toByteArray())
-                .joinToString("") { "%02x".format(it) }
+                // 必须掩成无符号：Byte 是 -128..127，直接格式化负数
+                // 会变成 ffffff80 这种 8 位一串，长度都不一样
+                .joinToString("") { "%02x".format(it.toInt() and 0xFF) }
         } catch (_: Throwable) {
-            raw.hashCode().toString()
+            java.lang.Integer.toHexString(raw.hashCode())
         }
         return h.take(16)
     }

@@ -222,16 +222,18 @@ class ChunkMapActivity : AppCompatActivity() {
     }
 
     /** SAF 单文件 → 缓存目录里的普通文件 */
-    private fun cacheSingle(uri: Uri): File? = try {
-        val dir = File(filesDir, "mca-single").apply { mkdirs() }
-        val f = File(dir, "r.0.0.mca")
-        contentResolver.openInputStream(uri)?.use { input ->
-            f.outputStream().use { input.copyTo(it) }
-        } ?: return null
-        f
-    } catch (t: Throwable) {
-        Err.fail(t, "缓存区域文件")
-        null
+    private fun cacheSingle(uri: Uri): File? {
+        // 写成块体而不是 = try {…}：表达式体里不允许裸 return
+        return try {
+            val dir = File(filesDir, "mca-single").apply { mkdirs() }
+            val f = File(dir, "r.0.0.mca")
+            val input = contentResolver.openInputStream(uri) ?: return null
+            input.use { src -> f.outputStream().use { src.copyTo(it) } }
+            f
+        } catch (t: Throwable) {
+            Err.fail(t, "缓存区域文件")
+            null
+        }
     }
 
     private fun bootSingle(f: File) {
@@ -617,14 +619,16 @@ class ChunkMapActivity : AppCompatActivity() {
             override fun onScale(d: ScaleGestureDetector): Boolean {
                 val f = d.scaleFactor
                 val ns = (scale * f).coerceIn(0.002f, 4f)
-                // 以手势中心为锚点缩放，否则会飘走
-                val fx = d.focusX
-                val fy = d.focusY
-                val bxBefore = camBX + (fx - width / 2f) / scale
-                val bzBefore = camBZ + (fy - height / 2f) / scale
+                // 以手势中心为锚点缩放，否则一缩放画面就飘走
+                val fx = d.focusX.toDouble()
+                val fy = d.focusY.toDouble()
+                val halfW = width.toDouble() / 2.0
+                val halfH = height.toDouble() / 2.0
+                val bxBefore = camBX + (fx - halfW) / scale.toDouble()
+                val bzBefore = camBZ + (fy - halfH) / scale.toDouble()
                 scale = ns
-                camBX = bxBefore - (fx - width / 2f) / scale
-                camBZ = bzBefore - (fy - height / 2f) / scale
+                camBX = bxBefore - (fx - halfW) / scale.toDouble()
+                camBZ = bzBefore - (fy - halfH) / scale.toDouble()
                 invalidate()
                 return true
             }
@@ -679,24 +683,35 @@ class ChunkMapActivity : AppCompatActivity() {
             scale = (minOf(fitW, fitH) * 0.9f).coerceIn(0.002f, 4f)
         }
 
+        /**
+         * 坐标换算全程用 Double。
+         *
+         * Kotlin 不做隐式数值提升，Double 和 Float 混着算直接编译不过 ——
+         * 所以这里统一转成 Double 算完，最后一步才转回 Float 交给 Canvas。
+         */
         fun screenToBlock(sx: Float, sy: Float): Pair<Int, Int> {
-            val bx = camBX + (sx - width / 2f) / scale
-            val bz = camBZ + (sy - height / 2f) / scale
+            val s = scale.toDouble()
+            val bx = camBX + (sx.toDouble() - width.toDouble() / 2.0) / s
+            val bz = camBZ + (sy.toDouble() - height.toDouble() / 2.0) / s
             return Math.floor(bx).toInt() to Math.floor(bz).toInt()
         }
 
-        private fun blockToScreen(bx: Double, bz: Double): Pair<Float, Float> =
-            ((bx - camBX) * scale + width / 2f).toFloat() to
-                ((bz - camBZ) * scale + height / 2f).toFloat()
+        private fun blockToScreen(bx: Double, bz: Double): Pair<Float, Float> {
+            val s = scale.toDouble()
+            return ((bx - camBX) * s + width.toDouble() / 2.0).toFloat() to
+                ((bz - camBZ) * s + height.toDouble() / 2.0).toFloat()
+        }
 
         /** 当前可见区域内的所有区域文件 */
         fun visibleRefs(): List<McaWorld.Ref> {
             if (refs.isEmpty()) return emptyList()
-            val (a, b) = blockToScreen(camBX - width / 2f / scale, camBZ - height / 2f / scale)
-            val x0 = Math.floor(camBX - width / 2f / scale).toInt()
-            val z0 = Math.floor(camBZ - height / 2f / scale).toInt()
-            val x1 = Math.ceil(camBX + width / 2f / scale).toInt()
-            val z1 = Math.ceil(camBZ + height / 2f / scale).toInt()
+            val s = scale.toDouble()
+            val halfW = width.toDouble() / 2.0 / s
+            val halfH = height.toDouble() / 2.0 / s
+            val x0 = Math.floor(camBX - halfW).toInt()
+            val z0 = Math.floor(camBZ - halfH).toInt()
+            val x1 = Math.ceil(camBX + halfW).toInt()
+            val z1 = Math.ceil(camBZ + halfH).toInt()
             return refs.filter {
                 it.baseBlockX + BLOCKS_PER_REGION >= x0 && it.baseBlockX <= x1 &&
                     it.baseBlockZ + BLOCKS_PER_REGION >= z0 && it.baseBlockZ <= z1
@@ -782,8 +797,9 @@ class ChunkMapActivity : AppCompatActivity() {
                     } else {
                         val p = panFrom
                         if (p != null && ev.pointerCount == 1) {
-                            camBX -= (ev.x - p.first) / scale
-                            camBZ -= (ev.y - p.second) / scale
+                            val s = scale.toDouble()
+                            camBX -= (ev.x.toDouble() - p.first) / s
+                            camBZ -= (ev.y.toDouble() - p.second) / s
                             panFrom = ev.x.toDouble() to ev.y.toDouble()
                         }
                     }
