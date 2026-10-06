@@ -285,7 +285,8 @@ class ChunkMapActivity : AppCompatActivity() {
                     "区块 ($cx, $cz)　槽位 $slot\n" +
                     (if (layerMode) "第 $secY 层（区段号）" else "整列俯视图") +
                     "　段数 $secs" + (if (dv != null) "　DataVersion $dv" else "") +
-                    if (!ok) "\n（这一层没画出方块，可能是空的）" else ""
+                    if (secs == 0) "\n（这个区块解析出来是空的，可能压缩方式不支持）" else
+                        if (!ok) "\n（这一层没画出方块，可能是空的）" else ""
                 )
             }
         }.start()

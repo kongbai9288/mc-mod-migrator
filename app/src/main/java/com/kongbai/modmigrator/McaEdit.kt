@@ -65,12 +65,39 @@ object McaEdit {
         /** 已存在的槽位列表 */
         fun present(): List<Int> = (0 until SLOTS).filter { payloads[it] != null }
 
+        /**
+         * 读一个区块的 NBT。
+         *
+         * ⚠️ 这里是「区块编辑器一直提示空」的根因：
+         * ViaNBT 的 `named` **默认是 false**，而它的 Javadoc 明确写着
+         * "the standard format is always named, so make sure to call named()"。
+         * 区域文件里每个区块的 NBT 根标签是**带空名字**的（0x0A 00 00 ...），
+         * 不调 named() 就会把「名字长度」这两个字节当成第一个 tag 的 id，
+         * 读到 0x00 = TAG_End → 复合标签**当场结束** → 得到一个空 compound。
+         * 表现就是：不报错、不崩溃，但 sections 一个都没有 → 画不出东西 → "空的"。
+         *
+         * NBT 查看器读 level.dat 走的是另一处（NbtFile），那边有 .named()，
+         * 所以 level.dat 一直能开，唯独区块不行 —— 正好对得上现象。
+         *
+         * 两种都试一遍：以带名字为准，读出来是空的再按不带名字试，
+         * 万一遇到哪个版本真的不带名字也不会全军覆没。
+         */
         fun chunk(slot: Int): CompoundTag? {
             val p = payloads[slot] ?: return null
             val bytes = inflate(comps[slot], p) ?: return null
-            return NBTIO.reader()
-                .tagLimiter(TagLimiter.noop())
-                .read(ByteArrayInputStream(bytes)) as? CompoundTag
+            val named = readNbt(bytes, true)
+            if (named != null && !named.isEmpty()) return named
+            val flat = readNbt(bytes, false)
+            if (flat != null && !flat.isEmpty()) return flat
+            return named ?: flat
+        }
+
+        private fun readNbt(bytes: ByteArray, named: Boolean): CompoundTag? = try {
+            val r = NBTIO.reader().tagLimiter(TagLimiter.noop())
+            if (named) r.named()
+            r.read(ByteArrayInputStream(bytes)) as? CompoundTag
+        } catch (_: Throwable) {
+            null
         }
 
         /**
@@ -170,7 +197,9 @@ object McaEdit {
     private fun deflate(tag: CompoundTag): ByteArray {
         val bos = ByteArrayOutputStream()
         val d = DeflaterOutputStream(bos)
-        NBTIO.writer().write(d, tag)
+        // 和读同理：区块 NBT 的根标签带空名字，不加 named() 写出来的
+        // 是游戏认不出的格式（不报错，只是整块区块被当成损坏）。
+        NBTIO.writer().named().write(d, tag)
         d.finish()
         return bos.toByteArray()
     }
