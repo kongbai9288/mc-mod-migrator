@@ -1,22 +1,20 @@
 # 真实存档验证（ai.zip / 26.2 世界）
-run: 37449160727
+run: 37450488499
 
 == TEST-com.kongbai.modmigrator.McaRealWorldTest.xml
-tests="8" skipped="1" failures="3" errors="0"
-    <failure message="java.lang.AssertionError: slot 892 一个 section 都没有" type="java.lang.AssertionError">java.lang.AssertionError: slot 892 一个 section 都没有
+tests="8" skipped="0" failures="1" errors="0"
+    <failure message="java.lang.AssertionError: 整片存档都没有多个方块的 section，取样太偏" type="java.lang.AssertionError">java.lang.AssertionError: 整片存档都没有多个方块的 section，取样太偏
 	at org.junit.Assert.fail(Assert.java:89)
 	at org.junit.Assert.assertTrue(Assert.java:42)
-	at com.kongbai.modmigrator.McaRealWorldTest.chunkParsesIntoSections(McaRealWorldTest.kt:87)
---
-    <failure message="java.lang.AssertionError: 没读到任何 Y" type="java.lang.AssertionError">java.lang.AssertionError: 没读到任何 Y
-	at org.junit.Assert.fail(Assert.java:89)
-	at org.junit.Assert.assertTrue(Assert.java:42)
-	at com.kongbai.modmigrator.McaRealWorldTest.paletteAndSectionYAreReadable(McaRealWorldTest.kt:111)
---
-    <failure message="java.lang.AssertionError: 一个区块都没画出来 —— 渲染链路断了" type="java.lang.AssertionError">java.lang.AssertionError: 一个区块都没画出来 —— 渲染链路断了
-	at org.junit.Assert.fail(Assert.java:89)
+	at com.kongbai.modmigrator.McaRealWorldTest.paletteAndSectionYAreReadable(McaRealWorldTest.kt:117)
 
 ## gradle 末尾 40 行
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
 > Task :app:processDebugManifestForPackage UP-TO-DATE
 > Task :app:processDebugResources UP-TO-DATE
 > Task :app:compileDebugKotlin UP-TO-DATE
@@ -33,16 +31,10 @@ tests="8" skipped="1" failures="3" errors="0"
 
 > Task :app:testDebugUnitTest
 
-com.kongbai.modmigrator.McaRealWorldTest > chunkParsesIntoSections FAILED
-    java.lang.AssertionError at McaRealWorldTest.kt:87
-
 com.kongbai.modmigrator.McaRealWorldTest > paletteAndSectionYAreReadable FAILED
-    java.lang.AssertionError at McaRealWorldTest.kt:111
+    java.lang.AssertionError at McaRealWorldTest.kt:117
 
-com.kongbai.modmigrator.McaRealWorldTest > drawTopPaintsSurface FAILED
-    java.lang.AssertionError at McaRealWorldTest.kt:134
-
-8 tests completed, 3 failed, 1 skipped
+8 tests completed, 1 failed
 
 > Task :app:testDebugUnitTest FAILED
 
@@ -55,5 +47,5 @@ Execution failed for task ':app:testDebugUnitTest'.
 * Try:
 > Run with --scan to get full insights.
 
-BUILD FAILED in 20s
+BUILD FAILED in 13s
 23 actionable tasks: 7 executed, 16 up-to-date
