@@ -1,15 +1,15 @@
 # 最近一次构建失败摘录
-run: 37325572563
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:184:32 Cannot find a parameter with this name: name
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:194:31 Type mismatch: inferred type is OpenListResult<Unit?> but OpenListResult<Unit> was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:195:9 Type mismatch: inferred type is Unit? but Unit was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:407:41 Cannot find a parameter with this name: name
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:447:63 Cannot find a parameter with this name: name
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:505:67 Cannot find a parameter with this name: name
+run: 37478335031
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:715:66 Unresolved reference: TYPE_FLAG_SIGNED
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:719:66 Unresolved reference: TYPE_FLAG_SIGNED
 > Task :app:compileReleaseKotlin FAILED
-BUILD FAILED in 2m 28s
+BUILD FAILED in 2m 24s
 
 ## 末尾 80 行
+
+Here are the highlights of this release:
+ - Kotlin DSL: new reference documentation, assignment syntax by default
+ - Kotlin DSL is now the default with Gradle init
  - Improved suggestions to resolve errors in console output
 
 For more details see https://docs.gradle.org/8.2/release-notes.html
@@ -32,9 +32,9 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mapReleaseSourceSetPaths
 > Task :app:generateReleaseResources
 > Task :app:packageReleaseResources
+> Task :app:mergeReleaseResources
 > Task :app:createReleaseCompatibleScreenManifests
 > Task :app:extractDeepLinksRelease
-> Task :app:mergeReleaseResources
 > Task :app:parseReleaseLocalResources
 > Task :app:processReleaseMainManifest
 > Task :app:processReleaseManifest
@@ -44,34 +44,30 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mergeReleaseNativeLibs
 > Task :app:desugarReleaseFileDependencies
 > Task :app:checkReleaseDuplicateClasses
-> Task :app:processReleaseManifestForPackage
 > Task :app:mergeReleaseArtProfile
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
 
-> Task :app:extractReleaseNativeSymbolTables
-> Task :app:processReleaseResources
+> Task :app:processReleaseManifestForPackage
 > Task :app:mergeExtDexRelease
+> Task :app:extractReleaseNativeSymbolTables
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
 > Task :app:mergeReleaseAssets
-> Task :app:compressReleaseAssets
 > Task :app:collectReleaseDependencies
+> Task :app:compressReleaseAssets
 > Task :app:sdkReleaseDependencyData
 > Task :app:validateSigningRelease
 > Task :app:writeReleaseAppMetadata
 > Task :app:writeReleaseSigningConfigVersions
+> Task :app:processReleaseResources
 > Task :app:optimizeReleaseResources
 > Task :app:compileReleaseKotlin
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:184:32 Cannot find a parameter with this name: name
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:194:31 Type mismatch: inferred type is OpenListResult<Unit?> but OpenListResult<Unit> was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:195:9 Type mismatch: inferred type is Unit? but Unit was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:407:41 Cannot find a parameter with this name: name
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:447:63 Cannot find a parameter with this name: name
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/opentransfer/openlist/OpenListDrive.kt:505:67 Cannot find a parameter with this name: name
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:715:66 Unresolved reference: TYPE_FLAG_SIGNED
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:719:66 Unresolved reference: TYPE_FLAG_SIGNED
 
 > Task :app:compileReleaseKotlin FAILED
 
@@ -88,5 +84,5 @@ Execution failed for task ':app:compileReleaseKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 2m 28s
+BUILD FAILED in 2m 24s
 34 actionable tasks: 34 executed
