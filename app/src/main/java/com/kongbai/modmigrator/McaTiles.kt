@@ -7,6 +7,8 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.util.LruCache
+import java.io.DataInputStream
+import java.io.DataOutputStream
 import java.io.File
 import java.security.MessageDigest
 
@@ -26,6 +28,10 @@ import java.security.MessageDigest
  *
  * 之所以要封顶：一张 512×512 的 ARGB 图就是 1MB，
  * 一台设备上同时留几十张就足以把应用拖崩。
+ *
+ * 除了图，还顺手存一份「元数据副产物」（见 [Meta]）。
+ * 渲染时本来就要把每个区块解压解析一遍，顺路把玩家停留时长记下来几乎不要钱；
+ * 反过来，如果筛选时再去读一遍，每个区域都要几秒 —— 这两件事必须一起做。
  */
 object McaTiles {
 
@@ -35,8 +41,8 @@ object McaTiles {
     /** 内存里最多留多少张图（按字节算，不是按张数） */
     private const val MEM_MAX_BYTES = 6 * 1024 * 1024
 
-    /** 缓存格式版本。渲染逻辑改了就 +1，旧缓存自动作废 */
-    private const val CACHE_VER = 2
+    /** 缓存格式版本。渲染逻辑或元数据字段改了就 +1，旧缓存自动作废 */
+    private const val CACHE_VER = 3
 
     private val mem = object : LruCache<String, Bitmap>(MEM_MAX_BYTES) {
         override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount
@@ -49,6 +55,35 @@ object McaTiles {
 
     /** 正在生成中的 key，避免同一个区域被重复排队 */
     private val inflight = HashSet<String>()
+
+    // ------------------------------------------------------------------ 元数据
+
+    /**
+     * 一个区域的区块级元数据，渲染时的副产物。
+     *
+     * · [inhabited] 玩家在这个区块里累计待过多少 tick（20 tick ≈ 1 秒）。
+     *   这是判断"这块地方有没有人认真玩过"的唯一依据 ——
+     *   想让地形按新版本重新生成，删的就是这个值很小的区块。
+     * · [updated] 最后写入时间（秒）。用来找"很久没去过的角落"。
+     * · [broken] 解压或解析失败的槽位。这类区块会让游戏一走近就崩，
+     *   必须和"没生成过"区分开 —— 所以图上画成红色而不是留黑。
+     *
+     * 三个数组都按槽位下标（cz * 32 + cx）对齐，长度固定 1024。
+     * 用原生数组而不是 Map：一个区域上千个区块，对象开销在这台设备上很明显。
+     */
+    class Meta(
+        val slots: IntArray,
+        val inhabited: LongArray,
+        val updated: IntArray,
+        val broken: IntArray
+    ) {
+        companion object {
+            val EMPTY = Meta(IntArray(0), LongArray(0), IntArray(0), IntArray(0))
+        }
+    }
+
+    /** 元数据也放内存里，筛选用到它时不能再碰磁盘 */
+    private val metaMem = HashMap<String, Meta>()
 
     // ------------------------------------------------------------------ 路径
 
@@ -73,6 +108,10 @@ object McaTiles {
         File(cacheRoot(ctx), "${dirKey(ref.file.parentFile ?: ref.file)}/" +
             "${ref.rx}.${ref.rz}.v$CACHE_VER.png")
 
+    private fun metaOf(ctx: Context, ref: McaWorld.Ref): File =
+        File(cacheRoot(ctx), "${dirKey(ref.file.parentFile ?: ref.file)}/" +
+            "${ref.rx}.${ref.rz}.v$CACHE_VER.meta")
+
     /**
      * 缓存是否还有效。
      * 源文件的大小或修改时间只要有一个对不上就作废 ——
@@ -91,7 +130,7 @@ object McaTiles {
      * 取一个区域的缩略图。
      *
      * @param onRender 需要重新生成时调用，用来刷新进度
-     * @return 图，或 null（读不出来/被取消）
+     * @return 图，或 null（读不出来/正被别的线程生成）
      */
     fun get(
         ctx: Context, ref: McaWorld.Ref, onRender: ((String) -> Unit)? = null
@@ -105,6 +144,8 @@ object McaTiles {
             val b = BitmapFactory.decodeFile(png.absolutePath)
             if (b != null) {
                 mem.put(key, b)
+                // 图是旧的，元数据大概率也在，顺手读回来
+                ensureMeta(ctx, ref)
                 return b
             }
         }
@@ -114,7 +155,8 @@ object McaTiles {
         }
         try {
             onRender?.invoke("正在生成 ${ref.name} …")
-            val bmp = render(ref)
+            val out = render(ctx, ref)
+            val bmp = out?.first
             if (bmp != null) {
                 runCatching {
                     png.parentFile?.mkdirs()
@@ -124,38 +166,88 @@ object McaTiles {
                 }
                 mem.put(key, bmp)
             }
+            val m = out?.second
+            if (m != null) {
+                metaMem[key] = m
+                runCatching { writeMeta(metaOf(ctx, ref), m) }
+            }
             return bmp
         } finally {
             synchronized(inflight) { inflight.remove(key) }
         }
     }
 
-    /** 内存里有没有（决定要不要走磁盘/重新生成） */
-    fun has(key: String): Boolean = mem.get(key) != null
+    /** 只看内存里有没有（决定要不要走磁盘或重新生成，不触发渲染） */
+    fun peek(ref: McaWorld.Ref): Bitmap? = mem.get(keyOf(ref))
+
+    /**
+     * 只在内存里找元数据，找不到就返回 null，绝不去读文件。
+     *
+     * 选择、框选这些操作跑在 UI 线程上，而解析一个区域要几秒 ——
+     * 这里一旦顺手去解析，用户点一下就得卡住。
+     * 所以调用方拿不到数据时应当按"未知"处理，
+     * 需要精确结果的操作（比如筛选）另开后台线程用 [meta]。
+     */
+    fun metaCached(ref: McaWorld.Ref): Meta? = metaMem[keyOf(ref)]
+
+    /**
+     * 取一个区域的元数据。图已经缓存过时几乎零成本；
+     * 没缓存过才会去解析（慢，所以要放在后台线程）。
+     */
+    fun meta(ctx: Context, ref: McaWorld.Ref): Meta {
+        val key = keyOf(ref)
+        metaMem[key]?.let { return it }
+        ensureMeta(ctx, ref)
+        metaMem[key]?.let { return it }
+        // 磁盘上也没有 —— 只能解析一遍。这一步要几秒，调用方必须在后台。
+        val m = render(ctx, ref)?.second
+        if (m != null) metaMem[key] = m
+        return m ?: Meta.EMPTY
+    }
+
+    private fun ensureMeta(ctx: Context, ref: McaWorld.Ref) {
+        val key = keyOf(ref)
+        if (metaMem.containsKey(key)) return
+        val f = metaOf(ctx, ref)
+        if (!f.isFile) return
+        val m = try {
+            DataInputStream(f.inputStream().buffered()).use { readMeta(it) }
+        } catch (_: Throwable) {
+            null
+        }
+        if (m != null) metaMem[key] = m
+    }
 
     private fun keyOf(ref: McaWorld.Ref) = "${ref.file.absolutePath}#$CACHE_VER"
 
     /** 改过区块后要让这张图作废，否则看到的还是旧地形 */
     fun invalidate(ctx: Context, ref: McaWorld.Ref) {
-        mem.remove(keyOf(ref))
+        val k = keyOf(ref)
+        mem.remove(k)
+        metaMem.remove(k)
         runCatching { pngOf(ctx, ref).delete() }
+        runCatching { metaOf(ctx, ref).delete() }
     }
 
     fun clearDisk(ctx: Context) {
         runCatching { cacheRoot(ctx).deleteRecursively() }
         mem.evictAll()
+        metaMem.clear()
     }
 
     // ------------------------------------------------------------------ 渲染
 
     /**
-     * 把一个区域文件渲染成 512×512 俯视图。
+     * 把一个区域文件渲染成 512×512 俯视图，并顺路收集区块元数据。
      *
      * 每格一个方块，取该列最高的非空气方块着色。
      * 这是 MCA Selector 和手机端编辑器通用的画法 ——
      * 一眼能看出地形轮廓，而不是把整列压成一团。
+     *
+     * 图和元数据必须一次算完：两者都要把每个区块解压解析一遍，
+     * 分开做等于把最贵的那一步做两遍。
      */
-    private fun render(ref: McaWorld.Ref): Bitmap? {
+    private fun render(ctx: Context, ref: McaWorld.Ref): Pair<Bitmap, Meta>? {
         val raw = try {
             ref.file.readBytes()
         } catch (_: Throwable) {
@@ -174,6 +266,10 @@ object McaTiles {
         val px = IntArray(IMG * IMG)
         paintBackdrop(px)
 
+        val inhabited = LongArray(1024)
+        val updated = IntArray(1024)
+        val brokenList = ArrayList<Int>()
+
         var drawn = 0
         for (slot in present) {
             val cx = slot and 31
@@ -186,15 +282,50 @@ object McaTiles {
             if (c == null) {
                 // 读不出来的区块画成"损坏"标记，而不是留黑 ——
                 // 留黑会被当成没生成过，用户就不知道这里其实有问题
+                brokenList.add(slot)
                 markBroken(px, cx * 16, cz * 16)
                 continue
             }
+            inhabited[slot] = inhabitedOf(c)
+            updated[slot] = updatedOf(c)
             if (McaRender.drawTop(c, px, IMG, cx * 16, cz * 16, 1)) drawn++
             else markEmpty(px, cx * 16, cz * 16)
         }
+
+        val meta = Meta(
+            present.toIntArray(), inhabited, updated, brokenList.toIntArray()
+        )
         // 解析完就把原始数据和 Region 放开，只留图
         val bmp = Bitmap.createBitmap(px, IMG, IMG, Bitmap.Config.ARGB_8888)
-        return bmp
+        return bmp to meta
+    }
+
+    /**
+     * 玩家在这个区块累计待过多少 tick。
+     *
+     * 1.13 起这个字段在根标签上，更早的版本在 Level 子标签里，两种都要认。
+     * 取不到就当 0 —— 标成"没人待过"比标成"待过很久"安全，
+     * 用户是按这个筛"可以放心删的区块"的，宁可少删也不能误删。
+     */
+    private fun inhabitedOf(c: com.viaversion.nbt.tag.CompoundTag): Long {
+        val root = c.getLong("InhabitedTime", -1L)
+        if (root >= 0) return root
+        val lvl = c.get("Level")
+        if (lvl is com.viaversion.nbt.tag.CompoundTag) {
+            val v = lvl.getLong("InhabitedTime", 0L)
+            if (v > 0) return v
+        }
+        return 0L
+    }
+
+    private fun updatedOf(c: com.viaversion.nbt.tag.CompoundTag): Int {
+        val root = c.getInt("LastUpdate", 0)
+        if (root != 0) return root
+        val lvl = c.get("Level")
+        if (lvl is com.viaversion.nbt.tag.CompoundTag) {
+            return lvl.getInt("LastUpdate", 0)
+        }
+        return 0
     }
 
     /** 未生成的区域：深灰底 + 棋盘格，一眼区分"没去过"和"去过但是平地" */
@@ -224,6 +355,45 @@ object McaTiles {
                     if (edge) 0xFF7A3B3B.toInt() else 0xFF4A2222.toInt()
             }
         }
+    }
+
+    // ------------------------------------------------------------------ 元数据落盘
+
+    private fun writeMeta(f: File, m: Meta) {
+        f.parentFile?.mkdirs()
+        DataOutputStream(f.outputStream().buffered()).use { o ->
+            o.writeInt(CACHE_VER)
+            o.writeInt(m.slots.size)
+            for (s in m.slots) {
+                o.writeInt(s)
+                o.writeLong(m.inhabited[s])
+                o.writeInt(m.updated[s])
+            }
+            o.writeInt(m.broken.size)
+            for (s in m.broken) o.writeInt(s)
+        }
+    }
+
+    private fun readMeta(i: DataInputStream): Meta? {
+        val ver = i.readInt()
+        if (ver != CACHE_VER) return null
+        val n = i.readInt()
+        if (n < 0 || n > 1024) return null
+        val slots = IntArray(n)
+        val inhabited = LongArray(1024)
+        val updated = IntArray(1024)
+        for (k in 0 until n) {
+            val s = i.readInt()
+            if (s < 0 || s >= 1024) return null
+            slots[k] = s
+            inhabited[s] = i.readLong()
+            updated[s] = i.readInt()
+        }
+        val nb = i.readInt()
+        if (nb < 0 || nb > 1024) return null
+        val broken = IntArray(nb)
+        for (k in 0 until nb) broken[k] = i.readInt()
+        return Meta(slots, inhabited, updated, broken)
     }
 
     // ------------------------------------------------------------------ 覆盖层
