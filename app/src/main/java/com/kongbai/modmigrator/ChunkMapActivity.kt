@@ -57,8 +57,27 @@ class ChunkMapActivity : AppCompatActivity() {
 
     private var region: McaEdit.Region? = null
     /** 已解析的区块，按槽位缓存 —— 区域总览和翻层都要反复用 */
-    private val cache = HashMap<Int, CompoundTag?>()
+    /**
+     * 已解析的区块缓存 —— **必须设上限**。
+     *
+     * 之前是无上限的 HashMap：区域总览一次要把整个区域的区块全解析并常驻。
+     * 实测一个区域（1024 槽位）展开后是 20MB 上下的 CompoundTag ——
+     * 每个区块 24 个 section，每个 section 又各自带
+     * block_states / biomes 两套 palette + data 子结构。
+     * 本就吃紧的设备上这会直接把堆撑爆，表现就是"页面一片空白"、
+     * 或者一点进来就闪退，看起来完全像"编辑器坏了"。
+     *
+     * 而真正需要留着的只有「正在翻层的那一个区块」。
+     * 区域总览是扫一遍、画完就丢（见 [renderRegion]）。
+     * 这里按访问顺序保留最近 48 个，翻层与回看都够用，内存恒定。
+     */
+    private val cache = object : LinkedHashMap<Int, CompoundTag?>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, CompoundTag?>?): Boolean =
+            size > 48
+    }
     private var present: List<Int> = emptyList()
+    /** 页面已销毁：后台解析线程据此尽早退出，不再往死掉的界面里塞图。 */
+    @Volatile private var cancelled = false
 
     private var work: File? = null
     private var srcPath: String = ""
@@ -215,13 +234,13 @@ class ChunkMapActivity : AppCompatActivity() {
 
     private fun chunkAt(s: Int): CompoundTag? {
         if (s !in 0 until 1024) return null
-        if (cache.containsKey(s)) return cache[s]
+        synchronized(cache) { if (cache.containsKey(s)) return cache[s] }
         val c = try {
             region?.chunk(s)
         } catch (t: Throwable) {
             null
         }
-        cache[s] = c
+        synchronized(cache) { cache[s] = c }
         return c
     }
 
@@ -238,25 +257,56 @@ class ChunkMapActivity : AppCompatActivity() {
     }
 
     private fun renderRegion() {
+        val r = region ?: return
         post("正在画区域总览（${present.size} 个区块）…")
         Thread {
             val px = IntArray(IMG * IMG)
             // 背景：深灰，空区块的位置就留着，一眼能看出哪些没生成
             for (i in px.indices) px[i] = 0xFF141414.toInt()
             var drawn = 0
-            var empty = 0
+            var air = 0
+            var failed = 0
+            val t0 = System.currentTimeMillis()
+            var n = 0
             for (s in present) {
-                val c = chunkAt(s)
-                if (c == null) { empty++; continue }
-                val cx = s and 31
-                val cz = (s shr 5) and 31
-                if (McaRender.drawTop(c, px, IMG, cx * 16, cz * 16, 1)) drawn++ else empty++
+                if (cancelled) return@Thread
+                // ⚠️ 刻意不走 chunkAt：总览每个区块只用一次，画完就丢。
+                // 走缓存的话整区域的 CompoundTag 会全部常驻，
+                // 那是"点进来就空白/闪退"的直接原因。
+                val c = try {
+                    r.chunk(s)
+                } catch (t: Throwable) {
+                    null
+                }
+                if (c == null || c.isEmpty()) {
+                    failed++
+                } else {
+                    val cx = s and 31
+                    val cz = (s shr 5) and 31
+                    if (McaRender.drawTop(c, px, IMG, cx * 16, cz * 16, 1)) drawn++ else air++
+                }
+                n++
+                // 一个区域上千个区块，中途给进度，否则看着像卡死
+                if (n % 64 == 0) {
+                    val k = n
+                    post("正在画区域总览… $k / ${present.size}")
+                }
             }
+            if (cancelled) return@Thread
             val bmp = Bitmap.createBitmap(px, IMG, IMG, Bitmap.Config.ARGB_8888)
+            val sec = (System.currentTimeMillis() - t0) / 1000
+            val total = present.size
             runOnUiThread {
                 image.setImageBitmap(bmp)
-                post("区域总览：共 ${present.size} 个区块，画出 $drawn 个" +
-                    (if (empty > 0) "，空/读不出 $empty 个" else "") + "\n点一下进对应区块")
+                post(
+                    "区域总览：共 $total 个区块，画出 $drawn 个" +
+                        (if (air > 0) "，全是空气 $air 个" else "") +
+                        (if (failed > 0) "，读不出 $failed 个" else "") +
+                        "（$sec 秒）\n点一下进对应区块" +
+                        if (drawn == 0 && air > 0)
+                            "\n这些区块存在，但地形还没生成过"
+                        else ""
+                )
             }
         }.start()
     }
@@ -401,8 +451,9 @@ class ChunkMapActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        cancelled = true
         super.onDestroy()
-        cache.clear()
+        synchronized(cache) { cache.clear() }
         region = null
     }
 }

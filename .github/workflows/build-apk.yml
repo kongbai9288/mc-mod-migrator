@@ -155,6 +155,39 @@ jobs:
           git commit -m "ci: 记录构建失败摘录 [skip ci]" || exit 0
           git push || exit 0
 
+      - name: Verify chunk editor against the real save
+        # ⚠️ 区块编辑器连续几版「编译成功但用不了」，原因是没有任何一处
+        # 拿真实存档跑过。这里用仓库里的 ai.zip（26.2 世界）跑 JVM 单测，
+        # 走完 区域 → 区块 → section → 渲染 → 改方块 → 重新打包 全链路。
+        # 结果写进 ci-last-test.txt 提交回来，失败不阻断 APK 发布。
+        continue-on-error: true
+        run: |
+          set +e
+          gradle testDebugUnitTest --no-daemon > /tmp/test.log 2>&1
+          echo "TEST_EXIT=$?"
+          {
+            echo "# 真实存档验证（ai.zip / 26.2 世界）"
+            echo "run: $GITHUB_RUN_ID"
+            echo
+            for f in app/build/test-results/testDebugUnitTest/*.xml; do
+              [ -e "$f" ] || continue
+              echo "== $(basename "$f")"
+              grep -o 'tests="[0-9]*" skipped="[0-9]*" failures="[0-9]*" errors="[0-9]*"' "$f" | head -1
+              grep -o 'system-out' "$f" >/dev/null && \
+                sed -n 's/.*\[[0-9:]*\] \([^<]*\)/\1/p' "$f" | head -20
+              grep -A3 '<failure' "$f" | head -12
+            done
+            echo
+            echo "## gradle 末尾 40 行"
+            tail -40 /tmp/test.log
+          } > ci-last-test.txt 2>&1
+          cat ci-last-test.txt
+          git config user.name "ci"
+          git config user.email "ci@example.com"
+          git add -f ci-last-test.txt
+          git commit -m "ci: 真实存档验证结果 [skip ci]" || exit 0
+          git push || exit 0
+
       - name: Rename APK to a stable name
         run: |
           set -e

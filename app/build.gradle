@@ -11,8 +11,8 @@ android {
         applicationId "com.kongbai.modmigrator"
         minSdk 26
         targetSdk 34
-        versionCode 50
-        versionName "2.4.3"
+        versionCode 51
+        versionName "2.4.4"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -54,9 +54,19 @@ android {
         exclude 'META-INF/NOTICE'
         exclude 'META-INF/NOTICE.txt'
     }
+
+    // 纯 JVM 单元测试：McaEdit / McaRender 不依赖 Android 框架，
+    // 可以在 JVM 上直接跑 —— 这样就能拿真实存档验证区块编辑器，
+    // 不必等到装到手机上才发现「编译过了但用不了」。
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
 }
 
 dependencies {
+    // 单元测试（JVM）：真实存档验证用
+    testImplementation 'junit:junit:4.13.2'
+
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
