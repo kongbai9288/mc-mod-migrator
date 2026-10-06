@@ -1,0 +1,59 @@
+# 真实存档验证（ai.zip / 26.2 世界）
+run: 37449160727
+
+== TEST-com.kongbai.modmigrator.McaRealWorldTest.xml
+tests="8" skipped="1" failures="3" errors="0"
+    <failure message="java.lang.AssertionError: slot 892 一个 section 都没有" type="java.lang.AssertionError">java.lang.AssertionError: slot 892 一个 section 都没有
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.kongbai.modmigrator.McaRealWorldTest.chunkParsesIntoSections(McaRealWorldTest.kt:87)
+--
+    <failure message="java.lang.AssertionError: 没读到任何 Y" type="java.lang.AssertionError">java.lang.AssertionError: 没读到任何 Y
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.kongbai.modmigrator.McaRealWorldTest.paletteAndSectionYAreReadable(McaRealWorldTest.kt:111)
+--
+    <failure message="java.lang.AssertionError: 一个区块都没画出来 —— 渲染链路断了" type="java.lang.AssertionError">java.lang.AssertionError: 一个区块都没画出来 —— 渲染链路断了
+	at org.junit.Assert.fail(Assert.java:89)
+
+## gradle 末尾 40 行
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:compileDebugKotlin UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:compileDebugJavaWithJavac UP-TO-DATE
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:processDebugJavaRes UP-TO-DATE
+> Task :app:javaPreCompileDebugUnitTest
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:bundleDebugClassesToCompileJar
+> Task :app:compileDebugUnitTestKotlin
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processDebugUnitTestJavaRes
+
+> Task :app:testDebugUnitTest
+
+com.kongbai.modmigrator.McaRealWorldTest > chunkParsesIntoSections FAILED
+    java.lang.AssertionError at McaRealWorldTest.kt:87
+
+com.kongbai.modmigrator.McaRealWorldTest > paletteAndSectionYAreReadable FAILED
+    java.lang.AssertionError at McaRealWorldTest.kt:111
+
+com.kongbai.modmigrator.McaRealWorldTest > drawTopPaintsSurface FAILED
+    java.lang.AssertionError at McaRealWorldTest.kt:134
+
+8 tests completed, 3 failed, 1 skipped
+
+> Task :app:testDebugUnitTest FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:testDebugUnitTest'.
+> There were failing tests. See the report at: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/build/reports/tests/testDebugUnitTest/index.html
+
+* Try:
+> Run with --scan to get full insights.
+
+BUILD FAILED in 20s
+23 actionable tasks: 7 executed, 16 up-to-date
