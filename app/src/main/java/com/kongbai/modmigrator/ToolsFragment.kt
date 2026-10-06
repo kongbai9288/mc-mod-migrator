@@ -302,6 +302,21 @@ class ToolsFragment : Fragment() {
     }
 
     /**
+     * 从一个区域文件反推它所属的世界目录：往上找到带 level.dat 的那一层。
+     *
+     * 目录层级前后变过（`<世界>/region/` 与 `<世界>/dimensions/ns/dim/region/`），
+     * 逐层上溯比按固定层数算稳妥。
+     */
+    private fun worldDirOf(f: java.io.File): java.io.File? {
+        var p = f.parentFile ?: return null
+        repeat(6) {
+            if (p.isDirectory && java.io.File(p, "level.dat").isFile) return p
+            p = p.parentFile ?: return null
+        }
+        return null
+    }
+
+    /**
      * 区块编辑器入口。
      *
      * .mca 在 `<世界>/region/`，所以扫描深度要比 .dat 更深一层，
@@ -351,6 +366,27 @@ class ToolsFragment : Fragment() {
                         .setPositiveButton(android.R.string.ok, null)
                         .show()
                 } else {
+                    // ⚠️ 之前这里直接列单个 .mca 文件，于是永远只能看一个区域，
+                    // 维度按钮也被藏掉 —— 明明有世界级实现却进不去。
+                    // 现在从区域文件往上找到世界目录，走世界级入口。
+                    val worlds = LinkedHashMap<String, java.io.File>()
+                    for ((_, v) in found) {
+                        if (v !is java.io.File) continue
+                        val w = worldDirOf(v) ?: continue
+                        worlds.putIfAbsent(w.name, w)
+                    }
+                    if (worlds.isNotEmpty()) {
+                        val keys = worlds.keys.toTypedArray()
+                        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                            .setTitle("打开哪个世界（共 ${worlds.size} 个）")
+                            .setItems(keys) { _, w ->
+                                ChunkMapActivity.open(ctx, worlds.values.elementAt(w))
+                            }
+                            .setNegativeButton(R.string.cancel, null)
+                            .show()
+                        return@safePost
+                    }
+                    // 找不到 level.dat（多半是 SAF 单文件），退回单文件视图
                     val names = found.map { it.first }.toTypedArray()
                     com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
                         .setTitle("打开哪个区域文件（共 ${found.size} 个）")

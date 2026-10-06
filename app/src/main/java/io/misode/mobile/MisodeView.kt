@@ -105,6 +105,12 @@ class MisodeView @JvmOverloads constructor(
 			return try {
 				WebResourceResponse(mimeOf(rel), null, ctx.assets.open(rel))
 			} catch (_: Throwable) {
+				// ⚠️ 只有导航类请求才回退 index.html。
+				// 带扩展名的（.mcdoc / .json / .js / .css）是页面用 fetch 取数据的，
+				// 回退成 HTML 会让 JS 拿到一段网页去解析，然后静默失败 ——
+				// 表现正是「页面出来了，但什么都用不了」。这类请求该报 404，
+				// 让页面自己走错误处理。
+				if (looksLikeFile(path)) return notFound()
 				// SPA 回退：路由路径在 assets 里没有实体文件
 				try {
 					WebResourceResponse("text/html", null, ctx.assets.open("$ASSET_ROOT/index.html"))
@@ -113,6 +119,18 @@ class MisodeView @JvmOverloads constructor(
 				}
 			}
 		}
+
+		/** 路径最后一段带点，说明是在取具体文件，不是在走路由 */
+		private fun looksLikeFile(path: String): Boolean {
+			val last = path.substringAfterLast('/')
+			return last.contains('.')
+		}
+
+		private fun notFound(): WebResourceResponse =
+			WebResourceResponse(
+				"text/plain", "utf-8", 404, "Not Found",
+				emptyMap(), "".byteInputStream(),
+			)
 
 		/**
 		 * Android 自带的 guessContentTypeFromName 对 .js / .mjs 常返回 null，

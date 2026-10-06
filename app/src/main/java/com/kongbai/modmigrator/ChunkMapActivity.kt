@@ -104,6 +104,8 @@ class ChunkMapActivity : AppCompatActivity() {
     // ------------------------------------------------------------------ 状态
 
     private var worldDir: File? = null
+    /** SAF 打开时的原始 Uri。保存完要把缓存副本写回这里，否则改动全丢 */
+    private var srcUri: Uri? = null
     private var dims: List<McaWorld.Dim> = emptyList()
     private var dim: McaWorld.Dim? = null
     private var refs: List<McaWorld.Ref> = emptyList()
@@ -273,18 +275,57 @@ class ChunkMapActivity : AppCompatActivity() {
         }
     }
 
-    /** SAF 单文件 → 缓存目录里的普通文件 */
+    /**
+     * SAF 单文件 → 缓存目录里的普通文件。
+     *
+     * ⚠️ 之前文件名写死成 `r.0.0.mca`，于是无论你选的是哪个区域文件，
+     * 坐标一律按 (0,0) 算 —— 显示错、导出错、删除也可能删到别的格子。
+     * 现在取 Uri 里的真实显示名，取不到才回退。
+     */
     private fun cacheSingle(uri: Uri): File? {
         // 写成块体而不是 = try {…}：表达式体里不允许裸 return
         return try {
             val dir = File(filesDir, "mca-single").apply { mkdirs() }
-            val f = File(dir, "r.0.0.mca")
+            val name = displayNameOf(uri)?.takeIf { it.endsWith(".mca") } ?: "r.0.0.mca"
+            // 同名会互相覆盖，先清掉旧的
+            dir.listFiles()?.forEach { if (it.name != name) it.delete() }
+            val f = File(dir, name)
             val input = contentResolver.openInputStream(uri) ?: return null
             input.use { src -> f.outputStream().use { src.copyTo(it) } }
+            srcUri = uri
             f
         } catch (t: Throwable) {
             Err.fail(t, "缓存区域文件")
             null
+        }
+    }
+
+    /** 从 SAF Uri 取真实文件名，取不到返回 null */
+    private fun displayNameOf(uri: Uri): String? = try {
+        contentResolver.query(uri, null, null, null, null)?.use { c ->
+            val i = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (i >= 0 && c.moveToFirst()) c.getString(i) else null
+        }
+    } catch (_: Throwable) {
+        null
+    }
+
+    /**
+     * 把缓存副本写回原 Uri。
+     *
+     * ⚠️ 之前缺失这一步：保存只写到自己的缓存目录，
+     * 于是「已删除 N 个区块」提示照弹，存档本体纹丝不动 ——
+     * 这正是「删除功能有问题」的来源。
+     */
+    private fun writeBack(f: File): Boolean {
+        val uri = srcUri ?: return false
+        return try {
+            val out = contentResolver.openOutputStream(uri, "wt") ?: return false
+            out.use { f.inputStream().copyTo(it) }
+            true
+        } catch (t: Throwable) {
+            Err.fail(t, "写回区域文件")
+            false
         }
     }
 
@@ -833,6 +874,14 @@ class ChunkMapActivity : AppCompatActivity() {
                         for (s in slots) if (reg.remove(s)) removed++
                     }
                     f.writeBytes(reg.build())
+                    // SAF 来的：改的是缓存副本，必须写回原处，否则一切白做
+                    if (srcUri != null && !writeBack(f)) {
+                        failed++
+                        runOnUiThread {
+                            tv?.text = "${done + failed} / ${targets.size}"
+                        }
+                        continue
+                    }
                     McaTiles.invalidate(this, ref)
                     done++
                 } catch (t: Throwable) {

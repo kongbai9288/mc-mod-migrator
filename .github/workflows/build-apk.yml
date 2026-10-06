@@ -93,6 +93,32 @@ jobs:
           echo "bundle files:"
           find app/src/main/assets/misode -type f | wc -l
 
+      - name: Prebundle Misode offline data
+        run: |
+          set -e
+          # 生成器表单是靠 symbols.json 驱动的，而它运行时才去 GitHub 拉。
+          # 拉不到就抛异常 —— 页面照常出来，但没有表单，看着像"没用"。
+          # 这里在构建时下载并打进 assets，保证离线一定拿得到。
+          # 路径须与 MisodeDataCache.relOf() 一致：<host>/<路径>
+          OUT=app/src/main/assets/misode-data/raw.githubusercontent.com
+          mkdir -p "$OUT/SpyglassMC/vanilla-mcdoc/generated"
+          curl -sSL --retry 3 --max-time 180 \
+            -o "$OUT/SpyglassMC/vanilla-mcdoc/generated/symbols.json" \
+            https://raw.githubusercontent.com/SpyglassMC/vanilla-mcdoc/generated/symbols.json
+          test -s "$OUT/SpyglassMC/vanilla-mcdoc/generated/symbols.json"
+          echo "symbols.json: $(wc -c < "$OUT/SpyglassMC/vanilla-mcdoc/generated/symbols.json") bytes"
+
+          # 最新版（26.3）在 misode 里是 dynamic 版本，取的是 summary/ 而非 <ref>-summary/
+          mkdir -p "$OUT/misode/mcmeta/summary"
+          for p in registries blocks item_components sounds; do
+            mkdir -p "$OUT/misode/mcmeta/summary/$p"
+            curl -sSL --retry 3 --max-time 120 \
+              -o "$OUT/misode/mcmeta/summary/$p/data.min.json" \
+              "https://raw.githubusercontent.com/misode/mcmeta/summary/$p/data.min.json" || true
+            echo "$p: $(wc -c < "$OUT/misode/mcmeta/summary/$p/data.min.json" 2>/dev/null || echo 0) bytes"
+          done
+          find app/src/main/assets/misode-data -type f | wc -l
+
       - name: Decode keystore
         run: |
           set -e

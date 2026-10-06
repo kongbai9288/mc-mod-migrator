@@ -76,7 +76,11 @@ object MisodeDataCache {
 	@Volatile
 	private var root: File? = null
 
+	@Volatile
+	private var appCtx: Context? = null
+
 	fun init(context: Context) {
+		appCtx = context.applicationContext
 		if (root == null) {
 			synchronized(this) {
 				if (root == null) {
@@ -84,6 +88,32 @@ object MisodeDataCache {
 				}
 			}
 		}
+	}
+
+	/**
+	 * 预置资源里查同名文件。
+	 *
+	 * ⚠️ 生成器表单是靠 symbols.json 驱动的，而它 2.6 MB、运行时才去
+	 * GitHub 拉。拉不到就抛异常，页面照常出来但没有表单 —— 正是
+	 * 「有页面、没多大作用」。所以构建时把它打进 assets，保证一定在。
+	 */
+	private fun bundled(host: String, path: String): String? {
+		val rel = relOf(host, path)
+		val ctx = appCtx ?: return null
+		return try {
+			ctx.assets.open("misode-data/$rel").use { it.close() }
+			ctx.assets.list("misode-data") // 仅探测，确保目录存在
+			"misode-data/$rel"
+		} catch (_: Throwable) {
+			null
+		}
+	}
+
+	private fun relOf(host: String, path: String): String {
+		val safe = path.trim('/').split('/').joinToString("/") { seg ->
+			seg.replace(Regex("[^A-Za-z0-9._-]"), "_").take(80)
+		}
+		return "$host/$safe"
 	}
 
 	private fun dir(): File = root ?: error("MisodeDataCache.init() 还没调用")
@@ -103,6 +133,11 @@ object MisodeDataCache {
 		val path = uri.path
 		if (path.isNullOrBlank() || path == "/") return null
 
+		// 1) 预置资源优先 —— 保证第一次打开就有，不依赖网络
+		val b = bundled(host, path)
+		if (b != null) return serveAsset(b, path)
+
+		// 2) 之前下载过的
 		val file = fileFor(host, path)
 		if (file.isFile && file.length() > 0) return serve(file, path)
 
@@ -120,12 +155,7 @@ object MisodeDataCache {
 		// ⚠️ 页面是 fetch() 跨域拿这些数据的。
 		// GitHub 的官方源会带 CORS 头，我们自己返回也必须带上，
 		// 否则浏览器直接把响应拦掉，表现为「载入中」卡住。
-		val headers = mapOf(
-			"Access-Control-Allow-Origin" to "*",
-			"Access-Control-Allow-Methods" to "GET, OPTIONS",
-			"Cache-Control" to "public, max-age=31536000",
-		)
-		return WebResourceResponse(mimeOf(path), null, 200, "OK", headers, FileInputStream(file))
+		return WebResourceResponse(mimeOf(path), null, 200, "OK", corsHeaders(), FileInputStream(file))
 	}
 
 	/* ------------------------------------------------------------------ *
@@ -203,12 +233,24 @@ object MisodeDataCache {
 	 * ------------------------------------------------------------------ */
 
 	private fun fileFor(host: String, path: String): File {
-		val safe = path.trim('/').split('/').joinToString("/") { seg ->
-			// 只保留文件名安全字符，避免奇怪路径写到目录外
-			seg.replace(Regex("[^A-Za-z0-9._-]"), "_").take(80)
-		}
-		return File(dir(), "$host/$safe")
+		return File(dir(), relOf(host, path))
 	}
+
+	private fun serveAsset(assetPath: String, path: String): WebResourceResponse {
+		val ctx = appCtx ?: return WebResourceResponse(null, null, null)
+		return WebResourceResponse(
+			mimeOf(path), null, 200, "OK",
+			corsHeaders(),
+			ctx.assets.open(assetPath),
+		)
+	}
+
+	private fun corsHeaders(): Map<String, String> = mapOf(
+		"Access-Control-Allow-Origin" to "*",
+		"Access-Control-Allow-Methods" to "GET, OPTIONS",
+		"Access-Control-Allow-Headers" to "*",
+		"Cache-Control" to "public, max-age=31536000",
+	)
 
 	private fun mimeOf(path: String): String = when {
 		path.endsWith(".json") -> "application/json"
