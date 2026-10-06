@@ -304,7 +304,8 @@ class ChunkMapActivity : AppCompatActivity() {
                         (if (failed > 0) "，读不出 $failed 个" else "") +
                         "（$sec 秒）\n点一下进对应区块" +
                         if (drawn == 0 && air > 0)
-                            "\n这些区块存在，但地形还没生成过"
+                            "\n这些区块存在，但地形还没生成过" +
+                                "\n（若这是 poi/ 或 entities/ 下的文件，它本来就不存方块）"
                         else ""
                 )
             }

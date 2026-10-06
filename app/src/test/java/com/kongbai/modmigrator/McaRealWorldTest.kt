@@ -55,6 +55,11 @@ class McaRealWorldTest {
             }
             return (workDir.listFiles() ?: emptyArray())
                 .filter { it.name.endsWith(".mca") && it.length() > 8192 }
+                // ⚠️ 一个世界目录下有三类 .mca：region / poi / entities。
+                // 只有 region/ 存方块；poi 是兴趣点、entities 是实体，
+                // 里面根本没有 sections，拿它们测渲染必然全空 ——
+                // 这正是应用里「点进去全提示无数据」的来源之一。
+                .filter { "_region_" in it.name }
                 .sortedBy { it.name }
         }
     }

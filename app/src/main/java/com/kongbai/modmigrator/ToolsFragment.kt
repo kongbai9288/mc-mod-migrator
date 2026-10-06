@@ -252,11 +252,30 @@ class ToolsFragment : Fragment() {
                 if (c.isDirectory) walk(c, depth + 1)
                 else {
                     val n = c.name ?: continue
-                    if (exts.any { n.endsWith(it) }) out.add(labelOf(n, c) to c.uri)
+                    if (!exts.any { n.endsWith(it) }) continue
+                    // 找 .mca 时排除 poi/ 与 entities/：它们不存方块，
+                    // 点开只能看到「没有方块数据」
+                    val pn = c.parentFile?.name
+                    if (exts.contains(".mca") && (pn == "poi" || pn == "entities")) continue
+                    out.add(labelOf(n, c) to c.uri)
                 }
             }
         }
         walk(tree, 0)
+    }
+
+    /**
+     * 只有 `region/` 下的 .mca 才存方块。
+     *
+     * `poi/` 存兴趣点、`entities/` 存实体，两者里面**没有 sections**，
+     * 打开必然是「没有方块数据」。而一个世界里这三类是同样数量
+     * （这份 26.2 存档就是 region / poi / entities 各 4 个），
+     * 全都列出来的话，随手一点有三分之二是空的 ——
+     * 这正是反馈里「点进去全提示无数据」的一个直接来源。
+     */
+    private fun isTerrain(f: java.io.File): Boolean {
+        val p = f.parentFile?.name
+        return p != "poi" && p != "entities"
     }
 
     /**
@@ -297,7 +316,7 @@ class ToolsFragment : Fragment() {
             if (game.isNotBlank() && !game.startsWith("content://")) {
                 runCatching {
                     java.io.File(game).walkTopDown()
-                        .filter { it.isFile && it.name.endsWith(".mca") }
+                        .filter { it.isFile && it.name.endsWith(".mca") && isTerrain(it) }
                         .take(40)
                         .forEach { found.add(labelOf(it.name, it) to it) }
                 }
@@ -311,7 +330,7 @@ class ToolsFragment : Fragment() {
                 for ((_, dir) in LauncherDirs.detect(ctx)) {
                     runCatching {
                         dir.walkTopDown()
-                            .filter { it.isFile && it.name.endsWith(".mca") }
+                            .filter { it.isFile && it.name.endsWith(".mca") && isTerrain(it) }
                             .take(40)
                             .forEach { found.add(labelOf(it.name, it) to it) }
                     }
@@ -323,8 +342,10 @@ class ToolsFragment : Fragment() {
                     com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
                         .setTitle("没找到区域文件")
                         .setMessage(
-                            "没在游戏目录里找到 .mca。\n" +
-                                "它位于「存档目录/世界名/region/」下。\n" +
+                            "没在游戏目录里找到存地形的 .mca。\n\n" +
+                                "它在「存档目录/世界名/region/」下。\n" +
+                                "同一个世界里还有 poi/ 与 entities/ 两个目录，里面同样" +
+                                "是 .mca，但存的是兴趣点和实体，没有方块，所以不列出。\n\n" +
                                 "请先在「设置 → 存储」把游戏目录指到 .minecraft。"
                         )
                         .setPositiveButton(android.R.string.ok, null)
