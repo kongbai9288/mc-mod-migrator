@@ -21,6 +21,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
 import java.io.IOException
+import java.util.Locale
 import kotlin.coroutines.resume
 
 /**
@@ -66,6 +67,25 @@ class MisodeView @JvmOverloads constructor(
 	private val mainHandler = Handler(Looper.getMainLooper())
 	private val listeners = mutableListOf<(MisodeEventData) -> Unit>()
 	private lateinit var webView: WebView
+
+	/**
+	 * 外部资源拦截器。
+	 *
+	 * 网页包里只有代码，Minecraft 数据（ID 表、生成器结构）要另外取。
+	 * 宿主可以在这里接上自己的缓存层（见 [MisodeDataCache]），
+	 * 命中缓存时直接返回，页面就不需要联网。
+	 *
+	 * 返回 null 表示不接管，请求照常发给 WebView。
+	 */
+	var resourceInterceptor: ((Uri) -> WebResourceResponse?)? = null
+
+	/**
+	 * 是否把原生侧的生成器标题换成中文。
+	 *
+	 * bridge.getGenerators() 内部写死了英文词条，网页里的列表会跟随语言，
+	 * 但原生拿到的 title 永远是英文。置 true 后用 [GeneratorZh] 补译。
+	 */
+	var chineseTitles: Boolean = true
 
 	/**
 	 * 把 `/<任意路径>` 映射到 assets 的 `misode/<任意路径>`。
@@ -164,7 +184,11 @@ class MisodeView @JvmOverloads constructor(
 			request: WebResourceRequest,
 		): WebResourceResponse? {
 			val url = request.url
-			if (url.host != DOMAIN) return null
+			if (url.host != DOMAIN) {
+				// 外部数据（ID 表、生成器结构）交给宿主的缓存层；
+				// 它不接管就放行给 WebView。
+				return resourceInterceptor?.invoke(url)
+			}
 			// 交由 MisodePathHandler 处理：命中就返回实体，
 			// 不命中回退 index.html（SPA 路由）。
 			return assetLoader.shouldInterceptRequest(url)
@@ -253,6 +277,35 @@ class MisodeView @JvmOverloads constructor(
 	/** Reload the whole bundle. */
 	fun reload() = mainHandler.post { webView.loadUrl(ROOT) }
 
+	/**
+	 * 跟随系统语言。
+	 *
+	 * 网页里 `Store.getLanguage()` 取不到设置时一律回退 `'en'`，
+	 * 中文系统下也不会自己切过来 —— 这是「页面全是英文」的直接原因。
+	 * 这里在页面就绪后按系统 Locale 显式切一次。
+	 */
+	fun applySystemLanguage(onApplied: ((String) -> Unit)? = null) {
+		val sys = Locale.getDefault()
+		val target = when (sys.language) {
+			Locale.CHINESE.language -> when (sys.country.uppercase()) {
+				"TW", "HK", "MO" -> "zh-tw"
+				else -> "zh-cn"
+			}
+			Locale.JAPANESE.language -> "ja"
+			Locale.KOREAN.language -> "ko"
+			else -> "en"
+		}
+		chineseTitles = target == "zh-cn" || target == "zh-tw"
+		getLanguage { cur ->
+			if (cur != target) setLanguage(target)
+			// 词条是异步 import 的，切完稍后复核一次，没生效再切一遍
+			mainHandler.postDelayed({
+				getLanguage { now -> if (now != target) setLanguage(target) }
+			}, 800)
+			onApplied?.invoke(target)
+		}
+	}
+
 	/** Navigate to any in-app route, e.g. `/loot-table`. */
 	fun navigate(path: String) = eval(call("navigate", quote(path))) {}
 
@@ -296,7 +349,7 @@ class MisodeView @JvmOverloads constructor(
 	fun getGenerators(callback: (List<GeneratorInfo>) -> Unit) {
 		eval(call("getGenerators")) { value ->
 			val array = value as? JSONArray ?: return@eval callback(emptyList())
-			callback((0 until array.length()).mapNotNull { i ->
+			val list = (0 until array.length()).mapNotNull { i ->
 				val o = array.optJSONObject(i) ?: return@mapNotNull null
 				GeneratorInfo(
 					id = o.optString("id"),
@@ -308,7 +361,9 @@ class MisodeView @JvmOverloads constructor(
 					maxVersion = o.optStringOrNull("maxVersion"),
 					wiki = o.optStringOrNull("wiki"),
 				)
-			})
+			}
+			// bridge 里写死了英文词条，这里按同一份中文档案补译
+			callback(if (chineseTitles) GeneratorZh.apply(list) else list)
 		}
 	}
 

@@ -148,6 +148,14 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
+            android:name=".MisodeActivity"
+            android:exported="false"
+            android:label="数据包生成器（全部）"
+            android:screenOrientation="portrait"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".ChunkMapActivity"
             android:exported="false"
             android:label="区块编辑器"

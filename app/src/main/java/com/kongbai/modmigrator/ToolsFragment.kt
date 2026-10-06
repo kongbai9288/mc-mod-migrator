@@ -115,8 +115,8 @@ class ToolsFragment : Fragment() {
         ) { openNbt() })
 
         root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_extension, "数据包生成器（离线）",
-            "137 个生成器，无需联网；结果可直接写进存档", "打开"
+            ctx, R.drawable.ic_extension, "数据包生成器",
+            "137 个生成器；首次用某版本会下载约 1 MB 数据，之后完全离线", "打开"
         ) { openDatapack() })
 
         root.addView(UiCards.infoCard(
@@ -385,7 +385,16 @@ class ToolsFragment : Fragment() {
 
     private fun openDatapack() {
         val ctx = context ?: return
-        ctx.startActivity(android.content.Intent(ctx, DatapackActivity::class.java))
+        // 两个入口：完整的 137 个生成器（离线网页版），以及内置的 9 张表单。
+        // 前者种类全但要下载对应版本的数据；后者填完就能写，种类少。
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("用哪个生成器")
+            .setItems(arrayOf("全部 137 个（推荐）", "内置表单（9 个，不需要额外数据）")) { _, i ->
+                if (i == 0) MisodeActivity.open(ctx)
+                else ctx.startActivity(android.content.Intent(ctx, DatapackActivity::class.java))
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     // ---------------- 跨加载器迁移 ----------------
