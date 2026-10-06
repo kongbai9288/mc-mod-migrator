@@ -227,6 +227,9 @@ class WorldsFragment : Fragment() {
             .setPositiveButton("用 NBT 编辑器打开") { _, _ ->
                 NbtViewerActivity.open(ctx, File(w.dir, "level.dat"))
             }
+            .setNeutralButton("区块地图") { _, _ ->
+                ChunkMapActivity.open(ctx, w.dir)
+            }
             .setNegativeButton(R.string.cancel, null)
             .show()
     }

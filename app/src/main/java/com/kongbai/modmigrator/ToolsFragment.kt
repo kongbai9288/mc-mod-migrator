@@ -356,7 +356,7 @@ class ToolsFragment : Fragment() {
                         .setTitle("打开哪个区域文件（共 ${found.size} 个）")
                         .setItems(names) { _, w ->
                             val v = found[w].second
-                            if (v is java.io.File) ChunkMapActivity.open(ctx, v)
+                            if (v is java.io.File) ChunkMapActivity.openFile(ctx, v)
                             else ChunkMapActivity.openUri(ctx, v as android.net.Uri)
                         }
                         .setNegativeButton(R.string.cancel, null)
