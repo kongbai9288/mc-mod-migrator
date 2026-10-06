@@ -1,5 +1,5 @@
 # 真实存档验证（ai.zip / 26.2 世界）
-run: 37450488499
+run: 37468146093
 
 == TEST-com.kongbai.modmigrator.McaRealWorldTest.xml
 tests="8" skipped="0" failures="1" errors="0"
@@ -7,6 +7,8 @@ tests="8" skipped="0" failures="1" errors="0"
 	at org.junit.Assert.fail(Assert.java:89)
 	at org.junit.Assert.assertTrue(Assert.java:42)
 	at com.kongbai.modmigrator.McaRealWorldTest.paletteAndSectionYAreReadable(McaRealWorldTest.kt:117)
+== TEST-com.kongbai.modmigrator.McaWorldTest.xml
+tests="4" skipped="0" failures="0" errors="0"
 
 ## gradle 末尾 40 行
 > Task :app:packageDebugResources UP-TO-DATE
@@ -34,7 +36,7 @@ tests="8" skipped="0" failures="1" errors="0"
 com.kongbai.modmigrator.McaRealWorldTest > paletteAndSectionYAreReadable FAILED
     java.lang.AssertionError at McaRealWorldTest.kt:117
 
-8 tests completed, 1 failed
+12 tests completed, 1 failed
 
 > Task :app:testDebugUnitTest FAILED
 
@@ -47,5 +49,5 @@ Execution failed for task ':app:testDebugUnitTest'.
 * Try:
 > Run with --scan to get full insights.
 
-BUILD FAILED in 13s
+BUILD FAILED in 16s
 23 actionable tasks: 7 executed, 16 up-to-date
