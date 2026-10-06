@@ -712,11 +712,11 @@ class ChunkMapActivity : AppCompatActivity() {
         }
         val ex = EditText(this).apply {
             hint = if (isChunk) "区块 X" else "方块 X"
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_FLAG_SIGNED
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED
         }
         val ez = EditText(this).apply {
             hint = if (isChunk) "区块 Z" else "方块 Z"
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_FLAG_SIGNED
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED
         }
         lay.addView(ex)
         lay.addView(ez)
