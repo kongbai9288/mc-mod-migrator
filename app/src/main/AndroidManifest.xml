@@ -122,6 +122,12 @@
             android:screenOrientation="portrait" />
 
         <activity
+            android:name=".LoaderForgeActivity"
+            android:exported="false"
+            android:label="加载器支持器"
+            android:screenOrientation="portrait" />
+
+        <activity
             android:name=".InfoActivity"
             android:exported="false"
             android:label="@string/title_info"

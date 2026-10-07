@@ -93,6 +93,12 @@ class ToolsFragment : Fragment() {
             "建好 mods/config/saves 等目录，写入 Prism 可识别的实例描述", "创建"
         ) { createInstance() })
 
+        root.addView(UiCards.infoCard(
+            ctx, R.drawable.ic_rocket_launch, "加载器支持器（beta）",
+            "给内置清单里没有的加载器补支持：开私仓在 GitHub 工作流上提取，或直接解析你上传的 jar",
+            "打开"
+        ) { startActivity(android.content.Intent(ctx, LoaderForgeActivity::class.java)) })
+
         // ---------- 整合包 ----------
         root.addView(UiCards.sectionTitle(ctx, "整合包"))
 

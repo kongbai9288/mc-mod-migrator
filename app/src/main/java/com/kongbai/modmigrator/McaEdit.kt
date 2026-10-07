@@ -390,3 +390,50 @@ object McaEdit {
         }
     }
 }
+
+/**
+ * 版本适配接口（提前留好）。
+ *
+ * 现在只有一套实现（1.18+ 的 `sections` 写法，外加旧版 `Level.Sections` 兜底），
+ * 但存档格式每次大改都会动到调色板和打包位宽，
+ * 到时候只要往 [McaVersions.register] 里挂一个新的 [Adapter] 就行，
+ * 不用再改解析主流程。
+ *
+ * 之所以现在就抽出这层：26.3 已经改过一次调色板字段名
+ * （`Name` → `id`、调色板可以是字符串列表），
+ * 这类改动散落在解析代码里极难收敛。
+ */
+interface McaVersionAdapter {
+    /** 这个实现能处理的 DataVersion 区间（闭区间） */
+    fun supports(dataVersion: Int): Boolean
+
+    fun sections(chunk: com.viaversion.nbt.tag.CompoundTag): List<McaEdit.Sec>
+
+    fun paletteNames(sec: McaEdit.Sec): List<String>
+
+    /** 写回时用哪个字段名，null = 沿用读到的那个 */
+    fun paletteIdKey(): String? = null
+}
+
+object McaVersions {
+
+    private val impls = ArrayList<McaVersionAdapter>()
+
+    /** 默认实现：走 McaEdit 现有逻辑，覆盖目前已知的所有写法 */
+    val DEFAULT: McaVersionAdapter = object : McaVersionAdapter {
+        override fun supports(dataVersion: Int) = true
+        override fun sections(chunk: com.viaversion.nbt.tag.CompoundTag) =
+            McaEdit.sections(chunk)
+        override fun paletteNames(sec: McaEdit.Sec) = McaEdit.paletteNames(sec)
+    }
+
+    init { impls.add(DEFAULT) }
+
+    /** 将来支持新版本时挂进来。后挂的优先匹配 */
+    @Synchronized
+    fun register(a: McaVersionAdapter) { impls.add(0, a) }
+
+    @Synchronized
+    fun forVersion(dataVersion: Int): McaVersionAdapter =
+        impls.firstOrNull { it.supports(dataVersion) } ?: DEFAULT
+}

@@ -95,6 +95,22 @@ class ChunkMapActivity : AppCompatActivity() {
         private const val CHUNK_MODE_PX = 10f
 
         /**
+         * 缩放上下界。
+         *
+         * ⚠️ 之前上界写 4f —— 一格方块能放到 4 像素，
+         * 于是整张 512×512 的位图被拉伸到几千像素，
+         * 绘制开销和内存都失控（表现为平移时随机变黑、卡顿）。
+         *
+         * 上界取「进区块模式时用的那个值」：
+         * `CHUNK_MODE_PX * 1.6 / BLOCKS_PER_CHUNK` = 1.0，
+         * 也就是最大只能到区块级（一格方块约 1px）。
+         * 方块级操作不走缩放，改用「按范围删」填坐标 ——
+         * 手机上靠手指放到方块级既看不清也选不准。
+         */
+        private const val MIN_SCALE = 0.002f
+        private const val MAX_SCALE = 1.0f
+
+        /**
          * 同时最多几个线程在渲染区域。
          *
          * 按 CPU 核数算，夹在 [2,4]：单核/双核开多了确实互相抢，
@@ -252,6 +268,10 @@ class ChunkMapActivity : AppCompatActivity() {
         row2.addView(MaterialButton(this).apply {
             text = "标记删除"
             setOnClickListener { stageSelection() }
+        })
+        row2.addView(MaterialButton(this).apply {
+            text = "按范围删"
+            setOnClickListener { askRangeDelete() }
         })
         row2.addView(MaterialButton(this).apply {
             text = "导出选中"
@@ -838,6 +858,73 @@ class ChunkMapActivity : AppCompatActivity() {
         toast("已标记为待删除，还没动存档 —— 点「保存」才生效，点「撤销标记」可以反悔")
     }
 
+    /**
+     * 填范围删。
+     *
+     * 地图上最大只能放到区块级（见 [MIN_SCALE]），
+     * 方块级靠手指点既看不清也选不准，所以用填坐标的方式。
+     * 输入的是**方块坐标**，内部按区块边界对齐：
+     * 完全落在范围内的区块才删，边上只擦到一半的不动 ——
+     * 免得你填 0~100 结果把 0~127 整块端掉。
+     */
+    private fun askRangeDelete() {
+        val ctx = this
+        val box = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 0)
+        }
+        fun field(hint: String): EditText = EditText(ctx).apply {
+            this.hint = hint
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                android.text.InputType.TYPE_NUMBER_FLAG_SIGNED
+        }
+        val e0 = field("x 起点"); val e1 = field("z 起点")
+        val e2 = field("x 终点"); val e3 = field("z 终点")
+        listOf(e0, e1, e2, e3).forEach { box.addView(it) }
+        box.addView(TextView(ctx).apply {
+            text = "填方块坐标。只删被范围完整包住的区块，" +
+                "边上擦到一半的不动。"
+            textSize = 12f
+        })
+
+        fun int(e: EditText): Int? = e.text.toString().trim().toIntOrNull()
+
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("按范围删除")
+            .setView(box)
+            .setNegativeButton("取消", null)
+            .setPositiveButton("标记") { _, _ ->
+                val x0 = int(e0); val z0 = int(e1)
+                val x1 = int(e2); val z1 = int(e3)
+                if (x0 == null || z0 == null || x1 == null || z1 == null) {
+                    toast("四个都要填"); return@setPositiveButton
+                }
+                val ax = minOf(x0, x1); val bx = maxOf(x0, x1)
+                val az = minOf(z0, z1); val bz = maxOf(z0, z1)
+                // 方块坐标 → 区块坐标（向下取整 / 向上取整，只取完整包含的）
+                val cx0 = kotlin.math.floor(ax / 16.0).toInt() + if (ax % 16 != 0) 1 else 0
+                val cx1 = kotlin.math.ceil((bx + 1) / 16.0).toInt() - 1
+                val cz0 = kotlin.math.floor(az / 16.0).toInt() + if (az % 16 != 0) 1 else 0
+                val cz1 = kotlin.math.ceil((bz + 1) / 16.0).toInt() - 1
+                if (cx1 < cx0 || cz1 < cz0) {
+                    toast("这个范围里没有完整包含的区块"); return@setPositiveButton
+                }
+                var n = 0
+                for (cz in cz0..cz1) for (cx in cx0..cx1) {
+                    val rx = kotlin.math.floor(cx / 32.0).toInt()
+                    val rz = kotlin.math.floor(cz / 32.0).toInt()
+                    val lcx = cx - rx * 32
+                    val lcz = cz - rz * 32
+                    stagedChunk.add(McaTiles.packChunk(rx, rz, lcx, lcz))
+                    n++
+                }
+                map.invalidate()
+                updateStatus()
+                toast("已标记 $n 个区块待删除 —— 点「保存」才生效")
+            }
+            .show()
+    }
+
     private fun clearStaged() {
         stagedReg.clear()
         stagedChunk.clear()
@@ -1089,7 +1176,7 @@ class ChunkMapActivity : AppCompatActivity() {
             ScaleGestureDetector.SimpleOnScaleGestureListener() {
             override fun onScale(d: ScaleGestureDetector): Boolean {
                 val f = d.scaleFactor
-                val ns = (scale * f).coerceIn(0.002f, 4f)
+                val ns = (scale * f).coerceIn(MIN_SCALE, MAX_SCALE)
                 // 以手势中心为锚点缩放，否则一缩放画面就飘走
                 val fx = d.focusX.toDouble()
                 val fy = d.focusY.toDouble()
@@ -1147,7 +1234,7 @@ class ChunkMapActivity : AppCompatActivity() {
 
         /** 放大到刚好能看见区块网格 */
         fun zoomToChunk() {
-            scale = (CHUNK_MODE_PX * 1.6f / BLOCKS_PER_CHUNK).coerceIn(0.002f, 4f)
+            scale = (CHUNK_MODE_PX * 1.6f / BLOCKS_PER_CHUNK).coerceIn(MIN_SCALE, MAX_SCALE)
         }
 
         fun resetView() {
@@ -1165,7 +1252,7 @@ class ChunkMapActivity : AppCompatActivity() {
             val fitW = if (x1 > x0) w / (x1 - x0).toFloat() else 1f
             val fitH = if (z1 > z0) h / (z1 - z0).toFloat() else 1f
             // 先按内容算铺满，再留 10% 边距，最后才夹到上下限
-            scale = (minOf(fitW, fitH) * 0.9f).coerceIn(0.002f, 4f)
+            scale = (minOf(fitW, fitH) * 0.9f).coerceIn(MIN_SCALE, MAX_SCALE)
         }
 
         /**
