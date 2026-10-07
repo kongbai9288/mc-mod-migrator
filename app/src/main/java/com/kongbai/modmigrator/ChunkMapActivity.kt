@@ -94,8 +94,15 @@ class ChunkMapActivity : AppCompatActivity() {
         /** 一个区块在屏幕上大于这个像素数时，切到"逐区块选择" */
         private const val CHUNK_MODE_PX = 10f
 
-        /** 同时最多几个线程在渲染区域。手机上是纯 CPU 活，开多了反而互相抢 */
-        private const val RENDER_THREADS = 2
+        /**
+         * 同时最多几个线程在渲染区域。
+         *
+         * 按 CPU 核数算，夹在 [2,4]：单核/双核开多了确实互相抢，
+         * 但这台设备是 8 核，固定 2 会让整张地图铺满要等很久，
+         * 期间大片区域一直是空的。
+         */
+        private val RENDER_THREADS =
+            Runtime.getRuntime().availableProcessors().coerceIn(2, 4)
 
         /** 20 tick = 1 秒 */
         private const val TPS = 20L
@@ -1061,12 +1068,20 @@ class ChunkMapActivity : AppCompatActivity() {
             strokeWidth = 2f
             color = Color.argb(230, 229, 83, 75)
         }
+        /**
+         * 还没加载出来的区域。
+         *
+         * ⚠️ 之前是纯黑，跟"这里地形本来就是黑的"完全分不清 ——
+         * 用户只能猜到底是没加载还是没生成。
+         * 现在用带蓝调的深灰，和地形的纯黑区分开，
+         * 并且标了坐标，至少能知道是哪一块还在路上。
+         */
         private val placeholder = Paint().apply {
             style = Paint.Style.FILL
-            color = 0xFF1A1A1A.toInt()
+            color = 0xFF2B3138.toInt()
         }
         private val textPaint = Paint().apply {
-            color = Color.argb(150, 255, 255, 255)
+            color = Color.argb(190, 150, 170, 190)
             textSize = 22f
         }
 
@@ -1213,8 +1228,12 @@ class ChunkMapActivity : AppCompatActivity() {
             }
         }
 
+        /** 每帧最多从磁盘解码几张。避免一整屏全 miss 时掉帧 */
+        private var diskBudget = 3
+
         override fun onDraw(c: Canvas) {
             super.onDraw(c)
+            diskBudget = 3
             val list = visibleRefs()
             for (r in list) {
                 val (sx, sy) = blockToScreen(
@@ -1223,9 +1242,15 @@ class ChunkMapActivity : AppCompatActivity() {
                 val size = BLOCKS_PER_REGION * scale
                 if (sx + size < 0 || sy + size < 0 || sx > width || sy > height) continue
 
-                // 只从 LRU 里取现成的，不在这里触发渲染 ——
-                // onDraw 每帧都跑，在这里解析文件等于把界面钉死
-                val bmp = McaTiles.peek(r)
+                // 两级取图：内存 → 磁盘 PNG。
+                // ⚠️ 之前只查内存，LRU 一踢掉就画黑，可磁盘上明明有现成的图。
+                // 解码 PNG 是毫秒级，解析 .mca 是秒级，所以只有磁盘也没有
+                // 才允许空着，并交给后台去渲染。
+                var bmp = McaTiles.peek(r)
+                if (bmp == null && diskBudget > 0) {
+                    bmp = McaTiles.fromDisk(this@ChunkMapActivity, r)
+                    if (bmp != null) diskBudget--
+                }
                 if (bmp != null) {
                     c.drawBitmap(bmp, null,
                         android.graphics.RectF(sx, sy, sx + size, sy + size), null)

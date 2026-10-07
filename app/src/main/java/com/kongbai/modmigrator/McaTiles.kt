@@ -38,8 +38,21 @@ object McaTiles {
     /** 一个区域 = 32×32 个区块，每个区块 16×16 格，所以整图 512×512 */
     const val IMG = 512
 
-    /** 内存里最多留多少张图（按字节算，不是按张数） */
-    private const val MEM_MAX_BYTES = 6 * 1024 * 1024
+    /**
+     * 内存里最多留多少张图（按字节算，不是按张数）。
+     *
+     * ⚠️ 之前写死 6MB，而一张 512×512 的 ARGB 图正好 1MB —— 只能装 6 张。
+     * 一屏就能看到十几个区域，平移一下必然有瓦片被踢出去，
+     * 踢出去就得重新解析整个 .mca（几秒），期间那一片是黑的。
+     * 表现就是"每次消失的位置都不一样"。
+     *
+     * 现在按堆的实际大小算，取 1/5，并夹在 [32MB, 96MB]。
+     * 32MB 能装 32 张，足以覆盖一屏加一圈缓冲。
+     */
+    private val MEM_MAX_BYTES: Int = run {
+        val max = Runtime.getRuntime().maxMemory()
+        (max / 5).toInt().coerceIn(32 * 1024 * 1024, 96 * 1024 * 1024)
+    }
 
     /** 缓存格式版本。渲染逻辑或元数据字段改了就 +1，旧缓存自动作废 */
     private const val CACHE_VER = 3
@@ -182,6 +195,36 @@ object McaTiles {
 
     /** 只看内存里有没有（决定要不要走磁盘或重新生成，不触发渲染） */
     fun peek(ref: McaWorld.Ref): Bitmap? = mem.get(keyOf(ref))
+
+    /**
+     * 内存没有时从磁盘缓存取。
+     *
+     * 只解码已经生成好的 PNG，**绝不触发重新渲染**。
+     * 这是 onDraw 里唯一可以安全调用的一级 ——
+     * 解析一个 .mca 要几秒，解码一张 PNG 只要几毫秒。
+     *
+     * 之前 onDraw 只查内存，于是瓦片被 LRU 踢掉后立刻变黑，
+     * 哪怕磁盘上明明有现成的图。
+     * 取出来会顺手放回内存，下一帧就命中了。
+     */
+    fun fromDisk(ctx: Context, ref: McaWorld.Ref): Bitmap? {
+        val key = keyOf(ref)
+        val png = pngOf(ctx, ref)
+        if (!valid(png, ref)) return null
+        val b = try {
+            BitmapFactory.decodeFile(png.absolutePath)
+        } catch (t: Throwable) {
+            Err.ignore(t, "读取区域缩略图缓存")
+            null
+        }
+        if (b == null) {
+            // 多半是上次写入被打断留下的半截文件，删掉让它重画
+            runCatching { png.delete() }
+            return null
+        }
+        mem.put(key, b)
+        return b
+    }
 
     /**
      * 只在内存里找元数据，找不到就返回 null，绝不去读文件。
