@@ -125,7 +125,29 @@ class ChunkMapActivity : AppCompatActivity() {
     private lateinit var btnDim: MaterialButton
     private lateinit var btnSave: MaterialButton
 
-    private val pool = Executors.newFixedThreadPool(RENDER_THREADS)
+    /**
+     * 渲染线程池。
+     *
+     * ⚠️ 之前是 val 且 onDestroy 里 shutdownNow，但 pump() 靠 runOnUiThread
+     * 循环投递，关闭后仍有任务在排队回调 —— 再 execute 就抛
+     * RejectedExecutionException（Terminated / Shutting down），直接崩。
+     * 现在：alive 标记 + 提交前自愈（已关闭就重建），并且所有回调先过 alive。
+     */
+    private var pool = Executors.newFixedThreadPool(RENDER_THREADS)
+    @Volatile private var alive = true
+
+    private fun submitPool(task: Runnable) {
+        if (!alive) return
+        try {
+            pool.execute(task)
+        } catch (t: java.util.concurrent.RejectedExecutionException) {
+            synchronized(this) {
+                if (!alive) return
+                pool = Executors.newFixedThreadPool(RENDER_THREADS)
+                runCatching { pool.execute(task) }
+            }
+        }
+    }
     private val busy = AtomicInteger(0)
 
     /** 待渲染队列 + 正在渲染的集合。平移时整队重排，近的先画 */
@@ -262,7 +284,7 @@ class ChunkMapActivity : AppCompatActivity() {
             }
             !uriStr.isNullOrBlank() -> {
                 tvStatus.text = "正在读取…"
-                pool.execute {
+                submitPool {
                     val f = cacheSingle(Uri.parse(uriStr))
                     runOnUiThread {
                         if (f == null) tvStatus.text = "读不了这个区域文件"
@@ -428,7 +450,7 @@ class ChunkMapActivity : AppCompatActivity() {
             synchronized(this) { inflightKeys.add(key) }
             busy.incrementAndGet()
             val app = this
-            pool.execute {
+            submitPool {
                 try {
                     val b: Bitmap? = try {
                         McaTiles.get(app, next)
@@ -661,7 +683,7 @@ class ChunkMapActivity : AppCompatActivity() {
             .show()
         val tv = prog.findViewById<TextView>(android.R.id.message)
 
-        pool.execute {
+        submitPool {
             var done = 0
             val hitReg = HashSet<Long>()
             val hitChunk = HashSet<Long>()
@@ -855,7 +877,7 @@ class ChunkMapActivity : AppCompatActivity() {
             .show()
         val tv = prog.findViewById<TextView>(android.R.id.message)
 
-        pool.execute {
+        submitPool {
             var done = 0
             var removed = 0
             var failed = 0
@@ -952,7 +974,7 @@ class ChunkMapActivity : AppCompatActivity() {
             .show()
         val tv = prog.findViewById<TextView>(android.R.id.message)
 
-        pool.execute {
+        submitPool {
             var done = 0
             var failed = 0
             val made = ArrayList<File>()
@@ -992,8 +1014,9 @@ class ChunkMapActivity : AppCompatActivity() {
         Toast.makeText(this, m, Toast.LENGTH_LONG).show()
 
     override fun onDestroy() {
+        alive = false
         super.onDestroy()
-        pool.shutdownNow()
+        runCatching { pool.shutdownNow() }
     }
 
     // ------------------------------------------------------------------ 地图

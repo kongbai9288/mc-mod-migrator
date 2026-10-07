@@ -148,6 +148,9 @@ object McaTiles {
                 ensureMeta(ctx, ref)
                 return b
             }
+            // 读不出来多半是上次写入被打断留下的半个文件。
+            // 不删掉的话它永远"有效"，这张图就永久黑着。
+            runCatching { png.delete() }
         }
 
         synchronized(inflight) {
@@ -296,8 +299,24 @@ object McaTiles {
             present.toIntArray(), inhabited, updated, brokenList.toIntArray()
         )
         // 解析完就把原始数据和 Region 放开，只留图
-        val bmp = Bitmap.createBitmap(px, IMG, IMG, Bitmap.Config.ARGB_8888)
-        return bmp to meta
+        // 512×512 ARGB_8888 = 1MB/张。大世界同时展开多张时堆会被吃光，
+        // createBitmap 抛的是 OutOfMemoryError（Error 不是 Exception），
+        // 老代码没有兜住 —— 于是整张图变黑且不再重试，看上去像"渲染坏了"。
+        // 这里先腾一次内存再试一次，仍失败就明确作废缓存，下次还有机会重画。
+        val bmp = try {
+            Bitmap.createBitmap(px, IMG, IMG, Bitmap.Config.ARGB_8888)
+        } catch (oom: OutOfMemoryError) {
+            Err.ignore(oom, "生成区域缩略图内存不足")
+            synchronized(this) { mem.evictAll() }
+            runCatching { System.gc() }
+            try {
+                Bitmap.createBitmap(px, IMG, IMG, Bitmap.Config.ARGB_8888)
+            } catch (oom2: OutOfMemoryError) {
+                Err.ignore(oom2, "腾内存后仍不足")
+                null
+            }
+        }
+        return if (bmp == null) null else bmp to meta
     }
 
     /**
