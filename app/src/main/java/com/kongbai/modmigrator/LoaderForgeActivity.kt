@@ -393,7 +393,7 @@ class LoaderForgeActivity : AppCompatActivity() {
             addProperty("message", msg)
             addProperty("content", b64)
             addProperty("branch", branch)
-            val sha = Json.s(Json.obj(cur), "sha")
+            val sha = Json.s(Json.obj(cur ?: ""), "sha")
             if (sha.isNotBlank()) addProperty("sha", sha)
         }
         val r = api(tok, "PUT", "/repos/$owner/$repoName/contents/$path", o.toString())
@@ -457,7 +457,7 @@ class LoaderForgeActivity : AppCompatActivity() {
             }
             val a = api(tok, "GET",
                 "/repos/$owner/$repoName/actions/runs/$id/artifacts")
-            val aa = Json.arr(a)
+            val aa = Json.arr(a ?: "")
             if (aa == null || aa.size() == 0) { line("任务成功但没有产物"); return null }
             val artId = Json.l(aa[0].asJsonObject, "id")
             return downloadArtifact(tok, owner, artId)
@@ -529,7 +529,7 @@ jobs:
           MC="$mcVersion"
           for M in https://bmclapi2.bangbang93.com/mc/game \
                    https://launchermeta.mojang.com/mc/game ; do
-            curl -sSL --max-time 60 "$M/version_manifest.json" -o vm.json && break
+            curl -sSL --max-time 60 "${'$'}M/version_manifest.json" -o vm.json && break
           done
           python3 - <<'PY'
           import json
@@ -542,7 +542,7 @@ jobs:
           cd out && unzip -o -q input.jar -d x || true
           find x -name 'fabric.mod.json' -o -name 'mods.toml' \
                -o -name 'neoforge.mods.toml' -o -name 'mcmod.info' \
-               -o -name 'quilt.mod.json' | while read f; do cp "$f" ../; done
+               -o -name 'quilt.mod.json' | while read f; do cp "${'$'}f" ../; done
           ls -la
       - uses: actions/upload-artifact@v4
         with:
@@ -564,7 +564,7 @@ jobs:
         run: |
           mkdir -p out
           find . -name '*.jar' -not -path '*/gradle*' | head -50 | \
-            while read f; do cp "$f" out/ || true; done
+            while read f; do cp "${'$'}f" out/ || true; done
           ls -la out || true
       - uses: actions/upload-artifact@v4
         with:
