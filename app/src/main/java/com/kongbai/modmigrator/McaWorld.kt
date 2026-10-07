@@ -19,6 +19,23 @@ import java.io.File
  */
 object McaWorld {
 
+    /**
+     * SAF 世界 → 本地镜像目录的文件映射。
+     *
+     * SAF 的 content:// 拿不到真实 File，而区块地图整块逻辑都基于 File。
+     * 所以打开 SAF 世界时先把 region 下的 .mca 复制到本地，
+     * 保存时再按这张表逐个写回原处。
+     */
+    object Mirror {
+        private val map = java.util.concurrent.ConcurrentHashMap<String, android.net.Uri>()
+
+        fun put(f: java.io.File, u: android.net.Uri) { map[f.absolutePath] = u }
+
+        fun of(f: java.io.File): android.net.Uri? = map[f.absolutePath]
+
+        fun clear() { map.clear() }
+    }
+
     /** 一个区域文件的引用。坐标从文件名 r.X.Z.mca 来。 */
     class Ref(val rx: Int, val rz: Int, val file: File) {
         /** 该区域左下角对应的世界区块坐标 */

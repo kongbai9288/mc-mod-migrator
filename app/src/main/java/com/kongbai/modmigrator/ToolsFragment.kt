@@ -323,74 +323,117 @@ class ToolsFragment : Fragment() {
      * 否则永远找不到（表现为"没找到区域文件"）。
      * 和 NBT 一样两条路都走：真实路径 + SAF 授权目录。
      */
+    /**
+     * 区块编辑器入口。
+     *
+     * ⚠️ 之前是「先扫 .mca 文件、再反推世界」，而且最多只取 40 个文件。
+     * 于是世界一多，前 40 个文件可能全来自第一个世界 ——
+     * 列表里只剩一个世界，看着像「世界数量不对」。
+     * 另外 SAF 收集的是 Uri 而不是 File，反推那一步直接跳过，
+     * 于是 SAF 下退化成单文件列表，压根没有世界级视图。
+     *
+     * 现在改为直接发现世界目录，不截断数量，SAF 也走世界级。
+     */
     private fun openMca() {
         val ctx = context ?: return
         exec.execute {
-            val found = ArrayList<Pair<String, Any>>()
             val game = Prefs.get(ctx).getString(K.GAME_DIR, "") ?: ""
-            if (game.isNotBlank() && !game.startsWith("content://")) {
-                runCatching {
-                    java.io.File(game).walkTopDown()
-                        .filter { it.isFile && it.name.endsWith(".mca") && isTerrain(it) }
-                        .take(40)
-                        .forEach { found.add(labelOf(it.name, it) to it) }
-                }
-            }
-            if (game.startsWith("content://")) {
-                runCatching {
-                    collectSafNbt(ctx, game, found, listOf(".mca"), 6)
-                }
-            }
-            if (found.isEmpty() && Perms.allFiles()) {
-                for ((_, dir) in LauncherDirs.detect(ctx)) {
-                    runCatching {
-                        dir.walkTopDown()
-                            .filter { it.isFile && it.name.endsWith(".mca") && isTerrain(it) }
-                            .take(40)
-                            .forEach { found.add(labelOf(it.name, it) to it) }
+
+            // 1) 真实路径：saves 目录下所有带 level.dat 的子目录就是一个世界
+            val worldFiles = LinkedHashMap<String, java.io.File>()
+            fun collect(saves: java.io.File) {
+                saves.listFiles()?.forEach { d ->
+                    if (d.isDirectory && java.io.File(d, "level.dat").isFile) {
+                        worldFiles.putIfAbsent(d.name, d)
                     }
                 }
             }
+            if (game.isNotBlank() && !game.startsWith("content://")) {
+                for (s in savesDirsOf(java.io.File(game))) collect(s)
+            }
+            // 2) 有「所有文件访问」时补上已知启动器目录
+            if (Perms.allFiles()) {
+                for ((_, dir) in LauncherDirs.detect(ctx)) {
+                    for (s in savesDirsOf(dir)) collect(s)
+                }
+            }
+            // 3) SAF 授权目录
+            val safWorlds = ArrayList<Pair<String, androidx.documentfile.provider.DocumentFile>>()
+            if (game.startsWith("content://")) {
+                runCatching {
+                    val tree = Fs.tree(ctx, game) ?: return@runCatching
+                    val saves = tree.findFile("saves") ?: tree
+                    for (d in saves.listFiles()) {
+                        if (d.isDirectory && d.findFile("level.dat") != null) {
+                            safWorlds.add((d.name ?: "存档") to d)
+                        }
+                    }
+                }
+            }
+
             safePost(handler) {
                 if (!isAdded) return@safePost
+                val names = ArrayList<String>()
+                names.addAll(worldFiles.keys)
+                names.addAll(safWorlds.map { it.first + "（授权目录）" })
+                if (names.isNotEmpty()) {
+                    com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                        .setTitle("打开哪个世界（共 ${names.size} 个）")
+                        .setItems(names.toTypedArray()) { _, w ->
+                            if (w < worldFiles.size) {
+                                ChunkMapActivity.open(ctx, worldFiles.values.elementAt(w))
+                            } else {
+                                val doc = safWorlds[w - worldFiles.size].second
+                                val prog = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                                    .setTitle("正在读取存档…")
+                                    .setMessage("复制区域文件到本机，稍后可保存回去")
+                                    .setCancelable(false)
+                                    .show()
+                                exec.execute {
+                                    val dir = mirrorSafWorld(ctx, doc)
+                                    safePost(handler) {
+                                        prog.dismiss()
+                                        if (dir == null) toast("这个存档里没有区域文件")
+                                        else ChunkMapActivity.open(ctx, dir)
+                                    }
+                                }
+                            }
+                        }
+                        .setNegativeButton(R.string.cancel, null)
+                        .show()
+                    return@safePost
+                }
+
+                // 找不到 level.dat（多半授权到了世界内部），退回按文件列
+                val found = ArrayList<Pair<String, Any>>()
+                if (game.isNotBlank() && !game.startsWith("content://")) {
+                    runCatching {
+                        java.io.File(game).walkTopDown()
+                            .filter { it.isFile && it.name.endsWith(".mca") && isTerrain(it) }
+                            .take(200)
+                            .forEach { found.add(labelOf(it.name, it) to it) }
+                    }
+                }
+                if (game.startsWith("content://")) {
+                    runCatching { collectSafNbt(ctx, game, found, listOf(".mca"), 6) }
+                }
                 if (found.isEmpty()) {
                     com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-                        .setTitle("没找到区域文件")
+                        .setTitle("没找到存档")
                         .setMessage(
-                            "没在游戏目录里找到存地形的 .mca。\n\n" +
-                                "它在「存档目录/世界名/region/」下。\n" +
-                                "同一个世界里还有 poi/ 与 entities/ 两个目录，里面同样" +
-                                "是 .mca，但存的是兴趣点和实体，没有方块，所以不列出。\n\n" +
-                                "请先在「设置 → 存储」把游戏目录指到 .minecraft。"
+                            "没找到带 level.dat 的世界目录，也没找到存地形的 .mca。\n\n" +
+                                "存档在「游戏目录/saves/世界名/」下，区域文件在其 " +
+                                "region/ 目录里。\n\n" +
+                                "请在「设置 → 存储」把游戏目录指到 .minecraft" +
+                                "（或直接指到 saves 那一层）。"
                         )
                         .setPositiveButton(android.R.string.ok, null)
                         .show()
                 } else {
-                    // ⚠️ 之前这里直接列单个 .mca 文件，于是永远只能看一个区域，
-                    // 维度按钮也被藏掉 —— 明明有世界级实现却进不去。
-                    // 现在从区域文件往上找到世界目录，走世界级入口。
-                    val worlds = LinkedHashMap<String, java.io.File>()
-                    for ((_, v) in found) {
-                        if (v !is java.io.File) continue
-                        val w = worldDirOf(v) ?: continue
-                        worlds.putIfAbsent(w.name, w)
-                    }
-                    if (worlds.isNotEmpty()) {
-                        val keys = worlds.keys.toTypedArray()
-                        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-                            .setTitle("打开哪个世界（共 ${worlds.size} 个）")
-                            .setItems(keys) { _, w ->
-                                ChunkMapActivity.open(ctx, worlds.values.elementAt(w))
-                            }
-                            .setNegativeButton(R.string.cancel, null)
-                            .show()
-                        return@safePost
-                    }
-                    // 找不到 level.dat（多半是 SAF 单文件），退回单文件视图
-                    val names = found.map { it.first }.toTypedArray()
+                    val fn = found.map { it.first }.toTypedArray()
                     com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
                         .setTitle("打开哪个区域文件（共 ${found.size} 个）")
-                        .setItems(names) { _, w ->
+                        .setItems(fn) { _, w ->
                             val v = found[w].second
                             if (v is java.io.File) ChunkMapActivity.openFile(ctx, v)
                             else ChunkMapActivity.openUri(ctx, v as android.net.Uri)
@@ -401,6 +444,68 @@ class ToolsFragment : Fragment() {
             }
         }
     }
+
+    /** 一个游戏目录（.minecraft）里可能的存档根目录，按可能性排序 */
+    private fun savesDirsOf(base: java.io.File): List<java.io.File> {
+        val out = LinkedHashSet<java.io.File>()
+        for (c in listOf(
+            java.io.File(base, "saves"), base,
+            java.io.File(base, ".minecraft/saves")
+        )) {
+            if (c.isDirectory) out.add(c)
+        }
+        // 版本隔离：saves 也可能在 versions/<版本>/ 下
+        java.io.File(base, "versions").listFiles()?.forEach { v ->
+            val vs = java.io.File(v, "saves")
+            if (vs.isDirectory) out.add(vs)
+        }
+        return out.toList()
+    }
+
+    /**
+     * SAF 世界 → 本地镜像目录。
+     *
+     * 区块地图整块逻辑基于 File，而 content:// 拿不到真实路径，
+     * 所以先把 region 下的 .mca 复制过来，
+     * 并在 [McaWorld.Mirror] 里记下每个文件的原始 Uri，保存时写回。
+     * poi/ 与 entities/ 不复制 —— 它们不存方块，白占空间。
+     */
+    private fun mirrorSafWorld(
+        ctx: android.content.Context,
+        world: androidx.documentfile.provider.DocumentFile
+    ): java.io.File? {
+        val name = (world.name ?: "存档").replace(Regex("[^A-Za-z0-9._ -]"), "_")
+        val root = java.io.File(ctx.filesDir, "mca-mirror").apply { mkdirs() }
+        // 旧镜像不清会和别的世界混在一起
+        root.listFiles()?.forEach { it.deleteRecursively() }
+        val dir = java.io.File(root, name)
+        McaWorld.Mirror.clear()
+        var n = 0
+        fun walk(d: androidx.documentfile.provider.DocumentFile, depth: Int, rel: String) {
+            if (depth > 5) return
+            for (c in d.listFiles()) {
+                val cn = c.name ?: continue
+                if (c.isDirectory) {
+                    if (cn == "poi" || cn == "entities") continue
+                    walk(c, depth + 1, if (rel.isEmpty()) cn else "$rel/$cn")
+                } else if (cn.endsWith(".mca")) {
+                    val t = java.io.File(dir, if (rel.isEmpty()) cn else "$rel/$cn")
+                    t.parentFile?.mkdirs()
+                    runCatching {
+                        ctx.contentResolver.openInputStream(c.uri)?.use { src ->
+                            t.outputStream().use { src.copyTo(it) }
+                        }
+                    } ?: continue
+                    if (!t.isFile || t.length() <= 0) continue
+                    McaWorld.Mirror.put(t, c.uri)
+                    n++
+                }
+            }
+        }
+        walk(world, 0, "")
+        return if (n > 0) dir else null
+    }
+
 
     private fun askNbtPath(ctx: android.content.Context) {
         val et = android.widget.EditText(ctx).apply { setSingleLine(true) }

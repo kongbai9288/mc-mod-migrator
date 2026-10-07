@@ -111,7 +111,9 @@ class WorldsFragment : Fragment() {
                 File(base, "saves"), base,
                 File(base, ".minecraft/saves")
             )) {
-                if (cand.isDirectory && File(cand, "level.dat").exists()) out.add(cand)
+                // 只要求是目录。世界是它下面的子目录，
+                // 判断 level.dat 该由 WorldInfo.listIn 在子目录上做。
+                if (cand.isDirectory) out.add(cand)
             }
         }
         // 有「所有文件访问」权限时，直接扫已知启动器目录

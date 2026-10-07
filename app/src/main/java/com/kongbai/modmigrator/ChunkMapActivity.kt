@@ -317,8 +317,7 @@ class ChunkMapActivity : AppCompatActivity() {
      * 于是「已删除 N 个区块」提示照弹，存档本体纹丝不动 ——
      * 这正是「删除功能有问题」的来源。
      */
-    private fun writeBack(f: File): Boolean {
-        val uri = srcUri ?: return false
+    private fun writeBack(f: File, uri: Uri): Boolean {
         return try {
             val out = contentResolver.openOutputStream(uri, "wt") ?: return false
             out.use { f.inputStream().copyTo(it) }
@@ -874,8 +873,10 @@ class ChunkMapActivity : AppCompatActivity() {
                         for (s in slots) if (reg.remove(s)) removed++
                     }
                     f.writeBytes(reg.build())
-                    // SAF 来的：改的是缓存副本，必须写回原处，否则一切白做
-                    if (srcUri != null && !writeBack(f)) {
+                    // SAF 来的：改的是本地副本（镜像或单文件缓存），
+                    // 必须写回原处，否则一切白做
+                    val back = McaWorld.Mirror.of(f) ?: srcUri
+                    if (back != null && !writeBack(f, back)) {
                         failed++
                         runOnUiThread {
                             tv?.text = "${done + failed} / ${targets.size}"
