@@ -94,8 +94,17 @@ class LoaderForgeActivity : AppCompatActivity() {
             "fabric", "forge", "neoforge", "quilt", "optifine", "liteloader"
         )
 
+        /**
+         * Cleanroom 特殊在：HMCL 里能一键装，但还有另一条路 ——
+         * 先装 Forge，再用 Cleanroom Relauncher 装。
+         * 两条都能到，所以不能像上面那几款一样硬挡掉，
+         * 得把选项摆出来让人自己挑。
+         */
+        private const val CLEANROOM = "cleanroom"
+
         fun hmclNative(id: String): Boolean =
             HMCL_NATIVE.contains(id.trim().lowercase(Locale.ROOT))
+
 
         /** 下载产物时依次尝试的镜像（先镜像后官方，用户要求） */
         private val MIRRORS = listOf(
@@ -236,6 +245,42 @@ class LoaderForgeActivity : AppCompatActivity() {
             .show()
     }
 
+    /**
+     * Cleanroom 有两条路，选哪条由你定 —— 不替你选。
+     *
+     * ① 直接装：HMCL 里一键，最省事
+     * ② 先 Forge 再 Relauncher：某些版本组合只有这条路走得通，
+     *    而且方便单独回退到纯 Forge
+     */
+    private fun askCleanroomPath() {
+        val ctx = this
+        val opts = arrayOf(
+            "① 直接安装（HMCL 里一键）",
+            "② 先装 Forge，再用 Cleanroom Relauncher 装"
+        )
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("Cleanroom 怎么装")
+            .setItems(opts) { _, w ->
+                when (w) {
+                    0 -> {
+                        line("Cleanroom：HMCL 已经原生支持，启动器里点一下就装好了。")
+                        line("推荐做法：打开 HMCL → 对应实例 → 版本设置 → 自动安装 → 选 Cleanroom。")
+                        toast("已给出直接安装的步骤")
+                    }
+                    1 -> {
+                        line("Cleanroom：走 Forge + Relauncher 这条路。")
+                        line("① 先在这个实例里装好对应版本的 Forge")
+                        line("② 把 Cleanroom Relauncher 放进 mods 目录")
+                        line("③ 启动一次实例，它会自己把 Cleanroom 装上")
+                        line("④ 想回退就把这个 mod 删掉，回到纯 Forge")
+                        toast("已给出 Forge + Relauncher 的步骤")
+                    }
+                }
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
     private val modeRepo = "repo"
     private val modeJar = "jar"
     private val modeStatus = "status"
@@ -297,6 +342,10 @@ class LoaderForgeActivity : AppCompatActivity() {
 
     private fun jobRepo() {
         val tok = token() ?: return line("没有 token，先去登录。")
+        if (loaderId.trim().lowercase(Locale.ROOT) == CLEANROOM) {
+            askCleanroomPath()
+            return
+        }
         if (hmclNative(loaderId)) {
             line("$loaderId：HMCL 已经原生支持，启动器里点一下就装好了，")
             line("版本组合还是它自己校验过的 —— 走这里只会绕远路。")
