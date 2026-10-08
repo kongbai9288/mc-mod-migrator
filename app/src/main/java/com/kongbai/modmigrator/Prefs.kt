@@ -152,6 +152,8 @@ object K {
     const val BACKEND_BACKUP = "backend_backup"
     const val OFFLINE = "offline_mode"
     const val USE_BACKEND = "use_backend"
+    /** 进过开发者模式。进过之后不再弹"已知局限性"这类确认框 */
+    const val DEV_MODE = "dev_mode"
     const val USE_OFFICIAL_CF = "use_official_cf"
     const val WORKDIR_URI = "workdir_uri"
     /** 游戏目录（.minecraft）绝对路径。模组必须装到这里才会被启动器加载 */

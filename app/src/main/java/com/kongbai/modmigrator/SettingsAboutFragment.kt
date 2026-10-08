@@ -41,6 +41,12 @@ class SettingsAboutFragment : Fragment() {
         // 放在长按下是为了不打扰普通用户，也不占界面位置。
         //
         btnLic.setOnLongClickListener {
+            // 记一下进过开发者模式：这类人清楚自己在做什么，
+            // 后面的"已知局限性"确认框就不必再打扰他了。
+            runCatching {
+                Prefs.get(requireContext()).edit()
+                    .putBoolean(K.DEV_MODE, true).apply()
+            }
             runCatching {
                 startActivity(
                     Intent(requireContext(), DevLabActivity::class.java)

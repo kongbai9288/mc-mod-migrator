@@ -83,6 +83,20 @@ class LoaderForgeActivity : AppCompatActivity() {
             "legacy_fabric", "ornithe", "babric", "cleanroom", "iris"
         )
 
+        /**
+         * HMCL 已经原生支持的加载器。
+         *
+         * 这几款 HMCL 里点一下就装好了，而且版本组合是它自己校验过的 ——
+         * 走这个页面去云端提取纯属绕远路，还可能拿回不匹配的构建。
+         * 所以这里一律拒绝，并直接建议你回启动器装。
+         */
+        private val HMCL_NATIVE = listOf(
+            "fabric", "forge", "neoforge", "quilt", "optifine", "liteloader"
+        )
+
+        fun hmclNative(id: String): Boolean =
+            HMCL_NATIVE.contains(id.trim().lowercase(Locale.ROOT))
+
         /** 下载产物时依次尝试的镜像（先镜像后官方，用户要求） */
         private val MIRRORS = listOf(
             "https://gh-proxy.com/",
@@ -167,12 +181,59 @@ class LoaderForgeActivity : AppCompatActivity() {
         root.addView(log)
         setContentView(scroll)
 
+        gateIfNeeded()
+
         val t = Prefs.get(ctx).getString(K.TOKEN, "") ?: ""
         if (t.isBlank()) {
             line("还没登录 GitHub：先去「设置 → 账户」登录，这里的每一步都要用你的 token。")
         } else {
             line("已读到 token（长度 ${t.length}）。")
         }
+    }
+
+    /**
+     * 进来先看要不要过一遍"已知局限性"。
+     *
+     * 进过开发者模式的直接放行 —— 他知道这条路能干什么、干不了什么。
+     * 其余人必须手打一句确认语：这个页面会拿你的 token 建私仓、
+     * 往里推工作流、跑云端构建，不是普通的"下载"，
+     * 得让人先看清再动手，而不是点个"确定"就过去了。
+     */
+    private fun gateIfNeeded() {
+        if (Prefs.get(this).getBoolean(K.DEV_MODE, false)) return
+        val ctx = this
+        val box = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 0)
+        }
+        box.addView(TextView(ctx).apply {
+            text = "这个页面会：\n" +
+                "· 用你的 token 在你账号下建一个私仓\n" +
+                "· 往里推工作流并用云端构建\n" +
+                "· 产物不一定能用，也不一定能装上\n\n" +
+                "HMCL 已经原生支持 Fabric / Forge / NeoForge / Quilt / OptiFine / " +
+                "LiteLoader —— 这些请回启动器里装，不要走这里。\n\n" +
+                "确认的话，在下面原样输入：\n我已明白本功能局限性，并继续使用"
+            textSize = 13f
+        })
+        val e = EditText(ctx).apply {
+            hint = "原样输入上面那句话"
+            inputType = InputType.TYPE_CLASS_TEXT
+            setSingleLine(true)
+        }
+        box.addView(e)
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("已知局限性")
+            .setView(box)
+            .setCancelable(false)
+            .setNegativeButton("退出") { _, _ -> finish() }
+            .setPositiveButton("继续") { _, _ ->
+                if (e.text.toString().trim() != "我已明白本功能局限性，并继续使用") {
+                    toast("没输对，已退出")
+                    finish()
+                }
+            }
+            .show()
     }
 
     private val modeRepo = "repo"
@@ -236,6 +297,12 @@ class LoaderForgeActivity : AppCompatActivity() {
 
     private fun jobRepo() {
         val tok = token() ?: return line("没有 token，先去登录。")
+        if (hmclNative(loaderId)) {
+            line("$loaderId：HMCL 已经原生支持，启动器里点一下就装好了，")
+            line("版本组合还是它自己校验过的 —— 走这里只会绕远路。")
+            line("推荐做法：打开 HMCL → 对应实例 → 版本设置 → 自动安装。")
+            return
+        }
         line("—— 模式一：仓库提取 ——")
         val owner = ensureOwner(tok) ?: return
         ensureRepo(tok, owner)
