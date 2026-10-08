@@ -55,7 +55,37 @@ object McaTiles {
     }
 
     /** 缓存格式版本。渲染逻辑或元数据字段改了就 +1，旧缓存自动作废 */
-    private const val CACHE_VER = 3
+    private const val CACHE_VER = 4
+
+    /**
+     * 当前的高度显示区间（世界 Y，含端点）。
+     *
+     * 不设就是整列取最高非空气方块。设了下界就能"只看地表以上"，
+     * 设了上界就能"只看某一层以上全是空的"—— 找地下结构靠这个。
+     *
+     * 它必须进缓存键：区间不同画出来的图不一样，
+     * 共用一个缓存文件会看到上一档的图。
+     */
+    @Volatile
+    var yLo: Int = Int.MIN_VALUE
+        private set
+
+    @Volatile
+    var yHi: Int = Int.MAX_VALUE
+        private set
+
+    val yLimited: Boolean get() = yLo != Int.MIN_VALUE || yHi != Int.MAX_VALUE
+
+    fun setYRange(lo: Int?, hi: Int?) {
+        yLo = lo ?: Int.MIN_VALUE
+        yHi = hi ?: Int.MAX_VALUE
+    }
+
+    /** 区间变了必须把内存里的旧图扔掉，否则屏幕上还是上一档 */
+    fun evictAll() = synchronized(this) { mem.evictAll() }
+
+    private fun yTag(): String =
+        if (!yLimited) "" else "_y${yLo}_$yHi"
 
     private val mem = object : LruCache<String, Bitmap>(MEM_MAX_BYTES) {
         override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount
@@ -119,11 +149,11 @@ object McaTiles {
 
     private fun pngOf(ctx: Context, ref: McaWorld.Ref): File =
         File(cacheRoot(ctx), "${dirKey(ref.file.parentFile ?: ref.file)}/" +
-            "${ref.rx}.${ref.rz}.v$CACHE_VER.png")
+            "${ref.rx}.${ref.rz}.v$CACHE_VER${yTag()}.png")
 
     private fun metaOf(ctx: Context, ref: McaWorld.Ref): File =
         File(cacheRoot(ctx), "${dirKey(ref.file.parentFile ?: ref.file)}/" +
-            "${ref.rx}.${ref.rz}.v$CACHE_VER.meta")
+            "${ref.rx}.${ref.rz}.v$CACHE_VER${yTag()}.meta")
 
     /**
      * 缓存是否还有效。
@@ -148,7 +178,7 @@ object McaTiles {
     fun get(
         ctx: Context, ref: McaWorld.Ref, onRender: ((String) -> Unit)? = null
     ): Bitmap? {
-        val key = "${ref.file.absolutePath}#$CACHE_VER"
+        val key = keyOf(ref)
 
         mem.get(key)?.let { return it }
 
@@ -264,7 +294,8 @@ object McaTiles {
         if (m != null) metaMem[key] = m
     }
 
-    private fun keyOf(ref: McaWorld.Ref) = "${ref.file.absolutePath}#$CACHE_VER"
+    private fun keyOf(ref: McaWorld.Ref) =
+        "${ref.file.absolutePath}#$CACHE_VER${yTag()}"
 
     /** 改过区块后要让这张图作废，否则看到的还是旧地形 */
     fun invalidate(ctx: Context, ref: McaWorld.Ref) {
@@ -334,7 +365,7 @@ object McaTiles {
             }
             inhabited[slot] = inhabitedOf(c)
             updated[slot] = updatedOf(c)
-            if (McaRender.drawTop(c, px, IMG, cx * 16, cz * 16, 1)) drawn++
+            if (McaRender.drawTop(c, px, IMG, cx * 16, cz * 16, 1, yLo, yHi)) drawn++
             else markEmpty(px, cx * 16, cz * 16)
         }
 

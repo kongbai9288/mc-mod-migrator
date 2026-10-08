@@ -404,6 +404,14 @@ object McaEdit {
  * 这类改动散落在解析代码里极难收敛。
  */
 interface McaVersionAdapter {
+    /**
+     * 名字，只用于排错时认人。
+     *
+     * 解析出问题时第一件事就是确认"现在用的是哪个实现"——
+     * 没有名字就只能靠猜，而这层将来会挂很多个。
+     */
+    fun name(): String = this::class.java.simpleName.ifBlank { "匿名适配器" }
+
     /** 这个实现能处理的 DataVersion 区间（闭区间） */
     fun supports(dataVersion: Int): Boolean
 
@@ -421,6 +429,7 @@ object McaVersions {
 
     /** 默认实现：走 McaEdit 现有逻辑，覆盖目前已知的所有写法 */
     val DEFAULT: McaVersionAdapter = object : McaVersionAdapter {
+        override fun name() = "默认（sections / Level.Sections 兜底）"
         override fun supports(dataVersion: Int) = true
         override fun sections(chunk: com.viaversion.nbt.tag.CompoundTag) =
             McaEdit.sections(chunk)
@@ -436,4 +445,8 @@ object McaVersions {
     @Synchronized
     fun forVersion(dataVersion: Int): McaVersionAdapter =
         impls.firstOrNull { it.supports(dataVersion) } ?: DEFAULT
+
+    /** 列出已注册的实现，顺序即匹配优先级。开发者模式里显示用。 */
+    @Synchronized
+    fun describe(): List<String> = impls.map { it.name() }
 }

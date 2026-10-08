@@ -254,11 +254,18 @@ object McaRender {
      * @param scale 每格几个像素
      * @return 是否画出了东西
      */
-    fun drawTop(chunk: CompoundTag, px: IntArray, imgW: Int, ox: Int, oz: Int, scale: Int): Boolean {
+    fun drawTop(
+        chunk: CompoundTag, px: IntArray, imgW: Int, ox: Int, oz: Int, scale: Int,
+        yMin: Int = Int.MIN_VALUE, yMax: Int = Int.MAX_VALUE
+    ): Boolean {
         val rs = ready(chunk)
         if (rs.isEmpty()) return false
-        val lo = rs.minOf { it.y } * 16
-        val hi = (rs.maxOf { it.y } * 16) + 15
+        // 下界/上界：只在用户圈定的高度区间里找表面。
+        // 用途是"看某一层" —— 比如只想看地下矿道，就设上界；
+        // 只想看地表以上，就设下界。不设就是原行为。
+        val lo = (rs.minOf { it.y } * 16).coerceAtLeast(yMin)
+        val hi = ((rs.maxOf { it.y } * 16) + 15).coerceAtMost(yMax)
+        if (hi < lo) return false
         val span = (hi - lo).coerceAtLeast(1)
         var painted = 0
         for (z in 0 until 16) {
@@ -268,6 +275,8 @@ object McaRender {
                 outer@ for (i in rs.indices) {
                     val r = rs[i]
                     for (y in 15 downTo 0) {
+                        val wy0 = r.y * 16 + y
+                        if (wy0 < yMin || wy0 > yMax) continue
                         val idx = (y * 16 + z) * 16 + x
                         val v = McaEdit.readIndex(r.data, r.bits, idx)
                         val n = if (v < r.names.size) r.names[v] else "minecraft:air"
