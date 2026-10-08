@@ -225,7 +225,7 @@ class ChunkMapActivity : AppCompatActivity() {
         bar.addView(MaterialButton(this).apply {
             text = "跳转"
             setOnClickListener { askGoto() }
-        }
+        })
         bar.addView(MaterialButton(this).apply {
             text = "Y范围"
             setOnClickListener { askYRange() }
@@ -928,11 +928,12 @@ class ChunkMapActivity : AppCompatActivity() {
      */
     private fun askReplace() {
         if (selReg.isEmpty()) {
-            return MaterialAlertDialogBuilder(this)
+            MaterialAlertDialogBuilder(this)
                 .setTitle("先选区域")
                 .setMessage("替换是按区域文件整块覆盖，先在地图上选中要替换的区域。")
                 .setPositiveButton("知道了", null)
                 .show()
+            return
         }
         MaterialAlertDialogBuilder(this)
             .setTitle("替换区块")

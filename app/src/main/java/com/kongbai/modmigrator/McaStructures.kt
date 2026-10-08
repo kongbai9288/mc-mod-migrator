@@ -132,7 +132,8 @@ object McaStructures {
                 ?: return out
             val refs = st.getCompoundTag("References") ?: st.getCompoundTag("references")
             if (refs != null) {
-                for (k in refs.keys()) out.add(k)
+                // CompoundTag 没有直接列 key 的方法，取底层 map 的键
+                for (k in refs.value.keys) out.add(k)
             }
             // 1.13~1.15 是 Starts/Ranges 那套，取不到名字就放弃，交给特征方块
         }
