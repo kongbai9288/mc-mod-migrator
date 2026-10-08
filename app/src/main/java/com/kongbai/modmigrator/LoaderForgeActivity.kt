@@ -84,26 +84,30 @@ class LoaderForgeActivity : AppCompatActivity() {
         )
 
         /**
-         * HMCL 已经原生支持的加载器。
+         * FCL 已经原生支持的加载器。
          *
-         * 这几款 HMCL 里点一下就装好了，而且版本组合是它自己校验过的 ——
+         * FCL 是手机上的启动器，上游是 PC 端的 HMCL ——
+         * 这里是手机端，所以一律按 FCL 的说法来讲，
+         * 免得让用户去找一个手机上装不上的 PC 软件。
+         *
+         * 这几款 FCL 里点一下就装好了，而且版本组合是它自己校验过的 ——
          * 走这个页面去云端提取纯属绕远路，还可能拿回不匹配的构建。
          * 所以这里一律拒绝，并直接建议你回启动器装。
          */
-        private val HMCL_NATIVE = listOf(
+        private val FCL_NATIVE = listOf(
             "fabric", "forge", "neoforge", "quilt", "optifine", "liteloader"
         )
 
         /**
-         * Cleanroom 特殊在：HMCL 里能一键装，但还有另一条路 ——
+         * Cleanroom 特殊在：FCL 里能一键装，但还有另一条路 ——
          * 先装 Forge，再用 Cleanroom Relauncher 装。
          * 两条都能到，所以不能像上面那几款一样硬挡掉，
          * 得把选项摆出来让人自己挑。
          */
         private const val CLEANROOM = "cleanroom"
 
-        fun hmclNative(id: String): Boolean =
-            HMCL_NATIVE.contains(id.trim().lowercase(Locale.ROOT))
+        fun fclNative(id: String): Boolean =
+            FCL_NATIVE.contains(id.trim().lowercase(Locale.ROOT))
 
 
         /** 下载产物时依次尝试的镜像（先镜像后官方，用户要求） */
@@ -220,7 +224,7 @@ class LoaderForgeActivity : AppCompatActivity() {
                 "· 用你的 token 在你账号下建一个私仓\n" +
                 "· 往里推工作流并用云端构建\n" +
                 "· 产物不一定能用，也不一定能装上\n\n" +
-                "HMCL 已经原生支持 Fabric / Forge / NeoForge / Quilt / OptiFine / " +
+                "FCL 已经原生支持 Fabric / Forge / NeoForge / Quilt / OptiFine / " +
                 "LiteLoader —— 这些请回启动器里装，不要走这里。\n\n" +
                 "确认的话，在下面原样输入：\n我已明白本功能局限性，并继续使用"
             textSize = 13f
@@ -248,14 +252,14 @@ class LoaderForgeActivity : AppCompatActivity() {
     /**
      * Cleanroom 有两条路，选哪条由你定 —— 不替你选。
      *
-     * ① 直接装：HMCL 里一键，最省事
+     * ① 直接装：FCL 里一键，最省事
      * ② 先 Forge 再 Relauncher：某些版本组合只有这条路走得通，
      *    而且方便单独回退到纯 Forge
      */
     private fun askCleanroomPath() {
         val ctx = this
         val opts = arrayOf(
-            "① 直接安装（HMCL 里一键）",
+            "① 直接安装（FCL 里一键）",
             "② 先装 Forge，再用 Cleanroom Relauncher 装"
         )
         MaterialAlertDialogBuilder(ctx)
@@ -263,8 +267,8 @@ class LoaderForgeActivity : AppCompatActivity() {
             .setItems(opts) { _, w ->
                 when (w) {
                     0 -> {
-                        line("Cleanroom：HMCL 已经原生支持，启动器里点一下就装好了。")
-                        line("推荐做法：打开 HMCL → 对应实例 → 版本设置 → 自动安装 → 选 Cleanroom。")
+                        line("Cleanroom：FCL 已经原生支持，启动器里点一下就装好了。")
+                        line("推荐做法：打开 FCL → 对应实例 → 版本设置 → 自动安装 → 选 Cleanroom。")
                         toast("已给出直接安装的步骤")
                     }
                     1 -> {
@@ -346,10 +350,10 @@ class LoaderForgeActivity : AppCompatActivity() {
             askCleanroomPath()
             return
         }
-        if (hmclNative(loaderId)) {
-            line("$loaderId：HMCL 已经原生支持，启动器里点一下就装好了，")
+        if (fclNative(loaderId)) {
+            line("$loaderId：FCL 已经原生支持，启动器里点一下就装好了，")
             line("版本组合还是它自己校验过的 —— 走这里只会绕远路。")
-            line("推荐做法：打开 HMCL → 对应实例 → 版本设置 → 自动安装。")
+            line("推荐做法：打开 FCL → 对应实例 → 版本设置 → 自动安装。")
             return
         }
         line("—— 模式一：仓库提取 ——")
