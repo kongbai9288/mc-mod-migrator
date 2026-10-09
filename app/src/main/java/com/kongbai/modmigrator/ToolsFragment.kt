@@ -15,13 +15,9 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.util.concurrent.Executors
 
 /**
- * 工具箱：把 PC 端启动器里那些零散但实用的小工具收在一起。
+ * 工具箱：零散但常用的小工具入口。
  *
- * 目前有：
- *   - 模组体检（重复、可疑文件名、超大文件）
- *   - 配置对比（迁移前后差异）
- *   - 清理缓存（翻译缓存、下载缓存）
- *   - 存储用量（工作目录各子目录大小）
+ * 分组按用途走，每组都有标题，不留孤立的一行。
  */
 class ToolsFragment : Fragment() {
 
@@ -39,37 +35,35 @@ class ToolsFragment : Fragment() {
             setPadding(pad, pad, pad, pad)
         }
         scroll.addView(root)
-        // 一屏尽量多放几个入口：竖排大卡片二十几个要滚很久，
-        // 而且每项下面还挂一段说明，实际读的人很少。
-        // 改成方格网格，说明能省就省。
+        // 一屏尽量多放几个入口：竖排大卡片二十几个要滚很久。
+        // 改成方格网格；每组都带标题，不留没有标题的孤行。
         root.addView(UiCards.sectionTitle(ctx, "检查"))
         root.addView(UiCards.grid(ctx, 3, listOf(
             UiCards.tile(ctx, R.drawable.ic_check_circle, "模组体检") { doctor() },
             UiCards.tile(ctx, R.drawable.ic_extension, "依赖体检") { depCheck() },
-            UiCards.tile(ctx, R.drawable.ic_content_copy, "配置对比") { diff() }
+            UiCards.tile(ctx, R.drawable.ic_content_copy, "配置对比") { diff() },
+            UiCards.tile(ctx, R.drawable.ic_info, "崩溃日志") { showCrashLog() }
         )))
 
-        root.addView(UiCards.sectionTitle(ctx, "存档"))
+        root.addView(UiCards.sectionTitle(ctx, "世界与数据"))
         root.addView(UiCards.grid(ctx, 3, listOf(
             UiCards.tile(ctx, R.drawable.ic_folder, "世界存档") { openWorlds() },
             UiCards.tile(ctx, R.drawable.ic_inventory, "区块编辑器") { openMca() },
-            UiCards.tile(ctx, R.drawable.ic_edit, "NBT 编辑器") { openNbt() }
-        )))
-        root.addView(UiCards.grid(ctx, 3, listOf(
-            UiCards.tile(ctx, R.drawable.ic_extension, "数据包") { openDatapack() }
+            UiCards.tile(ctx, R.drawable.ic_edit, "NBT 编辑器") { openNbt() },
+            UiCards.tile(ctx, R.drawable.ic_code, "数据包") { openDatapack() }
         )))
 
         root.addView(UiCards.sectionTitle(ctx, "模组"))
         root.addView(UiCards.grid(ctx, 3, listOf(
             UiCards.tile(ctx, R.drawable.ic_warning, "模组开关") { modToggle() },
             UiCards.tile(ctx, R.drawable.ic_swap_horiz, "跨加载器") { crossLoader() },
-            UiCards.tile(ctx, R.drawable.ic_code, "代码级迁移") { codeMigrate() }
+            UiCards.tile(ctx, R.drawable.ic_bolt, "代码级迁移") { codeMigrate() }
         )))
 
         root.addView(UiCards.sectionTitle(ctx, "实例与整合包"))
         root.addView(UiCards.grid(ctx, 3, listOf(
             UiCards.tile(ctx, R.drawable.ic_rocket_launch, "补齐实例") { createInstance() },
-            UiCards.tile(ctx, R.drawable.ic_rocket_launch, "加载器支持器") {
+            UiCards.tile(ctx, R.drawable.ic_devices, "加载器支持器") {
                 startActivity(android.content.Intent(ctx, LoaderForgeActivity::class.java))
             },
             UiCards.tile(ctx, R.drawable.ic_cloud_upload, "导出整合包") { exportMrpack() }
@@ -77,17 +71,10 @@ class ToolsFragment : Fragment() {
 
         root.addView(UiCards.sectionTitle(ctx, "存储与传输"))
         root.addView(UiCards.grid(ctx, 3, listOf(
-            UiCards.tile(ctx, R.drawable.ic_folder, "存储用量") { usage() },
+            UiCards.tile(ctx, R.drawable.ic_cloud_sync, "存储用量") { usage() },
             UiCards.tile(ctx, R.drawable.ic_delete, "清理缓存") { clearCache() },
-            UiCards.tile(ctx, R.drawable.ic_cloud_upload, "云盘") { CloudDriveActivity.open(ctx) }
-        )))
-        root.addView(UiCards.grid(ctx, 3, listOf(
-            UiCards.tile(ctx, R.drawable.ic_bolt, "打包发送") { shareMods() }
-        )))
-
-        root.addView(UiCards.sectionTitle(ctx, "其它"))
-        root.addView(UiCards.grid(ctx, 3, listOf(
-            UiCards.tile(ctx, R.drawable.ic_info, "崩溃日志") { showCrashLog() }
+            UiCards.tile(ctx, R.drawable.ic_storefront, "云盘") { CloudDriveActivity.open(ctx) },
+            UiCards.tile(ctx, R.drawable.ic_open_in_new, "打包发送") { shareMods() }
         )))
 
         return scroll
