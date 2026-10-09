@@ -1,5 +1,6 @@
-import android.widget.Toast
 package com.kongbai.modmigrator
+
+import android.widget.Toast
 
 import android.widget.AdapterView
 import android.widget.Spinner
