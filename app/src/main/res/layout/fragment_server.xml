@@ -1,268 +1,351 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  服务器页重排。
+
+  原来的问题：
+    · 24 个控件一根竖条平铺，看不出哪几个是一组。
+    · 更新列表用的是"剩余空间"，而上面的连接参数有好几屏高 ——
+      参数一展开，列表直接被压成 0 高，页面既不能滚也看不结果。
+    · 日志贴在列表下面，跑起来反而看不见。
+
+  重排后按「连上 → 找目录 → 查更新」三步分组，每组一个卡片；
+  配置区自己滚动（最多 1/3 屏），更新列表固定 2/3 屏，互不相抢。
+
+  ⚠️ 所有 android:id 保持不变 —— ServerFragment.kt 里 findViewById、
+  visibility 切换（boxPanel / boxRemote 互斥显示）用的还是这些 id。
+  改成 MaterialCardView 只影响观感，不影响任何代码逻辑。
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="12dp">
 
-    <!-- ⚠️ 之前这个下拉放在**面板地址框下面**，而顶部标题写死
-         「面板连接（Pterodactyl Client API）」。
-         结果是：一进页面只看到面板那套字段，压根不知道还能切成 FTP；
-         就算切了，顶部标题还写着「面板连接」，下面的框却全变成了
-         主机/用户名/密码 —— 标题和内容对不上，人直接懵。
-         现在选择器放最顶，两组字段各自成块、互斥显示。 -->
-    <LinearLayout
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="连接方式："
-            android:textStyle="bold" />
-
-        <Spinner
-            android:id="@+id/spRemoteKind"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:entries="@array/remote_kinds" />
-    </LinearLayout>
-
-    <TextView
-        android:id="@+id/tvConnMode"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingTop="2dp"
-        android:textColor="@color/textSecondary"
-        android:textSize="12sp" />
-
-    <!-- 面板 API 的连接参数。选了 FTP/SFTP 时整块隐藏。 -->
-    <LinearLayout
-        android:id="@+id/boxPanel"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="面板连接（Pterodactyl Client API）"
-            android:textStyle="bold" />
-
-        <EditText
-            android:id="@+id/etPanelBase"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="面板地址，如 https://panel.example.com"
-            android:inputType="textUri"
-            android:singleLine="true" />
-
-        <EditText
-            android:id="@+id/etPanelKey"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Client API Key（ptlc_...）"
-            android:inputType="textPassword"
-            android:singleLine="true" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/panel_auth_hint"
-            android:textColor="@color/textSecondary"
-            android:textSize="12sp" />
-    </LinearLayout>
-
-    <!-- FTP/SFTP 的连接参数。选了面板 API 时整块隐藏，不占地方。 -->
-    <LinearLayout
-        android:id="@+id/boxRemote"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="FTP / SFTP 直连"
-            android:textStyle="bold" />
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="false"
+        android:overScrollMode="never">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:orientation="vertical">
 
-            <EditText
-                android:id="@+id/etRemoteHost"
-                android:layout_width="0dp"
+            <!-- 第一步：连上 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="3"
-                android:hint="主机，如 1.2.3.4 或 srv.example.com"
-                android:inputType="text"
-                android:singleLine="true" />
+                android:layout_marginBottom="10dp">
 
-            <EditText
-                android:id="@+id/etRemotePort"
-                android:layout_width="0dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <!-- ⚠️ 这个下拉必须留在最顶。之前它放在面板地址框下面，
+                         顶部标题又写死「面板连接」，结果一进页面只看到面板
+                         那套字段，不知道还能切 FTP；切了之后标题还写着
+                         面板、下面却变成主机/用户名/密码 —— 标题和内容对不上。 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="连接方式："
+                            android:textStyle="bold" />
+
+                        <Spinner
+                            android:id="@+id/spRemoteKind"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:entries="@array/remote_kinds" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvConnMode"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingTop="2dp"
+                        android:textColor="@color/textSecondary"
+                        android:textSize="12sp" />
+
+                    <!-- 面板 API。选了 FTP/SFTP 时整块隐藏。 -->
+                    <LinearLayout
+                        android:id="@+id/boxPanel"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="面板连接（Pterodactyl Client API）"
+                            android:textStyle="bold" />
+
+                        <EditText
+                            android:id="@+id/etPanelBase"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="面板地址，如 https://panel.example.com"
+                            android:inputType="textUri"
+                            android:singleLine="true" />
+
+                        <EditText
+                            android:id="@+id/etPanelKey"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="Client API Key（ptlc_...）"
+                            android:inputType="textPassword"
+                            android:singleLine="true" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/panel_auth_hint"
+                            android:textColor="@color/textSecondary"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <!-- FTP/SFTP。选了面板 API 时整块隐藏，不占地方。 -->
+                    <LinearLayout
+                        android:id="@+id/boxRemote"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="FTP / SFTP 直连"
+                            android:textStyle="bold" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <EditText
+                                android:id="@+id/etRemoteHost"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="3"
+                                android:hint="主机，如 1.2.3.4 或 srv.example.com"
+                                android:inputType="text"
+                                android:singleLine="true" />
+
+                            <EditText
+                                android:id="@+id/etRemotePort"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:hint="端口"
+                                android:inputType="number"
+                                android:singleLine="true" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <EditText
+                                android:id="@+id/etRemoteUser"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:hint="用户名"
+                                android:inputType="text"
+                                android:singleLine="true" />
+
+                            <EditText
+                                android:id="@+id/etRemotePass"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:hint="密码"
+                                android:inputType="textPassword"
+                                android:singleLine="true" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="用服务器的 FTP/SSH 账号密码直连，可以浏览并读取 mods、plugins 目录。端口留空用默认值（FTP 21 / SFTP 22）。"
+                            android:textColor="@color/textSecondary"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <Button
+                        android:id="@+id/btnConnect"
+                        style="@style/AppButtonOutlined"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="连接并选择服务器" />
+
+                    <TextView
+                        android:id="@+id/tvServer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="未选择服务器"
+                        android:textColor="@color/textSecondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- 第二步：找目录 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="端口"
-                android:inputType="number"
-                android:singleLine="true" />
+                android:layout_marginBottom="10dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="服务器目录"
+                        android:textStyle="bold" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:orientation="horizontal">
+
+                        <EditText
+                            android:id="@+id/etPanelDir"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:hint="/mods 或 /plugins"
+                            android:inputType="text"
+                            android:singleLine="true" />
+
+                        <Button
+                            android:id="@+id/btnScanFiles"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/panel_scan" />
+
+                        <Button
+                            android:id="@+id/btnProbeDir"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/panel_probe_dir" />
+                    </LinearLayout>
+
+                    <Button
+                        android:id="@+id/btnBrowseDir"
+                        style="@style/AppButtonOutlined"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="浏览目录（逐级进入，边逛边看 jar）" />
+
+                    <Button
+                        android:id="@+id/btnPickOutDir"
+                        style="@style/AppButtonOutlined"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="存放位置：默认" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- 第三步：查更新 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="版本与更新"
+                        android:textStyle="bold" />
+
+                    <!-- ⚠️ 之前版本框 + 两个下拉 + 按钮全挤在一行，
+                         屏宽不够时最右边的「检测更新」被挤出屏幕外，点不到。
+                         现在拆成两行：版本 + 检测更新，加载器 + 端。 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:orientation="horizontal">
+
+                        <EditText
+                            android:id="@+id/etVersion"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:hint="服务器 MC 版本"
+                            android:inputType="text"
+                            android:singleLine="true" />
+
+                        <Button
+                            android:id="@+id/btnCheckUpdates"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="检测更新" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <Spinner
+                            android:id="@+id/spLoader"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:entries="@array/loaders" />
+
+                        <Spinner
+                            android:id="@+id/spSide"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:entries="@array/sides" />
+                    </LinearLayout>
+
+                    <Button
+                        android:id="@+id/btnDownloadAll"
+                        style="@style/AppButtonOutlined"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="一键下载全部更新（不自动上传）" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <EditText
-                android:id="@+id/etRemoteUser"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="用户名"
-                android:inputType="text"
-                android:singleLine="true" />
-
-            <EditText
-                android:id="@+id/etRemotePass"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="密码"
-                android:inputType="textPassword"
-                android:singleLine="true" />
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="用服务器的 FTP/SSH 账号密码直连，可以浏览并读取 mods、plugins 目录。端口留空用默认值（FTP 21 / SFTP 22）。"
-            android:textColor="@color/textSecondary"
-            android:textSize="12sp" />
-    </LinearLayout>
-
-    <Button
-        android:id="@+id/btnConnect"
-        style="@style/AppButtonOutlined"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="连接并选择服务器" />
-
-    <TextView
-        android:id="@+id/tvServer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="未选择服务器"
-        android:textColor="@color/textSecondary"
-        android:textSize="12sp" />
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:orientation="horizontal">
-
-        <EditText
-            android:id="@+id/etPanelDir"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:hint="/mods 或 /plugins"
-            android:inputType="text"
-            android:singleLine="true" />
-
-        <Button
-            android:id="@+id/btnScanFiles"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/panel_scan" />
-
-        <Button
-            android:id="@+id/btnProbeDir"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/panel_probe_dir" />
-    </LinearLayout>
-
-    <Button
-        android:id="@+id/btnBrowseDir"
-        style="@style/AppButtonOutlined"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="浏览目录（逐级进入，边逛边看 jar）" />
-
-    <Button
-        android:id="@+id/btnPickOutDir"
-        style="@style/AppButtonOutlined"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="存放位置：默认" />
-
-    <!-- ⚠️ 之前版本框 + 两个下拉 + 按钮全挤在一行，
-         屏宽不够时最右边的「检测更新」被挤出屏幕外，点不到。
-         现在拆成两行：第一行版本 + 检测更新，第二行加载器 + 端。 -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-        <EditText
-            android:id="@+id/etVersion"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:hint="服务器 MC 版本"
-            android:inputType="text"
-            android:singleLine="true" />
-
-        <Button
-            android:id="@+id/btnCheckUpdates"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="检测更新" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-        <Spinner
-            android:id="@+id/spLoader"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:entries="@array/loaders" />
-
-        <Spinner
-            android:id="@+id/spSide"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:entries="@array/sides" />
-    </LinearLayout>
-
-    <Button
-        android:id="@+id/btnDownloadAll"
-        style="@style/AppButtonOutlined"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:text="一键下载全部更新（不自动上传）" />
+    </androidx.core.widget.NestedScrollView>
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
         android:text="更新列表"
         android:textStyle="bold" />
 
@@ -270,13 +353,13 @@
         android:id="@+id/rvUpdates"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1" />
+        android:layout_weight="2" />
 
     <TextView
         android:id="@+id/tvLog"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:maxHeight="120dp"
+        android:maxHeight="100dp"
         android:textColor="@color/textSecondary"
         android:textSize="12sp" />
 </LinearLayout>
