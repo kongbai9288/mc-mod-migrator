@@ -1,8 +1,9 @@
 # 最近一次构建失败摘录
-run: 37883245723
+run: 37883931875
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DirGuide.kt:100:28 Unresolved reference: Tips
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/EggPlayer.kt:49:36 Unresolved reference: Tips
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Favorites.kt:89:36 Unresolved reference: Tips
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/InAppNotice.kt:392:8 Redeclaration: Tips
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LogCenter.kt:197:32 Unresolved reference: Tips
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MainActivity.kt:385:44 Unresolved reference: Tips
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:249:47 Unresolved reference: Tips
@@ -26,12 +27,11 @@ e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsNavFragment.kt:73:47 Unresolved reference: Tips
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsThemeFragment.kt:105:28 Unresolved reference: Tips
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SyncFragment.kt:68:47 Unresolved reference: Tips
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Tips.kt:16:8 Redeclaration: Tips
 > Task :app:compileReleaseKotlin FAILED
-BUILD FAILED in 1m 46s
+BUILD FAILED in 2m 24s
 
 ## 末尾 80 行
-> Task :app:generateReleaseResources
-> Task :app:packageReleaseResources
 > Task :app:mergeReleaseResources
 > Task :app:createReleaseCompatibleScreenManifests
 > Task :app:extractDeepLinksRelease
@@ -43,17 +43,17 @@ BUILD FAILED in 1m 46s
 > Task :app:mergeReleaseJniLibFolders
 > Task :app:mergeReleaseNativeLibs
 > Task :app:desugarReleaseFileDependencies
+> Task :app:processReleaseManifestForPackage
 > Task :app:checkReleaseDuplicateClasses
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
 
-> Task :app:processReleaseManifestForPackage
-> Task :app:mergeReleaseArtProfile
 > Task :app:extractReleaseNativeSymbolTables
 > Task :app:processReleaseResources
 > Task :app:mergeExtDexRelease
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
@@ -69,6 +69,7 @@ Unable to strip the following libraries, packaging them as they are: libconscryp
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DirGuide.kt:100:28 Unresolved reference: Tips
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/EggPlayer.kt:49:36 Unresolved reference: Tips
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Favorites.kt:89:36 Unresolved reference: Tips
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/InAppNotice.kt:392:8 Redeclaration: Tips
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LogCenter.kt:197:32 Unresolved reference: Tips
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MainActivity.kt:385:44 Unresolved reference: Tips
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:249:47 Unresolved reference: Tips
@@ -92,6 +93,7 @@ e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsNavFragment.kt:73:47 Unresolved reference: Tips
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsThemeFragment.kt:105:28 Unresolved reference: Tips
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SyncFragment.kt:68:47 Unresolved reference: Tips
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Tips.kt:16:8 Redeclaration: Tips
 
 > Task :app:compileReleaseKotlin FAILED
 
@@ -108,5 +110,5 @@ Execution failed for task ':app:compileReleaseKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 1m 46s
+BUILD FAILED in 2m 24s
 34 actionable tasks: 34 executed
