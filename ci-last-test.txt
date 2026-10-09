@@ -1,5 +1,5 @@
 # 真实存档验证（ai.zip / 26.2 世界）
-run: 37955233186
+run: 37958785255
 
 == TEST-com.kongbai.modmigrator.McaRealWorldTest.xml
 tests="8" skipped="0" failures="0" errors="0"
