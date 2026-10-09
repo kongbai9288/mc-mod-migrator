@@ -65,7 +65,7 @@ class SettingsLangFragment : Fragment() {
         box.addView(button(getString(R.string.lang_pack_scan)) {
             // ⚠️ `LangPack.load` 是通过 SAF 遍历 lang/ 目录、逐个读 JSON —— 磁盘 IO，
             // 之前在**主线程**跑，语言包多了点一下就卡住。
-            android.widget.Tips.short(ctx, "正在扫描…")
+            Tips.short(ctx, "正在扫描…")
             exec.execute {
                 val n = LangPack.load(ctx)
                 handler.post {
@@ -153,7 +153,7 @@ class SettingsLangFragment : Fragment() {
                 // 但之前**直接跳走、一句提示都没有** —— 用户点「简体中文」，
                 // 界面纹丝不动地跳到了一个系统页面，完全不知道要做什么，
                 // 只会以为这个按钮坏了。
-                android.widget.Tips.long(ctx, "Android 13 起应用不能自己改语言，请在打开的页面里把系统语言设为需要的语言。")
+                Tips.long(ctx, "Android 13 起应用不能自己改语言，请在打开的页面里把系统语言设为需要的语言。")
                 startActivity(Intent(android.provider.Settings.ACTION_LOCALE_SETTINGS))
             } else {
                 val l = if (code.isBlank()) Locale.getDefault() else Locale(code)

@@ -194,7 +194,7 @@ object LogCenter {
                 runCatching {
                     cm?.setPrimaryClip(android.content.ClipData.newPlainText(title, text))
                 }
-                android.widget.Tips.short(ctx, "已复制")
+                Tips.short(ctx, "已复制")
             }
             .setNegativeButton(R.string.cancel, null)
             .show()

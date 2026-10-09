@@ -66,7 +66,7 @@ class ModPageActivity : AppCompatActivity() {
         handler.post {
             if (isFinishing || isDestroyed) return@post
             try {
-                android.widget.Tips.short(this, s)
+                Tips.short(this, s)
             } catch (t: Throwable) {
                 // 界面已销毁，不弹
                      Err.ignore(t, "界面已销毁，不弹")

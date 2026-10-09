@@ -52,7 +52,7 @@ class SettingsAboutFragment : Fragment() {
                     Intent(requireContext(), DevLabActivity::class.java)
                 )
             }
-            android.widget.Tips.short(requireContext(), "开发者模式")
+            Tips.short(requireContext(), "开发者模式")
             true
         }
         v.findViewById<Button>(R.id.btnCrash).setOnClickListener { showCrash() }

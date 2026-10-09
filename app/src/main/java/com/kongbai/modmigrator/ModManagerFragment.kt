@@ -349,7 +349,7 @@ class ModManagerFragment : Fragment() {
 
     private fun toast(s: String) {
         handler.post {
-            if (isAdded) android.widget.Tips.short(context, s)
+            if (isAdded) Tips.short(context, s)
         }
     }
 

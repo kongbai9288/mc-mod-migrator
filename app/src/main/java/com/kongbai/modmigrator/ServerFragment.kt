@@ -459,7 +459,7 @@ class ServerFragment : Fragment() {
         handler.post {
             if (!isAdded) return@post
             try {
-                context?.let { android.widget.Tips.short(it, s) }
+                context?.let { Tips.short(it, s) }
             } catch (t: Throwable) {
                 // 界面已销毁，不弹
                      Err.ignore(t, "界面已销毁，不弹")

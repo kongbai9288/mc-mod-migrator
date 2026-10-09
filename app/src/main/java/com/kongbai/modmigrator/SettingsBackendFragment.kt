@@ -99,7 +99,7 @@ class SettingsBackendFragment : Fragment() {
             handler.post {
                 val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 cm.setPrimaryClip(android.content.ClipData.newPlainText("callback", cb))
-                android.widget.Tips.short(ctx, "已复制回调地址")
+                Tips.short(ctx, "已复制回调地址")
             }
         }
     }

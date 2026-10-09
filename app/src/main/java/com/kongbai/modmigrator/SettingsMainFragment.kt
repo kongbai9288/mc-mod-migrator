@@ -604,7 +604,7 @@ class SettingsMainFragment : Fragment() {
                 startActivity(Intent(Intent.ACTION_VIEW, uri))
             }.onFailure { toast("打不开浏览器") }
         }
-        android.widget.Tips.long(ctx, "在浏览器里完成授权，会自动回到本应用。\n\n" +
+        Tips.long(ctx, "在浏览器里完成授权，会自动回到本应用。\n\n" +
                 "如果 GitHub 提示 redirect_uri 不匹配，\n" +
                 "需要在 OAuth App 的回调地址里加上：\n" + GhPkce.REDIRECT_URI)
     }

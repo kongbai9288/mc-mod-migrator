@@ -102,7 +102,7 @@ class SettingsThemeFragment : Fragment() {
         // apply 是异步落盘的，极端情况下新 Activity 读到的还是旧配色
         ThemePrefs.save(ctx, i)
         if (prev == i) {
-            android.widget.Tips.short(ctx, "已经是「$name」了")
+            Tips.short(ctx, "已经是「$name」了")
             return
         }
         MaterialAlertDialogBuilder(ctx)

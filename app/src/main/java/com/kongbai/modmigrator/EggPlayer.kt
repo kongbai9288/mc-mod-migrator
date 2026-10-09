@@ -46,7 +46,7 @@ object EggPlayer {
             handler.post {
                 playing = false
                 try {
-                    android.widget.Tips.short(ctx, "🎵 主题已切换为「${ThemePrefs.themes()[next].name}」")
+                    Tips.short(ctx, "🎵 主题已切换为「${ThemePrefs.themes()[next].name}」")
                 } catch (t: Throwable) { Err.ignore(t, ").show()") }
                 onThemeChanged(next)
             }

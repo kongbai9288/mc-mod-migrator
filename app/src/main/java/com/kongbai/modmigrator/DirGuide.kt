@@ -97,7 +97,7 @@ object DirGuide {
         } catch (t: Throwable) {
             // 极少数机型没有能处理这个 Intent 的文件管理器
             Err.fail(t, "打不开系统文件选择器")
-            android.widget.Tips.long(act, "找不到文件管理器，无法选择目录")
+            Tips.long(act, "找不到文件管理器，无法选择目录")
         }
     }
 

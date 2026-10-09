@@ -217,7 +217,7 @@ class SettingsLabFragment : Fragment() {
                 // 这样 Downloader 读到的就是用户真正想要的值
                 val n = values.getOrNull(w)?.toIntOrNull() ?: 3
                 Prefs.get(ctx).edit().putInt(K.DOWNLOAD_PARALLEL, n).apply()
-                android.widget.Tips.short(ctx, "下载并发已设为 $n 个")
+                Tips.short(ctx, "下载并发已设为 $n 个")
                 d.dismiss()
                 refresh()
             }
