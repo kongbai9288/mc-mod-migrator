@@ -179,7 +179,7 @@ jobs:
           git config user.email "ci@example.com"
           git add -f ci-last-error.txt
           git commit -m "ci: 记录构建失败摘录 [skip ci]" || exit 0
-          git push || exit 0
+          git push origin HEAD:main || exit 0
 
       - name: Verify chunk editor against the real save
         # ⚠️ 区块编辑器连续几版「编译成功但用不了」，原因是没有任何一处
@@ -212,7 +212,7 @@ jobs:
           git config user.email "ci@example.com"
           git add -f ci-last-test.txt
           git commit -m "ci: 真实存档验证结果 [skip ci]" || exit 0
-          git push || exit 0
+          git push origin HEAD:main || exit 0
 
       - name: Rename APK to a stable name
         run: |
