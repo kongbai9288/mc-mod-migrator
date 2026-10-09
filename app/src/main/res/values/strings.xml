@@ -81,9 +81,9 @@
     <string name="account_logout">退出登录</string>
     <string name="account_not_login">未登录</string>
     <string name="account_hint_logged_out">后端可用，登录后可同步与下载</string>
-    <string name="conn_blocked_hint">连不上后端：Cloudflare 在国内常被限速或拦截，不影响离线功能，换个网络或稍后再试就好</string>
+    <string name="conn_blocked_hint">连不上后端：Cloudflare 在国内常被限速，不影响离线功能。换个网络或稍后再试。</string>
     <string name="cfg_offline">完全离线（断网）</string>
-    <string name="cfg_offline_hint">开启后任何网络请求都不发：只用本地词典与已缓存译文，搜索与下载不可用，但已装模组的迁移、配置编辑照常。注意：这与「关掉后端」是两回事——关后端只是改成你自己填 Key 直连，仍然联网。</string>
+    <string name="cfg_offline_hint">开启后不发任何网络请求：只用本地词典和已缓存译文，搜索与下载不可用，已装模组的迁移、配置编辑照常。注意这和「关掉后端」是两回事——关后端只是改成你自己填 Key 直连，仍然联网。</string>
     <string name="cfg_backend_base">后端主地址</string>
     <string name="cfg_backend_backup">后端兜底地址（主地址连不上时自动切换）</string>
     <string name="cfg_backend_hint">留空则用默认地址。后端负责 GitHub 登录与 CurseForge 代理，所以不用自己申请 CurseForge Key。</string>
@@ -107,30 +107,26 @@
     <string name="cfg_update">自动检查更新</string>
     <string name="cfg_update_hint">每天检查一次仓库 Release，有新版本发通知。下载会依次尝试多个镜像源，都失败才用官方直链。</string>
     <string name="update_found">发现新版本</string>
-    <string name="pick_launcher_hint">这里列出系统里所有可启动应用。你不说，本应用就不知道哪个是 Minecraft 启动器——请自己认领，之后会按它的包名去拉数据目录。带「疑似启动器」标记的只是猜测，以你自己的判断为准。</string>
+    <string name="pick_launcher_hint">从列表里认领你的启动器，之后按它的包名找数据目录。带「疑似启动器」标记的只是猜测，以你自己的判断为准。</string>
     <string name="pick_launcher_search">按名称或包名搜索</string>
     <string name="cfg_use_backend">使用后端（内置 CurseForge Key，自己不用申请）</string>
-    <string name="cfg_use_backend_hint">后端由本项目提供，里面已经配好了 CurseForge Key，所以开着时你什么都不用填。关掉表示不想依赖后端，此时请自己在下面填 Key，否则只能搜 Modrinth。</string>
-    <string name="cfg_cf_key_hint">不想用后端时在这里填自己的 Key（console.curseforge.com 免费申请）。留空且关了后端，就只走 Modrinth 与国内镜像。</string>
+    <string name="cfg_use_backend_hint">后端里已配好 CurseForge Key，开着时你什么都不用填。关掉表示不想依赖后端，请自己在下面填 Key，否则只能搜 Modrinth。</string>
+    <string name="cfg_cf_key_hint">不用后端时在这里填自己的 Key（console.curseforge.com 免费申请）。留空且关了后端，只走 Modrinth 与国内镜像。</string>
     <string name="cfg_cf_route_title">CurseForge 走哪条路</string>
     <string name="cfg_use_official_cf">官方直连（需自己填 Key）</string>
     <string name="cfg_cf_route_hint">这两条路互斥：开一个另一个会自动关上。「聚合」模式不受影响——两条都问，结果合并去重。</string>
     <string name="cfg_copy_callback">复制回调地址</string>
     <string name="cfg_gh_oauth">打开 GitHub 开发者设置</string>
-    <string name="cfg_callback_hint">后端按「访问域名」动态拼回调地址，走哪个域名就得在 GitHub 登记哪条。报 redirect_uri 不匹配 = 当前走的域名没登记。
+    <string name="cfg_callback_hint">后端按访问域名拼回调地址，走哪个域名就要在 GitHub 登记哪条。
 
-修法：GitHub → Settings → Developer settings → OAuth Apps → 你的应用 → 把上面列出的回调地址逐条加进 Authorization callback URL → Save。GitHub 最多允许 10 条，多个域名可都登记。
-
-必须完全相同：协议、域名、端口、路径、大小写、末尾斜杠都不能差。
-
-授权在浏览器完成，本应用不接触也不保存你的 GitHub 密码。</string>
-    <string name="scan_launcher_dir_hint">主流启动器会把各个版本收进一个总文件夹（通常是 instances、versions 这类目录）。选择这个总文件夹即可，会自动钻进去找出里面每个版本。</string>
+报 redirect_uri 不匹配：GitHub → Settings → Developer settings → OAuth Apps，在回调地址里加上当前域名这一条，两个都登记上。</string>
+    <string name="scan_launcher_dir_hint">选启动器收版本的那个总文件夹（通常是 instances 或 versions），会自动钻进去找出里面的每个版本。</string>
     <string name="btn_scan_local2">扫描本机版本</string>
     <string name="panel_mode_login">账号密码</string>
     <string name="panel_mode_key">API 密钥</string>
     <string name="panel_user">面板账号（邮箱/用户名）</string>
     <string name="panel_pass">面板密码</string>
-    <string name="panel_auth_hint">账号密码登录会调用面板登录接口换取 token；部分面板版本不支持直登，失败时请改用 API 密钥（在面板 → 账户 → API 凭据里生成 ptlc_ 开头的 Client Key）。</string>
+    <string name="panel_auth_hint">用账号密码换 token。部分面板不支持直登，失败时改用 API 密钥：面板 → 账户 → API 凭据，生成 ptlc_ 开头的 Client Key。</string>
     <string name="panel_scan">扫描</string>
     <string name="panel_probe_dir">自动找目录</string>
     <string name="panel_dir_pick">面板里找到了这些目录，选择要扫描的：</string>
@@ -156,7 +152,7 @@
     <string name="nav_down">下移</string>
     <string name="nav_limit">底部最多 4 个，请先移走一个再加。</string>
     <string name="more_title">更多功能</string>
-    <string name="more_hint">下面是没放到底部导航栏的功能。点「移到底部」可以把它挪到导航栏；在设置里也可以反向移回来。</string>
+    <string name="more_hint">下面是没放到底部导航栏的功能。点「移到底部」可挪过去；设置里也能反向移回来。</string>
     <string name="theme_title">主题色</string>
     <string name="theme_apply">切换到这套配色？界面会重建一次以应用新颜色。</string>
     <string name="theme_current">当前</string>
@@ -187,7 +183,7 @@
     <string name="tab_weekly">周报</string>
     <string name="tab_sites">站点导航</string>
     <string name="cfg_gamedir_title">游戏目录（.minecraft）</string>
-    <string name="cfg_gamedir_hint">模组要装到启动器真正的 .minecraft 里才会生效。这里列出设备上已找到的启动器目录，选一个即可；也可以自己指定。改动会永久保存。</string>
+    <string name="cfg_gamedir_hint">模组要装进启动器真正的 .minecraft 才会生效。选一个已找到的目录，或自己指定；改动会永久保存。</string>
     <string name="cfg_gamedir_pick">自己指定 .minecraft 目录</string>
     <string name="cfg_gamedir_none">未找到启动器目录（也许还没启动过游戏）</string>
     <string name="cfg_local_icon">从模组文件里读取图标</string>
@@ -207,7 +203,7 @@
     <string name="translate_ready">已就绪，可离线翻译</string>
     <string name="translate_not_ready">还没下载，现在只能在线翻译</string>
     <string name="translate_test">测试翻译</string>
-    <string name="translate_hint">翻译用的是 Google ML Kit 的离线神经网络模型。下载一次（约 30MB）后，翻译模组简介和网页都不再需要联网。不下载也能用，但会走在线接口。</string>
+    <string name="translate_hint">用 Google ML Kit 的离线模型，下载一次（约 30MB）后翻译不再联网。不下载也能用，但会走在线接口。</string>
     <string name="tab_mods">模组管理</string>
     <string name="tab_trash">回收站</string>
     <string name="trash_empty">回收站是空的</string>
@@ -251,7 +247,7 @@
     <string name="token_offline_hint">离线模式：不发网络请求，请手动填写 Token</string>
     <string name="btn_recommend">推荐</string>
     <string name="btn_favorites">收藏夹</string>
-    <string name="market_tips">长按结果可收藏；点整行打开模组页；「推荐」按当前版本与加载器给热门模组并过滤已装的</string>
+    <string name="market_tips">长按结果可收藏；点整行打开模组页；「推荐」按当前版本与加载器给热门模组，并过滤已装的。</string>
     <string name="menu_log">运行日志</string>
     <string name="btn_refresh_log">刷新</string>
     <string name="btn_only_errors">只看错误</string>
