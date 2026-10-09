@@ -418,7 +418,7 @@ class DatapackActivity : AppCompatActivity() {
         }
     }
 
-    private fun toast(m: String) = Toast.makeText(this, m, Toast.LENGTH_LONG).show()
+    private fun toast(m: String) = Tips.long(this, m)
 
     companion object {
         fun open(ctx: Context) = ctx.startActivity(Intent(ctx, DatapackActivity::class.java))

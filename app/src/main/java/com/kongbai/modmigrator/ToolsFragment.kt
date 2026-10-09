@@ -39,121 +39,56 @@ class ToolsFragment : Fragment() {
             setPadding(pad, pad, pad, pad)
         }
         scroll.addView(root)
-        root.addView(UiCards.hint(ctx, "迁移前后的检查与清理工具。"))
+        // 一屏尽量多放几个入口：竖排大卡片二十几个要滚很久，
+        // 而且每项下面还挂一段说明，实际读的人很少。
+        // 改成方格网格，说明能省就省。
+        root.addView(UiCards.sectionTitle(ctx, "检查"))
+        root.addView(UiCards.grid(ctx, 3, listOf(
+            UiCards.tile(ctx, R.drawable.ic_check_circle, "模组体检") { doctor() },
+            UiCards.tile(ctx, R.drawable.ic_extension, "依赖体检") { depCheck() },
+            UiCards.tile(ctx, R.drawable.ic_content_copy, "配置对比") { diff() }
+        )))
 
-        root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_check_circle, "模组体检",
-            "查重复模组、可疑文件名、超大文件", "运行"
-        ) { doctor() })
+        root.addView(UiCards.sectionTitle(ctx, "存档"))
+        root.addView(UiCards.grid(ctx, 3, listOf(
+            UiCards.tile(ctx, R.drawable.ic_folder, "世界存档") { openWorlds() },
+            UiCards.tile(ctx, R.drawable.ic_inventory, "区块编辑器") { openMca() },
+            UiCards.tile(ctx, R.drawable.ic_edit, "NBT 编辑器") { openNbt() }
+        )))
+        root.addView(UiCards.grid(ctx, 3, listOf(
+            UiCards.tile(ctx, R.drawable.ic_extension, "数据包") { openDatapack() }
+        )))
 
-        root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_content_copy, "配置对比",
-            "对比迁移前后 config 的差异，看会被覆盖哪些", "运行"
-        ) { diff() })
+        root.addView(UiCards.sectionTitle(ctx, "模组"))
+        root.addView(UiCards.grid(ctx, 3, listOf(
+            UiCards.tile(ctx, R.drawable.ic_warning, "模组开关") { modToggle() },
+            UiCards.tile(ctx, R.drawable.ic_swap_horiz, "跨加载器") { crossLoader() },
+            UiCards.tile(ctx, R.drawable.ic_code, "代码级迁移") { codeMigrate() }
+        )))
 
-        root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_delete, "清理缓存",
-            "清掉翻译缓存与下载缓存", "清理"
-        ) { clearCache() })
+        root.addView(UiCards.sectionTitle(ctx, "实例与整合包"))
+        root.addView(UiCards.grid(ctx, 3, listOf(
+            UiCards.tile(ctx, R.drawable.ic_rocket_launch, "补齐实例") { createInstance() },
+            UiCards.tile(ctx, R.drawable.ic_rocket_launch, "加载器支持器") {
+                startActivity(android.content.Intent(ctx, LoaderForgeActivity::class.java))
+            },
+            UiCards.tile(ctx, R.drawable.ic_cloud_upload, "导出整合包") { exportMrpack() }
+        )))
 
-        root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_cloud_upload, "云盘",
-            "一个入口接多家网盘：阿里云盘、百度网盘、夸克、天翼、123、115、WebDAV 等", "打开"
-        ) { CloudDriveActivity.open(ctx) })
+        root.addView(UiCards.sectionTitle(ctx, "存储与传输"))
+        root.addView(UiCards.grid(ctx, 3, listOf(
+            UiCards.tile(ctx, R.drawable.ic_folder, "存储用量") { usage() },
+            UiCards.tile(ctx, R.drawable.ic_delete, "清理缓存") { clearCache() },
+            UiCards.tile(ctx, R.drawable.ic_cloud_upload, "云盘") { CloudDriveActivity.open(ctx) }
+        )))
+        root.addView(UiCards.grid(ctx, 3, listOf(
+            UiCards.tile(ctx, R.drawable.ic_bolt, "打包发送") { shareMods() }
+        )))
 
-        root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_folder, "存储用量",
-            "看工作目录各子目录占了多少空间", "查看"
-        ) { usage() })
-
-        // ---------- 依赖与冲突 ----------
-        root.addView(UiCards.sectionTitle(ctx, "依赖与冲突"))
-
-        root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_extension, "依赖体检（递归）",
-            "逐级追查缺失的前置，不只查一层；检测重复 ID、加载器冲突", "运行"
-        ) { depCheck() })
-
-        root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_warning, "模组开关",
-            "直接启用/禁用模组，不移动文件（改扩展名，加载器原生支持）", "打开"
-        ) { modToggle() })
-
-        // ---------- 跨加载器 ----------
-        root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_swap_horiz, "跨加载器迁移",
-            "同一 MC 版本下把 Forge 模组换成 Fabric 版等；跨 MC 版本不做", "开始"
-        ) { crossLoader() })
-
-        // ---------- 实例与加载器 ----------
-        root.addView(UiCards.sectionTitle(ctx, "实例与加载器"))
-
-        root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_rocket_launch, "补齐实例结构",
-            "建好 mods/config/saves 等目录，写入 Prism 可识别的实例描述", "创建"
-        ) { createInstance() })
-
-        root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_rocket_launch, "加载器支持器（beta）",
-            "给内置清单里没有的加载器补支持：开私仓在 GitHub 工作流上提取，或直接解析你上传的 jar",
-            "打开"
-        ) { startActivity(android.content.Intent(ctx, LoaderForgeActivity::class.java)) })
-
-        // ---------- 整合包 ----------
-        root.addView(UiCards.sectionTitle(ctx, "整合包"))
-
-        root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_cloud_upload, "导出 .mrpack",
-            "按 Modrinth 格式导出，可分享给别人或自己备份", "导出"
-        ) { exportMrpack() })
-
-        // ---------- 存档与数据包 ----------
-        root.addView(UiCards.sectionTitle(ctx, "存档与数据包", R.drawable.ic_inventory))
-
-        root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_folder, "世界存档",
-            "列出存档的世界名、版本、种子、最后游玩时间、难度（只读查看）", "查看"
-        ) { openWorlds() })
-
-        root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_edit, "NBT 编辑器",
-            "打开 .dat / .nbt，树形查看 + SNBT 编辑，写回前自动备份", "打开"
-        ) { openNbt() })
-
-        root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_extension, "数据包生成器",
-            "137 个生成器；首次用某版本会下载约 1 MB 数据，之后完全离线", "打开"
-        ) { openDatapack() })
-
-        root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_inventory, "区块编辑器（.mca）",
-            "打开存档的区域文件，图形化查看并修改区块方块，保存前自动备份", "打开"
-        ) { openMca() })
-
-        // ---------- 跨设备传输 ----------
-        // QuickTransfer.shareFiles() 一直**没有任何调用方**——
-        // 打包分享的代码写好了，界面上却点不到，等于没做。
-        // 这里补入口：把 mods 打成 zip 走系统分享面板（蓝牙/附近分享/微信均可）。
-        root.addView(UiCards.sectionTitle(ctx, "跨设备传输"))
-
-        root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_bolt, "打包发送到别的设备",
-            "把 mods 目录打包，走系统分享（蓝牙、附近分享、微信、网盘都行）", "发送"
-        ) { shareMods() })
-
-        // ---------- 开发者 ----------
-        root.addView(UiCards.sectionTitle(ctx, "开发者", R.drawable.ic_code))
-
-        root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_code, "代码级迁移",
-            "Forge↔Fabric↔NeoForge 工程转换，先扫描出报告再改", "打开"
-        ) { codeMigrate() })
-
-        // 崩溃日志：排查问题时最常要的东西，之前只能去设置里翻
-        root.addView(UiCards.infoCard(
-            ctx, R.drawable.ic_info, "崩溃日志",
-            "查看历次崩溃记录，可复制或分享给开发者", "查看"
-        ) { showCrashLog() })
+        root.addView(UiCards.sectionTitle(ctx, "其它"))
+        root.addView(UiCards.grid(ctx, 3, listOf(
+            UiCards.tile(ctx, R.drawable.ic_info, "崩溃日志") { showCrashLog() }
+        )))
 
         return scroll
     }
@@ -171,7 +106,7 @@ class ToolsFragment : Fragment() {
         } catch (t: Throwable) {
             // 容器 id 变了（页面结构调整）时不能静默失败，给个明确提示
             Err.fail(t, "打开世界存档页")
-            Toast.makeText(ctx, "打不开世界存档页，请从「更多 → 工具箱」进入", Toast.LENGTH_SHORT).show()
+            Tips.short(ctx, "打不开世界存档页，请从「更多 → 工具箱」进入")
         }
     }
 
@@ -1060,7 +995,7 @@ class ToolsFragment : Fragment() {
     }
 
     private fun toast(s: String) {
-        handler.post { if (isAdded) Toast.makeText(context, s, Toast.LENGTH_SHORT).show() }
+        handler.post { if (isAdded) Tips.short(context, s) }
     }
 
     private fun bg(block: () -> Unit) {

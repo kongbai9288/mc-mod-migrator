@@ -68,11 +68,7 @@ class MoreFragment : Fragment() {
     private fun moveToBottom(key: String): Boolean {
         val ctx = context ?: return false
         val ok = NavConfig.moveToBottom(ctx, key)
-        android.widget.Toast.makeText(
-            ctx,
-            if (ok) "已移到底部导航栏" else "底部最多 4 个，先移一个出来",
-            android.widget.Toast.LENGTH_SHORT
-        ).show()
+        android.widget.Tips.short(ctx, if (ok) "已移到底部导航栏" else "底部最多 4 个，先移一个出来")
         if (ok) {
             (activity as? MainActivity)?.rebuildNav()
             parentFragmentManager.beginTransaction()

@@ -382,7 +382,7 @@ class MainActivity : AppCompatActivity() {
                         }
                         .setNeutralButton("清除") { _, _ ->
                             Announcement.clear(ctx, n.id)
-                            android.widget.Toast.makeText(ctx, "已清除这条公告", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Tips.short(ctx, "已清除这条公告")
                         }
                         .setNegativeButton("打开链接") { _, _ ->
                             Announcement.dismiss(ctx, n.id)

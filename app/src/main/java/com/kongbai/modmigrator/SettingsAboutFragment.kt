@@ -52,9 +52,7 @@ class SettingsAboutFragment : Fragment() {
                     Intent(requireContext(), DevLabActivity::class.java)
                 )
             }
-            android.widget.Toast.makeText(
-                requireContext(), "开发者模式", android.widget.Toast.LENGTH_SHORT
-            ).show()
+            android.widget.Tips.short(requireContext(), "开发者模式")
             true
         }
         v.findViewById<Button>(R.id.btnCrash).setOnClickListener { showCrash() }
@@ -65,7 +63,7 @@ class SettingsAboutFragment : Fragment() {
             //  ② **完全没有反馈**：点完按钮什么提示都没有，
             //     用户不知道清没清掉，只会以为这个按钮是坏的。
             val ctx = requireContext()
-            Toast.makeText(ctx, "正在清理…", Toast.LENGTH_SHORT).show()
+            Tips.short(ctx, "正在清理…")
             exec.execute {
                 var ok = true
                 try {
@@ -78,11 +76,7 @@ class SettingsAboutFragment : Fragment() {
                 }
                 handler.post {
                     if (!isAdded) return@post
-                    Toast.makeText(
-                        ctx,
-                        if (ok) "已清理标记链接与缓存" else "清理未全部完成，可稍后重试",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Tips.short(ctx, if (ok) "已清理标记链接与缓存" else "清理未全部完成，可稍后重试")
                 }
             }
         }
@@ -125,7 +119,7 @@ class SettingsAboutFragment : Fragment() {
     /** 手动检查更新：立刻出结果，不用等定时 */
     private fun checkUpdate() {
         val ctx = requireContext()
-        Toast.makeText(ctx, "正在检查…", Toast.LENGTH_SHORT).show()
+        Tips.short(ctx, "正在检查…")
         exec.execute {
             val rel = try {
                 UpdateChecker.latest(ctx)
@@ -183,7 +177,7 @@ class SettingsAboutFragment : Fragment() {
                                     // 完成后调起安装都是系统自带的，比开 WebView 稳
                                     UpdateInstaller.download(ctx, u, rel.tag)
                                 } catch (t: Throwable) {
-                                    Toast.makeText(ctx, "无法开始下载：${t.message}", Toast.LENGTH_SHORT).show()
+                                    Tips.short(ctx, "无法开始下载：${t.message}")
                                 }
                             }
                         }
@@ -225,7 +219,7 @@ class SettingsAboutFragment : Fragment() {
         // 而且清理时 `Perms.granted(ctx)` 被调了**两次**
         // （一次 count、一次循环），每次都重新拉一遍系统授权列表，
         // 中间还对每个 URI 各查一次可用性。
-        Toast.makeText(ctx, "正在检查…", Toast.LENGTH_SHORT).show()
+        Tips.short(ctx, "正在检查…")
         exec.execute {
             val list = Perms.describe(ctx)
             handler.post {
@@ -248,9 +242,7 @@ class SettingsAboutFragment : Fragment() {
                             for (up in dead) Perms.release(ctx, up.uri.toString())
                             handler.post {
                                 if (!isAdded) return@post
-                                Toast.makeText(
-                                    ctx, "已清理 ${dead.size} 条失效授权", Toast.LENGTH_SHORT
-                                ).show()
+                                Tips.short(ctx, "已清理 ${dead.size} 条失效授权")
                             }
                         }
                     }
@@ -299,7 +291,7 @@ class SettingsAboutFragment : Fragment() {
         // 另外这里用的是系统 `AlertDialog.Builder`，不认 Material 的
         // materialAlertDialogTheme，按钮和标题不跟主题色，
         // 看起来像另一个应用弹出来的（CrashReport 那次已改，这里漏了）。
-        Toast.makeText(ctx, "正在读取…", Toast.LENGTH_SHORT).show()
+        Tips.short(ctx, "正在读取…")
         exec.execute {
             val txt = CrashHandler.readAll(ctx)
             handler.post {

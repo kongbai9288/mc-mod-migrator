@@ -413,7 +413,7 @@ class MisodeActivity : AppCompatActivity() {
 		setOnClickListener { fn() }
 	}
 
-	private fun toast(m: String) = Toast.makeText(this, m, Toast.LENGTH_LONG).show()
+	private fun toast(m: String) = Tips.long(this, m)
 
 	override fun onBackPressed() {
 		if (::misode.isInitialized && misode.goBack()) return

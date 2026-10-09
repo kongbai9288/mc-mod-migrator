@@ -44,12 +44,12 @@ object CrashShare {
     /** 通过系统分享发出去 */
     fun share(ctx: Context, content: String, subject: String = "崩溃日志") {
         if (content.isBlank()) {
-            Toast.makeText(ctx, "没有可分享的日志", Toast.LENGTH_SHORT).show()
+            Tips.short(ctx, "没有可分享的日志")
             return
         }
         val f = toFile(ctx, content, "modmigrator-crash.log")
         if (f == null) {
-            Toast.makeText(ctx, "写日志文件失败", Toast.LENGTH_SHORT).show()
+            Tips.short(ctx, "写日志文件失败")
             return
         }
         try {
@@ -80,7 +80,7 @@ object CrashShare {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 })
             } catch (e2: Throwable) {
-                Toast.makeText(ctx, "无法分享：${e2.message}", Toast.LENGTH_SHORT).show()
+                Tips.short(ctx, "无法分享：${e2.message}")
             }
         }
     }
@@ -96,17 +96,17 @@ object CrashShare {
                     ctx.contentResolver.openOutputStream(df.uri, "wt")?.use {
                         it.write(content.toByteArray())
                     }
-                    Toast.makeText(ctx, "已保存到：logs/$name", Toast.LENGTH_LONG).show()
+                    Tips.long(ctx, "已保存到：logs/$name")
                     return File(DefaultDir.logs(ctx), name)
                 }
             }
             // 兜底：写私有目录
             val f = File(DefaultDir.logs(ctx), name)
             f.writeText(content)
-            Toast.makeText(ctx, "已保存到：${f.absolutePath}", Toast.LENGTH_LONG).show()
+            Tips.long(ctx, "已保存到：${f.absolutePath}")
             f
         } catch (t: Throwable) {
-            Toast.makeText(ctx, "保存失败：${Err.humanMessage(t)}", Toast.LENGTH_SHORT).show()
+            Tips.short(ctx, "保存失败：${Err.humanMessage(t)}")
             null
         }
     }

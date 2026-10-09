@@ -99,19 +99,24 @@ class McaRealWorldTest {
 
     @Test
     fun paletteAndSectionYAreReadable() {
-        val f = regionFiles().first()
-        val r = McaEdit.Region(f.readBytes())
         var withRealPalette = 0
         var ySeen = 0
-        for (slot in r.present().take(80)) {
-            val c = r.chunk(slot) ?: continue
-            for (sec in McaEdit.sections(c)) {
-                val names = McaEdit.paletteNames(sec)
-                assertTrue("section 的调色板读不出来", names.isNotEmpty())
-                assertTrue("调色板第一个方块名不合法：${names[0]}", names[0].startsWith("minecraft:"))
-                if (names.size > 1) withRealPalette++
-                ySeen++
+        // 只取第一个区域文件的话，很可能刚好是一片没怎么生成的地形，
+        // 所有 section 都是单一方块（整片石头或整片空气），
+        // 于是永远验不到「调色板含多种方块」这条。改成遍历全部区域文件。
+        for (f in regionFiles()) {
+            val r = McaEdit.Region(f.readBytes())
+            for (slot in r.present().take(256)) {
+                val c = r.chunk(slot) ?: continue
+                for (sec in McaEdit.sections(c)) {
+                    val names = McaEdit.paletteNames(sec)
+                    assertTrue("section 的调色板读不出来", names.isNotEmpty())
+                    assertTrue("调色板第一个方块名不合法：${names[0]}", names[0].startsWith("minecraft:"))
+                    if (names.size > 1) withRealPalette++
+                    ySeen++
+                }
             }
+            if (withRealPalette > 0) break
         }
         assertTrue("没读到任何 Y", ySeen > 0)
         assertTrue("整片存档都没有多个方块的 section，取样太偏", withRealPalette > 0)

@@ -95,6 +95,8 @@ class App : Application() {
 
         runCatching { UpdateWorker.schedule(this) }
         runCatching { Notifier.createChannel(this) }
+        // 应用内活动弹窗：给所有界面自动挂浮层，替代底部小弹窗
+        runCatching { InAppNotice.install(this) }
     }
 
     /**

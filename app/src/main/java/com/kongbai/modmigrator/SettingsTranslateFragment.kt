@@ -97,16 +97,12 @@ class SettingsTranslateFragment : Fragment() {
 
     private fun downloadModel() {
         val ctx = context ?: return
-        Toast.makeText(ctx, getString(R.string.translate_downloading), Toast.LENGTH_SHORT).show()
+        Tips.short(ctx, getString(R.string.translate_downloading))
         Translator.ensureModel(ctx) { ok ->
             if (!isAdded) return@ensureModel
             refreshState()
-            Toast.makeText(
-                ctx,
-                if (ok) "模型下载完成，现在可以离线翻译了"
-                else "下载失败，请检查网络（模型约 30MB）",
-                Toast.LENGTH_LONG
-            ).show()
+            Tips.long(ctx, if (ok) "模型下载完成，现在可以离线翻译了"
+                else "下载失败，请检查网络（模型约 30MB）")
         }
     }
 

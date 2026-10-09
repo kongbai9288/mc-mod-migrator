@@ -64,7 +64,7 @@ object QuickTransfer {
      */
     fun shareFiles(ctx: Context, files: List<File>, zipName: String = "modmigrator-share.zip") {
         if (files.isEmpty()) {
-            main(ctx) { Toast.makeText(ctx, "没有可发送的文件", Toast.LENGTH_SHORT).show() }
+            main(ctx) { Tips.short(ctx, "没有可发送的文件") }
             return
         }
         var err = ""
@@ -75,7 +75,7 @@ object QuickTransfer {
             null
         }
         if (zip == null) {
-            main(ctx) { Toast.makeText(ctx, "打包失败：$err", Toast.LENGTH_SHORT).show() }
+            main(ctx) { Tips.short(ctx, "打包失败：$err") }
             return
         }
         // shareOne 里要 startActivity，必须回主线程
@@ -109,7 +109,7 @@ object QuickTransfer {
             chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             ctx.startActivity(chooser)
         } catch (t: Throwable) {
-            Toast.makeText(ctx, "无法分享：${Err.humanMessage(t)}", Toast.LENGTH_LONG).show()
+            Tips.long(ctx, "无法分享：${Err.humanMessage(t)}")
         }
     }
 
@@ -147,7 +147,7 @@ object QuickTransfer {
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             ctx.startActivity(i)
         } catch (t: Throwable) {
-            Toast.makeText(ctx, "这台设备不支持蓝牙", Toast.LENGTH_SHORT).show()
+            Tips.short(ctx, "这台设备不支持蓝牙")
         }
     }
 

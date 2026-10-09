@@ -207,11 +207,7 @@ object Egg {
                     titleTaps = 0
                     val on = !Prefs.get(ctx).getBoolean(K.EXPERIMENTAL_UPGRADE, false)
                     Prefs.get(ctx).edit().putBoolean(K.EXPERIMENTAL_UPGRADE, on).apply()
-                    Toast.makeText(
-                        ctx,
-                        if (on) "已解锁实验性功能：设置 → 实验室" else "已隐藏实验性功能",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    Tips.long(ctx, if (on) "已解锁实验性功能：设置 → 实验室" else "已隐藏实验性功能")
                 }
             }
 
@@ -221,9 +217,7 @@ object Egg {
                 .setPositiveButton("应用") { _, _ ->
                     ThemePrefs.save(ctx, picked)
                     ThemePrefs.setNightMode(ctx, pickedNight)
-                    Toast.makeText(
-                        ctx, "已换成「${themes[picked].name}」", Toast.LENGTH_SHORT
-                    ).show()
+                    Tips.short(ctx, "已换成「${themes[picked].name}」")
                     (ctx as? android.app.Activity)?.recreateSafely()
                 }
                 .setNegativeButton(R.string.cancel, null)
@@ -262,7 +256,7 @@ object Egg {
             }
             dlg.show()
         } catch (t: Throwable) {
-            Toast.makeText(ctx, "调色板打开失败：${Err.humanMessage(t)}", Toast.LENGTH_SHORT).show()
+            Tips.short(ctx, "调色板打开失败：${Err.humanMessage(t)}")
         }
     }
 

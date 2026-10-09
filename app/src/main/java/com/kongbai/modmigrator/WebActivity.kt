@@ -170,7 +170,7 @@ class WebActivity : AppCompatActivity() {
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(u)))
                 }
             } catch (e2: Throwable) { Err.ignore(e2, "startActivity(Intent(Intent.ACTION_VIEW, Uri.parse") }
-            Toast.makeText(this, "内置浏览器不可用，已改用外部浏览器", Toast.LENGTH_SHORT).show()
+            Tips.short(this, "内置浏览器不可用，已改用外部浏览器")
             finish()
             return
         }
@@ -182,7 +182,7 @@ class WebActivity : AppCompatActivity() {
         title = intent.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank { getString(R.string.title_browser) }
 
         if (url.isBlank()) {
-            Toast.makeText(this, getString(R.string.no_url), Toast.LENGTH_SHORT).show()
+            Tips.short(this, getString(R.string.no_url))
             finish()
             return
         }
@@ -296,7 +296,7 @@ class WebActivity : AppCompatActivity() {
                         try {
                             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(u)))
                         } catch (e: Throwable) {
-                            Toast.makeText(this@WebActivity, getString(R.string.cannot_open), Toast.LENGTH_SHORT).show()
+                            Tips.short(this@WebActivity, getString(R.string.cannot_open))
                         }
                         true
                     }
@@ -335,7 +335,7 @@ class WebActivity : AppCompatActivity() {
                 if (autoTrans && view != null) {
                     WebTranslate.start(this@WebActivity, view) { n ->
                         if (n > 0) {
-                            Toast.makeText(this@WebActivity, getString(R.string.translated_segments, n), Toast.LENGTH_SHORT).show()
+                            Tips.short(this@WebActivity, getString(R.string.translated_segments, n))
                         }
                     }
                 }
@@ -345,11 +345,7 @@ class WebActivity : AppCompatActivity() {
                 view: WebView?, request: WebResourceRequest?, error: android.webkit.WebResourceError?
             ) {
                 if (request?.isForMainFrame == true) {
-                    Toast.makeText(
-                        this@WebActivity,
-                        getString(R.string.page_load_failed),
-                        Toast.LENGTH_LONG
-                    ).show()
+                    Tips.long(this@WebActivity, getString(R.string.page_load_failed))
                 }
             }
 
@@ -358,11 +354,7 @@ class WebActivity : AppCompatActivity() {
                 view: WebView?, handler: SslErrorHandler?, error: android.net.http.SslError?
             ) {
                 handler?.cancel()
-                Toast.makeText(
-                    this@WebActivity,
-                    getString(R.string.ssl_error),
-                    Toast.LENGTH_LONG
-                ).show()
+                Tips.long(this@WebActivity, getString(R.string.ssl_error))
             }
         }
 
@@ -438,11 +430,7 @@ class WebActivity : AppCompatActivity() {
                 MarkedLink(title = name.ifBlank { u }, url = u)
             )
             if (added) {
-                Toast.makeText(
-                    this@WebActivity,
-                    getString(R.string.marked_download, name),
-                    Toast.LENGTH_SHORT
-                ).show()
+                Tips.short(this@WebActivity, getString(R.string.marked_download, name))
             }
         } catch (t: Throwable) { Err.ignore(t, ").show()") }
     }
@@ -482,19 +470,15 @@ class WebActivity : AppCompatActivity() {
             3 -> {
                 val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
                 cm?.setPrimaryClip(android.content.ClipData.newPlainText("url", web.url))
-                Toast.makeText(this, getString(R.string.copied), Toast.LENGTH_SHORT).show()
+                Tips.short(this, getString(R.string.copied))
             }
             4 -> WebTranslate.start(this, web) { n ->
-                Toast.makeText(
-                    this,
-                    if (n > 0) getString(R.string.translated_segments, n)
-                    else getString(R.string.nothing_to_translate),
-                    Toast.LENGTH_SHORT
-                ).show()
+                Tips.short(this, if (n > 0) getString(R.string.translated_segments, n)
+                    else getString(R.string.nothing_to_translate))
             }
             5 -> {
                 WebTranslate.restore(web)
-                Toast.makeText(this, getString(R.string.restored), Toast.LENGTH_SHORT).show()
+                Tips.short(this, getString(R.string.restored))
             }
             6 -> {
                 desktopUa = !desktopUa

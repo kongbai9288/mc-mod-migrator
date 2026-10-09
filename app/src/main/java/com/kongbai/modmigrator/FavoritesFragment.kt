@@ -94,7 +94,7 @@ class FavoritesFragment : Fragment() {
             .setMessage("确定不再收藏「${m.name}」？")
             .setPositiveButton("移除") { _, _ ->
                 Favorites.remove(ctx, m)
-                Toast.makeText(ctx, "已移除", Toast.LENGTH_SHORT).show()
+                Tips.short(ctx, "已移除")
                 render()
             }
             .setNegativeButton(R.string.cancel, null)
@@ -114,7 +114,7 @@ class FavoritesFragment : Fragment() {
         val p = Prefs.get(ctx)
         val mc = p.getString(K.DEF_VERSION, "") ?: ""
         val ld = p.getString(K.DEF_LOADER, "auto") ?: "auto"
-        Toast.makeText(ctx, "开始解析下载地址…", Toast.LENGTH_SHORT).show()
+        Tips.short(ctx, "开始解析下载地址…")
         Thread {
             try {
                 // 两个数据源返回的类型不同，统一成 (url, fileName) 再用
@@ -142,12 +142,12 @@ class FavoritesFragment : Fragment() {
                         .firstOrNull()?.let { it.url to it.fileName }
                 }
                 if (pair == null || pair.first.isBlank()) {
-                    main { Toast.makeText(ctx, "这个模组暂时没有可下载的文件", Toast.LENGTH_SHORT).show() }
+                    main { Tips.short(ctx, "这个模组暂时没有可下载的文件") }
                     return@Thread
                 }
                 val dir = WorkDir.modsDir(ctx) ?: Targets.modsDir(ctx)
                 if (dir == null) {
-                    main { Toast.makeText(ctx, "请先设置工作目录", Toast.LENGTH_SHORT).show() }
+                    main { Tips.short(ctx, "请先设置工作目录") }
                     return@Thread
                 }
                 val name = pair.second.ifBlank { Downloader.guessName(pair.first) }
@@ -155,14 +155,10 @@ class FavoritesFragment : Fragment() {
                 val headers = if (m.source == "curseforge") CurseForgeApi.authHeaders() else emptyMap()
                 val f = Downloader.download(ctx, pair.first, dir, name, headers)
                 main {
-                    Toast.makeText(
-                        ctx,
-                        if (f == null) "下载失败" else "已安装：${f.name}",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Tips.short(ctx, if (f == null) "下载失败" else "已安装：${f.name}")
                 }
             } catch (t: Throwable) {
-                main { Toast.makeText(ctx, "安装失败：${Err.humanMessage(t)}", Toast.LENGTH_SHORT).show() }
+                main { Tips.short(ctx, "安装失败：${Err.humanMessage(t)}") }
             }
         }.start()
     }

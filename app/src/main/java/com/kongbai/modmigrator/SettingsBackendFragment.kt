@@ -99,7 +99,7 @@ class SettingsBackendFragment : Fragment() {
             handler.post {
                 val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 cm.setPrimaryClip(android.content.ClipData.newPlainText("callback", cb))
-                android.widget.Toast.makeText(ctx, "已复制回调地址", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Tips.short(ctx, "已复制回调地址")
             }
         }
     }
@@ -123,7 +123,7 @@ class SettingsBackendFragment : Fragment() {
                 val r = BackendApi.probe(ctx)
                 safePost(handler) {
                     tv.text = r.second
-                    Toast.makeText(ctx, if (r.first) "后端可用" else "后端不可用", Toast.LENGTH_SHORT).show()
+                    Tips.short(ctx, if (r.first) "后端可用" else "后端不可用")
                 }
 
             } catch (t: Throwable) {

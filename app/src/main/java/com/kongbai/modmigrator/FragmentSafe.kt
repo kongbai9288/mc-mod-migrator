@@ -43,7 +43,7 @@ fun Fragment.safeBg(exec: ExecutorService, handler: Handler, block: (android.con
             block(ctx)
         } catch (t: Throwable) {
             safePost(handler) {
-                safeCtx?.let { Toast.makeText(it, "出错：${Err.humanMessage(t)}", Toast.LENGTH_SHORT).show() }
+                safeCtx?.let { Tips.short(it, "出错：${Err.humanMessage(t)}") }
             }
         }
     }
@@ -52,7 +52,7 @@ fun Fragment.safeBg(exec: ExecutorService, handler: Handler, block: (android.con
 /** 安全的 Toast：上下文没了就不弹 */
 fun Fragment.safeToast(handler: Handler, msg: String) {
     safePost(handler) {
-        safeCtx?.let { Toast.makeText(it, msg, Toast.LENGTH_SHORT).show() }
+        safeCtx?.let { Tips.short(it, msg) }
     }
 }
 

@@ -28,7 +28,7 @@ object UpdateInstaller {
 
     fun download(ctx: Context, url: String, version: String) {
         if (url.isBlank()) {
-            Toast.makeText(ctx, "没有下载地址", Toast.LENGTH_SHORT).show()
+            Tips.short(ctx, "没有下载地址")
             return
         }
         val name = "ModMigrator-$version.apk"
@@ -47,7 +47,7 @@ object UpdateInstaller {
             }
             val dm = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
             if (dm == null) {
-                Toast.makeText(ctx, "系统下载服务不可用", Toast.LENGTH_SHORT).show()
+                Tips.short(ctx, "系统下载服务不可用")
                 return
             }
             // 删掉同名旧文件，避免下载时被自动改名成 -1.apk
@@ -60,13 +60,13 @@ object UpdateInstaller {
                 if (old.exists()) old.delete()
             }
             lastId = dm.enqueue(req)
-            Toast.makeText(ctx, "已在通知栏开始下载，完成后点击安装", Toast.LENGTH_LONG).show()
+            Tips.long(ctx, "已在通知栏开始下载，完成后点击安装")
 
             // 下载完成广播：直接调起安装
             registerReceiver(ctx)
         } catch (t: Throwable) {
             // DownloadManager 不可用时退回浏览器下载
-            Toast.makeText(ctx, "无法使用系统下载，改用浏览器：$name", Toast.LENGTH_LONG).show()
+            Tips.long(ctx, "无法使用系统下载，改用浏览器：$name")
             runCatching {
                 WebActivity.open(ctx, url, "下载 $version")
             }
@@ -128,11 +128,7 @@ object UpdateInstaller {
                     true   // 拿不到状态就照常尝试
                 }
                 if (!allowed) {
-                    Toast.makeText(
-                        ctx,
-                        "需要先允许「来自此来源的应用」，正在打开设置…",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    Tips.long(ctx, "需要先允许「来自此来源的应用」，正在打开设置…")
                     runCatching {
                         val i = Intent(
                             android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
@@ -173,9 +169,7 @@ object UpdateInstaller {
                         RuntimeException("FileProvider 未配置：$authority"),
                         "更新包安装：FileProvider 不可用"
                     )
-                    Toast.makeText(
-                        ctx, "请在通知栏点击已下载的安装包", Toast.LENGTH_LONG
-                    ).show()
+                    Tips.long(ctx, "请在通知栏点击已下载的安装包")
                     return
                 }
                 try {
@@ -183,9 +177,7 @@ object UpdateInstaller {
                 } catch (t: Throwable) {
                     // 即便 Provider 存在，路径不匹配时仍可能抛
                     Err.fail(t, "FileProvider 路径未覆盖：$p")
-                    Toast.makeText(
-                        ctx, "请在通知栏点击已下载的安装包", Toast.LENGTH_LONG
-                    ).show()
+                    Tips.long(ctx, "请在通知栏点击已下载的安装包")
                     return
                 }
             } else uri
@@ -207,14 +199,14 @@ object UpdateInstaller {
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     )
                 }
-                Toast.makeText(ctx, "没有找到可处理安装的应用，已改用浏览器打开下载页", Toast.LENGTH_LONG).show()
+                Tips.long(ctx, "没有找到可处理安装的应用，已改用浏览器打开下载页")
                 return
             }
             ctx.startActivity(i)
         } catch (t: Throwable) {
             // 某些 ROM 不允许直接安装，退回让用户自己点通知
             Err.ignore(t, "调起安装界面")
-            Toast.makeText(ctx, "请在通知栏点击已下载的安装包", Toast.LENGTH_LONG).show()
+            Tips.long(ctx, "请在通知栏点击已下载的安装包")
         }
     }
 

@@ -46,11 +46,7 @@ object EggPlayer {
             handler.post {
                 playing = false
                 try {
-                    android.widget.Toast.makeText(
-                        ctx,
-                        "🎵 主题已切换为「${ThemePrefs.themes()[next].name}」",
-                        android.widget.Toast.LENGTH_SHORT
-                    ).show()
+                    android.widget.Tips.short(ctx, "🎵 主题已切换为「${ThemePrefs.themes()[next].name}」")
                 } catch (t: Throwable) { Err.ignore(t, ").show()") }
                 onThemeChanged(next)
             }

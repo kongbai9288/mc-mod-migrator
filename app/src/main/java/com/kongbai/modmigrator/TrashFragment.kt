@@ -204,7 +204,7 @@ class TrashFragment : Fragment() {
         val ctx = context ?: return
         if (picked.isEmpty()) return
         val names = picked.toList()
-        Toast.makeText(ctx, "正在还原 ${names.size} 个…", Toast.LENGTH_SHORT).show()
+        Tips.short(ctx, "正在还原 ${names.size} 个…")
         exec.execute {
             var ok = 0
             // ⚠️ 之前 `Trash.items(ctx)` 写在**循环里** —— 每还原一个
@@ -217,7 +217,7 @@ class TrashFragment : Fragment() {
                 if (item != null && Trash.restore(ctx, item)) ok++
             }
             safePost(handler) {
-                Toast.makeText(ctx, "已还原 $ok / ${names.size}", Toast.LENGTH_SHORT).show()
+                Tips.short(ctx, "已还原 $ok / ${names.size}")
                 picked.clear()
                 refresh()
             }
@@ -229,7 +229,7 @@ class TrashFragment : Fragment() {
         exec.execute {
             val ok = Trash.restore(ctx, item)
             safePost(handler) {
-                Toast.makeText(ctx, if (ok) "已还原" else "还原失败（原目录可能已不可用）", Toast.LENGTH_SHORT).show()
+                Tips.short(ctx, if (ok) "已还原" else "还原失败（原目录可能已不可用）")
                 refresh()
             }
         }
@@ -267,7 +267,7 @@ class TrashFragment : Fragment() {
                         exec.execute {
                             val n = Trash.empty(ctx)
                             safePost(handler) {
-                                Toast.makeText(ctx, "已清空 $n 个", Toast.LENGTH_SHORT).show()
+                                Tips.short(ctx, "已清空 $n 个")
                                 refresh()
                             }
                         }
@@ -295,7 +295,7 @@ class TrashFragment : Fragment() {
                 // recreate 还会把返回栈一起清掉，直接退回主界面。
                 // 这里只需要更新那个按钮的文字，不需要重建。
                 (opDays as? android.widget.TextView)?.text = "保留天数：${Trash.days(ctx)} 天"
-                Toast.makeText(ctx, "已设为 ${vals[w]} 天", Toast.LENGTH_SHORT).show()
+                Tips.short(ctx, "已设为 ${vals[w]} 天")
             }
             .setNegativeButton(R.string.cancel, null)
             .show()

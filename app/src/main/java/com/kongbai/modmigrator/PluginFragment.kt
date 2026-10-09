@@ -81,13 +81,9 @@ class PluginFragment : Fragment() {
                     val r = PluginApi.run(requireContext().applicationContext, p.pkg, a, "")
                     h.post {
                         if (!isAdded) return@post
-                        Toast.makeText(
-                            requireContext(),
-                            if (r.isNullOrBlank()) {
+                        Tips.long(requireContext(), if (r.isNullOrBlank()) {
                                 "已发送「$a」，但插件没有回传结果（可能不支持该动作或未响应）"
-                            } else r,
-                            Toast.LENGTH_LONG
-                        ).show()
+                            } else r)
                     }
                 }.start()
             }

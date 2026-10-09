@@ -175,11 +175,7 @@ class ModManagerFragment : Fragment() {
         exec.execute {
             val res = BatchModOps.toggle(list, disabled)
             safePost(handler) {
-                Toast.makeText(
-                    ctx,
-                    BatchModOps.summary(res, if (disabled) "禁用" else "启用"),
-                    Toast.LENGTH_LONG
-                ).show()
+                Tips.long(ctx, BatchModOps.summary(res, if (disabled) "禁用" else "启用"))
                 picked.clear()
                 load()
             }
@@ -353,7 +349,7 @@ class ModManagerFragment : Fragment() {
 
     private fun toast(s: String) {
         handler.post {
-            if (isAdded) android.widget.Toast.makeText(context, s, android.widget.Toast.LENGTH_SHORT).show()
+            if (isAdded) android.widget.Tips.short(context, s)
         }
     }
 
@@ -575,12 +571,12 @@ class ModManagerFragment : Fragment() {
                     val ok = Trash.moveToTrash(ctx, f)
                     handler.post {
                         if (ok) {
-                            Toast.makeText(ctx, "已放进回收站", Toast.LENGTH_SHORT).show()
+                            Tips.short(ctx, "已放进回收站")
                             // 撤销入口
                             showUndo(ctx, name)
                             load()
                         } else {
-                            Toast.makeText(ctx, "删除失败", Toast.LENGTH_SHORT).show()
+                            Tips.short(ctx, "删除失败")
                         }
                     }
                 }.start()
@@ -610,11 +606,7 @@ class ModManagerFragment : Fragment() {
                         Thread {
                             val ok = Trash.restore(ctx, item)
                             handler.post {
-                                Toast.makeText(
-                                    ctx,
-                                    if (ok) "已还原" else "还原失败",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                Tips.short(ctx, if (ok) "已还原" else "还原失败")
                                 load()
                             }
                         }.start()

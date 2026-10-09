@@ -1396,7 +1396,7 @@ class ChunkMapActivity : AppCompatActivity() {
     }
 
     private fun toast(m: String) =
-        Toast.makeText(this, m, Toast.LENGTH_LONG).show()
+        Tips.long(this, m)
 
     override fun onDestroy() {
         alive = false

@@ -270,7 +270,7 @@ class NbtViewerActivity : AppCompatActivity() {
                     this, "$packageName.fileprovider", f
                 )
             }.getOrNull() ?: run {
-                Toast.makeText(this, "这个文件没法交给外部应用", Toast.LENGTH_SHORT).show()
+                Tips.short(this, "这个文件没法交给外部应用")
                 return
             }
         }
@@ -283,7 +283,7 @@ class NbtViewerActivity : AppCompatActivity() {
             startActivity(Intent.createChooser(i, "用其他应用打开"))
         } catch (t: Throwable) {
             Err.ignore(t, "外部打开 NBT 文件")
-            Toast.makeText(this, "没有找到可以打开它的应用", Toast.LENGTH_SHORT).show()
+            Tips.short(this, "没有找到可以打开它的应用")
         }
     }
 
@@ -319,7 +319,7 @@ class NbtViewerActivity : AppCompatActivity() {
                 tvState.text = msg
                 btnSave.isEnabled = true
                 btnSaveTop.isEnabled = true
-                Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+                Tips.long(this, msg)
                 if (!msg.startsWith("失败") && !msg.startsWith("写回失败")) {
                     btnSave.isEnabled = true
                     btnSaveTop.isEnabled = true

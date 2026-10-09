@@ -444,5 +444,5 @@ class CloudDriveActivity : AppCompatActivity() {
             ?: uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
     }
 
-    private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
+    private fun toast(s: String) = Tips.short(this, s)
 }

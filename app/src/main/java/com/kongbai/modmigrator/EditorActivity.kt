@@ -58,7 +58,7 @@ class EditorActivity : AppCompatActivity() {
         })
 
         if (path.isBlank()) {
-            Toast.makeText(this, "没有指定文件", Toast.LENGTH_SHORT).show()
+            Tips.short(this, "没有指定文件")
         }
     }
 
@@ -101,7 +101,7 @@ class EditorActivity : AppCompatActivity() {
             3 -> {
                 et.setText(original)
                 dirty = false
-                Toast.makeText(this, "已还原", Toast.LENGTH_SHORT).show()
+                Tips.short(this, "已还原")
             }
         }
         return true
@@ -112,13 +112,13 @@ class EditorActivity : AppCompatActivity() {
         if (toBackup) {
             val dir = WorkDir.configs(this)
             if (dir == null) {
-                Toast.makeText(this, "请先在工作目录页授权目录", Toast.LENGTH_SHORT).show()
+                Tips.short(this, "请先在工作目录页授权目录")
                 return
             }
             val exists = dir.findFile(name)
             val target = exists ?: dir.createFile("text/plain", name)
             if (target == null) {
-                Toast.makeText(this, "创建文件失败", Toast.LENGTH_SHORT).show()
+                Tips.short(this, "创建文件失败")
                 return
             }
             writeTo(target.uri, name)
@@ -129,10 +129,10 @@ class EditorActivity : AppCompatActivity() {
                 File(path).writeText(et.text.toString())
                 original = et.text.toString()
                 dirty = false
-                Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show()
+                Tips.short(this, "已保存")
                 return
             } catch (t: Throwable) {
-                Toast.makeText(this, "保存失败：${Err.humanMessage(t)}", Toast.LENGTH_SHORT).show()
+                Tips.short(this, "保存失败：${Err.humanMessage(t)}")
                 return
             }
         }
@@ -141,7 +141,7 @@ class EditorActivity : AppCompatActivity() {
             writeTo(android.net.Uri.parse(uri), name)
             return
         }
-        Toast.makeText(this, "没有可写的位置", Toast.LENGTH_SHORT).show()
+        Tips.short(this, "没有可写的位置")
     }
 
     private fun writeTo(uri: android.net.Uri, name: String) {
@@ -151,9 +151,9 @@ class EditorActivity : AppCompatActivity() {
             }
             original = et.text.toString()
             dirty = false
-            Toast.makeText(this, "已保存 $name", Toast.LENGTH_SHORT).show()
+            Tips.short(this, "已保存 $name")
         } catch (t: Throwable) {
-            Toast.makeText(this, "保存失败：${Err.humanMessage(t)}", Toast.LENGTH_SHORT).show()
+            Tips.short(this, "保存失败：${Err.humanMessage(t)}")
         }
     }
 

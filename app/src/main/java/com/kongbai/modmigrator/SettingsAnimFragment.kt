@@ -156,10 +156,7 @@ class SettingsAnimFragment : Fragment() {
 
         swSplash.setOnCheckedChangeListener { _, on ->
             Prefs.get(ctx).edit().putBoolean(K.SPLASH_ANIM, on).apply()
-            android.widget.Toast.makeText(
-                ctx, if (on) "开场动画已开启" else "开场动画已关闭，之后直接进主界面",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
+            android.widget.Tips.short(ctx, if (on) "开场动画已开启" else "开场动画已关闭，之后直接进主界面")
         }
 
         fun refresh() {
@@ -172,10 +169,7 @@ class SettingsAnimFragment : Fragment() {
             val m = rb.tag as? Int ?: return@setOnCheckedChangeListener
             AnimPrefs.setMode(ctx, m)
             refresh()
-            android.widget.Toast.makeText(
-                ctx, if (AnimPrefs.enabled(ctx)) "动画已开启" else "动画已关闭",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
+            android.widget.Tips.short(ctx, if (AnimPrefs.enabled(ctx)) "动画已开启" else "动画已关闭")
         }
 
         rgSpeed.setOnCheckedChangeListener { _, id ->
@@ -185,12 +179,8 @@ class SettingsAnimFragment : Fragment() {
             refresh()
             // 动画关闭时改速率是没效果的，必须当场说清楚，
             // 否则用户改完看不到变化，只会以为又坏了
-            android.widget.Toast.makeText(
-                ctx,
-                if (AnimPrefs.enabled(ctx)) "速率：${AnimPrefs.speedLabel(ctx)}"
-                else "速率已设为「${AnimPrefs.speedLabel(ctx)}」，但当前动画是关闭的，看不到效果",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
+            android.widget.Tips.short(ctx, if (AnimPrefs.enabled(ctx)) "速率：${AnimPrefs.speedLabel(ctx)}"
+                else "速率已设为「${AnimPrefs.speedLabel(ctx)}」，但当前动画是关闭的，看不到效果")
         }
 
         return root

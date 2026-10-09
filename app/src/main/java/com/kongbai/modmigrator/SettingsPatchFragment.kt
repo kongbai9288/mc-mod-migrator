@@ -85,25 +85,21 @@ class SettingsPatchFragment : Fragment() {
 
     private fun refreshOne(k: PatchCenter.Kind) {
         val ctx = context ?: return
-        Toast.makeText(ctx, "正在刷新「${k.title}」…", Toast.LENGTH_SHORT).show()
+        Tips.short(ctx, "正在刷新「${k.title}」…")
         exec.execute {
             val ok = PatchCenter.update(ctx, k, force = true)
             handler.post {
                 if (!isAdded) return@post
                 render()
-                Toast.makeText(
-                    ctx,
-                    if (ok) "「${k.title}」已更新，共 ${k.remoteCount} 项"
-                    else "「${k.title}」更新失败：${k.lastError}",
-                    Toast.LENGTH_LONG
-                ).show()
+                Tips.long(ctx, if (ok) "「${k.title}」已更新，共 ${k.remoteCount} 项"
+                    else "「${k.title}」更新失败：${k.lastError}")
             }
         }
     }
 
     private fun refreshAll() {
         val ctx = context ?: return
-        Toast.makeText(ctx, "正在刷新全部…", Toast.LENGTH_SHORT).show()
+        Tips.short(ctx, "正在刷新全部…")
         exec.execute {
             var ok = 0
             for (k in PatchCenter.all()) {
@@ -112,7 +108,7 @@ class SettingsPatchFragment : Fragment() {
             handler.post {
                 if (!isAdded) return@post
                 render()
-                Toast.makeText(ctx, "完成：$ok / ${PatchCenter.all().size} 项已更新", Toast.LENGTH_LONG).show()
+                Tips.long(ctx, "完成：$ok / ${PatchCenter.all().size} 项已更新")
             }
         }
     }

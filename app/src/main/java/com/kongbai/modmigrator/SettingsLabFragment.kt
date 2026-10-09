@@ -158,7 +158,7 @@ class SettingsLabFragment : Fragment() {
                 ThemePrefs.setNightMode(ctx, w)
                 d.dismiss()
                 refresh()
-                Toast.makeText(ctx, "已切换，正在应用…", Toast.LENGTH_SHORT).show()
+                Tips.short(ctx, "已切换，正在应用…")
                 // ⚠️ 之前是 postDelayed(300) 里直接 activity?.recreate()。
                 // 对话框 dismiss 会引发重排、同步屏障正活跃，
                 // 延时 300ms 只是碰运气，照样可能撞在某一帧的遍历上 ——
@@ -217,7 +217,7 @@ class SettingsLabFragment : Fragment() {
                 // 这样 Downloader 读到的就是用户真正想要的值
                 val n = values.getOrNull(w)?.toIntOrNull() ?: 3
                 Prefs.get(ctx).edit().putInt(K.DOWNLOAD_PARALLEL, n).apply()
-                android.widget.Toast.makeText(ctx, "下载并发已设为 $n 个", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Tips.short(ctx, "下载并发已设为 $n 个")
                 d.dismiss()
                 refresh()
             }
@@ -266,7 +266,7 @@ class SettingsLabFragment : Fragment() {
             val list = Trash.findResidue(ctx)
             handler.post {
                 if (list.isEmpty()) {
-                    Toast.makeText(ctx, "没有发现残留文件", Toast.LENGTH_SHORT).show()
+                    Tips.short(ctx, "没有发现残留文件")
                     return@post
                 }
                 val names = list.take(20).mapNotNull { it.name }
@@ -282,7 +282,7 @@ class SettingsLabFragment : Fragment() {
                             var n = 0
                             for (f in list) if (Trash.moveToTrash(ctx, f)) n++
                             handler.post {
-                                Toast.makeText(ctx, "已清理 $n 个（可在回收站还原）", Toast.LENGTH_LONG).show()
+                                Tips.long(ctx, "已清理 $n 个（可在回收站还原）")
                                 refresh()
                             }
                         }
@@ -299,7 +299,7 @@ class SettingsLabFragment : Fragment() {
             val n = runCatching { Announcement.fetch(ctx, force = true) }.getOrNull()
             handler.post {
                 if (n == null) {
-                    Toast.makeText(ctx, "暂时没有公告，或所有镜像都取不到", Toast.LENGTH_LONG).show()
+                    Tips.long(ctx, "暂时没有公告，或所有镜像都取不到")
                     return@post
                 }
                 MaterialAlertDialogBuilder(ctx)
@@ -315,7 +315,7 @@ class SettingsLabFragment : Fragment() {
     private fun clearAnnouncement() {
         val ctx = requireContext()
         Announcement.clearAll(ctx)
-        Toast.makeText(ctx, "已清除全部公告", Toast.LENGTH_SHORT).show()
+        Tips.short(ctx, "已清除全部公告")
     }
 
     /**
@@ -327,13 +327,13 @@ class SettingsLabFragment : Fragment() {
      */
     private fun withCrashLog(act: (android.content.Context, String) -> Unit) {
         val ctx = requireContext()
-        Toast.makeText(ctx, "正在读取…", Toast.LENGTH_SHORT).show()
+        Tips.short(ctx, "正在读取…")
         exec.execute {
             val log = CrashShare.read(ctx)
             handler.post {
                 if (!isAdded) return@post
                 if (log.isBlank()) {
-                    Toast.makeText(ctx, "没有崩溃记录", Toast.LENGTH_SHORT).show()
+                    Tips.short(ctx, "没有崩溃记录")
                     return@post
                 }
                 act(ctx, log)
@@ -366,7 +366,7 @@ class SettingsLabFragment : Fragment() {
             .setMessage(Traffic.describe(ctx))
             .setPositiveButton("清零") { _, _ ->
                 Traffic.reset(ctx)
-                Toast.makeText(ctx, "已清零", Toast.LENGTH_SHORT).show()
+                Tips.short(ctx, "已清零")
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
@@ -384,16 +384,12 @@ class SettingsLabFragment : Fragment() {
             .setTitle("实验性：自动升级")
             .setMessage("会去下载最新版 APK 并打开安装界面。这是试验功能，可能下载中断或装不上。")
             .setPositiveButton("开始") { _, _ ->
-                Toast.makeText(ctx, "正在查找最新版…", Toast.LENGTH_SHORT).show()
+                Tips.short(ctx, "正在查找最新版…")
                 exec.execute {
                     val rel = runCatching { UpdateChecker.latest(ctx) }.getOrNull()
                     if (rel == null) {
                         handler.post {
-                            Toast.makeText(
-                                ctx,
-                                "没查到版本：${UpdateChecker.lastError.ifBlank { "网络不通" }}",
-                                Toast.LENGTH_LONG
-                            ).show()
+                            Tips.long(ctx, "没查到版本：${UpdateChecker.lastError.ifBlank { "网络不通" }}")
                         }
                         return@execute
                     }
@@ -402,7 +398,7 @@ class SettingsLabFragment : Fragment() {
                     val file = rel.apkUrl.substringAfterLast('/').ifBlank { "ModMigrator-release.apk" }
                     val url = UpdateChecker.pickMirror(o, r, rel.tag, file)
                     handler.post {
-                        Toast.makeText(ctx, "开始下载 ${rel.tag}", Toast.LENGTH_SHORT).show()
+                        Tips.short(ctx, "开始下载 ${rel.tag}")
                         DownloadService.start(ctx, url, file, "downloads")
                     }
                 }

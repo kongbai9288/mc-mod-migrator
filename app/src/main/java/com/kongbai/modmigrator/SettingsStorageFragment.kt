@@ -35,7 +35,7 @@ class SettingsStorageFragment : Fragment() {
             Prefs.get(requireContext()).edit().putString(K.WORKDIR_URI, "").apply()
             WorkDir.invalidate()
             refresh()
-            Toast.makeText(requireContext(), "已清除工作目录", Toast.LENGTH_SHORT).show()
+            Tips.short(requireContext(), "已清除工作目录")
         }
         return v
     }
@@ -110,11 +110,7 @@ class SettingsStorageFragment : Fragment() {
                     if (loading) { loading = false; return }
                     val path = items.getOrNull(pos)?.second ?: return
                     Prefs.get(ctx).edit().putString(K.GAME_DIR, path).apply()
-                    Toast.makeText(
-                        ctx,
-                        if (path.isBlank()) "已清除游戏目录" else "已保存：\n$path",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Tips.short(ctx, if (path.isBlank()) "已清除游戏目录" else "已保存：\n$path")
                 }
                 override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
             }
@@ -174,7 +170,7 @@ class SettingsStorageFragment : Fragment() {
         v.findViewById<Button>(R.id.btnOpenCloud)?.setOnClickListener {
             val u = CloudBackup.uploadUrl(ctx)
             if (u.isBlank()) {
-                Toast.makeText(ctx, "先填上传地址，或直接用内置浏览器打开你的云盘", Toast.LENGTH_SHORT).show()
+                Tips.short(ctx, "先填上传地址，或直接用内置浏览器打开你的云盘")
             } else {
                 WebActivity.open(ctx, u, "云盘")
             }
@@ -190,7 +186,7 @@ class SettingsStorageFragment : Fragment() {
             CloudBackup.setUploadUrl(ctx, typed)
             val u = CloudBackup.uploadUrl(ctx)
             if (u.isBlank()) {
-                Toast.makeText(ctx, "请先填写云盘上传地址", Toast.LENGTH_SHORT).show()
+                Tips.short(ctx, "请先填写云盘上传地址")
                 return@setOnClickListener
             }
             Thread {
@@ -202,14 +198,10 @@ class SettingsStorageFragment : Fragment() {
                     if (done) CloudBackup.markBackedUp(ctx)
                     main {
                         tv?.text = CloudBackup.describe(ctx)
-                        Toast.makeText(
-                            ctx,
-                            if (done) "备份完成：$msg" else "备份失败：$msg",
-                            Toast.LENGTH_LONG
-                        ).show()
+                        Tips.long(ctx, if (done) "备份完成：$msg" else "备份失败：$msg")
                     }
                 } catch (t: Throwable) {
-                    main { Toast.makeText(ctx, "备份失败：${t.message}", Toast.LENGTH_LONG).show() }
+                    main { Tips.long(ctx, "备份失败：${t.message}") }
                 }
             }.start()
         }
@@ -239,11 +231,7 @@ class SettingsStorageFragment : Fragment() {
                 .putString(K.GAME_DIR, uri.toString())
                 .putString(K.GAME_DIR_NAME, path)
                 .apply()
-            Toast.makeText(
-                requireContext(),
-                "已保存游戏目录：$path",
-                Toast.LENGTH_LONG
-            ).show()
+            Tips.long(requireContext(), "已保存游戏目录：$path")
             return
         }
         if (requestCode == 21 && resultCode == Activity.RESULT_OK) {
@@ -256,14 +244,10 @@ class SettingsStorageFragment : Fragment() {
                 // 导出/下载全落空。用户完全不知道是授权没成功。
                 val ok = WorkDir.persist(requireContext(), uri)
                 refresh()
-                Toast.makeText(
-                    requireContext(),
-                    if (ok) "工作目录已设置"
-                    else "目录已选中，但持久化授权未成功（重启后可能失效）",
-                    Toast.LENGTH_LONG
-                ).show()
+                Tips.long(requireContext(), if (ok) "工作目录已设置"
+                    else "目录已选中，但持久化授权未成功（重启后可能失效）")
             } catch (t: Throwable) {
-                Toast.makeText(requireContext(), "授权失败：${t.message}", Toast.LENGTH_SHORT).show()
+                Tips.short(requireContext(), "授权失败：${t.message}")
             }
         }
     }

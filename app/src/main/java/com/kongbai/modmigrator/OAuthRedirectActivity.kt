@@ -167,7 +167,7 @@ class OAuthRedirectActivity : Activity() {
     }
 
     private fun retry(code: String, verifier: String) {
-        android.widget.Toast.makeText(this, "正在重试…", android.widget.Toast.LENGTH_SHORT).show()
+        android.widget.Tips.short(this, "正在重试…")
         Bg.run {
             var msg: String
             try {
@@ -195,7 +195,7 @@ class OAuthRedirectActivity : Activity() {
 
     private fun back(msg: String) {
         runCatching {
-            android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_LONG).show()
+            android.widget.Tips.long(this, msg)
         }
         // 回到主界面，让用户能直接看到账户状态
         val home = Intent(this, MainActivity::class.java).apply {

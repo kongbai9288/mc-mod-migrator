@@ -50,7 +50,7 @@ class AppPickerActivity : AppCompatActivity() {
 
         val cur = Prefs.get(this).getString(K.LAUNCHER, "") ?: ""
         if (cur.isNotBlank()) {
-            Toast.makeText(this, "当前：$cur", Toast.LENGTH_SHORT).show()
+            Tips.short(this, "当前：$cur")
         }
         load()
     }
@@ -71,7 +71,7 @@ class AppPickerActivity : AppCompatActivity() {
                     all.clear()
                     all.addAll(list)
                     filter(etFilter.text.toString())
-                    Toast.makeText(ctx, "共 ${list.size} 个应用，像启动器的已排在前面", Toast.LENGTH_SHORT).show()
+                    Tips.short(ctx, "共 ${list.size} 个应用，像启动器的已排在前面")
                 }
 
             } catch (t: Throwable) {
@@ -96,7 +96,7 @@ class AppPickerActivity : AppCompatActivity() {
 
     private fun choose(info: LauncherHelper.AppInfo) {
         Prefs.get(this).edit().putString(K.LAUNCHER, info.pkg).apply()
-        Toast.makeText(this, "已选择：${info.label}\n接下来会按 ${info.pkg} 去拉数据", Toast.LENGTH_LONG).show()
+        Tips.long(this, "已选择：${info.label}\n接下来会按 ${info.pkg} 去拉数据")
         setResult(RESULT_OK)
         finish()
     }

@@ -299,7 +299,7 @@ class LoaderForgeActivity : AppCompatActivity() {
     }
 
     private fun toast(m: String) = ui.post {
-        Toast.makeText(this, m, Toast.LENGTH_LONG).show()
+        Tips.long(this, m)
     }
 
     // ---------------------------------------------------------------- 入口

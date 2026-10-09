@@ -86,9 +86,7 @@ object Favorites {
             LogCenter.e("Favorites", "收藏保存失败：两个位置都写不进去")
             android.os.Handler(android.os.Looper.getMainLooper()).post {
                 runCatching {
-                    android.widget.Toast.makeText(
-                        ctx, "收藏保存失败", android.widget.Toast.LENGTH_SHORT
-                    ).show()
+                    android.widget.Tips.short(ctx, "收藏保存失败")
                 }
             }
         }

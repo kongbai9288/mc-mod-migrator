@@ -82,7 +82,7 @@ class ModpackFragment : Fragment() {
 
     private fun toast(s: String) {
         handler.post {
-            if (isAdded) Toast.makeText(context, s, Toast.LENGTH_SHORT).show()
+            if (isAdded) Tips.short(context, s)
         }
     }
 

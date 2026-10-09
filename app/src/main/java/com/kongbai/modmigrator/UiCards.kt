@@ -392,6 +392,98 @@ object UiCards {
     }
 
     /**
+     * 紧凑方格：图标在上、标题在下。
+     *
+     * 为什么要有这个：`infoCard` 一行只放一项、还要带一段说明，
+     * 二十几个功能竖着排要滚很久，且每个都占一大块。
+     * 工具箱这类"入口清单"用方格更合适 —— 一屏能看到六七个。
+     */
+    fun tile(
+        ctx: Context, icon: Int, title: String, sub: String = "", onClick: () -> Unit
+    ): View {
+        val card = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            background = cardBg(ctx)
+            setPadding(dp(ctx, 10), dp(ctx, 12), dp(ctx, 10), dp(ctx, 12))
+            setOnClickListener { onClick() }
+            isClickable = true
+        }
+        card.addView(ImageView(ctx).apply {
+            setImageResource(icon)
+            val s = dp(ctx, 24)
+            layoutParams = LinearLayout.LayoutParams(s, s).apply {
+                bottomMargin = dp(ctx, 6)
+            }
+            setColorFilter(primary(ctx))
+        })
+        card.addView(TextView(ctx).apply {
+            text = title
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            gravity = Gravity.CENTER
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            maxLines = 2
+        })
+        if (sub.isNotBlank()) {
+            card.addView(TextView(ctx).apply {
+                text = sub
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+                setTextColor(
+                    if (android.os.Build.VERSION.SDK_INT >= 23) ctx.getColor(R.color.textSecondary)
+                    else @Suppress("DEPRECATION") ctx.resources.getColor(R.color.textSecondary)
+                )
+                gravity = Gravity.CENTER
+                maxLines = 1
+                setPadding(0, dp(ctx, 2), 0, 0)
+            })
+        }
+        return card
+    }
+
+    /**
+     * 把若干方格排成网格。
+     *
+     * 用横向 LinearLayout + weight 而不是 GridLayout：
+     * 后者在低版本上权重行为不一致，且没有额外的依赖。
+     * 最后一行不满时补占位，保证对齐。
+     */
+    fun grid(ctx: Context, cols: Int, tiles: List<View>): View {
+        val box = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        val gap = dp(ctx, 8)
+        var i = 0
+        while (i < tiles.size) {
+            val row = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
+            val lpRow = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            lpRow.bottomMargin = gap
+            row.layoutParams = lpRow
+            for (c in 0 until cols) {
+                if (i + c < tiles.size) {
+                    val v = tiles[i + c]
+                    val lp = LinearLayout.LayoutParams(
+                        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+                    )
+                    if (c > 0) lp.marginStart = gap
+                    row.addView(v, lp)
+                } else {
+                    // 占位：不补的话最后一行的格子会被拉宽，看着不齐
+                    row.addView(
+                        View(ctx),
+                        LinearLayout.LayoutParams(
+                            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+                        ).apply { if (c > 0) marginStart = gap }
+                    )
+                }
+            }
+            box.addView(row)
+            i += cols
+        }
+        return box
+    }
+
+    /**
      * 带**远程图标**的信息卡。
      *
      * 为什么单独加一个：`infoCard` 只能传本地 drawable 资源，

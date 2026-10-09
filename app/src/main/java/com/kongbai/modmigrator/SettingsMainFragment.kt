@@ -231,7 +231,7 @@ class SettingsMainFragment : Fragment() {
     private fun toast(s: String) {
         handler.post {
             if (!isAdded) return@post
-            context?.let { Toast.makeText(it, s, Toast.LENGTH_SHORT).show() }
+            context?.let { Tips.short(it, s) }
         }
     }
 
@@ -604,13 +604,9 @@ class SettingsMainFragment : Fragment() {
                 startActivity(Intent(Intent.ACTION_VIEW, uri))
             }.onFailure { toast("打不开浏览器") }
         }
-        android.widget.Toast.makeText(
-            ctx,
-            "在浏览器里完成授权，会自动回到本应用。\n\n" +
+        android.widget.Tips.long(ctx, "在浏览器里完成授权，会自动回到本应用。\n\n" +
                 "如果 GitHub 提示 redirect_uri 不匹配，\n" +
-                "需要在 OAuth App 的回调地址里加上：\n" + GhPkce.REDIRECT_URI,
-            android.widget.Toast.LENGTH_LONG
-        ).show()
+                "需要在 OAuth App 的回调地址里加上：\n" + GhPkce.REDIRECT_URI)
     }
 
     private fun manualToken() {
@@ -715,19 +711,15 @@ class SettingsMainFragment : Fragment() {
         LogCenter.i("Login", "3. 在系统浏览器打开：${maskUrl(url)}")
         try {
             ctx.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
-            Toast.makeText(
-                ctx,
-                "已在系统浏览器打开 GitHub 登录页。\n\n" +
+            Tips.long(ctx, "已在系统浏览器打开 GitHub 登录页。\n\n" +
                     "注意：这条路大概率会报\n" +
                     "「state 校验失败，请重新登录」，\n" +
                     "因为后端的 state cookie 存在应用内，浏览器里没有。\n\n" +
                     "要让登录态真正生效，请用「用内置浏览器登录」\n" +
-                    "或「用访问令牌登录」。",
-                Toast.LENGTH_LONG
-            ).show()
+                    "或「用访问令牌登录」。")
         } catch (t: Throwable) {
             Err.fail(t, "调起系统浏览器")
-            Toast.makeText(ctx, "打不开浏览器", Toast.LENGTH_LONG).show()
+            Tips.long(ctx, "打不开浏览器")
         }
     }
 
@@ -758,7 +750,7 @@ class SettingsMainFragment : Fragment() {
                 if (!isAdded) return@post
                 if (start.url.isBlank()) {
                     LogCenter.e("Login", "取地址失败：${start.error}")
-                    Toast.makeText(ctx, "拿不到登录地址：${start.error}", Toast.LENGTH_LONG).show()
+                    Tips.long(ctx, "拿不到登录地址：${start.error}")
                     return@post
                 }
                 openExternal(ctx, start.url)
