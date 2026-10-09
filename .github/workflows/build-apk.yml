@@ -172,6 +172,9 @@ jobs:
             echo "run: $GITHUB_RUN_ID"
             grep -E "^(e: |.*error:|.*FAILED)" /tmp/build.log | head -60
             echo
+            echo "## Tips 定义所在文件"
+            grep -rn "object Tips" app/src/main/java || echo "(未找到 object Tips)"
+            echo
             echo "## 末尾 80 行"
             tail -80 /tmp/build.log
           } > ci-last-error.txt 2>&1
