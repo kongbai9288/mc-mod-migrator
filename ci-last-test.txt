@@ -1,5 +1,5 @@
 # 真实存档验证（ai.zip / 26.2 世界）
-run: 38000571960
+run: 38001124950
 
 == TEST-com.kongbai.modmigrator.McaRealWorldTest.xml
 tests="8" skipped="0" failures="0" errors="0"
@@ -38,5 +38,5 @@ Daemon will be stopped at the end of the build
 > Task :app:processDebugUnitTestJavaRes
 > Task :app:testDebugUnitTest
 
-BUILD SUCCESSFUL in 13s
+BUILD SUCCESSFUL in 22s
 23 actionable tasks: 7 executed, 16 up-to-date
