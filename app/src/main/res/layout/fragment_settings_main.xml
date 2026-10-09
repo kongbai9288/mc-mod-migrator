@@ -1,4 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  设置页重排。
+
+  原来的问题：
+    · 9 个跳转按钮（后端 / 搜索 / 迁移 / 实验室 / 补丁 / 翻译 / 导航 /
+      存储 / 关于）各占一行全宽，光这部分就九行，真正的设置项全被压到
+      屏幕外，得滚很久才看得到 —— 设置页反而最难找设置。
+    · 一堆开关跟按钮混在一起，没有分组，"断网分项"和"总开关"看起来
+      是平级关系，实际不是（总开关打开时分项不再生效）。
+
+  重排后：
+    · 账号区独立成卡片，登录按钮不再是全宽大按钮。
+    · 9 个跳转收进两列网格，九行变五行。
+    · 开关按「检查更新 / 离线与联网 / 显示项」分三张卡片，
+      断网分项缩进在总开关下面，从层级上就能看出谁管谁。
+
+  ⚠️ 所有 android:id 保持不变，也不改任何 visibility 默认值 ——
+  tvOfflineParts 等由代码控制显隐，动一个就会让分项在错误的时候显示出来。
+-->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -9,204 +28,325 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <LinearLayout
-            android:id="@+id/rowAccount"
+        <!-- 账号 -->
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingBottom="12dp">
-
-            <ImageView
-                android:id="@+id/ivAvatar"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:contentDescription="@string/app_name"
-                android:src="@drawable/ic_person" />
+            android:layout_marginBottom="10dp">
 
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
-                android:layout_weight="1"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:padding="12dp">
 
-                <TextView
-                    android:id="@+id/tvAccount"
+                <LinearLayout
+                    android:id="@+id/rowAccount"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/account_not_login"
-                    android:textStyle="bold" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingBottom="8dp">
 
-                <TextView
-                    android:id="@+id/tvConnState"
+                    <ImageView
+                        android:id="@+id/ivAvatar"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:contentDescription="@string/app_name"
+                        android:src="@drawable/ic_person" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tvAccount"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/account_not_login"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvConnState"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/textSecondary"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/btnAccount"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:text="@string/account_login" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- 各项设置入口：两列网格，九行压成五行 -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btnGoBackend"
+                        style="@style/AppButtonOutlined"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/menu_backend" />
+
+                    <Button
+                        android:id="@+id/btnGoSearch"
+                        style="@style/AppButtonOutlined"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:text="@string/menu_search" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btnGoMigrate"
+                        style="@style/AppButtonOutlined"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/menu_migrate" />
+
+                    <Button
+                        android:id="@+id/btnGoLab"
+                        style="@style/AppButtonOutlined"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:text="@string/menu_lab" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btnGoPatch"
+                        style="@style/AppButtonOutlined"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/menu_patch" />
+
+                    <Button
+                        android:id="@+id/btnGoTranslate"
+                        style="@style/AppButtonOutlined"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:text="@string/menu_translate" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btnGoNav"
+                        style="@style/AppButtonOutlined"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/menu_nav" />
+
+                    <Button
+                        android:id="@+id/btnGoStorage"
+                        style="@style/AppButtonOutlined"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:text="@string/menu_storage" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btnGoAbout"
+                        style="@style/AppButtonOutlined"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/menu_about" />
+
+                    <!-- 占位：把「关于」留在左列，右列留空比让它横跨整行更好看 -->
+                    <Space
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- 更新 -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/swUpdate"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="@string/cfg_update" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cfg_update_hint"
                     android:textColor="@color/textSecondary"
                     android:textSize="12sp" />
             </LinearLayout>
-        </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-        <Button
-            android:id="@+id/btnAccount"
+        <!-- 离线与联网。分项缩进在总开关下面：总开关打开时它们不生效。 -->
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/account_login" />
+            android:layout_marginBottom="10dp">
 
-        <Button
-            android:id="@+id/btnGoBackend"
-            style="@style/AppButtonOutlined"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/menu_backend" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
 
-        <Button
-            android:id="@+id/btnGoSearch"
-            style="@style/AppButtonOutlined"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/menu_search" />
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/swOffline"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cfg_offline" />
 
-        <Button
-            android:id="@+id/btnGoMigrate"
-            style="@style/AppButtonOutlined"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/menu_migrate" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cfg_offline_hint"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="12sp" />
 
-        <Button
-            android:id="@+id/btnGoLab"
-            style="@style/AppButtonOutlined"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/menu_lab" />
-        <Button
-            android:id="@+id/btnGoPatch"
-            style="@style/AppButtonOutlined"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/menu_patch" />
+                <TextView
+                    android:id="@+id/tvOfflineParts"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="单独关闭某一项的联网"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
 
-        <Button
-            android:id="@+id/btnGoTranslate"
-            style="@style/AppButtonOutlined"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/menu_translate" />
+                <!-- 分项缩进，从层级上看出归总开关管 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="12dp">
 
-        <Button
-            android:id="@+id/btnGoNav"
-            style="@style/AppButtonOutlined"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/menu_nav" />
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/swOfflineSearch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="商店搜索与推荐" />
 
-        <Button
-            android:id="@+id/btnGoStorage"
-            style="@style/AppButtonOutlined"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/menu_storage" />
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/swOfflineTranslate"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="在线翻译（关掉后只用本地词典）" />
 
-        <Button
-            android:id="@+id/btnGoAbout"
-            style="@style/AppButtonOutlined"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/menu_about" />
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/swOfflineFeed"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="资讯抓取" />
 
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/swUpdate"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:checked="true"
-            android:text="@string/cfg_update" />
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/swOfflineUpdate"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="更新检查" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingBottom="8dp"
-            android:text="@string/cfg_update_hint"
-            android:textColor="@color/textSecondary"
-            android:textSize="12sp" />
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/swOfflineAnnounce"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="公告拉取" />
+                </LinearLayout>
 
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/swOffline"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/cfg_offline" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="4dp"
+                    android:text="上面的总开关打开时，所有联网一律关闭，分项不再单独判断。"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-        <TextView
+        <!-- 显示项 -->
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingBottom="8dp"
-            android:text="@string/cfg_offline_hint"
-            android:textColor="@color/textSecondary"
-            android:textSize="12sp" />
+            android:layout_marginBottom="12dp">
 
-        <!-- 断网细分：总开关关闭时，这几个分项才生效 -->
-        <TextView
-            android:id="@+id/tvOfflineParts"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="单独关闭某一项的联网"
-            android:textSize="13sp"
-            android:textStyle="bold" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
 
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/swOfflineSearch"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="商店搜索与推荐" />
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/swExtraLoaders"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="在加载器分类里显示手机不支持的加载器" />
 
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/swOfflineTranslate"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="在线翻译（关掉后只用本地词典）" />
-
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/swOfflineFeed"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="资讯抓取" />
-
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/swOfflineUpdate"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="更新检查" />
-
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/swOfflineAnnounce"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="公告拉取" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingBottom="8dp"
-            android:text="上面的总开关打开时，所有联网一律关闭，分项不再单独判断。"
-            android:textColor="@color/textSecondary"
-            android:textSize="12sp" />
-
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/swExtraLoaders"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="在加载器分类里显示手机不支持的加载器" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingBottom="8dp"
-            android:text="如 Cleanroom / LiteLoader / Rift / Risugami / BTA。默认关闭：这些大多停在 1.12.2 及更早或已停更，手机上装了也跑不起来。开启后仅用于识别已有模组，不代表能运行。"
-            android:textColor="@color/textSecondary"
-            android:textSize="12sp" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="如 Cleanroom / LiteLoader / Rift / Risugami / BTA。默认关闭：这些大多停在 1.12.2 及更早或已停更，手机上装了也跑不起来。开启后仅用于识别已有模组，不代表能运行。"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
 </ScrollView>
