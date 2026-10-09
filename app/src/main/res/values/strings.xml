@@ -56,7 +56,7 @@
     <string name="cfg_prefer_source">首选数据来源</string>
     <string name="cfg_cf_key">CurseForge API Key（可选）</string>
     <string name="cfg_use_mirror">使用国内镜像源（免 CurseForge Key）</string>
-    <string name="cfg_mirror_hint">镜像 mod.mcimirror.top，接口兼容官方。CurseForge 官方 CDN 已强制要求 Key，未填 Key 时会自动改用镜像搜索与下载。</string>
+    <string name="cfg_mirror_hint">镜像 mod.mcimirror.top，接口兼容官方。没填 CurseForge Key 时自动走镜像搜索与下载。</string>
     <string name="cfg_migration">迁移默认值</string>
     <string name="cfg_default_version">默认 MC 版本</string>
     <string name="cfg_default_loader">默认加载器</string>
@@ -68,7 +68,7 @@
     <string name="cfg_privacy">隐私说明</string>
     <string name="cfg_licenses">第三方开源许可</string>
     <string name="cfg_auto_trans">自动翻译模组简介（前 10 条）</string>
-    <string name="cfg_trans_hint">调用 MyMemory 免费翻译接口（en→zh-CN），匿名约 5000 词/天。简介下方「译」按钮可单条翻译或切回原文。</string>
+    <string name="cfg_trans_hint">调用 MyMemory 免费接口（en→zh-CN），匿名约 5000 词/天。简介下方「译」按钮可单条翻译或切回原文。</string>
     <string name="trans_page">翻译</string>
     <string name="trans_page_title">翻译本页</string>
     <string name="cfg_crash_log">查看崩溃日志</string>
@@ -83,10 +83,10 @@
     <string name="account_hint_logged_out">后端可用，登录后可同步与下载</string>
     <string name="conn_blocked_hint">连不上后端：Cloudflare 在国内常被限速，不影响离线功能。换个网络或稍后再试。</string>
     <string name="cfg_offline">完全离线（断网）</string>
-    <string name="cfg_offline_hint">开启后不发任何网络请求：只用本地词典和已缓存译文，搜索与下载不可用，已装模组的迁移、配置编辑照常。注意这和「关掉后端」是两回事——关后端只是改成你自己填 Key 直连，仍然联网。</string>
+    <string name="cfg_offline_hint">开启后不发任何网络请求：搜索与下载不可用，迁移和编辑照常。与「关掉后端」不同——关后端只是改用你自己填的 Key 直连，仍然联网。</string>
     <string name="cfg_backend_base">后端主地址</string>
     <string name="cfg_backend_backup">后端兜底地址（主地址连不上时自动切换）</string>
-    <string name="cfg_backend_hint">留空则用默认地址。后端负责 GitHub 登录与 CurseForge 代理，所以不用自己申请 CurseForge Key。</string>
+    <string name="cfg_backend_hint">留空用默认地址。后端负责 GitHub 登录与 CurseForge 代理，不用自己申请 Key。</string>
     <string name="cfg_agg">聚合搜索（Modrinth + CurseForge 一起搜）</string>
     <string name="cfg_recommend">自动推荐（按当前实例版本与已装模组推荐）</string>
     <string name="cfg_workdir_hint">授权一个目录后，导出包、下载、配置备份、翻译缓存都放这里，方便你自己管理。</string>
@@ -98,7 +98,7 @@
     <string name="pick_src_after">选择「迁移后」的实例/目录</string>
     <string name="editor_title">配置编辑器</string>
     <string name="plugin_title">插件</string>
-    <string name="plugin_hint">插件是独立安装的 APK，声明响应约定广播即可被本应用识别并调用，宿主不需要预先认识插件的任何类。</string>
+    <string name="plugin_hint">插件是独立安装的 APK，声明响应约定广播即可被识别并调用，宿主不需要预先认识插件的任何类。</string>
     <string name="plugin_scan">扫描已安装插件</string>
     <string name="devs_title">开发者名单</string>
     <string name="tab_plugin">插件</string>
@@ -110,23 +110,21 @@
     <string name="pick_launcher_hint">从列表里认领你的启动器，之后按它的包名找数据目录。带「疑似启动器」标记的只是猜测，以你自己的判断为准。</string>
     <string name="pick_launcher_search">按名称或包名搜索</string>
     <string name="cfg_use_backend">使用后端（内置 CurseForge Key，自己不用申请）</string>
-    <string name="cfg_use_backend_hint">后端里已配好 CurseForge Key，开着时你什么都不用填。关掉表示不想依赖后端，请自己在下面填 Key，否则只能搜 Modrinth。</string>
-    <string name="cfg_cf_key_hint">不用后端时在这里填自己的 Key（console.curseforge.com 免费申请）。留空且关了后端，只走 Modrinth 与国内镜像。</string>
+    <string name="cfg_use_backend_hint">后端已配好 CurseForge Key，开着时不用自己填。关掉则请在下面填 Key，否则只能搜 Modrinth。</string>
+    <string name="cfg_cf_key_hint">不用后端时填自己的 Key（console.curseforge.com 免费申请）。留空则只走 Modrinth 与国内镜像。</string>
     <string name="cfg_cf_route_title">CurseForge 走哪条路</string>
     <string name="cfg_use_official_cf">官方直连（需自己填 Key）</string>
     <string name="cfg_cf_route_hint">这两条路互斥：开一个另一个会自动关上。「聚合」模式不受影响——两条都问，结果合并去重。</string>
     <string name="cfg_copy_callback">复制回调地址</string>
     <string name="cfg_gh_oauth">打开 GitHub 开发者设置</string>
-    <string name="cfg_callback_hint">后端按访问域名拼回调地址，走哪个域名就要在 GitHub 登记哪条。
-
-报 redirect_uri 不匹配：GitHub → Settings → Developer settings → OAuth Apps，在回调地址里加上当前域名这一条，两个都登记上。</string>
+    <string name="cfg_callback_hint">回调地址按访问域名拼，用哪个域名就要在 GitHub 登记哪条。报 redirect_uri 不匹配时，去 OAuth Apps 把当前域名加进回调列表。</string>
     <string name="scan_launcher_dir_hint">选启动器收版本的那个总文件夹（通常是 instances 或 versions），会自动钻进去找出里面的每个版本。</string>
     <string name="btn_scan_local2">扫描本机版本</string>
     <string name="panel_mode_login">账号密码</string>
     <string name="panel_mode_key">API 密钥</string>
     <string name="panel_user">面板账号（邮箱/用户名）</string>
     <string name="panel_pass">面板密码</string>
-    <string name="panel_auth_hint">用账号密码换 token。部分面板不支持直登，失败时改用 API 密钥：面板 → 账户 → API 凭据，生成 ptlc_ 开头的 Client Key。</string>
+    <string name="panel_auth_hint">用账号密码换 token。失败时改用 API 密钥：面板 → 账户 → API 凭据，生成 ptlc_ 开头的 Client Key。</string>
     <string name="panel_scan">扫描</string>
     <string name="panel_probe_dir">自动找目录</string>
     <string name="panel_dir_pick">面板里找到了这些目录，选择要扫描的：</string>
