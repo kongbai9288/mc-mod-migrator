@@ -1,4 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  迁移页重排。
+
+  原来的问题：
+    · 最上面两行是日志摘要和进度 —— 全局最不重要的信息，却占了首屏第一行，
+      而且默认显示"暂无日志"，一进来就看到一句没用的话。
+    · "开始迁移"是核心操作，却排在第 8 个，要滚两屏才够得着。
+    · 5 个复选项竖排占 5 行，9 个按钮不分主次地堆在一起。
+    · 模组列表被上面那一大坨推到页面最底下。
+
+  重排后：按「从哪来 → 到哪去 → 带什么 → 执行」的实际操作顺序走，
+  主操作和次要操作分开，日志一律挪到底部。
+
+  ⚠️ 所有 android:id 保持原样不变 —— MigrationFragment.kt 里 findViewById
+  拿的还是这些 id，改 id 会让整页空指针。这次只动结构和层级。
+-->
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -9,24 +25,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/tvLogSummary"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:background="@android:color/transparent"
-            android:text="暂无日志"
-            android:textColor="@color/textSecondary"
-            android:textSize="12sp" />
-
-        <TextView
-            android:id="@+id/tvProgress"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:visibility="gone"
-            android:textColor="@color/textSecondary"
-            android:textSize="12sp" />
-
+        <!-- 第一步：从哪来 -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -52,19 +51,28 @@
                     android:text="@string/empty_hint"
                     android:textColor="@color/textSecondary" />
 
-                <Button
-                    android:id="@+id/btnScanLocal"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/btn_scan_local" />
+                    android:layout_marginTop="6dp"
+                    android:orientation="horizontal">
 
-                <Button
-                    android:id="@+id/btnPickLauncher"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/cfg_pick_launcher" />
+                    <Button
+                        android:id="@+id/btnScanLocal"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/btn_scan_local" />
+
+                    <Button
+                        android:id="@+id/btnPickLauncher"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/cfg_pick_launcher" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/tvScanHint"
@@ -84,6 +92,7 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- 第二步：到哪去 -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -113,6 +122,7 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
                     android:orientation="horizontal">
 
                     <TextView
@@ -148,6 +158,7 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- 第三步：带什么。原来 5 个竖排占 5 行，改两列只要 3 行 -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -156,34 +167,94 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
+                android:orientation="horizontal"
                 android:padding="12dp">
 
-                <CheckBox android:id="@+id/cbConfig" android:layout_width="match_parent" android:layout_height="wrap_content" android:checked="true" android:text="@string/copy_config" />
-                <CheckBox android:id="@+id/cbScripts" android:layout_width="match_parent" android:layout_height="wrap_content" android:checked="true" android:text="@string/copy_scripts" />
-                <CheckBox android:id="@+id/cbOptions" android:layout_width="match_parent" android:layout_height="wrap_content" android:checked="true" android:text="@string/copy_options" />
-                <CheckBox android:id="@+id/cbPacks" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/copy_packs" />
-                <CheckBox android:id="@+id/cbSaves" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/copy_saves" />
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <CheckBox
+                        android:id="@+id/cbConfig"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:text="@string/copy_config" />
+
+                    <CheckBox
+                        android:id="@+id/cbScripts"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:text="@string/copy_scripts" />
+
+                    <CheckBox
+                        android:id="@+id/cbOptions"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:text="@string/copy_options" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <CheckBox
+                        android:id="@+id/cbPacks"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/copy_packs" />
+
+                    <CheckBox
+                        android:id="@+id/cbSaves"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/copy_saves" />
+                </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <Button
-            android:id="@+id/btnScan"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/btn_scan" />
-
-        <Button
-            android:id="@+id/btnDownloadAll"
-            style="@style/AppButtonOutlined"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/btn_download_all" />
-
+        <!-- 执行：主操作用实心按钮横排，不再埋在页面底部 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnScan"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/btn_scan" />
+
+            <Button
+                android:id="@+id/btnRun"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="@string/btn_run" />
+        </LinearLayout>
+
+        <!-- 次要操作：统一描边、三个一行，和上面的主操作明显区分 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnDownloadAll"
+                style="@style/AppButtonOutlined"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/btn_download_all" />
 
             <Button
                 android:id="@+id/btnDoctor"
@@ -202,14 +273,7 @@
                 android:text="@string/tool_diff" />
         </LinearLayout>
 
-        <Button
-            android:id="@+id/btnRun"
-            style="@style/AppButtonOutlined"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/btn_run" />
-
+        <!-- 进度：跑起来才显示，紧跟操作区，不用滚到底才看得见 -->
         <ProgressBar
             android:id="@+id/pb"
             style="?android:attr/progressBarStyleHorizontal"
@@ -219,6 +283,15 @@
             android:indeterminate="true"
             android:visibility="gone" />
 
+        <TextView
+            android:id="@+id/tvProgress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
+
+        <!-- 模组列表 -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -233,12 +306,21 @@
             android:nestedScrollingEnabled="false"
             android:overScrollMode="never" />
 
+        <!-- 日志：一律挪到最后。原来它俩在最顶上占着首屏 -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:text="@string/log_title"
             android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvLogSummary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="4dp"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
 
         <TextView
             android:id="@+id/tvLog"
