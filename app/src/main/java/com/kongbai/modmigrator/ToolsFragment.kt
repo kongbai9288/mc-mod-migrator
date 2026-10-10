@@ -37,12 +37,23 @@ class ToolsFragment : Fragment() {
         scroll.addView(root)
         // 一屏尽量多放几个入口：竖排大卡片二十几个要滚很久。
         // 改成方格网格；每组都带标题，不留没有标题的孤行。
-        root.addView(UiCards.sectionTitle(ctx, "检查"))
+        // ── 属于迁移流程的两组放最前面 ──────────────────────────
+        // 这些本来就是迁移过程中的步骤（体检 / 对比 / 开关 / 跨加载器 /
+        // 代码级迁移），之前混在世界、存储那一堆里，看不出跟迁移的关系。
+        // 标题直接写明「迁移」，并且在迁移页底部也有直达入口。
+        root.addView(UiCards.sectionTitle(ctx, "迁移 · 检查"))
         root.addView(UiCards.grid(ctx, 3, listOf(
             UiCards.tile(ctx, R.drawable.ic_check_circle, "模组体检") { doctor() },
             UiCards.tile(ctx, R.drawable.ic_extension, "依赖体检") { depCheck() },
             UiCards.tile(ctx, R.drawable.ic_content_copy, "配置对比") { diff() },
             UiCards.tile(ctx, R.drawable.ic_info, "崩溃日志") { showCrashLog() }
+        )))
+
+        root.addView(UiCards.sectionTitle(ctx, "迁移 · 模组处理"))
+        root.addView(UiCards.grid(ctx, 3, listOf(
+            UiCards.tile(ctx, R.drawable.ic_warning, "模组开关") { modToggle() },
+            UiCards.tile(ctx, R.drawable.ic_swap_horiz, "跨加载器") { crossLoader() },
+            UiCards.tile(ctx, R.drawable.ic_bolt, "代码级迁移") { codeMigrate() }
         )))
 
         root.addView(UiCards.sectionTitle(ctx, "世界与数据"))
@@ -51,13 +62,6 @@ class ToolsFragment : Fragment() {
             UiCards.tile(ctx, R.drawable.ic_inventory, "区块编辑器") { openMca() },
             UiCards.tile(ctx, R.drawable.ic_edit, "NBT 编辑器") { openNbt() },
             UiCards.tile(ctx, R.drawable.ic_code, "数据包") { openDatapack() }
-        )))
-
-        root.addView(UiCards.sectionTitle(ctx, "模组"))
-        root.addView(UiCards.grid(ctx, 3, listOf(
-            UiCards.tile(ctx, R.drawable.ic_warning, "模组开关") { modToggle() },
-            UiCards.tile(ctx, R.drawable.ic_swap_horiz, "跨加载器") { crossLoader() },
-            UiCards.tile(ctx, R.drawable.ic_bolt, "代码级迁移") { codeMigrate() }
         )))
 
         root.addView(UiCards.sectionTitle(ctx, "实例与整合包"))
