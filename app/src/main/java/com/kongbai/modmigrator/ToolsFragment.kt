@@ -188,7 +188,9 @@ class ToolsFragment : Fragment() {
                     // 找 .mca 时排除 poi/ 与 entities/：它们不存方块，
                     // 点开只能看到「没有方块数据」
                     val pn = c.parentFile?.name
-                    if (exts.contains(".mca") && (pn == "poi" || pn == "entities")) continue
+                    // 旧存档用 .mcr，同样要排除 poi/ entities/
+                    val wantRegion = exts.any { it == ".mca" || it == ".mcr" }
+                    if (wantRegion && (pn == "poi" || pn == "entities")) continue
                     out.add(labelOf(n, c) to c.uri)
                 }
             }
@@ -341,13 +343,16 @@ class ToolsFragment : Fragment() {
                 if (game.isNotBlank() && !game.startsWith("content://")) {
                     runCatching {
                         java.io.File(game).walkTopDown()
-                            .filter { it.isFile && it.name.endsWith(".mca") && isTerrain(it) }
+                            .filter {
+                                it.isFile && isTerrain(it) &&
+                                    (it.name.endsWith(".mca") || it.name.endsWith(".mcr"))
+                            }
                             .take(200)
                             .forEach { found.add(labelOf(it.name, it) to it) }
                     }
                 }
                 if (game.startsWith("content://")) {
-                    runCatching { collectSafNbt(ctx, game, found, listOf(".mca"), 6) }
+                    runCatching { collectSafNbt(ctx, game, found, listOf(".mca", ".mcr"), 6) }
                 }
                 if (found.isEmpty()) {
                     com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
@@ -420,7 +425,7 @@ class ToolsFragment : Fragment() {
                 if (c.isDirectory) {
                     if (cn == "poi" || cn == "entities") continue
                     walk(c, depth + 1, if (rel.isEmpty()) cn else "$rel/$cn")
-                } else if (cn.endsWith(".mca")) {
+                } else if (cn.endsWith(".mca") || cn.endsWith(".mcr")) {
                     val t = java.io.File(dir, if (rel.isEmpty()) cn else "$rel/$cn")
                     t.parentFile?.mkdirs()
                     runCatching {
