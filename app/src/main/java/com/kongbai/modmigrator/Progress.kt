@@ -17,7 +17,9 @@ object Progress {
         /** 已处理字节数，用来算速度 */
         val bytes: Long = 0,
         /** 任务开始时刻 */
-        val startedAt: Long = 0
+        val startedAt: Long = 0,
+        /** 是否处于暂停（由用户按下「暂停」） */
+        val paused: Boolean = false
     ) {
         val percent: Int
             get() = if (total <= 0) 0 else (current * 100 / total).coerceIn(0, 100)
@@ -47,13 +49,15 @@ object Progress {
         val text: String
             get() {
                 if (label.isBlank()) return ""
-                return if (total > 0) "$label（$current/$total）" else label
+                val base = if (total > 0) "$label（$current/$total）" else label
+                return if (paused) "$base · 已暂停" else base
             }
 
         /** 副标题：百分比 + 已用/剩余时间 + 速度，给进度条下面那行用 */
         val detail: String
             get() {
                 if (!running) return ""
+                if (paused) return "已暂停"
                 val sb = StringBuilder()
                 if (total > 0) sb.append(percent).append('%')
                 val el = elapsedMs
@@ -102,7 +106,8 @@ object Progress {
     /** 开始一个新任务 */
     @Synchronized
     fun start(label: String, total: Int = 0) {
-        state = State(true, 0, total, label, 0, System.currentTimeMillis())
+        clearControl()
+        state = State(true, 0, total, label, 0, System.currentTimeMillis(), false)
         fire()
     }
 
@@ -110,7 +115,7 @@ object Progress {
     fun update(label: String, current: Int = 0, total: Int = 0) {
         val keepStart = if (state.startedAt > 0) state.startedAt else System.currentTimeMillis()
         val tot = if (total > 0) total else state.total
-        state = State(true, current, tot, label, state.bytes, keepStart)
+        state = State(true, current, tot, label, state.bytes, keepStart, paused)
         fire()
     }
 
@@ -130,12 +135,78 @@ object Progress {
 
     @Synchronized
     fun done(label: String = "") {
-        state = State(false, 0, 0, label, state.bytes, 0)
+        clearControl()
+        state = State(false, 0, 0, label, state.bytes, 0, false)
         fire()
     }
 
     @Synchronized
     fun get(): State = state
+
+    // ── 暂停 / 取消 ──────────────────────────────────────────
+    // 迁移动辄几十个文件十几分钟，中途想停一下（省电、让网络给别的应用）
+    // 或者发现选错了目录想立刻中止，之前只能杀进程 ——
+    // 而杀进程会让断点记录留在磁盘上，下次打开还要问"要不要继续"。
+    // 这里给后台循环一个共同的检查点。
+    private var paused = false
+    private var canceled = false
+
+    @Synchronized
+    fun pause() {
+        if (!state.running) return
+        paused = true
+        state = state.copy(paused = true)
+        fire()
+    }
+
+    @Synchronized
+    fun resume() {
+        paused = false
+        state = state.copy(paused = false)
+        fire()
+    }
+
+    @Synchronized
+    fun cancel() {
+        canceled = true
+        paused = false
+        state = state.copy(paused = false)
+        fire()
+    }
+
+    /** 每次 start() 都必须清掉上一轮的暂停/取消状态 */
+    private fun clearControl() {
+        paused = false
+        canceled = false
+    }
+
+    @Synchronized
+    fun isPaused(): Boolean = paused
+
+    @Synchronized
+    fun isCanceled(): Boolean = canceled
+
+    /**
+     * 后台循环的暂停检查点。
+     * 暂停时在这里挂起；被取消时返回 true，调用方应当尽快退出。
+     *
+     * ⚠️ 只在循环的「项与项之间」调用：正在进行的那一个下载/复制
+     * 不会被强行打断（强行打断会留下半个文件，比等它写完更糟）。
+     */
+    fun awaitIfPaused(): Boolean {
+        while (true) {
+            val p: Boolean
+            val c: Boolean
+            synchronized(this) { p = paused; c = canceled }
+            if (c) return true
+            if (!p) return false
+            try {
+                Thread.sleep(200)
+            } catch (t: Throwable) {
+                return synchronized(this) { canceled }
+            }
+        }
+    }
 
     private fun fire() {
         for (h in hooks) {
