@@ -127,8 +127,12 @@ object McaStructures {
     private fun references(c: CompoundTag): List<String> {
         val out = ArrayList<String>()
         runCatching {
+            // 1.18 起搬到了根级并改成小写；1.13~1.17 还在 Level 下。
+            // 少认一层，那一段版本就只剩"按特征方块推断"，
+            // 而推断会把玩家自己盖的房子误报成遗迹。
             val st = c.getCompoundTag("Structures")
                 ?: c.getCompoundTag("structures")
+                ?: c.getCompoundTag("Level")?.getCompoundTag("Structures")
                 ?: return out
             val refs = st.getCompoundTag("References") ?: st.getCompoundTag("references")
             if (refs != null) {
