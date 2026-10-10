@@ -901,6 +901,13 @@ class MarketFragment : Fragment() {
 
     private fun downloadLink(l: MarkedLink) {
         val ctx = requireContext()
+        // 自定义链接通常是模组页面地址而不是文件直链。
+        // 直接拿页面地址去下载只会存下一个 HTML，失败提示也看不出原因。
+        // 不是直链就打开页面：页面里会分析出真正的下载链接供标记下载。
+        if (!PageParser.isFileLike(l.url)) {
+            openPageWith(l.url, l.title)
+            return
+        }
         toast("下载中…")
         bg {
             val dir = Targets.modsDir(ctx)
