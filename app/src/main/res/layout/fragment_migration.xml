@@ -241,6 +241,35 @@
                 android:text="@string/btn_run" />
         </LinearLayout>
 
+        <!-- 暂停 / 继续 / 中止：只在任务跑起来时显示。
+             迁移一次动辄十几分钟，中途要能让用户停下或彻底中止。
+             默认 gone，由代码控制显隐，避免静默占一行。 -->
+        <LinearLayout
+            android:id="@+id/rowPause"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/btnPause"
+                style="@style/AppButtonOutlined"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/btn_pause" />
+
+            <Button
+                android:id="@+id/btnCancelTask"
+                style="@style/AppButtonOutlined"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="@string/btn_cancel_task" />
+        </LinearLayout>
+
         <!-- 次要操作：统一描边、三个一行，和上面的主操作明显区分 -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -272,6 +301,15 @@
                 android:layout_weight="1"
                 android:text="@string/tool_diff" />
         </LinearLayout>
+
+        <!-- 直达工具箱里属于迁移的那些步骤（体检 / 对比 / 跨加载器…） -->
+        <Button
+            android:id="@+id/btnMigTools"
+            style="@style/AppButtonOutlined"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/btn_mig_tools" />
 
         <!-- 进度：跑起来才显示，紧跟操作区，不用滚到底才看得见 -->
         <ProgressBar
