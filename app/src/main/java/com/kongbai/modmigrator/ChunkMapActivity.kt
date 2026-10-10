@@ -366,7 +366,9 @@ class ChunkMapActivity : AppCompatActivity() {
         // 写成块体而不是 = try {…}：表达式体里不允许裸 return
         return try {
             val dir = File(filesDir, "mca-single").apply { mkdirs() }
-            val name = displayNameOf(uri)?.takeIf { it.endsWith(".mca") } ?: "r.0.0.mca"
+            val name = displayNameOf(uri)?.takeIf {
+        it.endsWith(".mca") || it.endsWith(".mcr")
+    } ?: "r.0.0.mca"
             // 同名会互相覆盖，先清掉旧的
             dir.listFiles()?.forEach { if (it.name != name) it.delete() }
             val f = File(dir, name)
