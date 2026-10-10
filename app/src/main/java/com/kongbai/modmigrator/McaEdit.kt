@@ -224,7 +224,37 @@ object McaEdit {
      * 界面弹"这个区块里没有方块数据（可能是空区块）"。
      * 这正是"点了全提示无数据"的主因。
      */
-    class Sec(var y: Int, val tag: CompoundTag) {
+    /**
+     * 1.13 扁平化之前的方块数据有两种布局，索引顺序**不一样**。
+     * 这两个值是在真实存档样本（Beta 1.3 / 1.2.1）上实测出来的，
+     * 写反了地形会变成水平条纹 —— 这个错误极其隐蔽，别凭猜改。
+     */
+    enum class RawMode {
+        /** 有调色板的现代写法，下面的 raw 字段为 null */
+        NONE,
+
+        /**
+         * Beta 1.3（.mcr）：整个区块柱 16×16×128 存在**一个**字节数组里，
+         * 索引 = (x*16 + z) * 世界高度 + y —— **y 变化最快**（按列存）。
+         */
+        FLAT_Y_FAST,
+
+        /**
+         * 1.2.1 起（Anvil 早期）：每个 section 一个 16³ 字节数组，
+         * 索引 = (y*16 + z)*16 + x —— **x 变化最快**，和现代位打包顺序一致。
+         */
+        SECTION_X_FAST
+    }
+
+    class Sec(
+        var y: Int,
+        val tag: CompoundTag,
+        /** 无调色板时的方块数字 ID 数组；现代写法为 null */
+        val raw: ByteArray? = null,
+        val rawMode: RawMode = RawMode.NONE,
+        /** [RawMode.FLAT_Y_FAST] 下本 section 的 y 起始（整柱被切成若干段） */
+        val yBase: Int = 0
+    ) {
         val holder: CompoundTag = tag.getCompoundTag("block_states") ?: tag
         val paletteKey: String = if (tag.getCompoundTag("block_states") != null) "palette" else "Palette"
         val dataKey: String = if (tag.getCompoundTag("block_states") != null) "data" else "BlockStates"
@@ -247,8 +277,61 @@ object McaEdit {
     private fun secY(c: CompoundTag): Int =
         (c.get("Y") as? NumberTag)?.getValue()?.toInt() ?: Int.MIN_VALUE
 
+    /**
+     * 识别 1.13 之前的两种「数字 ID 数组」布局，填进 [out]。
+     *
+     * @return true 表示已按旧格式填好，调用方直接返回；false 表示不是旧格式
+     *
+     * 之所以放在调色板分支**之前**：Beta 1.3 的区块里既没有 sections
+     * 也没有 Palette，只有 Level.Blocks 一整个字节数组。
+     * 不先挡住的话，它会一路走到"没有方块数据"的兜底提示上 ——
+     * 这正是老存档打开就是一片空的直接原因。
+     */
+    private fun flatSections(chunk: CompoundTag, out: MutableList<Sec>): Boolean {
+        val lv = chunk.getCompoundTag("Level") ?: chunk
+
+        // ① Beta 1.3：整个区块柱一个数组（16×16×128 = 32768 字节）
+        val flat = (lv.get("Blocks") as? com.viaversion.nbt.tag.ByteArrayTag)?.getValue()
+        if (flat != null && flat.size >= 256 && flat.size % 256 == 0) {
+            val height = flat.size / 256
+            var s = 0
+            while (s * 16 < height) {
+                // 按 16 高切成若干段，界面翻层才能一层层看
+                out.add(Sec(s, chunk, flat, RawMode.FLAT_Y_FAST, s * 16))
+                s++
+            }
+            return out.isNotEmpty()
+        }
+
+        // ② 1.2.1 ~ 1.12：section 里是 Blocks 字节数组，没有 Palette
+        val secs = lv.getListTag("Sections")
+        if (secs != null) {
+            var any = false
+            var idx = 0
+            for (t in secs.getValue()) {
+                val c = t as? CompoundTag ?: continue
+                val arr = (c.get("Blocks") as? com.viaversion.nbt.tag.ByteArrayTag)?.getValue()
+                if (arr != null && arr.size >= 4096) {
+                    var y = secY(c)
+                    // Y 读不到就按出现顺序推，总比整段丢掉强
+                    if (y == Int.MIN_VALUE) y = idx
+                    out.add(Sec(y, c, arr, RawMode.SECTION_X_FAST, 0))
+                    any = true
+                }
+                idx++
+            }
+            if (any) return true
+        }
+        return false
+    }
+
     fun sections(chunk: CompoundTag): List<Sec> {
         val out = ArrayList<Sec>()
+        // ① 旧格式优先：存的是数字 ID 字节数组，压根没有调色板可谈
+        if (flatSections(chunk, out)) {
+            out.sortByDescending { it.y }
+            return out
+        }
         val modern = chunk.getListTag("sections")
         if (modern != null) {
             for (t in modern.getValue()) {
@@ -329,7 +412,38 @@ object McaEdit {
         return ((d[li] ushr off) and ((1L shl bits) - 1L)).toInt()
     }
 
+    /** 旧格式某格的数字 ID 在数组里的下标 */
+    private fun rawIndexOf(sec: Sec, x: Int, y: Int, z: Int): Int {
+        val a = sec.raw ?: return -1
+        return when (sec.rawMode) {
+            RawMode.FLAT_Y_FAST -> (x * 16 + z) * (a.size / 256) + (sec.yBase + y)
+            RawMode.SECTION_X_FAST -> (y * 16 + z) * 16 + x
+            RawMode.NONE -> -1
+        }
+    }
+
+    /**
+     * 旧格式某格的方块数字 ID（含扩展 ID 高位）。
+     * 有 `Add` / `AddBlocks` 时把高 4 位拼上，没有就当 0。
+     */
+    fun rawIdAt(sec: Sec, x: Int, y: Int, z: Int): Int {
+        val a = sec.raw ?: return 0
+        val i = rawIndexOf(sec, x, y, z)
+        if (i < 0 || i >= a.size) return 0
+        var id = a[i].toInt() and 0xFF
+        val add = (sec.tag.get("Add") as? com.viaversion.nbt.tag.ByteArrayTag)?.getValue()
+            ?: (sec.tag.get("AddBlocks") as? com.viaversion.nbt.tag.ByteArrayTag)?.getValue()
+        if (add != null && add.size > i / 2) {
+            val hi = if (i % 2 == 0) add[i / 2].toInt() and 0x0F
+            else (add[i / 2].toInt() shr 4) and 0x0F
+            id = id or (hi shl 8)
+        }
+        return id
+    }
+
     fun blockAt(sec: Sec, x: Int, y: Int, z: Int): String {
+        // 旧格式：数字 ID → 现代方块名，交给渲染器按名字取颜色
+        if (sec.raw != null) return McaLegacyIds.nameOf(rawIdAt(sec, x, y, z))
         val names = paletteNames(sec)
         if (names.isEmpty()) return "minecraft:air"
         if (names.size == 1) return names[0]
@@ -346,6 +460,22 @@ object McaEdit {
      * 只改目标那几位会把后面所有格子的方块打乱（表现为整片地形错乱）。
      */
     fun setBlock(sec: Sec, x: Int, y: Int, z: Int, name: String) {
+        // 旧格式：没有调色板，直接改字节数组里那个数字 ID
+        val raw = sec.raw
+        if (raw != null) {
+            val id = McaLegacyIds.idOf(name)
+            // 映射不到就跳过，写个错的方块进去比不改更糟
+            if (id < 0 || id > 255) return
+            val i = rawIndexOf(sec, x, y, z)
+            if (i < 0 || i >= raw.size) return
+            raw[i] = id.toByte()
+            // 扁平型整柱挂在 Level 下，section 型就挂在 section 自己上
+            val target: CompoundTag =
+                if (sec.rawMode == RawMode.FLAT_Y_FAST) sec.tag.getCompoundTag("Level") ?: sec.tag
+                else sec.tag
+            target.put("Blocks", com.viaversion.nbt.tag.ByteArrayTag(raw))
+            return
+        }
         @Suppress("UNCHECKED_CAST")
         val lt = sec.holder.getListTag(sec.paletteKey) as? ListTag<Tag> ?: return
         val oldNames = paletteNames(sec)
