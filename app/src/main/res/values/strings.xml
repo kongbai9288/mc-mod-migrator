@@ -22,6 +22,10 @@
     <string name="hint_query">搜索模组，如 jei</string>
     <string name="btn_scan">扫描并生成迁移方案</string>
     <string name="btn_run">执行迁移</string>
+    <string name="btn_pause">暂停</string>
+    <string name="btn_mig_tools">迁移相关工具</string>
+    <string name="btn_resume">继续</string>
+    <string name="btn_cancel_task">中止</string>
     <string name="btn_search">搜索</string>
     <string name="btn_add_link">手动添加下载链接</string>
     <string name="btn_open_page">打开模组页面</string>
