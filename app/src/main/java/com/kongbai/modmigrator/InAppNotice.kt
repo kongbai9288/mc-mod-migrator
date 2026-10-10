@@ -382,18 +382,6 @@ object InAppNotice {
 }
 
 /**
- * 统一提示入口。
- *
- * 原先散落上百处底部小弹窗：被内容挡住看不见、内容长就截断。
- * 这里统一收口到应用内卡片 [InAppNotice]。
- *
- * 只有拿不到 Activity（Service 上下文，浮层挂不上）时才退回系统小弹窗。
- */
-object Tips {
-
-    fun ok(ctx: android.content.Context?, msg: String) {
-        if (!notice(ctx, "完成", msg, 2600)) toast(ctx, msg)
-    }
 
     fun err(ctx: android.content.Context?, msg: String) {
         if (!notice(ctx, "出错了", msg, 6000)) toast(ctx, msg)
