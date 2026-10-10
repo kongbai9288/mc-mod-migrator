@@ -11,6 +11,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.TextView
@@ -20,6 +21,7 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import java.util.Locale
 import java.util.concurrent.Executors
 
 
@@ -99,6 +101,9 @@ class MigrationFragment : Fragment() {
                 tvProgress.text = if (det.isBlank()) main else "$main\n$det"
                 tvProgress.visibility =
                     if (st.running && main.isNotBlank()) View.VISIBLE else View.GONE
+                rowPause?.visibility = if (st.running) View.VISIBLE else View.GONE
+                btnPause?.text = if (st.paused) "继续" else "暂停"
+                btnCancelTask?.visibility = if (st.running) View.VISIBLE else View.GONE
             }
         }
         if (Looper.myLooper() == Looper.getMainLooper()) doIt() else handler.post { doIt() }
@@ -239,6 +244,9 @@ class MigrationFragment : Fragment() {
     }
 
     private lateinit var tvProgress: TextView
+    private var rowPause: LinearLayout? = null
+    private var btnPause: Button? = null
+    private var btnCancelTask: Button? = null
 
     /** 展示运行日志 */
     private fun showAllLogs() {
@@ -345,6 +353,12 @@ class MigrationFragment : Fragment() {
         // 保留一行。
         v.findViewById<Button>(R.id.btnDownloadAll)?.setOnClickListener { downloadAll() }
         v.findViewById<Button>(R.id.btnRun).setOnClickListener { runMigration() }
+        rowPause = v.findViewById(R.id.rowPause)
+        btnPause = v.findViewById(R.id.btnPause)
+        btnCancelTask = v.findViewById(R.id.btnCancelTask)
+        v.findViewById<Button>(R.id.btnMigTools)?.setOnClickListener { openMigrationTools() }
+        btnPause?.setOnClickListener { togglePause() }
+        btnCancelTask?.setOnClickListener { cancelTask() }
         v.findViewById<Button>(R.id.btnDoctor).setOnClickListener { runDoctor() }
         v.findViewById<Button>(R.id.btnDiff).setOnClickListener { runDiff() }
 
@@ -689,8 +703,36 @@ class MigrationFragment : Fragment() {
         }
     }
 
+    /**
+     * 从已装模组的文件名推断加载器。
+     *
+     * 手机启动器（FCL / Pojav / Zalith）的实例目录里通常**没有**
+     * mmc-pack.json / manifest.json 这类清单文件，加载器信息只体现在
+     * mods 目录里的文件名上（sodium-fabric-xxx.jar、jei-1.20.1-forge.jar）。
+     * 之前这三种清单都找不到就直接放弃，加载器一直停在「自动」——
+     * 后面的版本匹配也就跟着错。
+     *
+     * 按文件名投票，出现最多的那个胜出。
+     */
+    private fun detectLoaderFromMods(root: DocumentFile): String {
+        val mods = runCatching { Fs.find(root, "mods") }.getOrNull() ?: return "auto"
+        val files = runCatching { mods.listFiles() }.getOrNull() ?: return "auto"
+        val votes = HashMap<String, Int>()
+        for (f in files) {
+            val n = (f.name ?: "").lowercase(Locale.ROOT)
+            if (!n.endsWith(".jar") && !n.endsWith(".jar.disabled")) continue
+            val ld = Loaders.normalize(n)
+            if (ld == "auto") continue
+            votes[ld] = (votes[ld] ?: 0) + 1
+        }
+        if (votes.isEmpty()) return "auto"
+        return votes.entries.maxByOrNull { it.value }?.key ?: "auto"
+    }
+
     private fun detectSource(root: DocumentFile) {
         val ctx = requireContext()
+        // 清单文件常常不存在，先从 mods 目录拿一个兜底结论
+        val modsLoader = detectLoaderFromMods(root)
         val mmc = Fs.find(root, "mmc-pack.json")
         if (mmc != null) {
             val o = Json.obj(Fs.readText(ctx, mmc))
@@ -710,12 +752,13 @@ class MigrationFragment : Fragment() {
                     }
                 }
             }
+            val finalLoader = if (loader == "auto") modsLoader else loader
             if (mc.isNotBlank()) {
                 safePost(handler) {
                     etVersion.setText(mc)
-                    selectLoader(loader)
+                    selectLoader(finalLoader)
                 }
-                log("识别到 MC $mc / $loader（MultiMC/Prism 实例）")
+                log("识别到 MC $mc / $finalLoader（MultiMC/Prism 实例）")
                 return
             }
         }
@@ -736,12 +779,13 @@ class MigrationFragment : Fragment() {
                     else -> "auto"
                 }
             }
+            val finalLoader = if (loader == "auto") modsLoader else loader
             if (mc.isNotBlank()) {
                 safePost(handler) {
                     etVersion.setText(mc)
-                    selectLoader(loader)
+                    selectLoader(finalLoader)
                 }
-                log("识别到 MC $mc / $loader（CurseForge 清单）")
+                log("识别到 MC $mc / $finalLoader（CurseForge 清单）")
                 return
             }
         }
@@ -750,10 +794,20 @@ class MigrationFragment : Fragment() {
             val o = Json.obj(Fs.readText(ctx, vj))
             val id = Json.s(o, "id")
             if (id.isNotBlank()) {
-                safePost(handler) { etVersion.setText(id) }
-                log("识别到 MC $id（version.json）")
+                safePost(handler) {
+                    etVersion.setText(id)
+                    // 清单里没有加载器信息，用 mods 目录的推断结果补上
+                    if (modsLoader != "auto") selectLoader(modsLoader)
+                }
+                log("识别到 MC $id / $modsLoader（version.json + 模组推断）")
                 return
             }
+        }
+        // 清单都没有，但模组文件名能认出加载器的话，至少把加载器定下来
+        if (modsLoader != "auto") {
+            safePost(handler) { selectLoader(modsLoader) }
+            log("未找到版本清单，按已装模组推断加载器：$modsLoader。MC 版本仍需手动填写")
+            return
         }
         log("未能自动识别版本，请手动填写目标 MC 版本")
     }
@@ -767,7 +821,13 @@ class MigrationFragment : Fragment() {
             return
         }
         val mc = etVersion.text.toString().trim()
-        val loader = spLoader.selectedItem?.toString() ?: "auto"
+        // ⚠️ 不能读 selectedItem.toString()：Spinner 拿到的是适配器里那一项，
+        // 一旦适配器换成显示「Fabric/Forge」这类标签文字（而不是标准名），
+        // 传出去的就是 "Fabric" 而不是 "fabric"，
+        // API 过滤时直接查不到任何结果 —— 表现为"扫描出来 0 个"
+        // 或"给的全是另一个加载器的版本"，也就是加载器不对。
+        // 统一走 LoaderSpinner.value()，它返回的一定是标准名。
+        val loader = LoaderSpinner.value(spLoader)
         if (mc.isBlank()) {
             toast("请填写目标 MC 版本")
             return
@@ -1183,6 +1243,59 @@ class MigrationFragment : Fragment() {
      * 2. 全程汇报进度：阶段名 + 第几个/共几个 + 已用时间 + 预计剩余，
      *    之前只有个转圈，用户不知道进行到哪、还要多久。
      */
+    /**
+     * 打开工具箱里属于迁移的那些步骤。
+     *
+     * 体检、依赖体检、配置对比、模组开关、跨加载器、代码级迁移
+     * 本来都是迁移流程里的环节，之前只在工具箱里有，
+     * 从迁移页过去要退回「更多」再找一层。这里给个直达入口。
+     */
+    private fun openMigrationTools() {
+        val ctx = context ?: return
+        try {
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, ToolsFragment())
+                .addToBackStack("tools")
+                .commit()
+        } catch (t: Throwable) {
+            Err.fail(t, "打开工具箱")
+            Tips.short(ctx, "打不开工具箱，请从「更多」进入")
+        }
+    }
+
+    /** 暂停 / 继续。只改标志位，正在进行的那一个下载会写完再停。 */
+    private fun togglePause() {
+        if (!Progress.get().running) return
+        if (Progress.isPaused()) {
+            Progress.resume()
+            log("已继续")
+        } else {
+            Progress.pause()
+            log("已暂停（当前这一步完成后停下）")
+        }
+        syncPauseButtons()
+    }
+
+    /** 中止：停止后续所有步骤。已复制/已下载的文件保留。 */
+    private fun cancelTask() {
+        if (!Progress.get().running) return
+        Progress.cancel()
+        log("已请求中止，正在收尾…")
+        syncPauseButtons()
+    }
+
+    private fun syncPauseButtons() {
+        val st = Progress.get()
+        val btn = btnPause ?: return
+        val row = rowPause ?: return
+        val show = st.running
+        safePost(handler) {
+            row.visibility = if (show) View.VISIBLE else View.GONE
+            btn.text = if (Progress.isPaused()) getString(R.string.btn_resume)
+            else getString(R.string.btn_pause)
+        }
+    }
+
     private fun runMigration() {
         val ctx = requireContext()
         val p = Prefs.get(ctx)
@@ -1255,6 +1368,13 @@ class MigrationFragment : Fragment() {
             if (wantSaves) steps.add(Pair("saves", "存档"))
 
             for ((idx, step) in steps.withIndex()) {
+                // 每项之间检查一次：暂停就挂起，取消就退出
+                if (Progress.awaitIfPaused()) {
+                    log("已中止：${step.second} 未复制")
+                    Progress.done("已中止")
+                    safePost(handler) { pb.visibility = View.GONE }
+                    return@bg
+                }
                 Progress.update("复制${step.second}", idx, steps.size)
                 log("复制${step.second}…")
                 Fs.find(src, step.first)?.let {
@@ -1306,6 +1426,11 @@ class MigrationFragment : Fragment() {
             // 记录每一项失败的原因，最后统一告诉用户哪些没下成、为什么
             val failed = java.util.Collections.synchronizedList(ArrayList<String>())
             for (m in todo) {
+                // 已经在跑的那些会写完，但不再往池子里投新的
+                if (Progress.awaitIfPaused()) {
+                    log("已中止：还剩 ${todo.size - doneCnt.get()} 个没下载")
+                    break
+                }
                 pool.submit {
                     val name = m.targetFileName.ifBlank { Downloader.guessName(m.targetUrl) }
                     var err = ""
@@ -1343,8 +1468,17 @@ class MigrationFragment : Fragment() {
             val ok = okCnt.get()
             val total = todo.size
             val bad = ArrayList(failed)
-            // 走到这里说明这一轮已经跑完（哪怕有失败的），
-            // 清掉断点记录，下次不再提示"要不要继续"。
+            // ⚠️ 只有真正跑完才清断点记录。
+            // 被中止时磁盘上必须留着记录：下次打开才问"要不要接着做"，
+            // 已下好的不重复下。之前不管跑完还是中止都清，
+            // 等于把"续做"这个功能废掉了。
+            if (Progress.isCanceled()) {
+                Progress.done("已中止")
+                log("已中止：已完成 $ok/$total")
+                safePost(handler) { pb.visibility = View.GONE }
+                Notifier.show(ctx, "迁移已中止", "已完成 $ok/$total，下次可继续")
+                return@bg
+            }
             Resume.finish(ctx)
             Progress.done("迁移完成：模组 $ok/$total")
             log("迁移完成：模组 $ok/$total")
