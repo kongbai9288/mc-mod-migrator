@@ -57,8 +57,10 @@ object McaWorld {
             for (f in files) {
                 if (!f.isFile) continue
                 val n = f.name
-                // .mcc 是早已废弃的分离式区块文件，游戏现在也不会读
-                if (!n.endsWith(".mca")) continue
+                // .mcr 是 Beta 1.3 及更早的旧 Region 格式，区块数据布局不同，
+                // 但扇区表和 .mca 一致，所以同样要列出来（解析层已分版本处理）。
+                // .mcc 是早已废弃的分离式区块文件，游戏现在也不会读。
+                if (!n.endsWith(".mca") && !n.endsWith(".mcr")) continue
                 val c = parseName(n) ?: continue
                 out.add(Ref(c.first, c.second, f))
             }
@@ -72,7 +74,7 @@ object McaWorld {
         fun sizeBytes(): Long = regions().sumOf { it.file.length() }
     }
 
-    /** r.-1.0.mca → (-1, 0) */
+    /** r.-1.0.mca / r.-1.0.mcr → (-1, 0)。两种扩展名都要认，旧存档是 .mcr。 */
     private fun parseName(n: String): Pair<Int, Int>? {
         val p = n.split('.')
         if (p.size < 4) return null
@@ -153,7 +155,8 @@ object McaWorld {
      * 坐标只能当作单个区域处理，没有世界上下文。
      */
     fun fromSingleFile(f: File): Dim? {
-        if (!f.isFile || !f.name.endsWith(".mca")) return null
+        if (!f.isFile) return null
+        if (!f.name.endsWith(".mca") && !f.name.endsWith(".mcr")) return null
         val c = parseName(f.name) ?: return null
         val d = f.parentFile ?: return null
         val dim = Dim("_single", "单个区域文件", d)
