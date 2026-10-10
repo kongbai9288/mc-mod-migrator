@@ -325,7 +325,7 @@ class MainActivity : AppCompatActivity() {
         var f = fm.findFragmentByTag(tag)
         if (f == null) {
             f = try {
-                if (key == "more") MoreFragment() else NavConfig.find(key)?.make()
+                if (key == "more") MoreFragment() else NavConfig.find(key)?.make?.invoke()
             } catch (t: Throwable) {
                 Err.ignore(t, "创建页面 $key")
                 null
