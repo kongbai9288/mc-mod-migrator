@@ -235,7 +235,7 @@
 
             <Button
                 android:id="@+id/btnPause"
-                style="@style/AppButton.Outline"
+                style="@style/AppButtonOutlined"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -243,7 +243,7 @@
 
             <Button
                 android:id="@+id/btnCancelTask"
-                style="@style/AppButton.Outline"
+                style="@style/AppButtonOutlined"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
@@ -254,7 +254,7 @@
         <!-- 迁移相关工具：把散在工具箱里的迁移类功能从这一页直接够到 -->
         <Button
             android:id="@+id/btnMigTools"
-            style="@style/AppButton.Outline"
+            style="@style/AppButtonOutlined"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
