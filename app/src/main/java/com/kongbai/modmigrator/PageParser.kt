@@ -5,7 +5,7 @@ import java.util.Locale
 
 object PageParser {
 
-    private val HOSTS = listOf(
+    val HOSTS = listOf(
         "mediafilez.forgecdn.net", "media.forgecdn.net", "cdn.modrinth.com",
         "github.com", "objects.githubusercontent.com", "mediafire.com",
         "mega.nz", "drive.google.com", "gitee.com", "lanzou", "1drv.ms"
@@ -43,6 +43,23 @@ object PageParser {
         }
         scored.sortByDescending { it.first }
         return scored.take(limit).map { it.second }
+    }
+
+    /**
+     * 这个地址是不是「文件直链」。
+     *
+     * 用户自己粘贴进来的多半是**模组页面地址**（modrinth.com/mod/xxx），
+     * 而不是文件直链。之前拿它直接去下载，拿到的是一整个 HTML 页面，
+     * 存下来既不是 jar 也不是 zip，失败时还只提示一句
+     * "可能是网盘/需浏览器页面" —— 用户根本不知道下一步该干什么。
+     *
+     * 现在用它来分流：是直链就直接下，不是就打开页面让它自己找下载链接。
+     */
+    fun isFileLike(url: String): Boolean {
+        val h = url.lowercase(Locale.ROOT).substringBefore('#')
+        val path = h.substringBefore('?')
+        if (path.endsWith(".jar") || path.endsWith(".zip") || path.endsWith(".mrpack")) return true
+        return HOSTS.any { h.contains(it) }
     }
 
     fun score(href: String, text: String): Int {
