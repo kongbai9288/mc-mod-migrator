@@ -159,6 +159,51 @@ object InstanceScanner {
         }
     }
 
+    /**
+     * 从 version.json 的 **patches 数组**里认加载器。
+     *
+     * ⚠️ 之前这里只取了顶层的 `id`（那是 MC 版本或自定义版本名），
+     * 加载器信息一直没被读出来 —— 而 version.json 恰恰是
+     * 手机启动器（Pojav / FCL / Zalith）最常用的实例描述文件，
+     * 于是这些实例的加载器常年停在「自动」，筛查结果自然不对。
+     *
+     * 真实结构（HMCL / Pojav 系）：
+     *   { "id":"1.20.1", "patches":[ {"id":"game",...},
+     *                                {"id":"fabric-loader","version":"0.14.21"} ] }
+     * 加载器藏在 patches[].id 里，可能有多个，取第一个认得出的。
+     */
+    private fun loaderFromPatches(o: com.google.gson.JsonElement?): String {
+        val arr = Json.a(o, "patches") ?: return "auto"
+        val cands = ArrayList<String>()
+        for (e in arr) {
+            val id = Json.s(e, "id")
+            val n = Loaders.normalize(id)
+            if (n != "auto") cands.add(n)
+        }
+        if (cands.isEmpty()) return "auto"
+        // 一个实例只会有一个加载器；万一 patches 里出现多个
+        // （比如同时带了 fabric 与 forge 的库），按"更具体的优先"挑，
+        // 免得被列表中靠后的那个覆盖成错的。
+        return pickLoader(cands)
+    }
+
+    /**
+     * 多个候选里挑一个。
+     *
+     * 优先级按"越具体越可信"排：cleanroom / neoforge / quilt 这类
+     * 是从 forge / fabric 派生的，识别到就该以它为准 ——
+     * 否则会被后面的宽泛项（forge / fabric）盖掉。
+     */
+    private fun pickLoader(cands: List<String>): String {
+        val rank = listOf(
+            "cleanroom", "neoforge", "quilt", "legacy_fabric", "babric",
+            "ornithe", "liteloader", "rift", "risugami_modloader",
+            "nilloader", "bta", "java_agent", "optifine", "fabric", "forge"
+        )
+        for (r in rank) if (r in cands) return r
+        return cands.first()
+    }
+
     fun readInfo(ctx: Context, dir: DocumentFile): InstanceInfo? {
         val name = dir.name ?: return null
         val info = InstanceInfo(name = name, uri = dir.uri.toString())
@@ -168,6 +213,14 @@ object InstanceScanner {
             val o = Json.obj(Fs.readText(ctx, mmc))
             val comps = Json.a(o, "components")
             if (comps != null) {
+                //
+                // ⚠️ 之前是"认出一个就覆盖 info.loader"，
+                // 于是结果取决于 components 的排列顺序：
+                // 同时出现多个加载器相关条目时，最后一个说的算，
+                // 而它未必是真正的那一个。
+                // 现在先全部收集，再按"越具体越可信"挑一个。
+                //
+                val cands = ArrayList<String>()
                 for (c in comps) {
                     val uid = Json.s(c, "uid")
                     val ver = Json.s(c, "version")
@@ -175,10 +228,11 @@ object InstanceScanner {
                         uid == "net.minecraft" -> info.mcVersion = ver
                         else -> {
                             val n = Loaders.normalize(uid)
-                            if (n != "auto") info.loader = n
+                            if (n != "auto") cands.add(n)
                         }
                     }
                 }
+                if (cands.isNotEmpty()) info.loader = pickLoader(cands)
             }
             info.kind = "MultiMC/Prism"
         }
@@ -197,9 +251,22 @@ object InstanceScanner {
         }
 
         val vj = Fs.find(dir, "version.json", 0)
-        if (vj != null && info.mcVersion.isBlank()) {
-            info.mcVersion = Json.s(Json.obj(Fs.readText(ctx, vj)), "id")
-            info.kind = "原版/Forge"
+        if (vj != null) {
+            val o = Json.obj(Fs.readText(ctx, vj))
+            if (info.mcVersion.isBlank()) info.mcVersion = Json.s(o, "id")
+            // 顶层 id 有时是 "1.20.1-fabric" 这种自定义名，
+            // 有时只是 "1.20.1"。真正的加载器在 patches 里。
+            val fromTop = Loaders.normalize(Json.s(o, "id"))
+            val fromPatches = loaderFromPatches(o)
+            if (fromPatches != "auto") info.loader = fromPatches
+            else if (fromTop != "auto") info.loader = fromTop
+            else if (info.loader == "auto") {
+                // 顶层 id 里没写加载器，再看版本字段和主类名（Forge 的 mainClass 很特征）
+                info.loader = Loaders.normalize(Json.s(o, "version")) .let {
+                    if (it != "auto") it else Loaders.normalize(Json.s(o, "mainClass"))
+                }
+            }
+            if (info.kind.isBlank()) info.kind = "原版/Forge"
         }
 
         val mods = Fs.find(dir, "mods", 0)
@@ -356,6 +423,14 @@ object InstanceScanner {
             val o = Json.obj(readFileText(mmc))
             val comps = Json.a(o, "components")
             if (comps != null) {
+                //
+                // ⚠️ 之前是"认出一个就覆盖 info.loader"，
+                // 于是结果取决于 components 的排列顺序：
+                // 同时出现多个加载器相关条目时，最后一个说的算，
+                // 而它未必是真正的那一个。
+                // 现在先全部收集，再按"越具体越可信"挑一个。
+                //
+                val cands = ArrayList<String>()
                 for (c in comps) {
                     val uid = Json.s(c, "uid")
                     val ver = Json.s(c, "version")
@@ -363,10 +438,11 @@ object InstanceScanner {
                         uid == "net.minecraft" -> info.mcVersion = ver
                         else -> {
                             val n = Loaders.normalize(uid)
-                            if (n != "auto") info.loader = n
+                            if (n != "auto") cands.add(n)
                         }
                     }
                 }
+                if (cands.isNotEmpty()) info.loader = pickLoader(cands)
             }
             info.kind = "MultiMC/Prism"
         }
@@ -385,9 +461,19 @@ object InstanceScanner {
         }
 
         val vj = map["version.json"]
-        if (vj != null && vj.isFile && info.mcVersion.isBlank()) {
-            info.mcVersion = Json.s(Json.obj(readFileText(vj)), "id")
-            info.kind = "原版/Forge"
+        if (vj != null && vj.isFile) {
+            val o = Json.obj(readFileText(vj))
+            if (info.mcVersion.isBlank()) info.mcVersion = Json.s(o, "id")
+            val fromTop = Loaders.normalize(Json.s(o, "id"))
+            val fromPatches = loaderFromPatches(o)
+            if (fromPatches != "auto") info.loader = fromPatches
+            else if (fromTop != "auto") info.loader = fromTop
+            else if (info.loader == "auto") {
+                info.loader = Loaders.normalize(Json.s(o, "version")).let {
+                    if (it != "auto") it else Loaders.normalize(Json.s(o, "mainClass"))
+                }
+            }
+            if (info.kind.isBlank()) info.kind = "原版/Forge"
         }
 
         val cfg = map["instance.cfg"]

@@ -206,9 +206,7 @@ class MainActivity : AppCompatActivity() {
         val page = currentPage
         if (page.isBlank()) return
         LogCenter.w("Main", "页面内容为空，重建「$page」")
-        if (page == "more") { replace(MoreFragment()); return }
-        val p = NavConfig.find(page) ?: return
-        replace(try { p.make() } catch (t: Throwable) { MigrationFragment() })
+        showTab(page)
     }
 
     /** 当前一级页 key，空白重建时用 */
@@ -300,22 +298,70 @@ class MainActivity : AppCompatActivity() {
         clearChildStack()
         syncNavSelection(id)
 
-        if (id == ID_MORE) {
-            replace(MoreFragment())
-            return
+        val key = if (id == ID_MORE) "more" else (NavConfig.keyOfId(id) ?: return)
+        showTab(key)
+    }
+
+    /** 当前显示的一级页 key */
+    private var currentTabKey: String = ""
+
+    /**
+     * 显示一级页 —— **缓存复用，不再每次重建**。
+     *
+     * 之前每次切 tab 都 new 一个 Fragment 再 replace：
+     * 已加载的列表、滚动位置、展开状态全丢，
+     * 回到「迁移」页就是从头加载一遍，慢的时候看着像卡住。
+     *
+     * 现在每个一级页只创建一次，之后靠 hide/show 切换，
+     * Fragment 实例和它的 View 都活着，切回来还是原来那样。
+     *
+     * ⚠️ 子页（设置二级页）必须 add 上来而不是 replace ——
+     * replace 会把底下的 tab 一起 remove，
+     * 子页一开一关 tab 又被重建，缓存就白做了。
+     */
+    private fun showTab(key: String) {
+        val fm = supportFragmentManager
+        val tag = "tab:$key"
+        var f = fm.findFragmentByTag(tag)
+        if (f == null) {
+            f = try {
+                if (key == "more") MoreFragment() else NavConfig.find(key)?.make()
+            } catch (t: Throwable) {
+                Err.ignore(t, "创建页面 $key")
+                null
+            }
+            if (f == null) return
+            fm.beginTransaction()
+                .add(R.id.fragment_container, f, tag)
+                .commitAllowingStateLoss()
+            runCatching { fm.executePendingTransactions() }
         }
-        val key = NavConfig.keyOfId(id) ?: return
-        // 设置现在就在主界面里显示，不再跳到独立 Activity。
-        // 之前那样做会导致：从设置返回后底部导航高亮还停在别的 tab 上，
-        // 看起来像"返回到了别的页面"。现在设置就是一个普通 tab，
-        // 子页在同一容器内打开，返回路径连贯。
-        val p = NavConfig.find(key) ?: return
-        val f: Fragment = try {
-            p.make()
-        } catch (t: Throwable) {
-            MigrationFragment()
+        currentTabKey = key
+        showOnly(f)
+        handler.post { ensureContainerFilled() }
+    }
+
+    /**
+     * 只让目标 Fragment 可见，其余全部 hide。
+     *
+     * 容器是 FrameLayout，多个 Fragment add 进去会**叠着一起显示**，
+     * 所以任何时候都必须保证只有一个是 show 的。
+     * 这里每次都遍历一遍而不是记"上一个是谁"，
+     * 免得某条路径漏了 hide 就出现两层内容重叠。
+     */
+    private fun showOnly(target: Fragment?) {
+        runCatching {
+            val tx = supportFragmentManager.beginTransaction()
+            for (f in supportFragmentManager.fragments) {
+                if (f == null) continue
+                if (f === target) {
+                    if (f.isHidden) tx.show(f)
+                } else if (!f.isHidden) {
+                    tx.hide(f)
+                }
+            }
+            tx.commitAllowingStateLoss()
         }
-        replace(f)
     }
 
     /**
@@ -348,10 +394,17 @@ class MainActivity : AppCompatActivity() {
             SettingsMainFragment()
         }
         try {
+            //
+            // 用 add 叠在当前页之上，不用 replace。
+            // replace 会把底下的一级页一起 remove，
+            // 返回后它就得整个重建 —— 从设置返回到「迁移」又要重新加载，
+            // 正是这次要修的那个"每次进来都重新加载"。
+            //
             supportFragmentManager.beginTransaction()
-                .replace(R.id.fragment_container, f)
+                .add(R.id.fragment_container, f, "page:$page")
                 .addToBackStack("settings:$page")
-                .commit()
+                .commitAllowingStateLoss()
+            handler.post { showOnly(f) }
         } catch (t: Throwable) { Err.ignore(t, ".commit()") }
     }
 
@@ -382,7 +435,7 @@ class MainActivity : AppCompatActivity() {
                         }
                         .setNeutralButton("清除") { _, _ ->
                             Announcement.clear(ctx, n.id)
-                            Tips.short(ctx, "已清除这条公告")
+                            android.widget.Toast.makeText(ctx, "已清除这条公告", android.widget.Toast.LENGTH_SHORT).show()
                         }
                         .setNegativeButton("打开链接") { _, _ ->
                             Announcement.dismiss(ctx, n.id)
@@ -452,7 +505,12 @@ class MainActivity : AppCompatActivity() {
         // 1. 有子页（设置二级页等）先退子页
         val fm = supportFragmentManager
         if (fm.backStackEntryCount > 0) {
-            runCatching { fm.popBackStack() }
+            // 同步弹出：异步的话下面拿到的还是"子页仍在"的状态，
+            // 会把刚要显示的一级页又 hide 回去，界面就空了。
+            runCatching { fm.popBackStackImmediate() }
+            val back = if (currentTabKey.isBlank()) null
+            else fm.findFragmentByTag("tab:$currentTabKey")
+            if (back != null) showOnly(back) else handler.post { ensureContainerFilled() }
             return
         }
         // 2. 子页没了，看还有没有上一个 tab

@@ -129,7 +129,7 @@ class SettingsMainFragment : Fragment() {
             toast(if (c) "已开启：加载器分类里会显示手机不支持的那些" else "已关闭")
         }
 
-        btnAccount.setOnClickListener { pkceLogin() }
+        btnAccount.setOnClickListener { deviceLogin() }
         v.findViewById<Button>(R.id.btnGoBackend).setOnClickListener { go("backend") }
         v.findViewById<Button>(R.id.btnGoSearch).setOnClickListener { go("search") }
         v.findViewById<Button>(R.id.btnGoMigrate).setOnClickListener { go("migrate") }
@@ -231,7 +231,7 @@ class SettingsMainFragment : Fragment() {
     private fun toast(s: String) {
         handler.post {
             if (!isAdded) return@post
-            context?.let { Tips.short(it, s) }
+            context?.let { Toast.makeText(it, s, Toast.LENGTH_SHORT).show() }
         }
     }
 
@@ -302,7 +302,7 @@ class SettingsMainFragment : Fragment() {
                 } else {
                     tvAccount.text = getString(R.string.account_not_login)
                     btnAccount.text = getString(R.string.account_login)
-                    btnAccount.setOnClickListener { pkceLogin() }
+                    btnAccount.setOnClickListener { deviceLogin() }
                     tvConnState.text = getString(R.string.account_hint_logged_out)
 
                     // 登不上时给两条后路：先看诊断，再不行就手动填 token。
@@ -485,6 +485,190 @@ class SettingsMainFragment : Fragment() {
      * 应用自己拿 code + verifier 去 GitHub 换 token。
      * 全程不经过后端，也就不存在 state cookie 在不同 jar 之间对不上的问题。
      */
+    /**
+     * 取 GitHub OAuth Client ID：本地存过就用，没存过去后端 /api/config 拿。
+     *
+     * 抽出来是因为设备流和 PKCE 都要这一步，
+     * 之前各写一遍，改一处漏一处。
+     */
+    private fun withClientId(cb: (String) -> Unit) {
+        val ctx = context ?: return
+        val saved = Prefs.get(ctx).getString(K.GH_CLIENT_ID, "") ?: ""
+        if (saved.isNotBlank()) {
+            cb(saved)
+            return
+        }
+        toast("正在取 Client ID…")
+        exec.execute {
+            val id = try {
+                val b = BackendApi.authBase()
+                val o = Json.obj(Http.get(b + "/api/config"))
+                o?.let { Json.s(it, "githubClientId") } ?: ""
+            } catch (t: Throwable) {
+                ""
+            }
+            handler.post {
+                if (!isAdded) return@post
+                if (id.isBlank()) {
+                    askClientId()
+                } else {
+                    Prefs.get(ctx).edit().putString(K.GH_CLIENT_ID, id).apply()
+                    cb(id)
+                }
+            }
+        }
+    }
+
+    /** 设备流轮询是否在进行中（页面销毁时要停，别空转） */
+    private var devicePolling = false
+
+    /**
+     * 设备流登录 —— 现在的默认入口。
+     *
+     * 之前默认的 PKCE 之所以一直报
+     * `The client_id and/or client_secret is incorrect`，
+     * 是因为 GitHub 的换 token 端点**仍然要 client_secret**，
+     * PKCE 在它那儿只是附加项而不是替代。App 里又藏不住 secret，
+     * 于是这条路从结构上就走不通。
+     * 设备流只需要 client_id，天然适合装在手机上的 App。
+     */
+    private fun deviceLogin() {
+        val ctx = context ?: return
+        // 上一轮还在有效期内就直接续上：
+        // 用户可能已经输过码了，再申请一轮等于让他白等。
+        val pending = GhDeviceFlow.peek(ctx)
+        if (pending != null) {
+            showDeviceCode(ctx, pending.first, pending.second)
+            return
+        }
+        toast("正在申请设备码…")
+        withClientId { id ->
+            if (id.isBlank()) return@withClientId
+            exec.execute {
+                val r = runCatching { GhDeviceFlow.start(id) }
+                handler.post {
+                    if (!isAdded) return@post
+                    val st = r.getOrNull()
+                    if (st == null) {
+                        val msg = r.exceptionOrNull()?.message ?: "未知原因"
+                        LogCenter.e("Login", "设备码申请失败：$msg")
+                        MaterialAlertDialogBuilder(ctx)
+                            .setTitle("拿不到设备码")
+                            .setMessage(msg)
+                            .setPositiveButton("重填 Client ID") { _, _ -> askClientId(force = true) }
+                            .setNegativeButton(R.string.cancel, null)
+                            .show()
+                        return@post
+                    }
+                    GhDeviceFlow.save(ctx, id, GhDeviceFlow.DEFAULT_SCOPE, st)
+                    LogCenter.i("Login", "设备流开始：user_code=${st.userCode}，${st.expiresIn}s 内有效")
+                    showDeviceCode(ctx, st.userCode, st.verifyUri)
+                }
+            }
+        }
+    }
+
+    /**
+     * 把 8 位用户码摆给用户。
+     *
+     * 之前的设计依赖自定义 scheme 把浏览器"踢"回 App，
+     * 而 scheme 回调在部分 ROM 上会被浏览器直接吞掉。
+     * 设备流没有这个问题：授权在用户自己的浏览器里完成，
+     * 我们只管轮询，谁也不需要回到谁。
+     */
+    private fun showDeviceCode(ctx: android.content.Context, userCode: String, verifyUri: String) {
+        if (!isAdded) return
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("在 GitHub 上输入这个码")
+            .setMessage(
+                "$userCode\n\n" +
+                    "打开下面的地址、把这 8 位码填进去并点授权。\n" +
+                    "$verifyUri\n\n" +
+                    "在任何设备上输都行，输完不用回到这里 —— 会自动检测到。"
+            )
+            .setPositiveButton("打开授权页") { _, _ ->
+                runCatching {
+                    startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(verifyUri)))
+                }.onFailure { toast("打不开浏览器") }
+            }
+            .setNegativeButton("取消") { _, _ ->
+                devicePolling = false
+                GhDeviceFlow.clear(ctx)
+            }
+            .setOnCancelListener { devicePolling = false }
+            .show()
+        startDevicePolling()
+    }
+
+    /** 按 GitHub 给的间隔轮询，直到拿到令牌或这一轮作废 */
+    private fun startDevicePolling() {
+        if (devicePolling) return
+        val ctx = context ?: return
+        devicePolling = true
+        var iv = GhDeviceFlow.currentInterval(ctx).toLong()
+        LogCenter.i("Login", "设备流：开始轮询（每 ${iv}s）")
+
+        fun step() {
+            if (!devicePolling) return
+            if (!isAdded) {
+                devicePolling = false
+                return
+            }
+            exec.execute {
+                val r = GhDeviceFlow.poll(ctx)
+                handler.post {
+                    if (!isAdded) {
+                        devicePolling = false
+                        return@post
+                    }
+                    when (r) {
+                        is GhDeviceFlow.Poll.Ok -> {
+                            devicePolling = false
+                            onDeviceToken(ctx, r.token)
+                        }
+                        is GhDeviceFlow.Poll.Pending -> Unit   // 还没输，继续等
+                        is GhDeviceFlow.Poll.SlowDown -> iv = r.interval.toLong()
+                        is GhDeviceFlow.Poll.Expired -> {
+                            devicePolling = false
+                            toast("设备码过期了，请重新点一次登录")
+                        }
+                        is GhDeviceFlow.Poll.Denied -> {
+                            devicePolling = false
+                            toast("你在 GitHub 页面上取消了授权")
+                        }
+                        is GhDeviceFlow.Poll.Fail -> {
+                            devicePolling = false
+                            LogCenter.e("Login", "设备流失败：${r.message}")
+                            toast("登录失败：${r.message}")
+                        }
+                    }
+                    if (devicePolling) handler.postDelayed({ step() }, iv * 1000L)
+                }
+            }
+        }
+        step()
+    }
+
+    private fun onDeviceToken(ctx: android.content.Context, token: String) {
+        exec.execute {
+            val user = GitHubApi.verifyPat(token).first
+            handler.post {
+                if (!isAdded) return@post
+                if (user == null) {
+                    toast("拿到令牌，但用它查不到账号信息")
+                    return@post
+                }
+                Prefs.get(ctx).edit()
+                    .putString(K.TOKEN, token)
+                    .putString(K.GH_TOKEN_BACKEND, token)
+                    .apply()
+                LogCenter.i("Login", "设备流登录成功：${user.login}")
+                toast("已登录：${user.login}")
+                refreshAccount()
+            }
+        }
+    }
+
     private fun pkceLogin() {
         val ctx = context ?: return
         val saved = Prefs.get(ctx).getString(K.GH_CLIENT_ID, "") ?: ""
@@ -604,9 +788,13 @@ class SettingsMainFragment : Fragment() {
                 startActivity(Intent(Intent.ACTION_VIEW, uri))
             }.onFailure { toast("打不开浏览器") }
         }
-        Tips.long(ctx, "在浏览器里完成授权，会自动回到本应用。\n\n" +
+        android.widget.Toast.makeText(
+            ctx,
+            "在浏览器里完成授权，会自动回到本应用。\n\n" +
                 "如果 GitHub 提示 redirect_uri 不匹配，\n" +
-                "需要在 OAuth App 的回调地址里加上：\n" + GhPkce.REDIRECT_URI)
+                "需要在 OAuth App 的回调地址里加上：\n" + GhPkce.REDIRECT_URI,
+            android.widget.Toast.LENGTH_LONG
+        ).show()
     }
 
     private fun manualToken() {
@@ -674,25 +862,23 @@ class SettingsMainFragment : Fragment() {
             .setTitle("登录")
             .setItems(
                 arrayOf(
-                    "用 GitHub 登录（PKCE，推荐）",
+                    "用 GitHub 登录（设备流，推荐）",
                     "重填 / 查看 GitHub Client ID",
                     "用访问令牌登录（直连 GitHub）",
-                    "用内置浏览器登录（后端中转，可能卡在 passkey）",
-                    "用系统浏览器登录（后端中转，会 state 校验失败）",
+                    "用 PKCE 登录（GitHub 仍要 client_secret，多半失败）",
                     "登录诊断（看卡在哪）",
                     "复制登录日志",
                     "退出登录"
                 )
             ) { _, w ->
                 when (w) {
-                    0 -> pkceLogin()
+                    0 -> deviceLogin()
                     1 -> askClientId(force = true)
                     2 -> manualToken()
-                    3 -> login(useExternal = false)
-                    4 -> loginExternal()
-                    5 -> runLoginDiag()
-                    6 -> copyLoginLog()
-                    7 -> doLogout()
+                    3 -> pkceLogin()
+                    4 -> runLoginDiag()
+                    5 -> copyLoginLog()
+                    6 -> doLogout()
                 }
             }
             .setNegativeButton(R.string.cancel, null)
@@ -711,15 +897,19 @@ class SettingsMainFragment : Fragment() {
         LogCenter.i("Login", "3. 在系统浏览器打开：${maskUrl(url)}")
         try {
             ctx.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
-            Tips.long(ctx, "已在系统浏览器打开 GitHub 登录页。\n\n" +
+            Toast.makeText(
+                ctx,
+                "已在系统浏览器打开 GitHub 登录页。\n\n" +
                     "注意：这条路大概率会报\n" +
                     "「state 校验失败，请重新登录」，\n" +
                     "因为后端的 state cookie 存在应用内，浏览器里没有。\n\n" +
                     "要让登录态真正生效，请用「用内置浏览器登录」\n" +
-                    "或「用访问令牌登录」。")
+                    "或「用访问令牌登录」。",
+                Toast.LENGTH_LONG
+            ).show()
         } catch (t: Throwable) {
             Err.fail(t, "调起系统浏览器")
-            Tips.long(ctx, "打不开浏览器")
+            Toast.makeText(ctx, "打不开浏览器", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -750,7 +940,7 @@ class SettingsMainFragment : Fragment() {
                 if (!isAdded) return@post
                 if (start.url.isBlank()) {
                     LogCenter.e("Login", "取地址失败：${start.error}")
-                    Tips.long(ctx, "拿不到登录地址：${start.error}")
+                    Toast.makeText(ctx, "拿不到登录地址：${start.error}", Toast.LENGTH_LONG).show()
                     return@post
                 }
                 openExternal(ctx, start.url)
@@ -783,6 +973,9 @@ class SettingsMainFragment : Fragment() {
     }
     override fun onDestroyView() {
         super.onDestroyView()
+        // 停掉设备流轮询：否则页面销毁后它还在后台一圈一圈地问 GitHub，
+        // 既耗电又会在回调里碰已销毁的 View。
+        devicePolling = false
         // 清理 Handler：页面销毁后若还有未执行的 post，
         // 回调里访问已销毁的 View 会直接崩。
         runCatching { handler.removeCallbacksAndMessages(null) }

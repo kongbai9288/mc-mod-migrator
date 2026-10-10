@@ -36,6 +36,80 @@ class DevLabActivity : AppCompatActivity() {
     private lateinit var btnAll: Button
     private var busy = false
 
+    /**
+     * 给每一项配一个图标。
+     *
+     * 之前这一整页全是纯文字按钮，几十个密密麻麻排下来，
+     * 想找某一个只能逐行读 —— 图标是最快的索引。
+     * 图标统一走 `?attr/colorControlNormal` 染色，跟着主题变。
+     */
+    private fun iconFor(c: Case): Int {
+        val n = c.name
+        return when {
+            c.group == "副作用" -> when {
+                n.contains("登出") -> R.drawable.ic_shield
+                n.contains("造") -> R.drawable.ic_bug_report
+                n.contains("清") -> R.drawable.ic_delete
+                else -> R.drawable.ic_warning
+            }
+            c.group == "本机" -> when {
+                n.contains("区域") -> R.drawable.ic_grid_view
+                n.contains("断点") -> R.drawable.ic_history
+                n.contains("HTTP") -> R.drawable.ic_terminal
+                n.contains("网络") -> R.drawable.ic_dns
+                n.contains("目录") -> R.drawable.ic_folder
+                n.contains("工作目录") -> R.drawable.ic_storage
+                n.contains("启动器") -> R.drawable.ic_rocket_launch
+                else -> R.drawable.ic_devices
+            }
+            c.group == "后端" -> when {
+                n.contains("登录") || n.contains("授权") -> R.drawable.ic_login
+                n.contains("诊断") -> R.drawable.ic_health_and_safety
+                n.contains("地址") -> R.drawable.ic_link
+                else -> R.drawable.ic_dns
+            }
+            c.group == "GitHub" -> when {
+                n.contains("镜像") -> R.drawable.ic_open_in_new
+                else -> R.drawable.ic_download
+            }
+            c.group == "Modrinth" -> when {
+                n.contains("哈希") -> R.drawable.ic_code
+                n.contains("刷新") -> R.drawable.ic_refresh
+                else -> R.drawable.ic_inventory
+            }
+            c.group == "CurseForge" -> R.drawable.ic_search
+            c.group == "公告" -> R.drawable.ic_info
+            c.group == "补丁" -> R.drawable.ic_sync
+            else -> R.drawable.ic_terminal
+        }
+    }
+
+    /** 分组标题的图标 */
+    private fun groupIcon(g: String): Int = when (g) {
+        "Modrinth" -> R.drawable.ic_storefront
+        "CurseForge" -> R.drawable.ic_extension
+        "后端" -> R.drawable.ic_dns
+        "GitHub" -> R.drawable.ic_login
+        "公告" -> R.drawable.ic_info
+        "补丁" -> R.drawable.ic_sync
+        "本机" -> R.drawable.ic_devices
+        "副作用" -> R.drawable.ic_warning
+        else -> R.drawable.ic_science
+    }
+
+    /**
+     * 给一个 MaterialButton 挂图标（图标在文字左侧）。
+     *
+     * 不在这里设 iconTint —— 图标本身用 `?attr/colorControlNormal` 染色，
+     * 换主题会自动跟着变；写死一个颜色反而会在深色主题下看不见。
+     */
+    private fun withIcon(b: MaterialButton, res: Int) {
+        runCatching {
+            b.setIconResource(res)
+            b.iconGravity = MaterialButton.ICON_GRAVITY_START
+        }
+    }
+
     /** 一项可测的接口 */
     private data class Case(
         val group: String,
@@ -93,14 +167,17 @@ class DevLabActivity : AppCompatActivity() {
         // 自己打开应用永远看不到，也就没法调。
         // 所以这里给每个品牌一个手动入口，想看哪个点哪个。
         root.addView(TextView(this).apply {
-            text = "启动器开场动画"
+            text = "  启动器开场动画"
             textSize = 14f
             setPadding(0, (18 * resources.displayMetrics.density).toInt(), 0, 4)
+            setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_movie, 0, 0, 0)
+            compoundDrawablePadding = (6 * resources.displayMetrics.density).toInt()
         })
         for (b in LauncherBrand.all()) {
             root.addView(MaterialButton(this).apply {
                 text = "播放：${b.label}"
                 gravity = Gravity.START
+                withIcon(this, R.drawable.ic_play_arrow)
                 setOnClickListener {
                     LauncherSplash.play(
                         this@DevLabActivity,
@@ -111,10 +188,12 @@ class DevLabActivity : AppCompatActivity() {
         }
         root.addView(MaterialButton(this).apply {
             text = "依次播放全部"
+            withIcon(this, R.drawable.ic_movie)
             setOnClickListener { playAllSplash() }
         })
         root.addView(MaterialButton(this).apply {
             text = "模拟从启动器进来（重启主界面）"
+            withIcon(this, R.drawable.ic_science)
             setOnClickListener { askLauncherName() }
         })
 
@@ -123,15 +202,18 @@ class DevLabActivity : AppCompatActivity() {
             if (c.group != lastGroup) {
                 lastGroup = c.group
                 root.addView(TextView(this).apply {
-                    text = c.group
+                    text = "  " + c.group
                     textSize = 14f
                     setPadding(0, (18 * resources.displayMetrics.density).toInt(), 0, 4)
+                    setCompoundDrawablesWithIntrinsicBounds(groupIcon(c.group), 0, 0, 0)
+                    compoundDrawablePadding = (6 * resources.displayMetrics.density).toInt()
                 })
             }
             root.addView(MaterialButton(this).apply {
                 text = (if (c.risky) "! " else "") + c.name +
                     (if (c.desc.isNotBlank()) "\n" + c.desc else "")
                 gravity = Gravity.START
+                withIcon(this, iconFor(c))
                 setOnClickListener { askAndRun(c) }
             })
         }
