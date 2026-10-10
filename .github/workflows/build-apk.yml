@@ -198,6 +198,8 @@ jobs:
             echo "# 真实存档验证（ai.zip / 26.2 世界）"
             echo "run: $GITHUB_RUN_ID"
             echo
+            echo "## 测试类清单"
+            ls app/build/test-results/testDebugUnitTest/*.xml 2>/dev/null || echo "(无结果)"
             for f in app/build/test-results/testDebugUnitTest/*.xml; do
               [ -e "$f" ] || continue
               echo "== $(basename "$f")"
@@ -213,6 +215,10 @@ jobs:
           cat ci-last-test.txt
           git config user.name "ci"
           git config user.email "ci@example.com"
+          # ⚠️ 之前这里经常 push 不上去：本轮前面的步骤已经提交过文件，
+          # HEAD 变了就 non-fast-forward 被拒，而 `|| exit 0` 把失败吞掉，
+          # 结果仓库里一直留着**上一次**的测试结果，看起来像"测试没跑"。
+          git pull --rebase origin main || true
           git add -f ci-last-test.txt
           git commit -m "ci: 真实存档验证结果 [skip ci]" || exit 0
           git push origin HEAD:main || exit 0
