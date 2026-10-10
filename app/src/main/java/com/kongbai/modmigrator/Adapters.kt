@@ -242,11 +242,26 @@ class MarketAdapter(
         // 画出来的图标全是"自动"，等于在骗人。
         // 非 mod 一律不画加载器行，下载量回到"平台 · N 次下载"。
         val isMod = m.projectType.isBlank() || m.projectType == "mod"
+        //
+        // ⚠️ 下载量显示成 2.3 亿这类天文数字的根因就在这里。
+        // RecyclerView 的条目是**循环复用**的，而 tvDownloads 这个控件
+        // 原来只有下面的 else 分支（走 renderLoaderIcons）才会赋值，
+        // if 分支从头到尾没碰它。
+        // 于是一个冷门模组复用掉刚显示过热门模组的那个条目时，
+        // tvDownloads 原样留着上一条的旧值继续显示 ——
+        // 表现就是"下载量很小的项目被标成 2.3 亿"，
+        // 而且**跟着滚动位置乱跳**、每次出现的位置都不一样。
+        // 修复：两个分支都必须显式设置这个控件（显示或隐藏），
+        // 不能有任何一条路径放着不管。
         if (lds.isEmpty() || !isMod) {
             h.rowLoaders.visibility = View.GONE
+            // 这一支把下载量并进 meta 行，独立那行必须隐藏而不是留着旧值
+            h.downloads.visibility = View.GONE
+            h.downloads.text = ""
             h.meta.text = "${m.source} · ${compactCount(m.downloads)} 次下载"
         } else {
             h.rowLoaders.visibility = View.VISIBLE
+            h.downloads.visibility = View.VISIBLE
             h.meta.text = m.source
             renderLoaderIcons(h, lds, m.downloads)
         }
