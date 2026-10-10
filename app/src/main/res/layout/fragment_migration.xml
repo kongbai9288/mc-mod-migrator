@@ -218,6 +218,48 @@
             android:layout_marginBottom="4dp"
             android:text="@string/btn_run" />
 
+        <!--
+            任务运行中的暂停 / 继续 / 中止。
+            ⚠️ 这四个 id 是 MigrationFragment 里实打实在用的
+            （rowPause / btnPause / btnCancelTask / btnMigTools），
+            之前只改了 Kotlin 没同步布局，编译直接 unresolved reference。
+            默认 GONE，任务跑起来才显示，平时不占地方。
+        -->
+        <LinearLayout
+            android:id="@+id/rowPause"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/btnPause"
+                style="@style/AppButton.Outline"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="暂停" />
+
+            <Button
+                android:id="@+id/btnCancelTask"
+                style="@style/AppButton.Outline"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="中止" />
+        </LinearLayout>
+
+        <!-- 迁移相关工具：把散在工具箱里的迁移类功能从这一页直接够到 -->
+        <Button
+            android:id="@+id/btnMigTools"
+            style="@style/AppButton.Outline"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="迁移相关工具" />
+
         <ProgressBar
             android:id="@+id/pb"
             style="?android:attr/progressBarStyleHorizontal"
