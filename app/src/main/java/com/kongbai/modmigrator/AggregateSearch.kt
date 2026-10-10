@@ -93,11 +93,21 @@ object AggregateSearch {
                         if (seen.putIfAbsent(key, m) == null) {
                             fresh.add(m); break
                         }
-                    } else if (m.downloads > old.downloads) {
-                        // 同 recommend：命中已存在时只更新，**不再加入 fresh**，
-                        // 否则同名模组会在列表里出现两次。
-                        if (seen.replace(key, old, m)) break
                     } else break
+                    //
+                    // ⚠️ 下载量严重不符的根因就在这里。
+                    // 去重键只有 norm(name)，**没有来源维度**，
+                    // 于是 Modrinth 的条目和 CurseForge 的同名条目被当成同一个；
+                    // 而这里又按 `downloads` 取大者写进 seen ——
+                    // 两个平台的下载量统计口径本来就不同（CurseForge 的
+                    // downloadCount 通常比 Modrinth 大好几倍），
+                    // 结果就是"卡片写着 Modrinth，数字却是 CurseForge 的"。
+                    // 更麻烦的是 seen.replace 只改了 seen，
+                    // 列表里已经显示的那条（先到的源）并没有被换掉，
+                    // 于是数字和来源标签各说各话，且并发到达顺序随机 ——
+                    // 同一个模组这次显示这个数、下次显示另一个数。
+                    // 现在：跨源命中一律保留先到的那条，数字永远和它自己的
+                    // source 一致，不再跨源比大小。
                 }
             }
             return fresh
@@ -212,7 +222,11 @@ object AggregateSearch {
         // 后端本身就是 CurseForge 数据的代理，两者同时返回
         // 既重复又和"单源"的语义矛盾（后端与官方直连本应互斥）。
         // 单源模式下只有显式选 "CurseForge" 才走直连。
-        if (aggregate || mode == "CurseForge") {
+        // ⚠️ 聚合模式下"后端"和"CurseForge镜像"**都是 CurseForge 的数据**，
+        // 两个一起查会让同一批 CF 项目进来两次，而两次的缓存时刻可能不同、
+        // 下载量对不上，又会被上面的去重按大小随便挑一个 —— 数字更不可信。
+        // 聚合时后端可用就只走后端，不再叠加镜像。
+        if ((aggregate && !(useBackend)) || mode == "CurseForge") {
             val canOfficial = useOfficial && key.isNotBlank()
             val label = if (canOfficial) "CurseForge官方" else "CurseForge镜像"
             out.add(
@@ -286,16 +300,11 @@ object AggregateSearch {
                 val old = seen[k]
                 if (old == null) {
                     if (seen.putIfAbsent(k, m) == null) fresh.add(m)
-                } else if (m.downloads > old.downloads) {
-                    // ⚠️ 重复 bug 就在这里。
-                    // 之前是 `seen.replace(...) 成功就 fresh.add(m)` ——
-                    // 可 old 那条**早就显示在列表里了**，这里再 add 一次，
-                    // 界面上就出现两条同名模组。
-                    // 同一个源里同名项本来就少见，但三个源并行推同一个模组时
-                    // 很容易撞上，于是"推荐列表里总有重复的"。
-                    // 命中已存在时只更新数据（保留更完整的那条），
-                    // **不再往 fresh 里加**。
-                    seen.replace(k, old, m)
+                } else {
+                    //
+                    // 与 search 保持一致：跨源命中不再按下载量替换，
+                    // 保留先到的那条，让数字和它自己的 source 对得上。
+                    // （这里本来就没往 fresh 里加，所以不会重复。）
                 }
             }
             return fresh
