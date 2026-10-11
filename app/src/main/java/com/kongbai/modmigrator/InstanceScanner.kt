@@ -11,7 +11,9 @@ data class InstanceInfo(
     var loader: String = "auto",
     var modCount: Int = 0,
     var hasConfig: Boolean = false,
-    var kind: String = ""
+    var kind: String = "",
+    /** 从哪个已授权目录里找出来的，用来在列表里区分不同启动器 */
+    var source: String = ""
 )
 
 object InstanceScanner {
@@ -107,6 +109,40 @@ object InstanceScanner {
             collect(ctx, root, 0, out, log)
         }
         return out.sortedBy { it.name.lowercase(Locale.ROOT) }
+    }
+
+    /**
+     * 逐个扫描「用户添加的每一个启动器目录」。
+     *
+     * 之前只认 K.SCAN_ROOT 一个目录：装了 FCL + Zalith 两个启动器、
+     * 分别授权了两个 .minecraft 时，只有最后授权的那个会被扫，
+     * 另一个启动器下的实例全部看不见 ——
+     * 表现就是"我明明有版本，列表里却没有"。
+     *
+     * 这里遍历每一条已授权目录，各自单独扫，把来源记进
+     * InstanceInfo.source，列表里能看出属于哪个启动器。
+     * 同一目录被多条路径扫到时按 uri 去重，不重复列出。
+     */
+    fun scanAll(ctx: Context, log: (String) -> Unit): List<InstanceInfo> {
+        val dirs = GameDirs.list(ctx)
+        if (dirs.isEmpty()) return emptyList()
+        val out = ArrayList<InstanceInfo>()
+        val seen = HashSet<String>()
+        for (e in dirs) {
+            log("在「${e.label()}」里找版本…")
+            val found = runCatching { scan(ctx, e.uri, log) }
+                .onFailure { log("「${e.label()}」读取失败：${it.message}") }
+                .getOrDefault(emptyList())
+            var fresh = 0
+            for (info in found) {
+                if (!seen.add(info.uri)) continue
+                info.source = e.label()
+                out.add(info)
+                fresh++
+            }
+            log("「${e.label()}」找到 ${found.size} 个${if (fresh < found.size) "，新增 $fresh 个" else ""}")
+        }
+        return out
     }
 
     private fun collectQuick(
