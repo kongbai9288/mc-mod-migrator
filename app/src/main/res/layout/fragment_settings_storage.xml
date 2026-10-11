@@ -73,6 +73,34 @@
             android:textColor="@color/textSecondary"
             android:textSize="12sp" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/cfg_gamedir_multi_title"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="6dp"
+            android:text="@string/cfg_gamedir_multi_hint"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
+
+        <LinearLayout
+            android:id="@+id/llGameDirs"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <Button
+            android:id="@+id/btnAddGameDir"
+            style="@style/AppButtonOutlined"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/cfg_gamedir_add" />
+
         <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/swLocalIcon"
             android:layout_width="match_parent"
