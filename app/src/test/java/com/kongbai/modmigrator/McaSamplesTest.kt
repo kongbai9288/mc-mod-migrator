@@ -175,10 +175,9 @@ class McaSamplesTest {
     fun everyVersionRendersPixels() {
         for (s in ALL) {
             val f = fetch(s) ?: continue
-            val c = firstTerrainChunk(f)
             // 整份样本都没有地形（官方世界常见：只有生物群系和结构起点）
             // 时不算失败 —— 那验的是样本，不是渲染器。
-            assumeTrue("样本 ${s.ver} 里没有任何带地形的区块，跳过渲染断言", c != null)
+            val c = firstTerrainChunk(f) ?: continue
             val px = IntArray(16 * 16)
             val ok = McaRender.drawTop(c, px, 16, 0, 0, 1)
             val painted = px.count { it != 0 }
