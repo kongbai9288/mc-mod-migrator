@@ -184,6 +184,15 @@
     <string name="tab_favorites">收藏夹</string>
     <string name="tab_weekly">周报</string>
     <string name="tab_sites">站点导航</string>
+    <string name="cfg_gamedir_multi_title">多个启动器各自的目录</string>
+    <string name="cfg_gamedir_multi_hint">装了多个启动器时，每个的 .minecraft 是各自独立的。这里可以一个一个添加，扫描时会分别去找，不会互相覆盖。</string>
+    <string name="cfg_gamedir_add">再添加一个启动器目录</string>
+    <string name="cfg_gamedir_empty">还没添加。装了多个启动器的话，建议逐个添加。</string>
+    <string name="cfg_gamedir_cur">当前</string>
+    <string name="cfg_gamedir_use">设为当前</string>
+    <string name="cfg_gamedir_del">移除</string>
+    <string name="cfg_gamedir_added">已添加，共 %1$d 个目录</string>
+    <string name="cfg_gamedir_exists">这个目录已经添加过了</string>
     <string name="cfg_gamedir_title">游戏目录（.minecraft）</string>
     <string name="cfg_gamedir_hint">模组要装进启动器真正的 .minecraft 才会生效。选一个已找到的目录，或自己指定；改动会永久保存。</string>
     <string name="cfg_gamedir_pick">自己指定 .minecraft 目录</string>
