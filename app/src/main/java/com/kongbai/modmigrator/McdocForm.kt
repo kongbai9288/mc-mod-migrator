@@ -153,7 +153,7 @@ object McdocForm {
 
             "list" -> {
                 val item = t.optJSONObject("item")
-                N.Arr { buildType(item, ver, depth + 1, HashSet(seen), ctx) }
+                N.Arr(make = { buildType(item, ver, depth + 1, HashSet(seen), ctx) })
             }
 
             "string" -> {
