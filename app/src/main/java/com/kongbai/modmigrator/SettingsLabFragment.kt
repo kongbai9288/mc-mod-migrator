@@ -156,8 +156,9 @@ class SettingsLabFragment : Fragment() {
      * 用于改坏了目录/版本设置时快速重来，不用清应用数据。
      */
     private fun rerunFirstRun() {
-        Prefs.get(ctx).edit().putBoolean(K.FIRST_RUN_DONE, false).apply()
-        startActivity(android.content.Intent(ctx, FirstRunActivity::class.java))
+        val c = requireContext()
+        Prefs.get(c).edit().putBoolean(K.FIRST_RUN_DONE, false).apply()
+        startActivity(android.content.Intent(c, FirstRunActivity::class.java))
     }
 
     // ---------------- 各项选择 ----------------
