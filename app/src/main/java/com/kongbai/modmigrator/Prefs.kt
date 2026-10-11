@@ -121,6 +121,12 @@ object K {
     const val DEVICE_ID = "device_id"
     /** 是否播放"从启动器进来"的开场动画（默认开） */
     const val SPLASH_ANIM = "splash_anim"
+    /** 初次设置页跑过没有。跑过就不再自动弹，开发者模式里可以重跑 */
+    const val FIRST_RUN_DONE = "first_run_done"
+    /** 初次设置页选的目标 MC 版本 */
+    const val TARGET_MC = "target_mc"
+    /** 初次设置页选的目标加载器 */
+    const val TARGET_LOADER = "target_loader"
     const val DEVICE_LABEL = "device_label"
     const val SRC_URI = "src_uri"
     const val DST_URI = "dst_uri"
