@@ -37,6 +37,19 @@ object Loaders {
         "rift", "risugami_modloader", "nilloader", "bta", "java_agent"
     )
 
+    /**
+     * 不是加载器、但常常和加载器混在一起的**服务端平台 / 光影**。
+     *
+     * Modrinth 的 loaders 字段、外部输入框里都会出现这些名字，
+     * 它们不该被当成加载器去识别（否则 normalize 一律归成 "auto"，
+     * 然后被过滤掉，用户看到的是"支持列表少了一截"）。
+     * 单独列出来：需要给用户选的时候带上，识别的时候不带。
+     */
+    val SERVER_SIDE = listOf(
+        "bukkit", "spigot", "paper", "purpur", "folia",
+        "velocity", "bungeecord", "waterfall", "iris"
+    )
+
     /** 全部已知加载器（手机支持的前面，其余在后） */
     val ALL: List<String> get() = (PHONE + EXTRA).distinct()
 
@@ -52,6 +65,21 @@ object Loaders {
      */
     fun visible(showExtra: Boolean): List<String> =
         if (showExtra) ALL else PHONE.distinct()
+
+    /**
+     * 识别优先级：越具体的排越前，越宽泛的排越后。
+     *
+     * 一个实例/模组常常同时命中多个名字（cleanroom 里也带 "forge"），
+     * 从前往后取第一个命中的，才不会被宽泛项盖掉具体项。
+     *
+     * ⚠️ 顺序和 [ALL] 不同：[ALL] 是给下拉显示用的（常用的在前），
+     * 这里是给"多个候选取哪个"用的（具体的在前）。别混用。
+     */
+    val PRIORITY: List<String> = listOf(
+        "cleanroom", "neoforge", "quilt", "legacy_fabric", "babric",
+        "ornithe", "liteloader", "rift", "risugami_modloader",
+        "nilloader", "bta", "java_agent", "optifine", "fabric", "forge"
+    )
 
     /** 加载器 → 图标资源（线稿，可用 setColorFilter 染色/置灰） */
     fun icon(name: String): Int = when (normalize(name)) {
@@ -231,6 +259,23 @@ object Loaders {
             return m[loader]
         }
         return null
+    }
+
+    /**
+     * CurseForge 的 modLoaderType 数字编号。
+     *
+     * ⚠️ 这是 CurseForge **自己**的一套编号，不是我们的内部值，
+     * 也不是 Modrinth 的值（那边用的是字符串）。
+     * 之前这个映射写在 CurseForgeApi 里，和 [normalize] 的名单分开维护，
+     * 两边一旦不同步就会出现"按 fabric 搜却传了 forge 的编号"。
+     * 收在这里，改编号只改这一处。0 = 不过滤。
+     */
+    fun cfTypeId(name: String): Int = when (normalize(name)) {
+        "forge" -> 1
+        "fabric" -> 4
+        "quilt" -> 5
+        "neoforge" -> 6
+        else -> 0
     }
 
     /** 判断某加载器是否需要 Fabric API 这类前置 */

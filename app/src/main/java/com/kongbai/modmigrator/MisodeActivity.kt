@@ -274,7 +274,7 @@ class MisodeActivity : AppCompatActivity() {
 		val etPack = EditText(this).apply { setText("mypack"); setSingleLine(true) }
 		val etNs = EditText(this).apply { setText("mypack"); setSingleLine(true) }
 		val etName = EditText(this).apply { setText(gen.id.replace('/', '_')); setSingleLine(true) }
-		val etMc = EditText(this).apply { setText("1.21"); setSingleLine(true) }
+		val etMc = EditText(this).apply { setText(McVer.defaultMc(this@MisodeActivity)); setSingleLine(true) }
 		val box = LinearLayout(this).apply {
 			orientation = LinearLayout.VERTICAL
 			val p = (16 * resources.displayMetrics.density).toInt()

@@ -125,6 +125,8 @@ object K {
     const val FIRST_RUN_DONE = "first_run_done"
     /** 初次设置页选的目标 MC 版本 */
     const val TARGET_MC = "target_mc"
+    const val MCVER_LIST = "mcver_list"      // 远端抓到的 MC 版本清单
+    const val MCVER_AT = "mcver_at"          // 上次抓到清单的时间
     /** 初次设置页选的目标加载器 */
     const val TARGET_LOADER = "target_loader"
     const val DEVICE_LABEL = "device_label"

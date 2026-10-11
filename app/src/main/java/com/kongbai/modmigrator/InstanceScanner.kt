@@ -195,12 +195,8 @@ object InstanceScanner {
      * 否则会被后面的宽泛项（forge / fabric）盖掉。
      */
     private fun pickLoader(cands: List<String>): String {
-        val rank = listOf(
-            "cleanroom", "neoforge", "quilt", "legacy_fabric", "babric",
-            "ornithe", "liteloader", "rift", "risugami_modloader",
-            "nilloader", "bta", "java_agent", "optifine", "fabric", "forge"
-        )
-        for (r in rank) if (r in cands) return r
+        // 优先级名单在 Loaders.PRIORITY，这里不再自己写一份顺序
+        for (r in Loaders.PRIORITY) if (r in cands) return r
         return cands.first()
     }
 

@@ -67,6 +67,9 @@ class App : Application() {
         installConscrypt()
         CrashHandler.install(this)
         Prefs.init(this)
+        // MC 版本清单：远端抓一次就够，抓不到用内置兜底。
+        // 这样出了新版本不必改代码、也不必重装，下拉里直接就有。
+        runCatching { McVer.refresh(this) }
         // 补丁：把"启动器目录清单"这类易变数据从远端更新，
         // 这样旧版 App 也能支持新的启动器/新 MC 版本，不必重装。
         // 失败静默，内置清单继续工作。

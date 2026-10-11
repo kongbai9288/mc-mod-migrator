@@ -381,8 +381,8 @@ object McaTiles {
         val px = IntArray(IMG * IMG)
         paintBackdrop(px)
 
-        val inhabited = LongArray(1024)
-        val updated = IntArray(1024)
+        val inhabited = LongArray(McaFormat.SLOTS)
+        val updated = IntArray(McaFormat.SLOTS)
         val brokenList = ArrayList<Int>()
 
         var drawn = 0
@@ -509,19 +509,19 @@ object McaTiles {
         val ver = i.readInt()
         if (ver != CACHE_VER) return null
         val n = i.readInt()
-        if (n < 0 || n > 1024) return null
+        if (n < 0 || n > McaFormat.SLOTS) return null
         val slots = IntArray(n)
-        val inhabited = LongArray(1024)
-        val updated = IntArray(1024)
+        val inhabited = LongArray(McaFormat.SLOTS)
+        val updated = IntArray(McaFormat.SLOTS)
         for (k in 0 until n) {
             val s = i.readInt()
-            if (s < 0 || s >= 1024) return null
+            if (s < 0 || s >= McaFormat.SLOTS) return null
             slots[k] = s
             inhabited[s] = i.readLong()
             updated[s] = i.readInt()
         }
         val nb = i.readInt()
-        if (nb < 0 || nb > 1024) return null
+        if (nb < 0 || nb > McaFormat.SLOTS) return null
         val broken = IntArray(nb)
         for (k in 0 until nb) broken[k] = i.readInt()
         return Meta(slots, inhabited, updated, broken)

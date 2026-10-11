@@ -10,16 +10,18 @@ package com.kongbai.modmigrator
  *
  * 现在统一从这里取，任何页面要下拉选项都用它。
  * 「自动」排在第一位：扫到存档/实例时会自己判断，不强制用户选。
+ *
+ * ⚠️ 版本清单本身不在这里写死：由 [McVer] 负责解析与获取
+ * （联网抓过就以远端为准，没抓过用内置兜底），
+ * 这里只负责拼上下拉需要的「自动」那一项。
  */
 object McTargets {
 
-    /** 目标 MC 版本。按发布时间从旧到新排，方便肉眼找 */
-    val MC_VERSIONS: Array<String> = arrayOf(
-        "自动",
-        "1.7.10", "1.12.2", "1.16.5", "1.18.2", "1.19.4",
-        "1.20.1", "1.20.4", "1.20.6", "1.21.1", "1.21.4",
-        "1.21.8", "26.2", "26.3"
-    )
+    /** 目标 MC 版本。「自动」+ 已知正式版（新→旧） */
+    val MC_VERSIONS: Array<String> get() = (listOf("自动") + McVer.known()).toTypedArray()
+
+    /** 清单里最新的正式版（写默认值时用，不要写死具体版本号） */
+    fun latestMc(): String = McVer.latest(McVer.known())
 
     /** 目标加载器。值为**标准名**，不要写显示用的标签（Fabric / Forge） */
     val LOADERS: Array<String> = arrayOf(

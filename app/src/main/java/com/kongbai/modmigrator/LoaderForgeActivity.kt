@@ -76,12 +76,7 @@ class LoaderForgeActivity : AppCompatActivity() {
          * 这里不写死"只有这几个"，只是给个常见列表做下拉的初始值 ——
          * 输入框里填任何 Modrinth 认的 id 都行。
          */
-        val KNOWN = listOf(
-            "fabric", "forge", "neoforge", "quilt", "liteloader",
-            "rift", "risugami", "modloader", "bukkit", "spigot", "paper",
-            "purpur", "folia", "velocity", "bungeecord", "waterfall",
-            "legacy_fabric", "ornithe", "babric", "cleanroom", "iris"
-        )
+        val KNOWN: List<String> = (Loaders.ALL + Loaders.SERVER_SIDE).distinct()
 
         /**
          * FCL 已经原生支持的加载器。

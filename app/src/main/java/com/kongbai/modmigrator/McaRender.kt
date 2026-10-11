@@ -420,7 +420,7 @@ object McaRender {
     fun layerHasBlocks(chunk: CompoundTag, sectionY: Int): Boolean {
         val rs = ready(chunk)
         val r = rs.firstOrNull { it.y == sectionY } ?: return false
-        for (i in 0 until 4096) {
+        for (i in 0 until McaFormat.SECTION_ENTRIES) {
             val x = i % 16
             val z = (i / 16) % 16
             val y = i / 256

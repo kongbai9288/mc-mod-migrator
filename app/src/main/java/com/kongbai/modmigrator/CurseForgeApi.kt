@@ -14,14 +14,11 @@ object CurseForgeApi {
 
     private fun base(key: String): String = if (mirrorOn(key)) MIRROR else OFFICIAL
 
-    fun loaderType(loader: String): Int =
-        when (loader) {
-            "forge" -> 1
-            "fabric" -> 4
-            "quilt" -> 5
-            "neoforge" -> 6
-            else -> 0
-        }
+    /**
+     * CurseForge 的 modLoaderType。
+     * 数字编号统一放在 [Loaders.cfTypeId]，这里只转发，不再自己维护一份。
+     */
+    fun loaderType(loader: String): Int = Loaders.cfTypeId(loader)
 
     fun search(query: String, mc: String, loader: String, key: String, limit: Int = 20, index: Int = 0): List<MarketMod> {
         val b = base(key)

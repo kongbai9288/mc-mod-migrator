@@ -34,9 +34,9 @@ object McaEdit {
     // 区域文件层
     // ------------------------------------------------------------------
 
-    private const val SECTOR = 4096
-    private const val SLOTS = 1024
-    private const val HEADER = SECTOR * 2
+    private const val SECTOR = McaFormat.SECTOR
+    private const val SLOTS = McaFormat.SLOTS
+    private const val HEADER = McaFormat.HEADER
 
     /**
      * 一个已打开的区域文件。
@@ -381,7 +381,7 @@ object McaEdit {
             for (t in secs.getValue()) {
                 val c = t as? CompoundTag ?: continue
                 val arr = (c.get("Blocks") as? com.viaversion.nbt.tag.ByteArrayTag)?.getValue()
-                if (arr != null && arr.size >= 4096) {
+                if (arr != null && arr.size >= McaFormat.SECTION_ENTRIES) {
                     var y = secY(c)
                     // Y 读不到就按出现顺序推，总比整段丢掉强
                     if (y == Int.MIN_VALUE) y = idx
@@ -470,12 +470,12 @@ object McaEdit {
     }
 
     /** 区块内的线性下标：1.16 之后是 y 优先 */
-    fun indexOf(x: Int, y: Int, z: Int): Int = (y * 16 + z) * 16 + x
+    fun indexOf(x: Int, y: Int, z: Int): Int = (y * McaFormat.SECTION_SPAN + z) * McaFormat.SECTION_SPAN + x
 
     fun readIndex(data: LongArray?, bits: Int, i: Int): Int {
         val d = data ?: return 0
         if (d.isEmpty()) return 0
-        val per = 64 / bits
+        val per = McaFormat.LONG_BITS / bits
         val li = i / per
         if (li >= d.size) return 0
         val off = (i % per) * bits
@@ -565,10 +565,11 @@ object McaEdit {
         val target = indexOf(x, y, z)
 
         if (newBits == oldBits && oldData != null &&
-            oldData.size >= (4096 + (64 / newBits) - 1) / (64 / newBits)
+            oldData.size >= (McaFormat.SECTION_ENTRIES + (McaFormat.LONG_BITS / newBits) - 1) /
+            (McaFormat.LONG_BITS / newBits)
         ) {
             // 位数没变：只改目标位
-            val per = 64 / newBits
+            val per = McaFormat.LONG_BITS / newBits
             val li = target / per
             val off = (target % per) * newBits
             val mask = (1L shl newBits) - 1L
@@ -576,10 +577,10 @@ object McaEdit {
             sec.holder.put(sec.dataKey, LongArrayTag(oldData))
         } else {
             // 位数变了：全量重编码
-            val per = 64 / newBits
-            val need = (4096 + per - 1) / per
+            val per = McaFormat.LONG_BITS / newBits
+            val need = (McaFormat.SECTION_ENTRIES + per - 1) / per
             val arr = LongArray(need)
-            for (i in 0 until 4096) {
+            for (i in 0 until McaFormat.SECTION_ENTRIES) {
                 val v = if (i == target) idx else {
                     val ov = readIndex(oldData, oldBits, i)
                     if (ov < oldNames.size) ov else 0

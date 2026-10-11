@@ -116,7 +116,7 @@ class DatapackActivity : AppCompatActivity() {
         val c2 = card()
         c2.addView(label("MC 版本（决定显示哪些字段）"))
         etMc = EditText(this).apply {
-            setText(Prefs.get(this@DatapackActivity).getString(K.TARGET_MC, "26.3") ?: "26.3")
+            setText(McVer.defaultMc(this@DatapackActivity))
             inputType = InputType.TYPE_CLASS_TEXT
         }
         c2.addView(etMc)
@@ -174,7 +174,7 @@ class DatapackActivity : AppCompatActivity() {
         renderForm()
     }
 
-    private fun mcVer(): String = etMc.text.toString().trim().ifBlank { "26.3" }
+    private fun mcVer(): String = etMc.text.toString().trim().ifBlank { McVer.defaultMc(this@DatapackActivity) }
 
     /** 标签：结构固定，就 values 列表 + replace 开关 */
     private fun tagForm(g: DatapackCatalog.G): McdocForm.N {
