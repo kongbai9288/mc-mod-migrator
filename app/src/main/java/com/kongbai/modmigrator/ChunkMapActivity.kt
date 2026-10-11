@@ -117,8 +117,20 @@ class ChunkMapActivity : AppCompatActivity() {
          * 但这台设备是 8 核，固定 2 会让整张地图铺满要等很久，
          * 期间大片区域一直是空的。
          */
+        /**
+         * 同时渲染几个区域。
+         *
+         * ⚠️ 之前按核数取，8 核设备就是 4 路并行。
+         * 但这是纯 CPU + 大量临时对象的活：每解析一个区块都要展开
+         * 整套 NBT（调色板几百个 CompoundTag + long[] 打包数据），
+         * 四路同时跑，堆上瞬间摞着四份，GC 疯狂地把它们来回搬，
+         * 主线程被 stop-the-world 一遍遍打断 ——
+         * 表现就是转圈几秒后弹「无响应」，以及满屏没画出来的占位块。
+         *
+         * 堆小的设备只开一路，宁可慢一点也不让它把内存顶爆。
+         */
         private val RENDER_THREADS =
-            Runtime.getRuntime().availableProcessors().coerceIn(2, 4)
+            if (Runtime.getRuntime().maxMemory() < 192L * 1024 * 1024) 1 else 2
 
         /** 20 tick = 1 秒 */
         private const val TPS = 20L
