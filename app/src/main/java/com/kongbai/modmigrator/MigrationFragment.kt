@@ -584,6 +584,22 @@ class MigrationFragment : Fragment() {
                     list.addAll(InstanceScanner.scanFrom(ctx, root) { m -> log(m) })
                 }
             }
+            // 用户在设置里添加的每个启动器目录都单独再扫一遍。
+            // 之前只认 K.SCAN_ROOT 一个，装了多个启动器时其余的全部漏掉。
+            val fromDirs = InstanceScanner.scanAll(ctx) { m -> log(m) }
+            val known = list.map { it.uri }.toHashSet()
+            for (info in fromDirs) {
+                val old = list.firstOrNull { it.uri == info.uri }
+                if (old != null) {
+                    // 已经扫到了，只把来源补上，不重复列出
+                    if (old.source.isBlank()) old.source = info.source
+                    continue
+                }
+                list.add(info)
+            }
+            if (known.isNotEmpty() || fromDirs.isNotEmpty()) {
+                log("合计 ${list.size} 个版本${if (known.isNotEmpty()) "（其中 ${known.size} 个已扫到过）" else ""}")
+            }
             val finalList = list
             if (finalList.isEmpty() && !InstanceScanner.hasAllFilesAccess()) {
                 safePost(handler) {
@@ -610,7 +626,10 @@ class MigrationFragment : Fragment() {
     }
 
     private fun showInstancePicker() {
-        val labels = instances.map { "${it.name} · MC ${it.mcVersion.ifBlank { "?" }} · ${it.modCount} 模组" }.toTypedArray()
+        val labels = instances.map {
+            val src = if (it.source.isBlank()) "" else " · ${it.source}"
+            "${it.name} · MC ${it.mcVersion.ifBlank { "?" }} · ${it.modCount} 模组$src"
+        }.toTypedArray()
         com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.pick_instance)
             .setItems(labels) { _, w ->
