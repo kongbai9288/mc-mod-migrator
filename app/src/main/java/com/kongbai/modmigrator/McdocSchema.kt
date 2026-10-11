@@ -109,14 +109,22 @@ object McdocSchema {
         return true
     }
 
-    /** `1.20.1` → 12001，`26.3` → 26030。只用来比大小，不要求精确 */
-    private fun verNum(s: String?): Int? {
-        if (s.isNullOrBlank()) return null
-        val p = s.trim().split('.')
-        val major = p.getOrNull(0)?.toIntOrNull() ?: return null
-        val minor = p.getOrNull(1)?.toIntOrNull() ?: 0
-        val patch = p.getOrNull(2)?.toIntOrNull() ?: 0
-        return major * 10000 + minor * 100 + patch
+    /**
+     * 把版本串转成可比较的数值，认不出来返回 null。
+     *
+     * ⚠️ 之前这里是自己算的 `major * 10000 + minor * 100 + patch`：
+     * 每一段固定占两位，于是 1.20.1 → 12001、26.3 → 260300。
+     * 这套编码在两个方向上都会错：
+     *   · 某一段超过两位就串位（比如 minor 变成 100+）；
+     *   · 它假设版本一定是"1.x.y"的形状，而 26.3 这种两段写法
+     *     和当年 1.x 的三段写法在数值上完全不可比。
+     * 而这里的比较结果直接决定**字段显不显示** —— 算错就是静默少显示字段，
+     * 用户只会觉得"这个生成器怎么缺东西"，查不到原因。
+     * 现在统一交给 [McVer.key]，格式变了只改那一处。
+     */
+    private fun verNum(s: String?): Long? {
+        val k = McVer.key(s)
+        return if (k < 0) null else k
     }
 
     /** 从 `{"kind":"literal","value":{"kind":"string","value":"1.20"}}` 里取字符串 */
