@@ -981,7 +981,7 @@ class ChunkMapActivity : AppCompatActivity() {
         val gmb = gbytes / 1024.0 / 1024.0
         val tail = if (gc > 0) {
             "\n\n相册里还有 $gc 张旧版遗留的图（${"%.1f".format(gmb)} MB）。\n" +
-                "国内系统多半会把删除变成"移到最近删除"，所以这一步要由你在系统弹窗里" +
+                "国内系统多半会把删除变成移到「最近删除」，所以这一步要由你在系统弹窗里" +
                 "亲手确认，应用替你删不掉。"
         } else "\n\n相册里没有旧版遗留的图了。"
         val b = MaterialAlertDialogBuilder(this)
