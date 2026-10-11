@@ -154,7 +154,7 @@ class ChunkMapActivity : AppCompatActivity() {
     private val stagedChunk = HashSet<Long>()
 
     private lateinit var tvStatus: TextView
-    private lateinit var tvHint: TextView
+    private var mapHint: String = "拖动平移，点一下选中，双指缩放"
     private lateinit var map: MapView
 
     /** 选源 .mca（替换区块用） */
@@ -245,13 +245,6 @@ class ChunkMapActivity : AppCompatActivity() {
         }
         bar.addView(btnY)
 
-        tvHint = TextView(this).apply {
-            textSize = 11f
-            setTextColor(Color.GRAY)
-            text = "拖动平移，点一下选中，双指缩放"
-        }
-        root.addView(tvHint)
-
         map = MapView(this)
         root.addView(
             FrameLayout(this).apply { addView(map) },
@@ -334,6 +327,13 @@ class ChunkMapActivity : AppCompatActivity() {
             text = "地图缓存"
             setOnClickListener { askTileCache() }
         })
+
+        // 上一版把渲染瓦片写进了系统相册，这里把遗留的清掉。
+        // 不清理的话它们会一直留在相册里，卸载应用也带不走。
+        Thread { McaTileStore.migrateAwayFromGallery(this) }.start()
+
+        // 按钮行整齐化（等宽 + 统一间距）
+        tidyRows(root)
 
         // 载入
         val uriStr = intent.getStringExtra(EXTRA_URI)
@@ -480,10 +480,39 @@ class ChunkMapActivity : AppCompatActivity() {
     private fun toggleMode() {
         selMode = !selMode
         btnMode.text = if (selMode) "平移" else "框选"
-        tvHint.text = if (selMode) {
+        mapHint = if (selMode) {
             if (map.chunkMode()) "拖一个框，框住的区块全选上"
             else "拖一个框，框住的区域全选上（放大可细分到区块）"
         } else "拖动平移，点一下选中，双指缩放"
+        updateStatus()
+    }
+
+    /**
+     * 让按钮行整齐：等宽 + 统一间距 + 统一字号。
+     *
+     * 之前每个按钮都是直接 addView，宽度按文字长短各自撑开，
+     * 一行里宽窄不一、长短不齐 —— "界面乱"有一半是这个原因。
+     */
+    private fun tidyRows(root: LinearLayout) {
+        val m = (3 * resources.displayMetrics.density).toInt()
+        for (i in 0 until root.childCount) {
+            val row = root.getChildAt(i)
+            if (row !is LinearLayout) continue
+            if (row.orientation != LinearLayout.HORIZONTAL) continue
+            for (j in 0 until row.childCount) {
+                val b = row.getChildAt(j)
+                if (b !is MaterialButton) continue
+                val lp = LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+                )
+                lp.setMargins(m, m, m, m)
+                b.layoutParams = lp
+                b.minWidth = 0
+                b.minimumWidth = 0
+                b.textSize = 10f
+                b.isAllCaps = false
+            }
+        }
     }
 
     // ------------------------------------------------------------------ 加载
@@ -585,6 +614,7 @@ class ChunkMapActivity : AppCompatActivity() {
         if (st > 0) sb.append("　待删除 $st 项（未保存）")
         btnSave.text = if (st > 0) "保存 $st 项" else "保存"
         btnSave.isEnabled = st > 0
+        sb.appendLine(mapHint)
         tvStatus.text = sb.toString()
     }
 
@@ -937,9 +967,11 @@ class ChunkMapActivity : AppCompatActivity() {
             .setTitle("地图缓存")
             .setMessage(
                 "当前世界已缓存 $n 张区域图，共 ${"%.1f".format(mb)} MB。\n\n" +
-                    "位置：相册 / Pictures / ModMigrator / 地图缓存 /\n" +
+                    "放在应用专属目录里，不进相册：\n" +
+                    "Android/data/<包名>/files/ModMigrator/地图缓存/\n" +
                     "<世界> / <维度> / <高度档> / r.<x>.<z>.png\n\n" +
-                    "清掉不会丢失存档，只是下次打开要重新画一遍。"
+                    "想要一张成品图请用「导出图」，那才会存进相册。\n" +
+                    "清掉缓存不会丢失存档，只是下次打开要重新画一遍。"
             )
             .setNegativeButton("关闭", null)
             .setPositiveButton("清空") { _, _ ->
@@ -1590,6 +1622,8 @@ class ChunkMapActivity : AppCompatActivity() {
         private val ge = GestureDetector(ctx, object :
             GestureDetector.SimpleOnGestureListener() {
             override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                // 标尺是读数带，点它不该选中底下的区块
+                if (e.y < rulerH() || e.x < rulerW()) return true
                 val b = screenToBlock(e.x, e.y)
                 val cx = Math.floorDiv(b.first, BLOCKS_PER_CHUNK)
                 val cz = Math.floorDiv(b.second, BLOCKS_PER_CHUNK)
@@ -1688,6 +1722,101 @@ class ChunkMapActivity : AppCompatActivity() {
         private fun hasRegion(rx: Int, rz: Int): Boolean =
             refs.any { it.rx == rx && it.rz == rz }
 
+        // ------------------------------------------------------------ 标尺
+
+        private val rulerBg = Paint().apply {
+            style = Paint.Style.FILL
+            color = Color.argb(205, 16, 20, 24)
+        }
+        private val rulerEdge = Paint().apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 1f
+            color = Color.argb(110, 255, 255, 255)
+        }
+        private val rulerTick = Paint().apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 1f
+            color = Color.argb(160, 120, 185, 250)
+        }
+        private val rulerText = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(235, 140, 195, 250)
+            textSize = 19f
+        }
+
+        private fun rulerH(): Float = 26f * resources.displayMetrics.density
+        private fun rulerW(): Float = 54f * resources.displayMetrics.density
+
+        /** 刻度间隔：挑一个整的数，保证屏幕上一个间隔至少 76px 不挤成一团 */
+        private fun tickStep(): Int {
+            val want = 76.0 / scale.toDouble()
+            for (v in intArrayOf(1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096)) {
+                if (v >= want) return v
+            }
+            return 8192
+        }
+
+        /**
+         * 钉在屏幕顶边和左边的两根标尺。
+         *
+         * ⚠️ 之前坐标是画在每块瓦片上的（"2,-4" 之类），跟着图一起平移，
+         * 一移动就满屏乱飘，还常常被地形盖住 —— 想知道自己在哪儿只能靠猜。
+         *
+         * 现在标尺不随图移动，只随视野读数变化：顶边是 X，左边是 Z，
+         * 单位始终是**方块坐标**（放大到区块级时，刻度会自动落在 16 的整数倍上）。
+         */
+        private fun drawRulers(c: Canvas) {
+            val rh = rulerH()
+            val lw = rulerW()
+            c.drawRect(0f, 0f, width.toFloat(), rh, rulerBg)
+            c.drawLine(0f, rh, width.toFloat(), rh, rulerEdge)
+            c.drawRect(0f, 0f, lw, height.toFloat(), rulerBg)
+            c.drawLine(lw, 0f, lw, height.toFloat(), rulerEdge)
+
+            val step = tickStep()
+            val s = scale.toDouble()
+
+            // 顶边：X 轴
+            val x0 = Math.floor(camBX - (width / 2.0) / s).toInt()
+            val x1 = Math.ceil(camBX + (width / 2.0) / s).toInt()
+            var bx = Math.floorDiv(x0, step) * step
+            var guard = 0
+            while (bx <= x1 && guard++ < 400) {
+                val sx = blockToScreen(bx.toDouble(), 0.0).first
+                if (sx >= lw) {
+                    c.drawLine(sx, rh - 7f, sx, rh, rulerTick)
+                    c.drawText(bx.toString(), sx + 3f, rh - 10f, rulerText)
+                }
+                bx += step
+            }
+            // 左边：Z 轴
+            val z0 = Math.floor(camBZ - (height / 2.0) / s).toInt()
+            val z1 = Math.ceil(camBZ + (height / 2.0) / s).toInt()
+            var bz = Math.floorDiv(z0, step) * step
+            guard = 0
+            while (bz <= z1 && guard++ < 400) {
+                val sy = blockToScreen(0.0, bz.toDouble()).second
+                if (sy >= rh) {
+                    c.drawLine(lw - 7f, sy, lw, sy, rulerTick)
+                    c.drawText(bz.toString(), 3f, sy - 5f, rulerText)
+                }
+                bz += step
+            }
+
+            // 左上角压住交叉处，顺便标清哪根是 X、哪根是 Z
+            c.drawRect(0f, 0f, lw, rh, rulerBg)
+            c.drawText("X→", 4f, rh - 8f, rulerText)
+            c.drawText("↓Z", 4f, rh + 16f, rulerText)
+
+            // 中心十字：平移时有一个不动的参照点，不至于看着看着失去方向
+            val cx = width / 2f
+            val cy = height / 2f
+            c.drawLine(cx - 9f, cy, cx + 9f, cy, rulerTick)
+            c.drawLine(cx, cy - 9f, cx, cy + 9f, rulerTick)
+            val label = "中心 ${camBX.toInt()},${camBZ.toInt()}"
+            c.drawText(label, width - 8f - rulerText.measureText(label),
+                height - 10f, rulerText)
+        }
+
         /** 画待删除的标记，用红色和蓝色的"已选"区分开 */
         private fun drawStaged(c: Canvas, sx: Float, sy: Float, size: Float,
                                rx: Int, rz: Int) {
@@ -1756,6 +1885,8 @@ class ChunkMapActivity : AppCompatActivity() {
                 )
             }
 
+            drawRulers(c)
+
             // 框选的框
             val f = dragFrom
             val t = dragTo
@@ -1776,6 +1907,8 @@ class ChunkMapActivity : AppCompatActivity() {
             ge.onTouchEvent(ev)
             when (ev.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
+                    // 压在标尺上的手势不当成地图操作：想看刻度反而把图拖走
+                    if (ev.y < rulerH() || ev.x < rulerW()) return true
                     if (selMode) {
                         dragFrom = ev.x to ev.y
                         dragTo = ev.x to ev.y
