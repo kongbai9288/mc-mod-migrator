@@ -26,9 +26,9 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mapReleaseSourceSetPaths
 > Task :app:generateReleaseResources
 > Task :app:packageReleaseResources
-> Task :app:mergeReleaseResources
 > Task :app:createReleaseCompatibleScreenManifests
 > Task :app:extractDeepLinksRelease
+> Task :app:mergeReleaseResources
 > Task :app:parseReleaseLocalResources
 > Task :app:processReleaseMainManifest
 > Task :app:processReleaseManifest
@@ -36,15 +36,15 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:extractProguardFiles
 > Task :app:mergeReleaseJniLibFolders
 > Task :app:mergeReleaseNativeLibs
-> Task :app:desugarReleaseFileDependencies
 > Task :app:processReleaseManifestForPackage
 > Task :app:checkReleaseDuplicateClasses
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
 
-> Task :app:processReleaseResources
+> Task :app:desugarReleaseFileDependencies
 > Task :app:extractReleaseNativeSymbolTables
+> Task :app:processReleaseResources
 > Task :app:mergeExtDexRelease
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:mergeReleaseArtProfile
@@ -62,40 +62,37 @@ Unable to strip the following libraries, packaging them as they are: libconscryp
 > Task :app:compileReleaseKotlin
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:720:66 Unresolved reference: TYPE_FLAG_SIGNED
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:724:66 Unresolved reference: TYPE_FLAG_SIGNED
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:185:22 Unresolved reference: File
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:186:27 Overload resolution ambiguity: 
-public constructor RandomAccessFile(p0: File!, p1: String!) defined in java.io.RandomAccessFile
-public constructor RandomAccessFile(p0: String!, p1: String!) defined in java.io.RandomAccessFile
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:202:49 Overload resolution ambiguity: 
-public final operator fun compareTo(other: Byte): Int defined in kotlin.Long
-public final operator fun compareTo(other: Double): Int defined in kotlin.Long
-public final operator fun compareTo(other: Float): Int defined in kotlin.Long
-public final operator fun compareTo(other: Int): Int defined in kotlin.Long
-public open fun compareTo(other: Long): Int defined in kotlin.Long
-public final operator fun compareTo(other: Short): Int defined in kotlin.Long
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:222:42 Overload resolution ambiguity: 
-public final operator fun compareTo(other: Byte): Int defined in kotlin.Long
-public final operator fun compareTo(other: Double): Int defined in kotlin.Long
-public final operator fun compareTo(other: Float): Int defined in kotlin.Long
-public final operator fun compareTo(other: Int): Int defined in kotlin.Long
-public open fun compareTo(other: Long): Int defined in kotlin.Long
-public final operator fun compareTo(other: Short): Int defined in kotlin.Long
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:244:41 Unresolved reference: raw
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:261:19 Unresolved reference: raw
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:287:21 Unresolved reference: raw
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:288:16 'when' expression must be exhaustive, add necessary 'else' branch
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:288:26 Unresolved reference: rawMode
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:289:21 Unresolved reference: RawMode
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:291:32 Unresolved reference: yBase
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:294:48 Overload resolution ambiguity: 
-public final operator fun times(other: Byte): Int defined in kotlin.Int
-public final operator fun times(other: Double): Double defined in kotlin.Int
-public final operator fun times(other: Float): Float defined in kotlin.Int
-public final operator fun times(other: Int): Int defined in kotlin.Int
-public final operator fun times(other: Long): Long defined in kotlin.Int
-public final operator fun times(other: Short): Int defined in kotlin.Int
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:304:21 Unresolved reference: RawMode
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaRender.kt:308:21 Unresolved reference: RawMode
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTiles.kt:301:21 Unresolved reference: Lazy
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTiles.kt:306:20 Unresolved reference: present
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTiles.kt:308:20 Unresolved reference: close
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTiles.kt:310:21 Overload resolution ambiguity: 
+public inline fun <T> Array<out TypeVariable(T)>.isEmpty(): Boolean defined in kotlin.collections
+public inline fun BooleanArray.isEmpty(): Boolean defined in kotlin.collections
+public inline fun ByteArray.isEmpty(): Boolean defined in kotlin.collections
+public inline fun CharArray.isEmpty(): Boolean defined in kotlin.collections
+public inline fun CharSequence.isEmpty(): Boolean defined in kotlin.text
+public inline fun DoubleArray.isEmpty(): Boolean defined in kotlin.collections
+public inline fun FloatArray.isEmpty(): Boolean defined in kotlin.collections
+public inline fun IntArray.isEmpty(): Boolean defined in kotlin.collections
+public inline fun LongArray.isEmpty(): Boolean defined in kotlin.collections
+public inline fun ShortArray.isEmpty(): Boolean defined in kotlin.collections
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTiles.kt:310:41 Unresolved reference: close
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTiles.kt:320:22 Method 'iterator()' is ambiguous for this expression: 
+public operator fun BufferedInputStream.iterator(): ByteIterator defined in kotlin.io
+public operator fun <T> Enumeration<TypeVariable(T)>.iterator(): Iterator<TypeVariable(T)> defined in kotlin.collections
+public operator fun CharSequence.iterator(): CharIterator defined in kotlin.text
+public inline operator fun <T> Iterator<TypeVariable(T)>.iterator(): Iterator<TypeVariable(T)> defined in kotlin.collections
+public inline operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.iterator(): Iterator<Map.Entry<TypeVariable(K), TypeVariable(V)>> defined in kotlin.collections
+public inline operator fun <K, V> MutableMap<TypeVariable(K), TypeVariable(V)>.iterator(): MutableIterator<MutableMap.MutableEntry<TypeVariable(K), TypeVariable(V)>> defined in kotlin.collections
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTiles.kt:324:24 Unresolved reference: chunk
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTiles.kt:335:43 Smart cast to 'Nothing' is impossible, because 'c' is a complex expression
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTiles.kt:336:39 Smart cast to 'Nothing' is impossible, because 'c' is a complex expression
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTiles.kt:337:35 Smart cast to 'Nothing' is impossible, because 'c' is a complex expression
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTiles.kt:342:21 Overload resolution ambiguity: 
+public fun Array<out Int>.toIntArray(): IntArray defined in kotlin.collections
+public inline fun UIntArray.toIntArray(): IntArray defined in kotlin.collections
+public fun Collection<Int>.toIntArray(): IntArray defined in kotlin.collections
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTiles.kt:344:16 Unresolved reference: close
 
 > Task :app:compileReleaseKotlin FAILED
 
@@ -112,5 +109,5 @@ Execution failed for task ':app:compileReleaseKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 2m 24s
+BUILD FAILED in 2m 27s
 34 actionable tasks: 34 executed
