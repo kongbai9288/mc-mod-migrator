@@ -1,5 +1,5 @@
 # 真实存档验证（ai.zip / 26.2 世界）
-run: 38157197920
+run: 38159070214
 
 ## 测试类清单
 app/build/test-results/testDebugUnitTest/TEST-com.kongbai.modmigrator.McaRealWorldTest.xml
@@ -35,14 +35,14 @@ Daemon will be stopped at the end of the build
 > Task :app:javaPreCompileDebug UP-TO-DATE
 > Task :app:compileDebugJavaWithJavac UP-TO-DATE
 > Task :app:preDebugUnitTestBuild UP-TO-DATE
-> Task :app:processDebugJavaRes UP-TO-DATE
 > Task :app:javaPreCompileDebugUnitTest
-> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:processDebugJavaRes UP-TO-DATE
 > Task :app:bundleDebugClassesToCompileJar
+> Task :app:bundleDebugClassesToRuntimeJar
 > Task :app:compileDebugUnitTestKotlin
 > Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
 > Task :app:processDebugUnitTestJavaRes
 > Task :app:testDebugUnitTest
 
-BUILD SUCCESSFUL in 23s
+BUILD SUCCESSFUL in 26s
 23 actionable tasks: 7 executed, 16 up-to-date
