@@ -238,7 +238,7 @@ class McaRealWorldTest {
      */
     @Test
     fun fileBackedRegionBuildsSameBytes() {
-        val f = regionFiles().first
+        val f = regionFiles().first()
         val byBytes = McaEdit.Region(f.readBytes())
         val byFile = McaEdit.Region(f)
         try {
