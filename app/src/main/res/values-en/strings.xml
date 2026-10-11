@@ -183,6 +183,15 @@
     <string name="tab_favorites">Favorites</string>
     <string name="tab_weekly">Weekly report</string>
     <string name="tab_sites">Site directory</string>
+    <string name="cfg_gamedir_multi_title">Per-launcher folders</string>
+    <string name="cfg_gamedir_multi_hint">Each launcher has its own .minecraft. Add them one by one here; scanning checks each one and none of them overwrites the others.</string>
+    <string name="cfg_gamedir_add">Add another launcher folder</string>
+    <string name="cfg_gamedir_empty">None added yet. If you use several launchers, add each of them.</string>
+    <string name="cfg_gamedir_cur">in use</string>
+    <string name="cfg_gamedir_use">Use</string>
+    <string name="cfg_gamedir_del">Remove</string>
+    <string name="cfg_gamedir_added">Added, %1$d folders in total</string>
+    <string name="cfg_gamedir_exists">This folder is already in the list</string>
     <string name="cfg_gamedir_title">Game folder (.minecraft)</string>
     <string name="cfg_gamedir_hint">Mods only take effect inside the launcher\'s real .minecraft. Pick one of the detected folders or specify your own; the change is saved permanently.</string>
     <string name="cfg_gamedir_pick">Specify .minecraft folder myself</string>
