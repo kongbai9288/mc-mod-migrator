@@ -95,30 +95,12 @@ class ChunkMapActivity : AppCompatActivity() {
         private const val CHUNK_MODE_PX = 10f
 
         /**
-         * 缩放上下界。
-         *
-         * ⚠️ 之前上界写 4f —— 一格方块能放到 4 像素，
-         * 于是整张 512×512 的位图被拉伸到几千像素，
-         * 绘制开销和内存都失控（表现为平移时随机变黑、卡顿）。
-         *
-         * 上界取「进区块模式时用的那个值」：
-         * `CHUNK_MODE_PX * 1.6 / BLOCKS_PER_CHUNK` = 1.0，
-         * 也就是最大只能到区块级（一格方块约 1px）。
-         * 方块级操作不走缩放，改用「按范围删」填坐标 ——
-         * 手机上靠手指放到方块级既看不清也选不准。
+         * 同时最多几个线程在渲染区域。手机上是纯 CPU 活，开多了反而互相抢，
+         * 而且每路都要各持一份解压缓冲 —— 堆小的设备只开一路，
+         * 宁可慢一点也不让它把内存顶爆。
          */
-        private const val MIN_SCALE = 0.002f
-        private const val MAX_SCALE = 1.0f
-
-        /**
-         * 同时最多几个线程在渲染区域。
-         *
-         * 按 CPU 核数算，夹在 [2,4]：单核/双核开多了确实互相抢，
-         * 但这台设备是 8 核，固定 2 会让整张地图铺满要等很久，
-         * 期间大片区域一直是空的。
-         */
-        private val RENDER_THREADS =
-            Runtime.getRuntime().availableProcessors().coerceIn(2, 4)
+        private val RENDER_THREADS: Int =
+            if (Runtime.getRuntime().maxMemory() >= 256L * 1024 * 1024) 2 else 1
 
         /** 20 tick = 1 秒 */
         private const val TPS = 20L
@@ -127,8 +109,6 @@ class ChunkMapActivity : AppCompatActivity() {
     // ------------------------------------------------------------------ 状态
 
     private var worldDir: File? = null
-    /** SAF 打开时的原始 Uri。保存完要把缓存副本写回这里，否则改动全丢 */
-    private var srcUri: Uri? = null
     private var dims: List<McaWorld.Dim> = emptyList()
     private var dim: McaWorld.Dim? = null
     private var refs: List<McaWorld.Ref> = emptyList()
@@ -144,37 +124,11 @@ class ChunkMapActivity : AppCompatActivity() {
     private lateinit var tvStatus: TextView
     private lateinit var tvHint: TextView
     private lateinit var map: MapView
-
-    /** 选源 .mca（替换区块用） */
-    private lateinit var pickSrc: androidx.activity.result.ActivityResultLauncher<Array<String>>
     private lateinit var btnMode: MaterialButton
     private lateinit var btnDim: MaterialButton
     private lateinit var btnSave: MaterialButton
-    private lateinit var btnY: MaterialButton
 
-    /**
-     * 渲染线程池。
-     *
-     * ⚠️ 之前是 val 且 onDestroy 里 shutdownNow，但 pump() 靠 runOnUiThread
-     * 循环投递，关闭后仍有任务在排队回调 —— 再 execute 就抛
-     * RejectedExecutionException（Terminated / Shutting down），直接崩。
-     * 现在：alive 标记 + 提交前自愈（已关闭就重建），并且所有回调先过 alive。
-     */
-    private var pool = Executors.newFixedThreadPool(RENDER_THREADS)
-    @Volatile private var alive = true
-
-    private fun submitPool(task: Runnable) {
-        if (!alive) return
-        try {
-            pool.execute(task)
-        } catch (t: java.util.concurrent.RejectedExecutionException) {
-            synchronized(this) {
-                if (!alive) return
-                pool = Executors.newFixedThreadPool(RENDER_THREADS)
-                runCatching { pool.execute(task) }
-            }
-        }
-    }
+    private val pool = Executors.newFixedThreadPool(RENDER_THREADS)
     private val busy = AtomicInteger(0)
 
     /** 待渲染队列 + 正在渲染的集合。平移时整队重排，近的先画 */
@@ -210,9 +164,6 @@ class ChunkMapActivity : AppCompatActivity() {
         // 第一行：维度 / 模式 / 跳转
         val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         root.addView(bar)
-        // registerForActivityResult 必须在 CREATED 之前注册，
-        // 放到点击时才注册会直接抛异常 —— 所以在这里先备好。
-        ensurePickers()
         btnDim = MaterialButton(this).apply {
             text = "维度"
             setOnClickListener { pickDim() }
@@ -227,11 +178,6 @@ class ChunkMapActivity : AppCompatActivity() {
             text = "跳转"
             setOnClickListener { askGoto() }
         })
-        btnY = MaterialButton(this).apply {
-            text = "高度"
-            setOnClickListener { askYRange() }
-        }
-        bar.addView(btnY)
 
         tvHint = TextView(this).apply {
             textSize = 11f
@@ -273,10 +219,6 @@ class ChunkMapActivity : AppCompatActivity() {
             text = "清空"
             setOnClickListener { clearSelection() }
         })
-        row.addView(MaterialButton(this).apply {
-            text = "找结构"
-            setOnClickListener { askFindStructure() }
-        })
 
         // 操作
         val row2 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -286,20 +228,8 @@ class ChunkMapActivity : AppCompatActivity() {
             setOnClickListener { stageSelection() }
         })
         row2.addView(MaterialButton(this).apply {
-            text = "按范围删"
-            setOnClickListener { askRangeDelete() }
-        })
-        row2.addView(MaterialButton(this).apply {
             text = "导出选中"
             setOnClickListener { askExport() }
-        })
-        row2.addView(MaterialButton(this).apply {
-            text = "替换区块"
-            setOnClickListener { askReplace() }
-        })
-        row2.addView(MaterialButton(this).apply {
-            text = "导出图"
-            setOnClickListener { askExportPng() }
         })
 
         // 保存 / 撤销 / 复位
@@ -318,10 +248,6 @@ class ChunkMapActivity : AppCompatActivity() {
             text = "回原点"
             setOnClickListener { map.resetView(); map.invalidate() }
         })
-        row3.addView(MaterialButton(this).apply {
-            text = "地图缓存"
-            setOnClickListener { askTileCache() }
-        })
 
         // 载入
         val uriStr = intent.getStringExtra(EXTRA_URI)
@@ -339,7 +265,7 @@ class ChunkMapActivity : AppCompatActivity() {
             }
             !uriStr.isNullOrBlank() -> {
                 tvStatus.text = "正在读取…"
-                submitPool {
+                pool.execute {
                     val f = cacheSingle(Uri.parse(uriStr))
                     runOnUiThread {
                         if (f == null) tvStatus.text = "读不了这个区域文件"
@@ -352,67 +278,18 @@ class ChunkMapActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * SAF 单文件 → 缓存目录里的普通文件。
-     *
-     * ⚠️ 之前文件名写死成 `r.0.0.mca`，于是无论你选的是哪个区域文件，
-     * 坐标一律按 (0,0) 算 —— 显示错、导出错、删除也可能删到别的格子。
-     * 现在取 Uri 里的真实显示名，取不到才回退。
-     */
-    private fun ensurePickers() {
-        if (::pickSrc.isInitialized) return
-        pickSrc = registerForActivityResult(
-            androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
-        ) { uri ->
-            if (uri != null) runReplace(uri)
-        }
-    }
-
+    /** SAF 单文件 → 缓存目录里的普通文件 */
     private fun cacheSingle(uri: Uri): File? {
         // 写成块体而不是 = try {…}：表达式体里不允许裸 return
         return try {
             val dir = File(filesDir, "mca-single").apply { mkdirs() }
-            val name = displayNameOf(uri)?.takeIf {
-        it.endsWith(".mca") || it.endsWith(".mcr")
-    } ?: "r.0.0.mca"
-            // 同名会互相覆盖，先清掉旧的
-            dir.listFiles()?.forEach { if (it.name != name) it.delete() }
-            val f = File(dir, name)
+            val f = File(dir, "r.0.0.mca")
             val input = contentResolver.openInputStream(uri) ?: return null
             input.use { src -> f.outputStream().use { src.copyTo(it) } }
-            srcUri = uri
             f
         } catch (t: Throwable) {
             Err.fail(t, "缓存区域文件")
             null
-        }
-    }
-
-    /** 从 SAF Uri 取真实文件名，取不到返回 null */
-    private fun displayNameOf(uri: Uri): String? = try {
-        contentResolver.query(uri, null, null, null, null)?.use { c ->
-            val i = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-            if (i >= 0 && c.moveToFirst()) c.getString(i) else null
-        }
-    } catch (_: Throwable) {
-        null
-    }
-
-    /**
-     * 把缓存副本写回原 Uri。
-     *
-     * ⚠️ 之前缺失这一步：保存只写到自己的缓存目录，
-     * 于是「已删除 N 个区块」提示照弹，存档本体纹丝不动 ——
-     * 这正是「删除功能有问题」的来源。
-     */
-    private fun writeBack(f: File, uri: Uri): Boolean {
-        return try {
-            val out = contentResolver.openOutputStream(uri, "wt") ?: return false
-            out.use { f.inputStream().copyTo(it) }
-            true
-        } catch (t: Throwable) {
-            Err.fail(t, "写回区域文件")
-            false
         }
     }
 
@@ -427,9 +304,6 @@ class ChunkMapActivity : AppCompatActivity() {
         useDim(d)
     }
 
-    /** 当前维度，没选就是 null。新功能统一走这里，免得各自去碰 dims。 */
-    private fun curDimOrNull(): McaWorld.Dim? = dim
-
     private fun useDim(d: McaWorld.Dim) {
         dim = d
         refs = d.regions()
@@ -443,10 +317,7 @@ class ChunkMapActivity : AppCompatActivity() {
         stagedChunk.clear()
         loadDone = 0
         loadTotal = 0
-        // 公有目录的瓦片子目录按「世界 / 维度」拼，用户打开相册就知道在看哪个世界
-        McaTiles.setNamespace(worldDir?.name ?: d.label, d.label)
         btnDim.text = d.label
-        syncYButton()
         if (refs.isEmpty()) {
             tvStatus.text = "「${d.label}」里没有区域文件"
             return
@@ -522,7 +393,7 @@ class ChunkMapActivity : AppCompatActivity() {
             synchronized(this) { inflightKeys.add(key) }
             busy.incrementAndGet()
             val app = this
-            submitPool {
+            pool.execute {
                 try {
                     val b: Bitmap? = try {
                         McaTiles.get(app, next)
@@ -755,7 +626,7 @@ class ChunkMapActivity : AppCompatActivity() {
             .show()
         val tv = prog.findViewById<TextView>(android.R.id.message)
 
-        submitPool {
+        pool.execute {
             var done = 0
             val hitReg = HashSet<Long>()
             val hitChunk = HashSet<Long>()
@@ -806,346 +677,7 @@ class ChunkMapActivity : AppCompatActivity() {
 
     // ------------------------------------------------------------------ 跳转
 
-    // ---------------------------------------------------------------- Y 范围
-
-    /**
-     * 设置高度区间。
-     *
-     * ⚠️ 上一版写成两个空输入框「下界 Y / 上界 Y」，配一句抽象说明 ——
-     * 除了写它的人没人知道该填什么、填完会变成什么样。
-     *
-     * 实际语义是：在指定的这一段高度里，每格显示最高的那个方块。
-     * 所以这里改成先给几个一眼就懂的档位，自定义放最后，
-     * 并且按钮上直接写出"现在在看哪一段"。
-     */
-    private fun askYRange() {
-        val opts = arrayOf(
-            "全部高度（默认）",
-            "只看地表以上（Y ≥ 60）",
-            "只看地表以下（Y ≤ 59）",
-            "只看深层矿洞（Y -64 ~ 0）",
-            "只看下界那一层（Y 0 ~ 128）",
-            "自定义…"
-        )
-        MaterialAlertDialogBuilder(this)
-            .setTitle("看哪一段高度")
-            .setMessage(
-                "在指定的这一段高度里，每格显示最高的那个方块。\n" +
-                    "想看矿洞就选「地表以下」，想看地形轮廓就选「地表以上」。"
-            )
-            .setItems(opts) { _, which ->
-                when (which) {
-                    0 -> applyYRange(null, null)
-                    1 -> applyYRange(60, null)
-                    2 -> applyYRange(null, 59)
-                    3 -> applyYRange(-64, 0)
-                    4 -> applyYRange(0, 128)
-                    5 -> askYRangeCustom()
-                }
-            }
-            .setNegativeButton("取消", null)
-            .show()
-    }
-
-    /** 自定义档位。只有这里才需要填数字，并且写清楚填的是什么 */
-    private fun askYRangeCustom() {
-        val lo = EditText(this).apply {
-            hint = "最低看第几层（留空=不限）"
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED
-            if (McaTiles.yLo != Int.MIN_VALUE) setText(McaTiles.yLo.toString())
-        }
-        val hi = EditText(this).apply {
-            hint = "最高看第几层（留空=不限）"
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED
-            if (McaTiles.yHi != Int.MAX_VALUE) setText(McaTiles.yHi.toString())
-        }
-        val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            val pd = (16 * resources.displayMetrics.density).toInt()
-            setPadding(pd, pd, pd, pd)
-            addView(TextView(this@ChunkMapActivity).apply {
-                text = "1.18 起主世界是 -64 ~ 319，更早的版本是 0 ~ 255。\n" +
-                    "两个都留空就是恢复默认的全部高度。"
-            })
-            addView(lo); addView(hi)
-        }
-        MaterialAlertDialogBuilder(this)
-            .setTitle("自定义高度区间")
-            .setView(box)
-            .setNegativeButton("取消", null)
-            .setNeutralButton("恢复默认") { _, _ -> applyYRange(null, null) }
-            .setPositiveButton("应用") { _, _ ->
-                val a = lo.text.toString().trim().toIntOrNull()
-                val b = hi.text.toString().trim().toIntOrNull()
-                if (a != null && b != null && a > b) {
-                    toast("最低不能大于最高"); return@setPositiveButton
-                }
-                applyYRange(a, b)
-            }
-            .show()
-    }
-
-    private fun applyYRange(lo: Int?, hi: Int?) {
-        McaTiles.setYRange(lo, hi)
-        McaTiles.evictAll()
-        syncYButton()
-        map.invalidate()
-        kickLoad()
-        toast(
-            if (lo == null && hi == null) "已恢复全部高度"
-            else when {
-                lo == null -> "只看 Y $hi 以下"
-                hi == null -> "只看 Y $lo 以上"
-                else -> "只看 Y $lo ~ $hi"
-            }
-        )
-    }
-
-    /** 按钮上直接写出当前在看哪一段，不用再点进去猜 */
-    private fun syncYButton() {
-        if (!::btnY.isInitialized) return
-        val lo = McaTiles.yLo
-        val hi = McaTiles.yHi
-        btnY.text = when {
-            lo == Int.MIN_VALUE && hi == Int.MAX_VALUE -> "高度"
-            lo == Int.MIN_VALUE -> "高度 ≤$hi"
-            hi == Int.MAX_VALUE -> "高度 ≥$lo"
-            else -> "高度 $lo~$hi"
-        }
-    }
-
-    /**
-     * 瓦片缓存放在公有目录，用户可以自己去看、自己去删。
-     * 这里给出占用和一次清空的入口 —— 写到磁盘上的东西必须让用户看得见。
-     */
-    private fun askTileCache() {
-        val (n, bytes) = McaTiles.cacheStats(this)
-        val mb = bytes / 1024.0 / 1024.0
-        MaterialAlertDialogBuilder(this)
-            .setTitle("地图缓存")
-            .setMessage(
-                "当前世界已缓存 $n 张区域图，共 ${"%.1f".format(mb)} MB。\n\n" +
-                    "位置：相册 / Pictures / ModMigrator / 地图缓存 /\n" +
-                    "<世界> / <维度> / <高度档> / r.<x>.<z>.png\n\n" +
-                    "清掉不会丢失存档，只是下次打开要重新画一遍。"
-            )
-            .setNegativeButton("关闭", null)
-            .setPositiveButton("清空") { _, _ ->
-                McaTiles.clearCache(this)
-                map.invalidate()
-                kickLoad()
-                toast("已清空，正在重画")
-            }
-            .show()
-    }
-
-    // ---------------------------------------------------------------- 找结构
-
-    /**
-     * 在当前维度里找结构。
-     *
-     * 优先用区块里的结构索引，认不出来才按特征方块推断 ——
-     * 推断的结果标注了"推断"，免得把玩家自己盖的房子当成遗迹。
-     */
-    private fun askFindStructure() {
-        val dim = curDimOrNull() ?: return toast("先选一个维度")
-        val refs = dim.regions()
-        if (refs.isEmpty()) return toast("这个维度没有区域文件")
-        val prog = android.app.ProgressDialog(this).apply {
-            setMessage("扫描 ${refs.size} 个区域文件…")
-            setCancelable(false)
-            show()
-        }
-        submitPool {
-            val hits = ArrayList<McaStructures.Hit>()
-            for (r in refs) {
-                // 走文件来源：找结构要把整个维度的区域全扫一遍，
-                // 每个都整文件读进内存会一路把堆吃光
-                val reg = runCatching { McaEdit.Region(r.file) }.getOrNull() ?: continue
-                try {
-                    runCatching { hits.addAll(McaStructures.scan(reg, r.rx, r.rz)) }
-                } finally {
-                    reg.close()
-                }
-            }
-            val grouped = McaStructures.group(hits)
-            runOnUiThread {
-                prog.dismiss()
-                if (grouped.isEmpty()) {
-                    MaterialAlertDialogBuilder(this)
-                        .setTitle("没找到")
-                        .setMessage(
-                            "这个维度没扫到已知结构。\n\n" +
-                                "1.13 以后的存档靠区块里的结构索引，比较准；" +
-                                "更早的只能按方块特征推断，认不出的会漏。"
-                        )
-                        .setPositiveButton("知道了", null)
-                        .show()
-                    return@runOnUiThread
-                }
-                val names = grouped.map { (id, list) ->
-                    "${McaStructures.labelOf(id)}（${list.size} 处" +
-                        "${if (list.any { !it.exact }) "·推断" else ""}）"
-                }.toTypedArray()
-                MaterialAlertDialogBuilder(this)
-                    .setTitle("找到 ${hits.size} 处")
-                    .setItems(names) { _, w ->
-                        val list = grouped[w].second
-                        val sub = list.map {
-                            "区块 (${it.worldChunkX}, ${it.worldChunkZ})" +
-                                if (it.exact) "" else " ·推断"
-                        }.toTypedArray()
-                        MaterialAlertDialogBuilder(this)
-                            .setTitle(McaStructures.labelOf(grouped[w].first))
-                            .setItems(sub) { _, k ->
-                                val h = list[k]
-                                map.gotoBlock(h.worldChunkX * 16, h.worldChunkZ * 16)
-                                afterGoto()
-                                toast("已跳转并选中")
-                            }
-                            .setNegativeButton("取消", null)
-                            .show()
-                    }
-                    .setNegativeButton("取消", null)
-                    .show()
-            }
-        }
-    }
-
-    // ---------------------------------------------------------------- 替换
-
-    /**
-     * 用另一个 .mca 覆盖已选区域。
-     *
-     * 按槽位一一对应 —— 常见的用法就是拿备份的 r.0.0.mca
-     * 去覆盖当前的 r.0.0.mca。源里没有的槽位保持原样，不会清空。
-     */
-    private fun askReplace() {
-        if (selReg.isEmpty()) {
-            MaterialAlertDialogBuilder(this)
-                .setTitle("先选区域")
-                .setMessage("替换是按区域文件整块覆盖，先在地图上选中要替换的区域。")
-                .setPositiveButton("知道了", null)
-                .show()
-            return
-        }
-        MaterialAlertDialogBuilder(this)
-            .setTitle("替换区块")
-            .setMessage(
-                "选一个源 .mca 文件，它的区块会覆盖当前选中区域的同名槽位。\n\n" +
-                    "覆盖前会先留一份 .bak，可以手动还原。\n" +
-                    "源里没有的区块不动。"
-            )
-            .setNegativeButton("取消", null)
-            .setPositiveButton("选源文件") { _, _ ->
-                runCatching { pickSrc.launch(arrayOf("*/*")) }
-                    .onFailure { toast("打不开文件选择器") }
-            }
-            .show()
-    }
-
-    private fun runReplace(srcUri: Uri) {
-        val dim = curDimOrNull() ?: return toast("先选一个维度")
-        val targets = dim.regions().filter { selReg.contains(McaTiles.packRegion(it.rx, it.rz)) }
-        if (targets.isEmpty()) return toast("选中的区域不在这个维度里")
-        val prog = android.app.ProgressDialog(this).apply {
-            setMessage("替换中…"); setCancelable(false); show()
-        }
-        submitPool {
-            val srcBytes = try {
-                contentResolver.openInputStream(srcUri)?.use { it.readBytes() }
-            } catch (t: Throwable) {
-                Err.ignore(t, "读源文件失败"); null
-            }
-            if (srcBytes == null) {
-                runOnUiThread { prog.dismiss(); toast("源 .mca 读不出来") }
-                return@submitPool
-            }
-            val src = try {
-                McaEdit.Region(srcBytes)
-            } catch (t: Throwable) {
-                Err.ignore(t, "源 .mca 解析失败")
-                runOnUiThread { prog.dismiss(); toast("源 .mca 不是有效的区域文件") }
-                return@submitPool
-            }
-            var done = 0
-            var n = 0
-            for (ref in targets) {
-                try {
-                    val dst = McaEdit.Region(ref.file)
-                    val slots = dst.present().toIntArray()
-                    val k = McaOps.replaceSlots(dst, src, slots)
-                    if (k == 0) continue
-                    val out = dst.build()
-                    // 先备份，再写；写失败要如实说，不能假报成功
-                    runCatching { ref.file.copyTo(File(ref.file.parentFile, ref.file.name + ".bak"), true) }
-                    val ok = File(ref.file.parentFile, ref.file.name).let {
-                        runCatching { it.writeBytes(out) }.isSuccess
-                    }
-                    if (ok) {
-                        done++; n += k
-                        McaTiles.invalidate(this, ref)
-                        val u = McaWorld.Mirror.of(ref.file)
-                        if (u != null) writeBack(ref.file, u)
-                    }
-                } catch (t: Throwable) {
-                    Err.ignore(t, "替换区域失败")
-                }
-            }
-            runOnUiThread {
-                prog.dismiss()
-                MaterialAlertDialogBuilder(this)
-                    .setTitle(if (done > 0) "替换完成" else "没替换成功")
-                    .setMessage(
-                        if (done > 0) "覆盖了 $done 个区域文件、共 $n 个区块。\n原文件已留 .bak。"
-                        else "一个都没覆盖成 —— 可能源文件和目标区域没有对应槽位。"
-                    )
-                    .setPositiveButton("知道了", null)
-                    .show()
-                map.invalidate(); kickLoad()
-            }
-        }
-    }
-
-    // ---------------------------------------------------------------- 导出图
-
-    /**
-     * 把当前看到的区域拼成一张 PNG 存进相册。
-     *
-     * 没选区域就导出当前视野内的；区域多了会按比例缩小，
-     * 不然直接 OOM 或者存出一个打不开的文件。
-     */
-    private fun askExportPng() {
-        val dim = curDimOrNull() ?: return toast("先选一个维度")
-        val vis = map.visibleRefs()
-        val refs = if (selReg.isEmpty()) vis
-        else dim.regions().filter { selReg.contains(McaTiles.packRegion(it.rx, it.rz)) }
-        if (refs.isEmpty()) return toast("没有可导出的区域")
-        val prog = android.app.ProgressDialog(this).apply {
-            setMessage("导出 ${refs.size} 个区域…"); setCancelable(false); show()
-        }
-        submitPool {
-            val tiles = ArrayList<Pair<McaWorld.Ref, Bitmap>>()
-            for (r in refs) {
-                val b = McaTiles.get(this@ChunkMapActivity, r) ?: continue
-                tiles.add(r to b)
-            }
-            val path = if (tiles.size == 1) {
-                McaOps.exportOne(this@ChunkMapActivity, "${dim.label}_${tiles[0].first.name}", tiles[0].second)
-            } else {
-                McaOps.exportPng(this@ChunkMapActivity, "${dim.label}_map", tiles)
-            }
-            runOnUiThread {
-                prog.dismiss()
-                MaterialAlertDialogBuilder(this)
-                    .setTitle(if (path != null) "已导出" else "导出失败")
-                    .setMessage(path ?: "写文件时出错了，看看存储空间是不是满了。")
-                    .setPositiveButton("知道了", null)
-                    .show()
-            }
-        }
-    }
-
+    /** 跳到指定坐标。MCA Selector / Blocktopograph 都有，找崩溃点全靠它 */
     private fun askGoto() {
         val spawn = readSpawn()
         val items = ArrayList<String>()
@@ -1185,11 +717,11 @@ class ChunkMapActivity : AppCompatActivity() {
         }
         val ex = EditText(this).apply {
             hint = if (isChunk) "区块 X" else "方块 X"
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_FLAG_SIGNED
         }
         val ez = EditText(this).apply {
             hint = if (isChunk) "区块 Z" else "方块 Z"
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_FLAG_SIGNED
         }
         lay.addView(ex)
         lay.addView(ez)
@@ -1242,73 +774,6 @@ class ChunkMapActivity : AppCompatActivity() {
         toast("已标记为待删除，还没动存档 —— 点「保存」才生效，点「撤销标记」可以反悔")
     }
 
-    /**
-     * 填范围删。
-     *
-     * 地图上最大只能放到区块级（见 [MIN_SCALE]），
-     * 方块级靠手指点既看不清也选不准，所以用填坐标的方式。
-     * 输入的是**方块坐标**，内部按区块边界对齐：
-     * 完全落在范围内的区块才删，边上只擦到一半的不动 ——
-     * 免得你填 0~100 结果把 0~127 整块端掉。
-     */
-    private fun askRangeDelete() {
-        val ctx = this
-        val box = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 24, 48, 0)
-        }
-        fun field(hint: String): EditText = EditText(ctx).apply {
-            this.hint = hint
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
-                android.text.InputType.TYPE_NUMBER_FLAG_SIGNED
-        }
-        val e0 = field("x 起点"); val e1 = field("z 起点")
-        val e2 = field("x 终点"); val e3 = field("z 终点")
-        listOf(e0, e1, e2, e3).forEach { box.addView(it) }
-        box.addView(TextView(ctx).apply {
-            text = "填方块坐标。只删被范围完整包住的区块，" +
-                "边上擦到一半的不动。"
-            textSize = 12f
-        })
-
-        fun int(e: EditText): Int? = e.text.toString().trim().toIntOrNull()
-
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("按范围删除")
-            .setView(box)
-            .setNegativeButton("取消", null)
-            .setPositiveButton("标记") { _, _ ->
-                val x0 = int(e0); val z0 = int(e1)
-                val x1 = int(e2); val z1 = int(e3)
-                if (x0 == null || z0 == null || x1 == null || z1 == null) {
-                    toast("四个都要填"); return@setPositiveButton
-                }
-                val ax = minOf(x0, x1); val bx = maxOf(x0, x1)
-                val az = minOf(z0, z1); val bz = maxOf(z0, z1)
-                // 方块坐标 → 区块坐标（向下取整 / 向上取整，只取完整包含的）
-                val cx0 = kotlin.math.floor(ax / 16.0).toInt() + if (ax % 16 != 0) 1 else 0
-                val cx1 = kotlin.math.ceil((bx + 1) / 16.0).toInt() - 1
-                val cz0 = kotlin.math.floor(az / 16.0).toInt() + if (az % 16 != 0) 1 else 0
-                val cz1 = kotlin.math.ceil((bz + 1) / 16.0).toInt() - 1
-                if (cx1 < cx0 || cz1 < cz0) {
-                    toast("这个范围里没有完整包含的区块"); return@setPositiveButton
-                }
-                var n = 0
-                for (cz in cz0..cz1) for (cx in cx0..cx1) {
-                    val rx = kotlin.math.floor(cx / 32.0).toInt()
-                    val rz = kotlin.math.floor(cz / 32.0).toInt()
-                    val lcx = cx - rx * 32
-                    val lcz = cz - rz * 32
-                    stagedChunk.add(McaTiles.packChunk(rx, rz, lcx, lcz))
-                    n++
-                }
-                map.invalidate()
-                updateStatus()
-                toast("已标记 $n 个区块待删除 —— 点「保存」才生效")
-            }
-            .show()
-    }
-
     private fun clearStaged() {
         stagedReg.clear()
         stagedChunk.clear()
@@ -1355,7 +820,7 @@ class ChunkMapActivity : AppCompatActivity() {
             .show()
         val tv = prog.findViewById<TextView>(android.R.id.message)
 
-        submitPool {
+        pool.execute {
             var done = 0
             var removed = 0
             var failed = 0
@@ -1363,25 +828,16 @@ class ChunkMapActivity : AppCompatActivity() {
                 val ref = byRef[rk] ?: continue
                 try {
                     val f = ref.file
+                    val raw = f.readBytes()
                     val bak = File("${f.absolutePath}.bak")
-                    if (!bak.exists()) runCatching { f.copyTo(bak) }
-                    val reg = McaEdit.Region(f)
+                    if (!bak.exists()) runCatching { bak.writeBytes(raw) }
+                    val reg = McaEdit.Region(raw)
                     if (slots.isEmpty()) {
                         for (s in reg.present()) if (reg.remove(s)) removed++
                     } else {
                         for (s in slots) if (reg.remove(s)) removed++
                     }
                     f.writeBytes(reg.build())
-                    // SAF 来的：改的是本地副本（镜像或单文件缓存），
-                    // 必须写回原处，否则一切白做
-                    val back = McaWorld.Mirror.of(f) ?: srcUri
-                    if (back != null && !writeBack(f, back)) {
-                        failed++
-                        runOnUiThread {
-                            tv?.text = "${done + failed} / ${targets.size}"
-                        }
-                        continue
-                    }
                     McaTiles.invalidate(this, ref)
                     done++
                 } catch (t: Throwable) {
@@ -1451,14 +907,14 @@ class ChunkMapActivity : AppCompatActivity() {
             .show()
         val tv = prog.findViewById<TextView>(android.R.id.message)
 
-        submitPool {
+        pool.execute {
             var done = 0
             var failed = 0
             val made = ArrayList<File>()
             for ((rk, slots) in targets) {
                 val ref = byRef[rk] ?: continue
                 try {
-                    val src = McaEdit.Region(ref.file)
+                    val src = McaEdit.Region(ref.file.readBytes())
                     val want = if (slots.isEmpty()) src.present().toList() else slots.toList()
                     // 空头（8192 字节全 0）就是一个"没有任何区块"的区域
                     val out = McaEdit.Region(ByteArray(8192))
@@ -1488,12 +944,11 @@ class ChunkMapActivity : AppCompatActivity() {
     }
 
     private fun toast(m: String) =
-        Tips.long(this, m)
+        Toast.makeText(this, m, Toast.LENGTH_LONG).show()
 
     override fun onDestroy() {
-        alive = false
         super.onDestroy()
-        runCatching { pool.shutdownNow() }
+        pool.shutdownNow()
     }
 
     // ------------------------------------------------------------------ 地图
@@ -1538,20 +993,12 @@ class ChunkMapActivity : AppCompatActivity() {
             strokeWidth = 2f
             color = Color.argb(230, 229, 83, 75)
         }
-        /**
-         * 还没加载出来的区域。
-         *
-         * ⚠️ 之前是纯黑，跟"这里地形本来就是黑的"完全分不清 ——
-         * 用户只能猜到底是没加载还是没生成。
-         * 现在用带蓝调的深灰，和地形的纯黑区分开，
-         * 并且标了坐标，至少能知道是哪一块还在路上。
-         */
         private val placeholder = Paint().apply {
             style = Paint.Style.FILL
-            color = 0xFF2B3138.toInt()
+            color = 0xFF1A1A1A.toInt()
         }
         private val textPaint = Paint().apply {
-            color = Color.argb(190, 150, 170, 190)
+            color = Color.argb(150, 255, 255, 255)
             textSize = 22f
         }
 
@@ -1559,7 +1006,7 @@ class ChunkMapActivity : AppCompatActivity() {
             ScaleGestureDetector.SimpleOnScaleGestureListener() {
             override fun onScale(d: ScaleGestureDetector): Boolean {
                 val f = d.scaleFactor
-                val ns = (scale * f).coerceIn(MIN_SCALE, MAX_SCALE)
+                val ns = (scale * f).coerceIn(0.002f, 4f)
                 // 以手势中心为锚点缩放，否则一缩放画面就飘走
                 val fx = d.focusX.toDouble()
                 val fy = d.focusY.toDouble()
@@ -1617,7 +1064,7 @@ class ChunkMapActivity : AppCompatActivity() {
 
         /** 放大到刚好能看见区块网格 */
         fun zoomToChunk() {
-            scale = (CHUNK_MODE_PX * 1.6f / BLOCKS_PER_CHUNK).coerceIn(MIN_SCALE, MAX_SCALE)
+            scale = (CHUNK_MODE_PX * 1.6f / BLOCKS_PER_CHUNK).coerceIn(0.002f, 4f)
         }
 
         fun resetView() {
@@ -1635,7 +1082,7 @@ class ChunkMapActivity : AppCompatActivity() {
             val fitW = if (x1 > x0) w / (x1 - x0).toFloat() else 1f
             val fitH = if (z1 > z0) h / (z1 - z0).toFloat() else 1f
             // 先按内容算铺满，再留 10% 边距，最后才夹到上下限
-            scale = (minOf(fitW, fitH) * 0.9f).coerceIn(MIN_SCALE, MAX_SCALE)
+            scale = (minOf(fitW, fitH) * 0.9f).coerceIn(0.002f, 4f)
         }
 
         /**
@@ -1698,12 +1145,11 @@ class ChunkMapActivity : AppCompatActivity() {
             }
         }
 
-        /** 每帧最多从磁盘解码几张。避免一整屏全 miss 时掉帧 */
-        private var diskBudget = 3
-
         override fun onDraw(c: Canvas) {
             super.onDraw(c)
-            diskBudget = 3
+            // 每帧最多解码三张磁盘图。不限的话，一口气平移过几十个区域
+            // 会在一帧里解码几十张，主线程照样被拖住
+            var diskBudget = 3
             val list = visibleRefs()
             for (r in list) {
                 val (sx, sy) = blockToScreen(
@@ -1712,13 +1158,13 @@ class ChunkMapActivity : AppCompatActivity() {
                 val size = BLOCKS_PER_REGION * scale
                 if (sx + size < 0 || sy + size < 0 || sx > width || sy > height) continue
 
-                // 两级取图：内存 → 磁盘 PNG。
-                // ⚠️ 之前只查内存，LRU 一踢掉就画黑，可磁盘上明明有现成的图。
-                // 解码 PNG 是毫秒级，解析 .mca 是秒级，所以只有磁盘也没有
-                // 才允许空着，并交给后台去渲染。
+                // 先查内存，再查磁盘，两者都不碰渲染 ——
+                // onDraw 每帧都跑，在这里解析文件等于把界面钉死。
+                // 磁盘那份是几毫秒，不读白不读；之前只读内存，
+                // 于是内存里挤掉的瓦片明明有缓存也显示成占位块。
                 var bmp = McaTiles.peek(r)
                 if (bmp == null && diskBudget > 0) {
-                    bmp = McaTiles.fromDisk(this@ChunkMapActivity, r)
+                    bmp = McaTiles.fromDisk(context, r)
                     if (bmp != null) diskBudget--
                 }
                 if (bmp != null) {
@@ -1726,7 +1172,11 @@ class ChunkMapActivity : AppCompatActivity() {
                         android.graphics.RectF(sx, sy, sx + size, sy + size), null)
                 } else {
                     c.drawRect(sx, sy, sx + size, sy + size, placeholder)
-                    c.drawText("${r.rx},${r.rz}", sx + 4, sy + 20, textPaint)
+                    // 格子太小就别画字了：一屏上百个区域时，
+                    // 每个都写一行坐标会把画面糊成一片白
+                    if (size >= 48f) {
+                        c.drawText("${r.rx},${r.rz}", sx + 4, sy + 20, textPaint)
+                    }
                 }
 
                 // 网格：区域边界始终画；放大后加画区块网格
