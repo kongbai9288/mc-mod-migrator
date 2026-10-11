@@ -525,7 +525,7 @@ class ToolsFragment : Fragment() {
         val ctx = context ?: return
         toast("正在分析…")
         bg {
-            val dir = Targets.modsDir(ctx) ?: WorkDir.modsDir(ctx)
+            val dir = DirResolve.modsDir(ctx)
             if (dir == null) {
                 toast("没有可用的 mods 目录")
                 return@bg
@@ -566,7 +566,7 @@ class ToolsFragment : Fragment() {
         }
         toast("开始下载 ${todo.size} 个…")
         bg {
-            val dir = WorkDir.modsDir(ctx) ?: Targets.modsDir(ctx)
+            val dir = DirResolve.modsDir(ctx)
             if (dir == null) {
                 toast("目标目录不可用")
                 return@bg
@@ -612,7 +612,7 @@ class ToolsFragment : Fragment() {
         val ctx = context ?: return
         toast("正在读取本地模组…")
         bg {
-            val dir = Targets.modsDir(ctx) ?: WorkDir.modsDir(ctx)
+            val dir = DirResolve.modsDir(ctx)
             if (dir == null) {
                 toast("没有可用的 mods 目录")
                 return@bg
@@ -657,7 +657,7 @@ class ToolsFragment : Fragment() {
     private fun modToggle() {
         val ctx = context ?: return
         bg {
-            val dir = Targets.modsDir(ctx) ?: WorkDir.modsDir(ctx)
+            val dir = DirResolve.modsDir(ctx)
             if (dir == null) {
                 toast("没有可用的 mods 目录")
                 return@bg
@@ -890,7 +890,7 @@ class ToolsFragment : Fragment() {
     private fun shareMods() {
         val ctx = context ?: return
         bg {
-            val dir = Targets.modsDir(ctx) ?: WorkDir.modsDir(ctx)
+            val dir = DirResolve.modsDir(ctx)
             if (dir == null) {
                 toast("没有可用的 mods 目录")
                 return@bg

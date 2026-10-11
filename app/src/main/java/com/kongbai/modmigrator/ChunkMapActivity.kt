@@ -111,6 +111,18 @@ class ChunkMapActivity : AppCompatActivity() {
         private const val MAX_SCALE = 1.0f
 
         /**
+         * 一屏最多画多少个区域。
+         *
+         * 一张区域图 512×512 约 1 MB，世界大了铺开几十张就把堆吃光，
+         * 表现是整屏变黑或者界面无响应。与其等 OOM 再补救，
+         * 不如一开始就不画那么多：超出上限的按离屏幕中心的距离丢掉远的。
+         */
+        private const val MAX_VISIBLE_REGIONS = 24
+
+        /** 打开时视野里大约放几个区域（横竖都按这个数算） */
+        private const val DEFAULT_VIEW_REGIONS = 4
+
+        /**
          * 同时最多几个线程在渲染区域。
          *
          * 按 CPU 核数算，夹在 [2,4]：单核/双核开多了确实互相抢，
@@ -1782,20 +1794,28 @@ class ChunkMapActivity : AppCompatActivity() {
 
         fun resetView() {
             if (refs.isEmpty()) return
-            val xs = refs.map { it.baseBlockX }
-            val zs = refs.map { it.baseBlockZ }
-            val x0 = xs.minOrNull() ?: 0
-            val x1 = (xs.maxOrNull() ?: 0) + BLOCKS_PER_REGION
-            val z0 = zs.minOrNull() ?: 0
-            val z1 = (zs.maxOrNull() ?: 0) + BLOCKS_PER_REGION
-            camBX = (x0 + x1) / 2.0
-            camBZ = (z0 + z1) / 2.0
+            // 原点打开：坐标有绝对参照，不用每次进来先猜自己在哪。
+            // 之前是按全部区域的外接框居中，世界一大就把整个存档缩成一团，
+            // 而且视野里几百个区域一起排队渲染，内存直接见底。
+            camBX = 0.0
+            camBZ = 0.0
             val w = width.toFloat().takeIf { it > 0 } ?: 800f
             val h = height.toFloat().takeIf { it > 0 } ?: 800f
-            val fitW = if (x1 > x0) w / (x1 - x0).toFloat() else 1f
-            val fitH = if (z1 > z0) h / (z1 - z0).toFloat() else 1f
-            // 先按内容算铺满，再留 10% 边距，最后才夹到上下限
-            scale = (minOf(fitW, fitH) * 0.9f).coerceIn(MIN_SCALE, MAX_SCALE)
+            val span = BLOCKS_PER_REGION * DEFAULT_VIEW_REGIONS.toFloat()
+            scale = minOf(w / span, h / span).coerceIn(MIN_SCALE, MAX_SCALE)
+            // 原点附近恰好没有区域时（存档是零散生成的），
+            // 退到离原点最近的那个，否则一打开就是一整屏空白
+            if (visibleRefs().isEmpty()) {
+                val near = refs.minByOrNull {
+                    val dx = it.baseBlockX.toDouble()
+                    val dz = it.baseBlockZ.toDouble()
+                    dx * dx + dz * dz
+                }
+                if (near != null) {
+                    camBX = near.baseBlockX + BLOCKS_PER_REGION / 2.0
+                    camBZ = near.baseBlockZ + BLOCKS_PER_REGION / 2.0
+                }
+            }
         }
 
         /**
@@ -1827,10 +1847,19 @@ class ChunkMapActivity : AppCompatActivity() {
             val z0 = Math.floor(camBZ - halfH).toInt()
             val x1 = Math.ceil(camBX + halfW).toInt()
             val z1 = Math.ceil(camBZ + halfH).toInt()
-            return refs.filter {
+            val hit = refs.filter {
                 it.baseBlockX + BLOCKS_PER_REGION >= x0 && it.baseBlockX <= x1 &&
                     it.baseBlockZ + BLOCKS_PER_REGION >= z0 && it.baseBlockZ <= z1
             }
+            if (hit.size <= MAX_VISIBLE_REGIONS) return hit
+            // 超上限时留离屏幕中心最近的那些。
+            // ⚠️ 不能直接 take()：refs 的顺序是磁盘扫描顺序，
+            // 截断会把眼前的丢掉、把远处的留下。
+            return hit.sortedBy {
+                val dx = it.baseBlockX + BLOCKS_PER_REGION / 2.0 - camBX
+                val dz = it.baseBlockZ + BLOCKS_PER_REGION / 2.0 - camBZ
+                dx * dx + dz * dz
+            }.take(MAX_VISIBLE_REGIONS)
         }
 
         private fun hasRegion(rx: Int, rz: Int): Boolean =
