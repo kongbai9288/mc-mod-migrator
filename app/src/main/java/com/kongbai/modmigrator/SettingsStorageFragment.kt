@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
@@ -28,6 +29,7 @@ class SettingsStorageFragment : Fragment() {
         refresh()
         setupBackup(v)
         setupGameDir(v)
+        setupMultiGameDir(v)
         btnPick.setOnClickListener {
             DirGuide.pick(requireActivity(), 21, DirGuide.Purpose.FREE)
         }
@@ -119,6 +121,81 @@ class SettingsStorageFragment : Fragment() {
             // 自己指定：走 SAF 选目录。
             // 注意 Android 11+ 选不到 Android/data，提示里说清楚该选哪一层。
             DirGuide.pick(requireActivity(), 22, DirGuide.Purpose.FREE)
+        }
+    }
+
+    /**
+     * 多个启动器各自的目录。
+     *
+     * 手机上装两三个启动器很常见，每个的 .minecraft 各自独立 ——
+     * 模组装进 A 的目录，B 里一个都加载不到。
+     * 之前设置页只能存一个，授权第二个就把第一个覆盖掉、
+     * 权限也再也拿不回来，于是扫描只认最后那个目录，
+     * 别的启动器下的实例"凭空消失"。
+     *
+     * 这里改成列表：添加是**追加**不是覆盖，每个目录各自保留授权。
+     */
+    private fun setupMultiGameDir(v: View) {
+        val ctx = requireContext()
+        val box = v.findViewById<LinearLayout>(R.id.llGameDirs) ?: return
+        val btn = v.findViewById<Button>(R.id.btnAddGameDir) ?: return
+        btn.setOnClickListener {
+            val i = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            runCatching { startActivityForResult(i, 23) }
+                .onFailure { Tips.short(ctx, "打不开目录选择器") }
+        }
+        renderGameDirs(box)
+    }
+
+    private fun renderGameDirs(box: LinearLayout) {
+        val ctx = requireContext()
+        box.removeAllViews()
+        val items = GameDirs.list(ctx)
+        if (items.isEmpty()) {
+            val tv = TextView(ctx)
+            tv.text = getString(R.string.cfg_gamedir_empty)
+            tv.textSize = 12f
+            tv.setTextColor(tvWork.currentTextColor)
+            box.addView(tv)
+            return
+        }
+        val cur = GameDirs.current(ctx)
+        for (e in items) {
+            val row = LinearLayout(ctx)
+            row.orientation = LinearLayout.HORIZONTAL
+            row.setPadding(0, 4, 0, 4)
+
+            val tv = TextView(ctx)
+            val isCur = cur != null && cur.uri == e.uri
+            tv.text = if (isCur) "${e.label()}（${getString(R.string.cfg_gamedir_cur)}）" else e.label()
+            tv.textSize = 13f
+            tv.layoutParams = LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+            )
+            row.addView(tv)
+
+            if (!isCur) {
+                val bUse = Button(ctx)
+                bUse.text = getString(R.string.cfg_gamedir_use)
+                bUse.setOnClickListener {
+                    GameDirs.setCurrent(ctx, e.uri)
+                    Tips.short(ctx, "已切换到 ${e.label()}")
+                    renderGameDirs(box)
+                }
+                row.addView(bUse)
+            }
+
+            val bDel = Button(ctx)
+            bDel.text = getString(R.string.cfg_gamedir_del)
+            bDel.setOnClickListener {
+                GameDirs.remove(ctx, e.uri)
+                Tips.short(ctx, "已移除 ${e.label()}")
+                renderGameDirs(box)
+            }
+            row.addView(bDel)
+
+            box.addView(row)
         }
     }
 
@@ -215,6 +292,17 @@ class SettingsStorageFragment : Fragment() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 23 && resultCode == Activity.RESULT_OK) {
+            val uri = data?.data ?: return
+            val added = GameDirs.add(requireContext(), uri)
+            view?.findViewById<LinearLayout>(R.id.llGameDirs)?.let { renderGameDirs(it) }
+            Tips.short(
+                requireContext(),
+                if (added) getString(R.string.cfg_gamedir_added, GameDirs.size(requireContext()))
+                else getString(R.string.cfg_gamedir_exists)
+            )
+            return
+        }
         if (requestCode == 22 && resultCode == Activity.RESULT_OK) {
             // 自己指定的游戏目录。SAF 给的是 tree URI，
             // 这里连同持久化授权一起保存，保证重启后仍然可用。
