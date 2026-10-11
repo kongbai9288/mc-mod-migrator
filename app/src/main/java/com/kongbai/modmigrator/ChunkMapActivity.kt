@@ -339,19 +339,29 @@ class ChunkMapActivity : AppCompatActivity() {
             !worldPath.isNullOrBlank() -> {
                 val w = File(worldPath)
                 worldDir = w
-                dims = McaWorld.discover(w)
-                if (dims.isEmpty()) {
-                    tvStatus.text = "这个世界里没找到任何 region 目录"
-                    return
+                // 扫描整个世界要遍历所有维度目录，是磁盘活，
+                // 之前放在主线程直接跑，大存档会卡住界面好一会儿且没有任何提示。
+                val h = LoadingOverlay.show(this, "正在扫描世界…")
+                submitPool {
+                    val found = McaWorld.discover(w)
+                    runOnUiThread {
+                        LoadingOverlay.hide(this, h)
+                        dims = found
+                        if (dims.isEmpty()) {
+                            tvStatus.text = "这个世界里没找到任何 region 目录"
+                        } else {
+                            val pick = dims.firstOrNull { it.key == dimKey } ?: dims.first()
+                            useDim(pick)
+                        }
+                    }
                 }
-                val pick = dims.firstOrNull { it.key == dimKey } ?: dims.first()
-                useDim(pick)
             }
             !uriStr.isNullOrBlank() -> {
-                tvStatus.text = "正在读取…"
+                val h = LoadingOverlay.show(this, "正在读取存档…")
                 submitPool {
                     val f = cacheSingle(Uri.parse(uriStr))
                     runOnUiThread {
+                        LoadingOverlay.hide(this, h)
                         if (f == null) tvStatus.text = "读不了这个区域文件"
                         else bootSingle(f)
                     }
@@ -1629,6 +1639,7 @@ class ChunkMapActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         alive = false
+        LoadingOverlay.hideAll(this)
         super.onDestroy()
         runCatching { pool.shutdownNow() }
     }
