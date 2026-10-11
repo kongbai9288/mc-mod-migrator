@@ -10,7 +10,8 @@ import com.viaversion.nbt.tag.StringTag
 import com.viaversion.nbt.tag.Tag
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import java.io.File
+import java.io.Closeable
+import java.io.RandomAccessFile
 import java.util.zip.DeflaterOutputStream
 import java.util.zip.GZIPInputStream
 import java.util.zip.InflaterInputStream
@@ -38,91 +39,33 @@ object McaEdit {
     private const val SLOTS = 1024
     private const val HEADER = SECTOR * 2
 
-    /**
-     * 一个已打开的区域文件。
-     *
-     * ⚠️ 之前只有「整文件读进内存」一种构造，而且构造时就把 1024 个区块的
-     * 压缩负载 copyOfRange 出来另存一份 —— 同一份数据被放了两次：
-     * 原始字节 + 全部负载副本。区域文件大的是十几 MB 起，
-     * 渲染又是多线程并行的（最多 4 路），峰值就是「文件大小 ×2 ×4」，
-     * 这正是"一加载就 OOM"的直接来源。
-     *
-     * 现在两种来源都**按需读取**：只解析头部两张表（8KB），
-     * 真正要读某个区块时才去把那一段取出来，读完即弃。
-     * · [ByteArray] 来源：整份仍在内存里，但不再复制出第二份
-     * · [File] 来源：连整文件都不进内存，用 RandomAccessFile 定位读
-     */
-    class Region {
+    class Region(raw: ByteArray) {
 
-        private val has = BooleanArray(SLOTS)
-        private val pOff = IntArray(SLOTS)
-        private val pLen = IntArray(SLOTS)
+        /** 每个槽位压缩后的原始负载；槽位为空则是 null */
+        private val payloads = arrayOfNulls<ByteArray>(SLOTS)
         private val comps = ByteArray(SLOTS)
-        /** 只有被改过的槽位才在这里存新负载，没改过的按需从来源读 */
-        private val pending = arrayOfNulls<ByteArray>(SLOTS)
 
-        private var raw: ByteArray? = null
-        private var raf: java.io.RandomAccessFile? = null
-
-        constructor(raw: ByteArray) {
-            this.raw = raw
-            scan(raw.size) { i -> int24(raw, i * 4) to (raw[i * 4 + 3].toInt() and 0xFF) }
-        }
-
-        constructor(file: File) {
-            val r = java.io.RandomAccessFile(file, "r")
-            raf = r
-            val size = r.length().toInt()
-            val head = ByteArray(HEADER)
-            val n = r.read(head, 0, HEADER)
-            if (n >= HEADER) {
-                scan(size) { i -> int24(head, i * 4) to (head[i * 4 + 3].toInt() and 0xFF) }
-            }
-        }
-
-        /**
-         * 扫头部两张表，把每个槽位的「位置 + 长度 + 压缩类型」记下来。
-         * 头部两张表各占一个扇区，文件比这还小就肯定不是有效的区域文件 ——
-         * 不挡住的话下面按槽位读表会直接越界。
-         */
-        private fun scan(size: Int, entry: (Int) -> Pair<Int, Int>) {
-            if (size < HEADER) return
-            for (i in 0 until SLOTS) {
-                val (e, cnt) = entry(i)
-                if (e == 0 || cnt == 0) continue
-                val pos = e * SECTOR
-                if (pos + 5 > size) continue
-                // 槽位开头 5 字节 = 4 字节长度 + 1 字节压缩类型
-                val five = readAt(pos, 5) ?: continue
-                val len = int32(five, 0)
-                // length 字段 = 压缩数据长度 + 1（含压缩类型那一字节）
-                if (len < 2 || pos + 4 + len > size) continue
-                comps[i] = five[4]
-                pOff[i] = pos + 5
-                pLen[i] = len - 1
-                has[i] = true
-            }
-        }
-
-        private fun readAt(off: Int, len: Int): ByteArray? {
-            if (off < 0 || len < 0) return null
-            raw?.let { r ->
-                if (off + len > r.size) return null
-                return r.copyOfRange(off, off + len)
-            }
-            val rf = raf ?: return null
-            return try {
-                val b = ByteArray(len)
-                rf.seek(off.toLong())
-                rf.readFully(b)
-                b
-            } catch (_: Throwable) {
-                null
+        init {
+            // 头部两张表各占一个扇区，文件比这还小就肯定不是有效的区域文件。
+            // 不挡住的话下面按槽位读表会直接越界。
+            if (raw.size >= HEADER) {
+                for (i in 0 until SLOTS) {
+                    val e = int24(raw, i * 4)
+                    val cnt = raw[i * 4 + 3].toInt() and 0xFF
+                    if (e == 0 || cnt == 0) continue
+                    val pos = e * SECTOR
+                    if (pos + 5 > raw.size) continue
+                    val len = int32(raw, pos)
+                    // length 字段 = 压缩数据长度 + 1（含压缩类型那一字节）
+                    if (len < 2 || pos + 4 + len > raw.size) continue
+                    comps[i] = raw[pos + 4]
+                    payloads[i] = raw.copyOfRange(pos + 5, pos + 4 + len)
+                }
             }
         }
 
         /** 已存在的槽位列表 */
-        fun present(): List<Int> = (0 until SLOTS).filter { has[it] }
+        fun present(): List<Int> = (0 until SLOTS).filter { payloads[it] != null }
 
         /**
          * 读一个区块的 NBT。
@@ -142,22 +85,13 @@ object McaEdit {
          * 万一遇到哪个版本真的不带名字也不会全军覆没。
          */
         fun chunk(slot: Int): CompoundTag? {
-            if (!has[slot]) return null
-            val p = pending[slot] ?: readAt(pOff[slot], pLen[slot]) ?: return null
+            val p = payloads[slot] ?: return null
             val bytes = inflate(comps[slot], p) ?: return null
             val named = readNbt(bytes, true)
             if (named != null && !named.isEmpty()) return named
             val flat = readNbt(bytes, false)
             if (flat != null && !flat.isEmpty()) return flat
             return named ?: flat
-        }
-
-        private fun readNbt(bytes: ByteArray, named: Boolean): CompoundTag? = try {
-            val r = NBTIO.reader().tagLimiter(TagLimiter.noop())
-            if (named) r.named()
-            r.read(ByteArrayInputStream(bytes)) as? CompoundTag
-        } catch (_: Throwable) {
-            null
         }
 
         /**
@@ -173,17 +107,15 @@ object McaEdit {
          */
         fun remove(slot: Int): Boolean {
             if (slot !in 0 until SLOTS) return false
-            val had = has[slot]
-            has[slot] = false
-            pending[slot] = null
+            val had = payloads[slot] != null
+            payloads[slot] = null
             comps[slot] = 0
             return had
         }
 
         fun put(slot: Int, tag: CompoundTag) {
-            pending[slot] = deflate(tag)
             comps[slot] = 2
-            has[slot] = true
+            payloads[slot] = deflate(tag)
         }
 
         /**
@@ -199,8 +131,7 @@ object McaEdit {
             // 数据区从 sector 2 开始（0、1 是两张表）
             var sector = 2
             for (i in 0 until SLOTS) {
-                if (!has[i]) continue
-                val p = pending[i] ?: readAt(pOff[i], pLen[i]) ?: continue
+                val p = payloads[i] ?: continue
                 val total = 5 + p.size
                 val need = (total + SECTOR - 1) / SECTOR
                 offsets[i] = sector
@@ -228,13 +159,6 @@ object McaEdit {
             return res
         }
 
-        /** 文件来源要显式关掉，否则 RandomAccessFile 一直握着句柄 */
-        fun close() {
-            runCatching { raf?.close() }
-            raf = null
-            raw = null
-        }
-
         private fun int24(b: ByteArray, o: Int): Int =
             ((b[o].toInt() and 0xFF) shl 16) or
                 ((b[o + 1].toInt() and 0xFF) shl 8) or
@@ -246,6 +170,96 @@ object McaEdit {
                 ((b[o + 2].toInt() and 0xFF) shl 8) or
                 (b[o + 3].toInt() and 0xFF)
     }
+
+    /**
+     * 流式只读的区域文件 —— 渲染专用。
+     *
+     * 之前渲染要把整份文件 readBytes() 进内存，再把 1024 个槽位的
+     * 压缩数据各复制一份存着：一个 20MB 的区域，常驻是它的两倍多，
+     * 两路并行再翻倍。手机上直接把堆撑爆，GC 疯狂回收把主线程也拖住，
+     * 表现就是转圈几秒后弹「无响应」。
+     *
+     * 这里只把 8KB 头表读进来，用到哪个区块才 seek 哪个，
+     * 读完解析完立刻丢。内存占用与文件大小无关。
+     */
+    class Lazy(file: File) : Closeable {
+        private val raf = RandomAccessFile(file, "r")
+        private val offsets = IntArray(SLOTS)
+        private val fileLen = raf.length()
+
+        init {
+            // 只做一次 IO 把 8KB 头表读进来。
+            // 不在初始化时挨个槽位 seek —— 一个区域上千个槽位，
+            // 上千次随机 IO 在手机上要几百毫秒，而多数槽位这次根本用不上。
+            if (fileLen >= HEADER) {
+                val head = ByteArray(HEADER)
+                raf.seek(0)
+                raf.readFully(head)
+                for (i in 0 until SLOTS) {
+                    val e = int24(head, i * 4)
+                    val cnt = head[i * 4 + 3].toInt() and 0xFF
+                    if (e == 0 || cnt == 0) continue
+                    if (e.toLong() * SECTOR + 5 > fileLen) continue
+                    offsets[i] = e
+                }
+            }
+        }
+
+        fun present(): List<Int> = (0 until SLOTS).filter { offsets[it] != 0 }
+
+        /** 读一个区块的 NBT。用完即丢，不缓存原始字节 */
+        fun chunk(slot: Int): CompoundTag? {
+            val e = offsets[slot]
+            if (e == 0) return null
+            val pos = e.toLong() * SECTOR
+            val h5 = ByteArray(5)
+            synchronized(raf) {
+                raf.seek(pos)
+                raf.readFully(h5)
+            }
+            val len = int32(h5, 0)
+            // length 字段 = 压缩数据长度 + 1（含压缩类型那一字节）
+            if (len < 2 || pos + 4 + len > fileLen) return null
+            val body = ByteArray(len - 1)
+            synchronized(raf) {
+                raf.seek(pos + 5)
+                raf.readFully(body)
+            }
+            val bytes = inflate(h5[4], body) ?: return null
+            val named = readNbt(bytes, true)
+            if (named != null && !named.isEmpty()) return named
+            val flat = readNbt(bytes, false)
+            if (flat != null && !flat.isEmpty()) return flat
+            return named ?: flat
+        }
+
+        override fun close() = runCatching { raf.close() }
+    }
+
+    private fun int24(b: ByteArray, o: Int): Int =
+        ((b[o].toInt() and 0xFF) shl 16) or
+            ((b[o + 1].toInt() and 0xFF) shl 8) or
+            (b[o + 2].toInt() and 0xFF)
+
+    /**
+     * 读区块 NBT。根标签带空名字，必须调 named()，
+     * 否则 ViaNBT 会把「名字长度」两字节当成第一个 tag 的 id，
+     * 读到 0x00 = TAG_End → 复合标签当场结束 → 得到空 compound。
+     * 两种都试一遍，遇到真不带名字的版本也不会全军覆没。
+     */
+    private fun readNbt(bytes: ByteArray, named: Boolean): CompoundTag? = try {
+        val r = NBTIO.reader().tagLimiter(TagLimiter.noop())
+        if (named) r.named()
+        r.read(ByteArrayInputStream(bytes)) as? CompoundTag
+    } catch (_: Throwable) {
+        null
+    }
+
+    private fun int32(b: ByteArray, o: Int): Int =
+        ((b[o].toInt() and 0xFF) shl 24) or
+            ((b[o + 1].toInt() and 0xFF) shl 16) or
+            ((b[o + 2].toInt() and 0xFF) shl 8) or
+            (b[o + 3].toInt() and 0xFF)
 
     private fun inflate(comp: Byte, data: ByteArray): ByteArray? = try {
         when (comp.toInt()) {
@@ -294,37 +308,7 @@ object McaEdit {
      * 界面弹"这个区块里没有方块数据（可能是空区块）"。
      * 这正是"点了全提示无数据"的主因。
      */
-    /**
-     * 1.13 扁平化之前的方块数据有两种布局，索引顺序**不一样**。
-     * 这两个值是在真实存档样本（Beta 1.3 / 1.2.1）上实测出来的，
-     * 写反了地形会变成水平条纹 —— 这个错误极其隐蔽，别凭猜改。
-     */
-    enum class RawMode {
-        /** 有调色板的现代写法，下面的 raw 字段为 null */
-        NONE,
-
-        /**
-         * Beta 1.3（.mcr）：整个区块柱 16×16×128 存在**一个**字节数组里，
-         * 索引 = (x*16 + z) * 世界高度 + y —— **y 变化最快**（按列存）。
-         */
-        FLAT_Y_FAST,
-
-        /**
-         * 1.2.1 起（Anvil 早期）：每个 section 一个 16³ 字节数组，
-         * 索引 = (y*16 + z)*16 + x —— **x 变化最快**，和现代位打包顺序一致。
-         */
-        SECTION_X_FAST
-    }
-
-    class Sec(
-        var y: Int,
-        val tag: CompoundTag,
-        /** 无调色板时的方块数字 ID 数组；现代写法为 null */
-        val raw: ByteArray? = null,
-        val rawMode: RawMode = RawMode.NONE,
-        /** [RawMode.FLAT_Y_FAST] 下本 section 的 y 起始（整柱被切成若干段） */
-        val yBase: Int = 0
-    ) {
+    class Sec(var y: Int, val tag: CompoundTag) {
         val holder: CompoundTag = tag.getCompoundTag("block_states") ?: tag
         val paletteKey: String = if (tag.getCompoundTag("block_states") != null) "palette" else "Palette"
         val dataKey: String = if (tag.getCompoundTag("block_states") != null) "data" else "BlockStates"
@@ -347,61 +331,8 @@ object McaEdit {
     private fun secY(c: CompoundTag): Int =
         (c.get("Y") as? NumberTag)?.getValue()?.toInt() ?: Int.MIN_VALUE
 
-    /**
-     * 识别 1.13 之前的两种「数字 ID 数组」布局，填进 [out]。
-     *
-     * @return true 表示已按旧格式填好，调用方直接返回；false 表示不是旧格式
-     *
-     * 之所以放在调色板分支**之前**：Beta 1.3 的区块里既没有 sections
-     * 也没有 Palette，只有 Level.Blocks 一整个字节数组。
-     * 不先挡住的话，它会一路走到"没有方块数据"的兜底提示上 ——
-     * 这正是老存档打开就是一片空的直接原因。
-     */
-    private fun flatSections(chunk: CompoundTag, out: MutableList<Sec>): Boolean {
-        val lv = chunk.getCompoundTag("Level") ?: chunk
-
-        // ① Beta 1.3：整个区块柱一个数组（16×16×128 = 32768 字节）
-        val flat = (lv.get("Blocks") as? com.viaversion.nbt.tag.ByteArrayTag)?.getValue()
-        if (flat != null && flat.size >= 256 && flat.size % 256 == 0) {
-            val height = flat.size / 256
-            var s = 0
-            while (s * 16 < height) {
-                // 按 16 高切成若干段，界面翻层才能一层层看
-                out.add(Sec(s, chunk, flat, RawMode.FLAT_Y_FAST, s * 16))
-                s++
-            }
-            return out.isNotEmpty()
-        }
-
-        // ② 1.2.1 ~ 1.12：section 里是 Blocks 字节数组，没有 Palette
-        val secs = lv.getListTag("Sections")
-        if (secs != null) {
-            var any = false
-            var idx = 0
-            for (t in secs.getValue()) {
-                val c = t as? CompoundTag ?: continue
-                val arr = (c.get("Blocks") as? com.viaversion.nbt.tag.ByteArrayTag)?.getValue()
-                if (arr != null && arr.size >= 4096) {
-                    var y = secY(c)
-                    // Y 读不到就按出现顺序推，总比整段丢掉强
-                    if (y == Int.MIN_VALUE) y = idx
-                    out.add(Sec(y, c, arr, RawMode.SECTION_X_FAST, 0))
-                    any = true
-                }
-                idx++
-            }
-            if (any) return true
-        }
-        return false
-    }
-
     fun sections(chunk: CompoundTag): List<Sec> {
         val out = ArrayList<Sec>()
-        // ① 旧格式优先：存的是数字 ID 字节数组，压根没有调色板可谈
-        if (flatSections(chunk, out)) {
-            out.sortByDescending { it.y }
-            return out
-        }
         val modern = chunk.getListTag("sections")
         if (modern != null) {
             for (t in modern.getValue()) {
@@ -482,38 +413,7 @@ object McaEdit {
         return ((d[li] ushr off) and ((1L shl bits) - 1L)).toInt()
     }
 
-    /** 旧格式某格的数字 ID 在数组里的下标 */
-    private fun rawIndexOf(sec: Sec, x: Int, y: Int, z: Int): Int {
-        val a = sec.raw ?: return -1
-        return when (sec.rawMode) {
-            RawMode.FLAT_Y_FAST -> (x * 16 + z) * (a.size / 256) + (sec.yBase + y)
-            RawMode.SECTION_X_FAST -> (y * 16 + z) * 16 + x
-            RawMode.NONE -> -1
-        }
-    }
-
-    /**
-     * 旧格式某格的方块数字 ID（含扩展 ID 高位）。
-     * 有 `Add` / `AddBlocks` 时把高 4 位拼上，没有就当 0。
-     */
-    fun rawIdAt(sec: Sec, x: Int, y: Int, z: Int): Int {
-        val a = sec.raw ?: return 0
-        val i = rawIndexOf(sec, x, y, z)
-        if (i < 0 || i >= a.size) return 0
-        var id = a[i].toInt() and 0xFF
-        val add = (sec.tag.get("Add") as? com.viaversion.nbt.tag.ByteArrayTag)?.getValue()
-            ?: (sec.tag.get("AddBlocks") as? com.viaversion.nbt.tag.ByteArrayTag)?.getValue()
-        if (add != null && add.size > i / 2) {
-            val hi = if (i % 2 == 0) add[i / 2].toInt() and 0x0F
-            else (add[i / 2].toInt() shr 4) and 0x0F
-            id = id or (hi shl 8)
-        }
-        return id
-    }
-
     fun blockAt(sec: Sec, x: Int, y: Int, z: Int): String {
-        // 旧格式：数字 ID → 现代方块名，交给渲染器按名字取颜色
-        if (sec.raw != null) return McaLegacyIds.nameOf(rawIdAt(sec, x, y, z))
         val names = paletteNames(sec)
         if (names.isEmpty()) return "minecraft:air"
         if (names.size == 1) return names[0]
@@ -530,22 +430,6 @@ object McaEdit {
      * 只改目标那几位会把后面所有格子的方块打乱（表现为整片地形错乱）。
      */
     fun setBlock(sec: Sec, x: Int, y: Int, z: Int, name: String) {
-        // 旧格式：没有调色板，直接改字节数组里那个数字 ID
-        val raw = sec.raw
-        if (raw != null) {
-            val id = McaLegacyIds.idOf(name)
-            // 映射不到就跳过，写个错的方块进去比不改更糟
-            if (id < 0 || id > 255) return
-            val i = rawIndexOf(sec, x, y, z)
-            if (i < 0 || i >= raw.size) return
-            raw[i] = id.toByte()
-            // 扁平型整柱挂在 Level 下，section 型就挂在 section 自己上
-            val target: CompoundTag =
-                if (sec.rawMode == RawMode.FLAT_Y_FAST) sec.tag.getCompoundTag("Level") ?: sec.tag
-                else sec.tag
-            target.put("Blocks", com.viaversion.nbt.tag.ByteArrayTag(raw))
-            return
-        }
         @Suppress("UNCHECKED_CAST")
         val lt = sec.holder.getListTag(sec.paletteKey) as? ListTag<Tag> ?: return
         val oldNames = paletteNames(sec)
@@ -589,64 +473,4 @@ object McaEdit {
             sec.holder.put(sec.dataKey, LongArrayTag(arr))
         }
     }
-}
-
-/**
- * 版本适配接口（提前留好）。
- *
- * 现在只有一套实现（1.18+ 的 `sections` 写法，外加旧版 `Level.Sections` 兜底），
- * 但存档格式每次大改都会动到调色板和打包位宽，
- * 到时候只要往 [McaVersions.register] 里挂一个新的 [Adapter] 就行，
- * 不用再改解析主流程。
- *
- * 之所以现在就抽出这层：26.3 已经改过一次调色板字段名
- * （`Name` → `id`、调色板可以是字符串列表），
- * 这类改动散落在解析代码里极难收敛。
- */
-interface McaVersionAdapter {
-    /**
-     * 名字，只用于排错时认人。
-     *
-     * 解析出问题时第一件事就是确认"现在用的是哪个实现"——
-     * 没有名字就只能靠猜，而这层将来会挂很多个。
-     */
-    fun name(): String = this::class.java.simpleName.ifBlank { "匿名适配器" }
-
-    /** 这个实现能处理的 DataVersion 区间（闭区间） */
-    fun supports(dataVersion: Int): Boolean
-
-    fun sections(chunk: com.viaversion.nbt.tag.CompoundTag): List<McaEdit.Sec>
-
-    fun paletteNames(sec: McaEdit.Sec): List<String>
-
-    /** 写回时用哪个字段名，null = 沿用读到的那个 */
-    fun paletteIdKey(): String? = null
-}
-
-object McaVersions {
-
-    private val impls = ArrayList<McaVersionAdapter>()
-
-    /** 默认实现：走 McaEdit 现有逻辑，覆盖目前已知的所有写法 */
-    val DEFAULT: McaVersionAdapter = object : McaVersionAdapter {
-        override fun name() = "默认（sections / Level.Sections 兜底）"
-        override fun supports(dataVersion: Int) = true
-        override fun sections(chunk: com.viaversion.nbt.tag.CompoundTag) =
-            McaEdit.sections(chunk)
-        override fun paletteNames(sec: McaEdit.Sec) = McaEdit.paletteNames(sec)
-    }
-
-    init { impls.add(DEFAULT) }
-
-    /** 将来支持新版本时挂进来。后挂的优先匹配 */
-    @Synchronized
-    fun register(a: McaVersionAdapter) { impls.add(0, a) }
-
-    @Synchronized
-    fun forVersion(dataVersion: Int): McaVersionAdapter =
-        impls.firstOrNull { it.supports(dataVersion) } ?: DEFAULT
-
-    /** 列出已注册的实现，顺序即匹配优先级。开发者模式里显示用。 */
-    @Synchronized
-    fun describe(): List<String> = impls.map { it.name() }
 }
