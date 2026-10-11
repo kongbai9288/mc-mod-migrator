@@ -38,26 +38,26 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mergeReleaseNativeLibs
 > Task :app:desugarReleaseFileDependencies
 > Task :app:checkReleaseDuplicateClasses
+> Task :app:mergeReleaseArtProfile
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
 
-> Task :app:mergeReleaseArtProfile
-> Task :app:extractReleaseNativeSymbolTables
 > Task :app:processReleaseManifestForPackage
 > Task :app:mergeExtDexRelease
-> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
+> Task :app:extractReleaseNativeSymbolTables
 > Task :app:mergeReleaseAssets
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:collectReleaseDependencies
 > Task :app:sdkReleaseDependencyData
-> Task :app:compressReleaseAssets
+> Task :app:processReleaseResources
 > Task :app:validateSigningRelease
+> Task :app:compressReleaseAssets
 > Task :app:writeReleaseAppMetadata
 > Task :app:writeReleaseSigningConfigVersions
-> Task :app:processReleaseResources
 > Task :app:optimizeReleaseResources
 > Task :app:compileReleaseKotlin
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:73:13 Variable 'p' is never used
@@ -108,7 +108,6 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MainActivity.kt:547:15 'onBackPressed(): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:174:53 Unnecessary non-null assertion (!!) on a non-null receiver of type LinearLayout
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:749:23 There is more than one label with such a name in this scope
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McFeed.kt:207:34 Parameter 'ctx' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:425:49 'getValue(): Int!' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:426:70 'getValue(): Int!' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTileStore.kt:80:22 Variable 'ok' initializer is redundant
@@ -152,7 +151,7 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsAboutFragment.kt:244:53 There is more than one label with such a name in this scope
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsHostActivity.kt:199:15 'onBackPressed(): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsMainFragment.kt:66:13 Variable 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsMainFragment.kt:442:13 Variable 'dlg' is never used
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsMainFragment.kt:467:13 Variable 'dlg' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsNavFragment.kt:96:15 Variable 'i' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsStorageFragment.kt:217:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SyncManager.kt:231:25 Name shadowed: f
@@ -214,8 +213,8 @@ Daemon will be stopped at the end of the build
 > Task :app:compressDebugAssets
 > Task :app:mergeDebugJniLibFolders
 > Task :app:checkDebugDuplicateClasses
-> Task :app:processDebugResources
 > Task :app:mergeDebugNativeLibs
+> Task :app:processDebugResources
 > Task :app:mergeExtDexDebug
 > Task :app:mergeLibDexDebug
 
@@ -274,7 +273,6 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MainActivity.kt:547:15 'onBackPressed(): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:174:53 Unnecessary non-null assertion (!!) on a non-null receiver of type LinearLayout
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:749:23 There is more than one label with such a name in this scope
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McFeed.kt:207:34 Parameter 'ctx' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:425:49 'getValue(): Int!' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:426:70 'getValue(): Int!' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTileStore.kt:80:22 Variable 'ok' initializer is redundant
@@ -318,7 +316,7 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsAboutFragment.kt:244:53 There is more than one label with such a name in this scope
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsHostActivity.kt:199:15 'onBackPressed(): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsMainFragment.kt:66:13 Variable 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsMainFragment.kt:442:13 Variable 'dlg' is never used
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsMainFragment.kt:467:13 Variable 'dlg' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsNavFragment.kt:96:15 Variable 'i' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsStorageFragment.kt:217:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SyncManager.kt:231:25 Name shadowed: f
@@ -347,5 +345,5 @@ Note: Recompile with -Xlint:unchecked for details.
 > Task :app:createDebugApkListingFileRedirect
 > Task :app:assembleDebug
 
-BUILD SUCCESSFUL in 1m 47s
+BUILD SUCCESSFUL in 1m 44s
 36 actionable tasks: 36 executed
