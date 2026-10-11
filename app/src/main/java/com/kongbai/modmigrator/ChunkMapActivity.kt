@@ -155,6 +155,8 @@ class ChunkMapActivity : AppCompatActivity() {
 
     private lateinit var tvStatus: TextView
     private var mapHint: String = "拖动平移，点一下选中，双指缩放"
+    private lateinit var cleanGalleryLauncher: androidx.activity.result.ActivityResultLauncher<androidx.activity.result.IntentSenderRequest>
+    private var cleanBatch = 0
     private lateinit var map: MapView
 
     /** 选源 .mca（替换区块用） */
@@ -328,10 +330,6 @@ class ChunkMapActivity : AppCompatActivity() {
             setOnClickListener { askTileCache() }
         })
 
-        // 上一版把渲染瓦片写进了系统相册，这里把遗留的清掉。
-        // 不清理的话它们会一直留在相册里，卸载应用也带不走。
-        Thread { McaTileStore.migrateAwayFromGallery(this) }.start()
-
         // 按钮行整齐化（等宽 + 统一间距）
         tidyRows(root)
 
@@ -378,6 +376,9 @@ class ChunkMapActivity : AppCompatActivity() {
         ) { uri ->
             if (uri != null) runReplace(uri)
         }
+        cleanGalleryLauncher = registerForActivityResult(
+            androidx.activity.result.contract.ActivityResultContracts.StartIntentSenderForResult()
+        ) { Bg.run { cleanGalleryStep() } }
     }
 
     private fun cacheSingle(uri: Uri): File? {
@@ -960,27 +961,119 @@ class ChunkMapActivity : AppCompatActivity() {
      * 瓦片缓存放在公有目录，用户可以自己去看、自己去删。
      * 这里给出占用和一次清空的入口 —— 写到磁盘上的东西必须让用户看得见。
      */
+    /**
+     * 瓦片缓存的信息与清理入口。
+     *
+     * 缓存本身在应用专属目录里，用户可以自己去看、自己去删。
+     * 这里额外处理**上一版误写进相册**的那批 —— 那批是历史遗留，
+     * 不提示的话用户永远不知道相册里那几百张图是从哪来的。
+     */
     private fun askTileCache() {
-        val (n, bytes) = McaTiles.cacheStats(this)
+        Bg.run {
+            val stats = McaTiles.cacheStats(this@ChunkMapActivity)
+            val lo = McaTileStore.galleryLeftovers(this@ChunkMapActivity, 300)
+            Bg.post { showTileCacheDialog(stats.first, stats.second, lo.count, lo.bytes) }
+        }
+    }
+
+    private fun showTileCacheDialog(n: Int, bytes: Long, gc: Int, gbytes: Long) {
         val mb = bytes / 1024.0 / 1024.0
-        MaterialAlertDialogBuilder(this)
+        val gmb = gbytes / 1024.0 / 1024.0
+        val tail = if (gc > 0) {
+            "\n\n相册里还有 $gc 张旧版遗留的图（${"%.1f".format(gmb)} MB）。\n" +
+                "国内系统多半会把删除变成"移到最近删除"，所以这一步要由你在系统弹窗里" +
+                "亲手确认，应用替你删不掉。"
+        } else "\n\n相册里没有旧版遗留的图了。"
+        val b = MaterialAlertDialogBuilder(this)
             .setTitle("地图缓存")
             .setMessage(
                 "当前世界已缓存 $n 张区域图，共 ${"%.1f".format(mb)} MB。\n\n" +
-                    "放在应用专属目录里，不进相册：\n" +
+                    "放在应用专属目录，不进相册：\n" +
                     "Android/data/<包名>/files/ModMigrator/地图缓存/\n" +
                     "<世界> / <维度> / <高度档> / r.<x>.<z>.png\n\n" +
                     "想要一张成品图请用「导出图」，那才会存进相册。\n" +
-                    "清掉缓存不会丢失存档，只是下次打开要重新画一遍。"
+                    "清掉缓存不会丢失存档，只是下次打开要重新画一遍。" + tail
             )
-            .setNegativeButton("关闭", null)
-            .setPositiveButton("清空") { _, _ ->
-                McaTiles.clearCache(this)
-                map.invalidate()
-                kickLoad()
-                toast("已清空，正在重画")
+        if (gc > 0) {
+            b.setPositiveButton("清理相册里的 $gc 张") { _, _ -> startGalleryClean() }
+                .setNegativeButton("清空缓存") { _, _ -> clearTileCache() }
+                .setNeutralButton("关闭", null)
+        } else {
+            b.setPositiveButton("清空缓存") { _, _ -> clearTileCache() }
+                .setNegativeButton("关闭", null)
+        }
+        b.show()
+    }
+
+    private fun clearTileCache() {
+        McaTiles.clearCache(this)
+        map.invalidate()
+        kickLoad()
+        toast("已清空，正在重画")
+    }
+
+    private fun startGalleryClean() {
+        cleanBatch = 0
+        Bg.run { cleanGalleryStep() }
+    }
+
+    /**
+     * 分批弹系统删除确认。
+     *
+     * 一次最多 300 张：PendingIntent 的 extras 有大小上限，
+     * 上千个 Uri 塞进去会 TransactionTooLarge。
+     * 用户确认完回到这里接着下一批，直到没有为止。
+     */
+    private fun cleanGalleryStep() {
+        if (cleanBatch++ > 20) {
+            Bg.post { toast("剩下的请在相册里手动删") }
+            return
+        }
+        val lo = McaTileStore.galleryLeftovers(this, 300)
+        if (lo.uris.isEmpty()) {
+            Bg.post { galleryCleanDone() }
+            return
+        }
+        val pi = McaTileStore.buildDeleteRequest(this, lo.uris)
+        if (pi == null) {
+            McaTileStore.legacyDelete(this)
+            Bg.post { galleryCleanDone() }
+            return
+        }
+        Bg.post {
+            try {
+                cleanGalleryLauncher.launch(
+                    androidx.activity.result.IntentSenderRequest.Builder(pi).build()
+                )
+            } catch (t: Throwable) {
+                Err.fail(t, "拉起系统删除确认")
+                toast("拉不起系统删除确认，请在相册里手动删")
             }
-            .show()
+        }
+    }
+
+    private fun galleryCleanDone() {
+        Bg.run {
+            // 系统确认框删完不一定真没了（ROM 可能仍走回收站），复查一次再说
+            val left = McaTileStore.galleryLeftovers(this@ChunkMapActivity, 1)
+            McaTileStore.tryNomediaInGallery(this@ChunkMapActivity)
+            Bg.post {
+                if (left.count == 0) {
+                    toast("相册里的旧图已清干净")
+                } else {
+                    MaterialAlertDialogBuilder(this@ChunkMapActivity)
+                        .setTitle("还剩 ${left.count} 张")
+                        .setMessage(
+                            "系统没有真正删掉它们。\n\n" +
+                                "国内系统常把删除变成移到「最近删除」，" +
+                                "请打开系统相册 → 最近删除 → 清空，之后再回来点一次清理。\n\n" +
+                                "缓存目录已经不会再往相册写了，这批是旧版留下的。"
+                        )
+                        .setPositiveButton("知道了", null)
+                        .show()
+                }
+            }
+        }
     }
 
     // ---------------------------------------------------------------- 找结构

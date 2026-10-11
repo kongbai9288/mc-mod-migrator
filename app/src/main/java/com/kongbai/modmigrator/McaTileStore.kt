@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.os.Build
 import android.os.Environment
+import android.net.Uri
 import android.provider.MediaStore
 import java.io.File
 
@@ -28,8 +29,8 @@ import java.io.File
  * 目录根放一个 `.nomedia`，双保险：万一有 ROM 把应用目录也扫一遍，
  * 看到这个文件就会跳过。
  *
- * 另外提供 [migrateAwayFromGallery]：把上一版已经写进相册的那些瓦片删掉，
- * 否则它们会永远留在用户的相册里。
+ * 旧版已经写进相册的那些，靠 [galleryLeftovers] 数出来、由用户在系统确认框里
+ * 亲手删 —— 静默 delete 在国内 ROM 上会被"移入回收站"，等于没删。
  */
 object McaTileStore {
 
@@ -38,9 +39,6 @@ object McaTileStore {
 
     /** 上一版误写进相册的相对路径 */
     private const val LEGACY_REL = "Pictures/ModMigrator/地图缓存"
-
-    @Volatile
-    private var migrated = false
 
     /** 世界名、维度名可能带斜杠或冒号，必须洗一遍才能当目录名 */
     fun sanitize(s: String): String =
@@ -162,21 +160,85 @@ object McaTileStore {
 
     // ------------------------------------------------- 旧版遗留在相册里的清理
 
+    /** 相册里还剩下的上一版瓦片：张数、总字节、以及最多 [limit] 个 Uri */
+    data class GalleryLeftover(
+        val count: Int, val bytes: Long, val uris: List<Uri>
+    )
+
+    private val galleryUri: Uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+
+    private fun gallerySel(): String =
+        "${MediaStore.MediaColumns.RELATIVE_PATH}=? OR " +
+            "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?"
+
+    private fun galleryArgs(): Array<String> =
+        arrayOf("$LEGACY_REL/", "$LEGACY_REL/%")
+
+    /** 数一数相册里还剩多少张上一版遗留的瓦片。查不到（没权限）就当没有。 */
+    fun galleryLeftovers(ctx: Context, limit: Int = 300): GalleryLeftover {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return GalleryLeftover(0, 0L, emptyList())
+        return try {
+            val proj = arrayOf(
+                MediaStore.MediaColumns._ID, MediaStore.MediaColumns.SIZE
+            )
+            ctx.contentResolver.query(
+                galleryUri, proj, gallerySel(), galleryArgs(), null
+            )?.use { c ->
+                val iu = c.getColumnIndex(MediaStore.MediaColumns._ID)
+                val isz = c.getColumnIndex(MediaStore.MediaColumns.SIZE)
+                val uris = ArrayList<Uri>(limit.coerceAtMost(512))
+                var n = 0
+                var bytes = 0L
+                while (c.moveToNext()) {
+                    n++
+                    if (isz >= 0) bytes += c.getLong(isz)
+                    if (uris.size < limit && iu >= 0) {
+                        uris.add(
+                            android.content.ContentUris.withAppendedId(
+                                galleryUri, c.getLong(iu)
+                            )
+                        )
+                    }
+                }
+                GalleryLeftover(n, bytes, uris)
+            } ?: GalleryLeftover(0, 0L, emptyList())
+        } catch (t: Throwable) {
+            // 没授权读图片时这里会抛。不是致命问题，当"没有遗留"处理，
+            // 免得每次进地图都弹一堆错。
+            Err.ignore(t, "统计相册里的遗留瓦片")
+            GalleryLeftover(0, 0L, emptyList())
+        }
+    }
+
     /**
-     * 删掉上一版误写进相册的瓦片。
+     * 让系统自己弹确认框删掉这批 Uri（Android 11+）。
      *
-     * 不清理的话，它们会一直留在用户的相册里 —— 用户删了应用也删不掉。
-     * 每个进程只跑一次；失败（比如 ROM 弹回收站确认）不影响使用。
+     * ⚠️ 为什么不能用 `contentResolver.delete` 直接删：
+     * 国内 ROM（MIUI / 华为 / OPPO / vivo …）几乎都把删除改成"移入回收站"，
+     * 30 天后才真删，有的还会弹二次确认。结果是——应用以为删掉了，
+     * 用户一打开相册，那几百张瓦片又原样躺在那儿，甚至被系统判定为
+     * "删除已被撤销"。静默删在国内机型上基本等于没删。
+     *
+     * `createDeleteRequest` 走的是系统级确认：用户亲手确认后是**永久删除**，
+     * 不再进回收站。权限归系统，ROM 也没法替用户反悔。
      */
-    fun migrateAwayFromGallery(ctx: Context) {
-        if (migrated) return
-        migrated = true
-        try {
+    @Suppress("DEPRECATION")
+    fun buildDeleteRequest(ctx: Context, uris: List<Uri>): android.app.PendingIntent? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+        if (uris.isEmpty()) return null
+        return try {
+            MediaStore.createDeleteRequest(ctx.contentResolver, uris)
+        } catch (t: Throwable) {
+            Err.ignore(t, "构造删除确认")
+            null
+        }
+    }
+
+    /** Android 10 及以下没有上面那个接口，只能退回静默删（会进回收站） */
+    fun legacyDelete(ctx: Context): Int {
+        return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-                val sel = "${MediaStore.MediaColumns.RELATIVE_PATH}=? OR " +
-                    "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?"
-                ctx.contentResolver.delete(uri, sel, arrayOf("$LEGACY_REL/", "$LEGACY_REL/%"))
+                ctx.contentResolver.delete(galleryUri, gallerySel(), galleryArgs())
             } else {
                 @Suppress("DEPRECATION")
                 val d = File(
@@ -184,18 +246,34 @@ object McaTileStore {
                         Environment.DIRECTORY_PICTURES
                     ), "ModMigrator/地图缓存"
                 )
-                if (d.isDirectory) d.deleteRecursively()
+                if (d.isDirectory && d.deleteRecursively()) 1 else 0
             }
         } catch (t: Throwable) {
             Err.ignore(t, "清理旧版相册里的瓦片")
+            0
         }
-        // 顺手把空壳目录去掉，省得相册里还留着一个空文件夹
+    }
+
+    /**
+     * 尽量让那个目录不再被媒体扫描器收录。
+     *
+     * 这一步只是保险：删不掉时，`.nomedia` 至少能让相册应用不再扫它。
+     * 有些 ROM 不允许 MediaStore 建隐藏文件名，失败就算了，不影响别的。
+     */
+    fun tryNomediaInGallery(ctx: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
         runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                File(ctx.getExternalFilesDir(null), ROOT).walkBottomUp()
-                    .filter { it.isDirectory && it.list().isNullOrEmpty() }
-                    .forEach { it.delete() }
+            val v = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, NOMEDIA)
+                put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "$LEGACY_REL/")
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
+            val uri = ctx.contentResolver.insert(galleryUri, v) ?: return
+            ctx.contentResolver.openOutputStream(uri)?.use { it.write(byteArrayOf(0)) }
+            v.clear()
+            v.put(MediaStore.MediaColumns.IS_PENDING, 0)
+            ctx.contentResolver.update(uri, v, null, null)
         }
     }
 
