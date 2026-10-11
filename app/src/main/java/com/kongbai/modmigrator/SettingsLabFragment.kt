@@ -109,6 +109,10 @@ class SettingsLabFragment : Fragment() {
             }
         }
 
+        // ---------- 初次设置 ----------
+        section("初次设置")
+        root.addView(button("重跑初次设置页") { rerunFirstRun() })
+
         // ---------- 公告 ----------
         section("公告")
         root.addView(button("再弹一次公告") { reopenAnnouncement() })
@@ -144,6 +148,16 @@ class SettingsLabFragment : Fragment() {
 
     private fun refresh() {
         if (::root.isInitialized) handler.post { build() }
+    }
+
+    /**
+     * 重跑初次设置页：把「跑过了」这个标记清掉，
+     * 这样下次回到主界面就会重新走一遍 FirstRunActivity。
+     * 用于改坏了目录/版本设置时快速重来，不用清应用数据。
+     */
+    private fun rerunFirstRun() {
+        Prefs.get(ctx).edit().putBoolean(K.FIRST_RUN_DONE, false).apply()
+        startActivity(android.content.Intent(ctx, FirstRunActivity::class.java))
     }
 
     // ---------------- 各项选择 ----------------
