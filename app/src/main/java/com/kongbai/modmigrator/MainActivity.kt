@@ -159,7 +159,7 @@ class MainActivity : AppCompatActivity() {
         // 不依赖内存中的模组列表 —— 进程被杀后那些早就没了，
         // 这也是当初把"下载地址"而不是"模组名"作为记录主键的原因。
         //
-        java.util.concurrent.Executors.newSingleThreadExecutor().execute {
+        Bg.run {
             var ok = 0
             val still = ArrayList<String>()
             val rem = j.remaining

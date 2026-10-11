@@ -75,7 +75,9 @@ object LoaderIcons {
 
     private fun imageLoader(ctx: Context): coil.ImageLoader {
         loader?.let { return it }
-        val l = coil.ImageLoader.Builder(ctx)
+        // ⚠️ 必须换成 applicationContext：这个 ImageLoader 存在静态字段里，
+        // 直接用调用方给的 ctx（很可能是 Activity）会把那一页一直握着。
+        val l = coil.ImageLoader.Builder(ctx.applicationContext)
             .components {
                 add(coil.decode.SvgDecoder.Factory())
                 if (android.os.Build.VERSION.SDK_INT >= 28) {

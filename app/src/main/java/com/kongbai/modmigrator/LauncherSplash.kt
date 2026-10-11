@@ -119,6 +119,18 @@ object LauncherSplash {
             interpolator = AccelerateInterpolator(0.6f)
         }
 
+        // 页面销毁时整棵视图会被摘下来。动画还在跑的话，
+        // 它的 update 回调会一直握着 layer（以及创建它的 Activity）。
+        // 挂一个摘除监听，摘下来就立刻停掉动画。
+        layer.addOnAttachStateChangeListener(object : android.view.View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: android.view.View) {}
+            override fun onViewDetachedFromWindow(v: android.view.View) {
+                v.removeOnAttachStateChangeListener(this)
+                anim.cancel()
+                running = false
+            }
+        })
+
         var finished = false
         fun finish() {
             if (finished) return

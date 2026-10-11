@@ -341,8 +341,21 @@ class ModPageActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        super.onDestroy()
         runCatching { handler.removeCallbacksAndMessages(null) }
+        // WebView 是从布局里 findViewById 拿的，不 destroy 会把整个页面拽住。
+        // 市场里点开一个模组详情就起一个这种 Activity，进出几次堆就满了。
+        runCatching {
+            if (::web.isInitialized) {
+                (web.parent as? android.view.ViewGroup)?.removeView(web)
+                web.stopLoading()
+                web.webViewClient = WebViewClient()
+                web.webChromeClient = null
+                web.clearHistory()
+                web.clearCache(true)
+                web.destroy()
+            }
+        }
+        super.onDestroy()
     }
 
 }

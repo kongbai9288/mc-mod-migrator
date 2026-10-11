@@ -38,6 +38,13 @@ import androidx.appcompat.app.AppCompatActivity
 class WebActivity : AppCompatActivity() {
 
     private lateinit var web: WebView
+
+    /**
+     * onCreateWindow 里为接住弹窗请求而临时 new 出来的 WebView。
+     * 每一次"点开新窗口"都会多一个，它们没有父容器、也没人 destroy，
+     * 于是全挂在 Activity 上直到页面关闭。这里统一登记，销毁时一起清。
+     */
+    private val tmpWebs = mutableListOf<WebView>()
     private lateinit var bar: ProgressBar
     private var desktopUa = false
     private var loginMode = false
@@ -278,6 +285,7 @@ class WebActivity : AppCompatActivity() {
                     }
                 }
                 transport.webView = tmp
+                tmpWebs.add(tmp)
                 msg.sendToTarget()
                 return true
             }
@@ -505,6 +513,15 @@ class WebActivity : AppCompatActivity() {
         // 顺序必须是 摘父容器 → 停加载 → 清回调 → destroy
         try {
             WebTranslate.stop()
+            for (w in tmpWebs) {
+                runCatching {
+                    w.stopLoading()
+                    w.webViewClient = WebViewClient()
+                    w.webChromeClient = WebChromeClient()
+                    w.destroy()
+                }
+            }
+            tmpWebs.clear()
             if (::web.isInitialized) {
                 (web.parent as? android.view.ViewGroup)?.removeView(web)
                 web.stopLoading()

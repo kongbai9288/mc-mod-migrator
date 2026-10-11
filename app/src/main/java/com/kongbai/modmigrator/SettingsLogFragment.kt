@@ -103,6 +103,9 @@ class SettingsLogFragment : Fragment() {
         // 清理 Handler：页面销毁后若还有未执行的 post，
         // 回调里访问已销毁的 View 会直接崩。
         runCatching { handler.removeCallbacksAndMessages(null) }
+        // 线程池同样要关：只清 Handler 的话线程还挂着，
+        // 它排队的 Runnable 持有 Fragment，页面照样回收不掉。
+        runCatching { exec.shutdownNow() }
     }
 
 }

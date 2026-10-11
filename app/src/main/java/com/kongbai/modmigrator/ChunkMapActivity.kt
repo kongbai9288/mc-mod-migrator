@@ -175,6 +175,8 @@ class ChunkMapActivity : AppCompatActivity() {
      * 现在：alive 标记 + 提交前自愈（已关闭就重建），并且所有回调先过 alive。
      */
     private var pool = Executors.newFixedThreadPool(RENDER_THREADS)
+    /** 本页所有弹窗。Activity 销毁时必须逐个 dismiss，否则窗口会拽住整页不放。 */
+    private val liveDialogs = java.util.Collections.synchronizedList(mutableListOf<android.app.Dialog>())
     @Volatile private var alive = true
 
     private fun submitPool(task: Runnable) {
@@ -485,7 +487,7 @@ class ChunkMapActivity : AppCompatActivity() {
         MaterialAlertDialogBuilder(this)
             .setTitle("切换维度")
             .setItems(names) { _, i -> useDim(dims[i]) }
-            .show()
+            .show().also { liveDialogs.add(it) }
     }
 
     private fun toggleMode() {
@@ -784,7 +786,7 @@ class ChunkMapActivity : AppCompatActivity() {
             .setTitle("按条件选中（当前视野）")
             .setItems(items) { _, i -> runFilter(i) }
             .setNegativeButton("取消", null)
-            .show()
+            .show().also { liveDialogs.add(it) }
     }
 
     private fun runFilter(which: Int) {
@@ -805,7 +807,7 @@ class ChunkMapActivity : AppCompatActivity() {
             .setTitle("正在筛选…")
             .setMessage("0 / ${targets.size}")
             .setCancelable(false)
-            .show()
+            .show().also { liveDialogs.add(it) }
         val tv = prog.findViewById<TextView>(android.R.id.message)
 
         submitPool {
@@ -897,7 +899,7 @@ class ChunkMapActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("取消", null)
-            .show()
+            .show().also { liveDialogs.add(it) }
     }
 
     /** 自定义档位。只有这里才需要填数字，并且写清楚填的是什么 */
@@ -935,7 +937,7 @@ class ChunkMapActivity : AppCompatActivity() {
                 }
                 applyYRange(a, b)
             }
-            .show()
+            .show().also { liveDialogs.add(it) }
     }
 
     private fun applyYRange(lo: Int?, hi: Int?) {
@@ -1012,7 +1014,7 @@ class ChunkMapActivity : AppCompatActivity() {
             b.setPositiveButton("清空缓存") { _, _ -> clearTileCache() }
                 .setNegativeButton("关闭", null)
         }
-        b.show()
+        b.show().also { liveDialogs.add(it) }
     }
 
     private fun clearTileCache() {
@@ -1080,7 +1082,7 @@ class ChunkMapActivity : AppCompatActivity() {
                                 "缓存目录已经不会再往相册写了，这批是旧版留下的。"
                         )
                         .setPositiveButton("知道了", null)
-                        .show()
+                        .show().also { liveDialogs.add(it) }
                 }
             }
         }
@@ -1102,7 +1104,7 @@ class ChunkMapActivity : AppCompatActivity() {
             setMessage("扫描 ${refs.size} 个区域文件…")
             setCancelable(false)
             show()
-        }
+        }.also { liveDialogs.add(it) }
         submitPool {
             val hits = ArrayList<McaStructures.Hit>()
             for (r in refs) {
@@ -1127,7 +1129,7 @@ class ChunkMapActivity : AppCompatActivity() {
                                 "更早的只能按方块特征推断，认不出的会漏。"
                         )
                         .setPositiveButton("知道了", null)
-                        .show()
+                        .show().also { liveDialogs.add(it) }
                     return@runOnUiThread
                 }
                 val names = grouped.map { (id, list) ->
@@ -1151,10 +1153,10 @@ class ChunkMapActivity : AppCompatActivity() {
                                 toast("已跳转并选中")
                             }
                             .setNegativeButton("取消", null)
-                            .show()
+                            .show().also { liveDialogs.add(it) }
                     }
                     .setNegativeButton("取消", null)
-                    .show()
+                    .show().also { liveDialogs.add(it) }
             }
         }
     }
@@ -1173,7 +1175,7 @@ class ChunkMapActivity : AppCompatActivity() {
                 .setTitle("先选区域")
                 .setMessage("替换是按区域文件整块覆盖，先在地图上选中要替换的区域。")
                 .setPositiveButton("知道了", null)
-                .show()
+                .show().also { liveDialogs.add(it) }
             return
         }
         MaterialAlertDialogBuilder(this)
@@ -1188,7 +1190,7 @@ class ChunkMapActivity : AppCompatActivity() {
                 runCatching { pickSrc.launch(arrayOf("*/*")) }
                     .onFailure { toast("打不开文件选择器") }
             }
-            .show()
+            .show().also { liveDialogs.add(it) }
     }
 
     private fun runReplace(srcUri: Uri) {
@@ -1197,7 +1199,7 @@ class ChunkMapActivity : AppCompatActivity() {
         if (targets.isEmpty()) return toast("选中的区域不在这个维度里")
         val prog = android.app.ProgressDialog(this).apply {
             setMessage("替换中…"); setCancelable(false); show()
-        }
+        }.also { liveDialogs.add(it) }
         submitPool {
             val srcBytes = try {
                 contentResolver.openInputStream(srcUri)?.use { it.readBytes() }
@@ -1248,7 +1250,7 @@ class ChunkMapActivity : AppCompatActivity() {
                         else "一个都没覆盖成 —— 可能源文件和目标区域没有对应槽位。"
                     )
                     .setPositiveButton("知道了", null)
-                    .show()
+                    .show().also { liveDialogs.add(it) }
                 map.invalidate(); kickLoad()
             }
         }
@@ -1270,7 +1272,7 @@ class ChunkMapActivity : AppCompatActivity() {
         if (refs.isEmpty()) return toast("没有可导出的区域")
         val prog = android.app.ProgressDialog(this).apply {
             setMessage("导出 ${refs.size} 个区域…"); setCancelable(false); show()
-        }
+        }.also { liveDialogs.add(it) }
         submitPool {
             val tiles = ArrayList<Pair<McaWorld.Ref, Bitmap>>()
             for (r in refs) {
@@ -1288,7 +1290,7 @@ class ChunkMapActivity : AppCompatActivity() {
                     .setTitle(if (path != null) "已导出" else "导出失败")
                     .setMessage(path ?: "写文件时出错了，看看存储空间是不是满了。")
                     .setPositiveButton("知道了", null)
-                    .show()
+                    .show().also { liveDialogs.add(it) }
             }
         }
     }
@@ -1315,7 +1317,7 @@ class ChunkMapActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("取消", null)
-            .show()
+            .show().also { liveDialogs.add(it) }
     }
 
     private fun afterGoto() {
@@ -1353,7 +1355,7 @@ class ChunkMapActivity : AppCompatActivity() {
                 map.zoomToChunk()
                 afterGoto()
             }
-            .show()
+            .show().also { liveDialogs.add(it) }
     }
 
     /** 出生点坐标。level.dat 里的 Data.SpawnX / SpawnZ */
@@ -1453,7 +1455,7 @@ class ChunkMapActivity : AppCompatActivity() {
                 updateStatus()
                 toast("已标记 $n 个区块待删除 —— 点「保存」才生效")
             }
-            .show()
+            .show().also { liveDialogs.add(it) }
     }
 
     private fun clearStaged() {
@@ -1477,7 +1479,7 @@ class ChunkMapActivity : AppCompatActivity() {
             )
             .setNegativeButton("取消", null)
             .setPositiveButton("保存") { _, _ -> doSave() }
-            .show()
+            .show().also { liveDialogs.add(it) }
     }
 
     private fun doSave() {
@@ -1499,7 +1501,7 @@ class ChunkMapActivity : AppCompatActivity() {
             .setTitle("正在写入…")
             .setMessage("0 / ${targets.size}")
             .setCancelable(false)
-            .show()
+            .show().also { liveDialogs.add(it) }
         val tv = prog.findViewById<TextView>(android.R.id.message)
 
         submitPool {
@@ -1571,7 +1573,7 @@ class ChunkMapActivity : AppCompatActivity() {
             .setMessage("导出成独立的 .mca 文件，原存档不动。")
             .setNegativeButton("取消", null)
             .setPositiveButton("导出") { _, _ -> doExport() }
-            .show()
+            .show().also { liveDialogs.add(it) }
     }
 
     private fun doExport() {
@@ -1595,7 +1597,7 @@ class ChunkMapActivity : AppCompatActivity() {
             .setTitle("正在导出…")
             .setMessage("0 / ${targets.size}")
             .setCancelable(false)
-            .show()
+            .show().also { liveDialogs.add(it) }
         val tv = prog.findViewById<TextView>(android.R.id.message)
 
         submitPool {
@@ -1640,6 +1642,14 @@ class ChunkMapActivity : AppCompatActivity() {
     override fun onDestroy() {
         alive = false
         LoadingOverlay.hideAll(this)
+        // 弹窗还开着时 Activity 被销毁，窗口会一直拽住这一页（Window Leaked）。
+        // 逐个 dismiss 掉，再走 super。
+        runCatching {
+            for (d in ArrayList(liveDialogs)) {
+                runCatching { if (d.isShowing) d.dismiss() }
+            }
+            liveDialogs.clear()
+        }
         super.onDestroy()
         runCatching { pool.shutdownNow() }
     }

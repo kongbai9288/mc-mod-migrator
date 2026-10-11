@@ -149,8 +149,29 @@ object McaTiles {
         }
     }
 
-    /** 元数据也放内存里，筛选用到它时不能再碰磁盘 */
-    private val metaMem = HashMap<String, Meta>()
+    /**
+     * 元数据也放内存里，筛选用到它时不能再碰磁盘。
+     *
+     * ⚠️ 之前是无上限的 HashMap：一个 Meta 里四个数组、一个区域约 20 KB，
+     * 大世界几百个区域一路堆上去就是好几 MB 常驻，而且换世界也不会释放
+     * （只有 clearCache 才清）。改成有上限：满了就丢最久没用的。
+     */
+    private val metaMem = LinkedHashMap<String, Meta>(64, 0.75f, true)
+
+    /** 元数据缓存最多留多少个区域，约 META_MAX × 20 KB */
+    private const val META_MAX = 256
+
+    private fun metaPut(k: String, m: Meta) {
+        synchronized(this) {
+            metaMem[k] = m
+            // accessOrder=true，迭代器从头走就是"最久没用过"的
+            val it = metaMem.keys.iterator()
+            while (metaMem.size > META_MAX && it.hasNext()) {
+                it.next()
+                it.remove()
+            }
+        }
+    }
 
     // ------------------------------------------------------------------ 路径
 
@@ -234,7 +255,7 @@ object McaTiles {
             }
             val m = out?.second
             if (m != null) {
-                metaMem[key] = m
+                metaPut(key, m)
                 runCatching { writeMeta(metaOf(ctx, ref), m) }
             }
             return bmp
@@ -293,7 +314,7 @@ object McaTiles {
         metaMem[key]?.let { return it }
         // 磁盘上也没有 —— 只能解析一遍。这一步要几秒，调用方必须在后台。
         val m = render(ctx, ref)?.second
-        if (m != null) metaMem[key] = m
+        if (m != null) metaPut(key, m)
         return m ?: Meta.EMPTY
     }
 
@@ -307,7 +328,7 @@ object McaTiles {
         } catch (_: Throwable) {
             null
         }
-        if (m != null) metaMem[key] = m
+        if (m != null) metaPut(key, m)
     }
 
     private fun keyOf(ref: McaWorld.Ref) =

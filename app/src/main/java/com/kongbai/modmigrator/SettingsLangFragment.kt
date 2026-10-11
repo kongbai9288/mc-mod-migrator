@@ -25,7 +25,12 @@ import java.util.Locale
  */
 class SettingsLangFragment : Fragment() {
 
-    private val exec = java.util.concurrent.Executors.newSingleThreadExecutor()
+    /**
+     * 复用全局串行池。
+     * 原来是每实例 new 一个、页面销毁也不 shutdown，
+     * 每次进这个设置页就泄漏一条线程。
+     */
+    private val exec = Bg.serial
     private val handler = Bg.ui
 
     override fun onCreateView(

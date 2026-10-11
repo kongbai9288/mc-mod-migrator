@@ -16,9 +16,16 @@ class ModAdapter(
     private val onDetail: ((ModEntry) -> Unit)? = null
 ) : RecyclerView.Adapter<ModAdapter.VH>() {
 
-    /** 图标异步加载线程池。列表滚动时不会阻塞。 */
-    private val iconPool = java.util.concurrent.Executors.newFixedThreadPool(2)
-    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    /**
+     * 图标异步加载用的线程池。
+     *
+     * 之前这里是每个 Adapter 实例自己 `newFixedThreadPool(2)`，
+     * 而 Adapter 会随页面重建/刷新反复创建，池子却从来没人 shutdown：
+     * 每刷新一次就永久多出 2 条线程在那儿空转，切几次页面堆里全是它们。
+     * 改成复用全局共享池（[Bg]），线程数恒定，也不再跟着 Adapter 泄漏。
+     */
+    private val iconPool = Bg.io
+    private val mainHandler = Bg.ui
 
     class VH(v: View) : RecyclerView.ViewHolder(v) {
         val icon: ImageView = v.findViewById(R.id.ivIcon)

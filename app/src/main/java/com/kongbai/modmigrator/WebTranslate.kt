@@ -44,8 +44,36 @@ object WebTranslate {
     /** 最多跟多少轮，防止无限轮询耗电 */
     private const val MAX_ROUND = 30
 
+    /**
+     * 回调是**单例字段**，而它们通常来自 Activity / Fragment 的 lambda
+     * —— 不主动置空就会一直被这个 object 抓着，
+     * 页面关掉了也回收不掉（典型的静态引用泄漏）。
+     */
     private var onProgress: ((Int, Int) -> Unit)? = null
     private var onDone: ((Int) -> Unit)? = null
+
+    /**
+     * 排队中的轮询任务。
+     * 它闭包捕获了 WebView，而 WebView 拿着 Activity 的 Context，
+     * 所以 stop() 时必须从 Handler 队列里摘掉，不能只是置个标志位。
+     */
+    @Volatile
+    private var pendingPoll: Runnable? = null
+
+    private fun postPoll(ms: Long, ctx: android.content.Context, web: WebView) {
+        if (!running) return
+        val r = Runnable { poll(ctx, web) }
+        pendingPoll = r
+        mainHandler.postDelayed(r, ms)
+    }
+
+    /** 收尾：摘掉排队任务 + 释放回调引用 */
+    private fun clearCb() {
+        pendingPoll?.let { mainHandler.removeCallbacks(it) }
+        pendingPoll = null
+        onProgress = null
+        onDone = null
+    }
 
     /**
      * @param ctx 上下文
@@ -66,7 +94,7 @@ object WebTranslate {
         this.onDone = onDone
 
         web.evaluateJavascript(INSTALL_JS, null)
-        mainHandler.postDelayed({ poll(ctx, web) }, 500)
+        postPoll(500, ctx, web)
     }
 
     private fun poll(ctx: android.content.Context, web: WebView) {
@@ -75,6 +103,7 @@ object WebTranslate {
         if (round > MAX_ROUND) {
             running = false
             onDone?.invoke(total)
+            clearCb()
             return
         }
         web.evaluateJavascript(COLLECT_JS) { raw ->
@@ -85,8 +114,9 @@ object WebTranslate {
                 if (round >= 3) {
                     running = false
                     onDone?.invoke(total)
+                    clearCb()
                 } else {
-                    mainHandler.postDelayed({ poll(ctx, web) }, POLL_MS)
+                    postPoll(POLL_MS, ctx, web)
                 }
                 return@evaluateJavascript
             }
@@ -95,7 +125,7 @@ object WebTranslate {
                 web.evaluateJavascript(js, null)
                 total += results.count { it.isNotBlank() }
                 onProgress?.invoke(total, texts.size)
-                mainHandler.postDelayed({ poll(ctx, web) }, POLL_MS)
+                postPoll(POLL_MS, ctx, web)
             }
         }
     }
@@ -103,11 +133,13 @@ object WebTranslate {
     /** 一键还原原文（从 WeakMap 里取回） */
     fun restore(web: WebView) {
         running = false
+        clearCb()
         web.evaluateJavascript(RESTORE_JS, null)
     }
 
     fun stop() {
         running = false
+        clearCb()
     }
 
     // ------------------------------------------------------------------

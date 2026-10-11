@@ -84,6 +84,7 @@ object InAppNotice {
             override fun onActivityDestroyed(a: Activity) {
                 hosts.remove(a)
                 if (current?.get() === a) current = null
+                dropViews()
             }
             override fun onActivityPaused(a: Activity) {
                 if (current?.get() === a) current = null
@@ -131,7 +132,11 @@ object InAppNotice {
 
         // 挂完把还没消失的消息补画出来，切页面时不会丢
         for (s in slots) {
-            if (s.view == null) continue
+            if (s.view == null) {
+                // 上一页销毁时丢掉了视图引用，这里补画回来，消息不会丢
+                runCatching { build(s) }
+                continue
+            }
             runCatching {
                 (s.view?.parent as? ViewGroup)?.removeView(s.view)
                 stack.addView(s.view)
@@ -222,6 +227,8 @@ object InAppNotice {
         ui.post {
             val s = find(id) ?: return@post
             slots.remove(s)
+            s.handler?.let { ui.removeCallbacks(it) }
+            s.handler = null
             runCatching { (s.view?.parent as? ViewGroup)?.removeView(s.view) }
         }
     }
@@ -236,11 +243,32 @@ object InAppNotice {
         }
     }
 
+    /**
+     * 丢掉所有卡片视图的引用。
+     *
+     * 卡片是用**某一个 Activity 的 Context** 造出来的，而 [slots] 是全局列表：
+     * 页面销毁后这里如果还留着它的 View，就会把整个 Activity 连带 View 树拽住。
+     * 更隐蔽的是 [attach] 会把旧卡片**搬进新页面的浮层**，
+     * 于是旧 Activity 被新页面一直引用，永远回收不掉。
+     *
+     * 只丢 View 引用、保留消息本身，换页时由 [attach] 重新画一遍。
+     */
+    private fun dropViews() {
+        for (s in slots) {
+            runCatching { (s.view?.parent as? ViewGroup)?.removeView(s.view) }
+            s.view = null
+            s.tvText = null
+            s.bar = null
+        }
+    }
+
     private fun find(id: Int): Slot? = slots.firstOrNull { it.id == id }
 
     private fun trim() {
         while (slots.size > MAX_VISIBLE) {
             val old = slots.removeAt(0)
+            old.handler?.let { ui.removeCallbacks(it) }
+            old.handler = null
             runCatching { (old.view?.parent as? ViewGroup)?.removeView(old.view) }
         }
     }
@@ -249,6 +277,7 @@ object InAppNotice {
         if (ms <= 0) return
         val r = Runnable {
             slots.remove(s)
+            s.handler = null
             runCatching { (s.view?.parent as? ViewGroup)?.removeView(s.view) }
         }
         s.handler = r

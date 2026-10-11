@@ -88,7 +88,14 @@ object UpdateInstaller {
                         // id 为空就跳过，不能 !! 崩掉
                         val pid = id
                         if (pid != null) install(c ?: app, pid)
-                    } catch (t: Throwable) { Err.ignore(t, "install(c ?: app, id!!)") }
+                    } catch (t: Throwable) {
+                        Err.ignore(t, "install(c ?: app, id!!)")
+                    } finally {
+                        // 只等这一个下载，收到就撤掉监听。
+                        // 之前是注册完就再没人注销：之后系统里每一次下载完成
+                        // 广播都会把它叫醒，这个接收器一直挂在进程里。
+                        unregister(app)
+                    }
                 }
             }
             val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
@@ -99,6 +106,13 @@ object UpdateInstaller {
             }
             receiver = r
         } catch (t: Throwable) { Err.ignore(t, "receiver = r") }
+    }
+
+    /** 注销监听。拿到结果就撤，不留常驻接收器。 */
+    private fun unregister(app: Context) {
+        val r = receiver ?: return
+        receiver = null
+        runCatching { app.unregisterReceiver(r) }
     }
 
     /**

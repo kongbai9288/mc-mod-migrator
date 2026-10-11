@@ -120,6 +120,11 @@ class ProgressDialog private constructor(
         mainHandler.post {
             try {
                 dlg?.dismiss()
+                // 光 dismiss 不够：dlg 还拿着窗口，窗口又拿着创建它的 Activity。
+                // 置空才能真正放掉；顺手把排队中的 update 也摘掉，
+                // 那些 Runnable 同样握着 bar / tv 两个 View。
+                dlg = null
+                mainHandler.removeCallbacksAndMessages(null)
             } catch (t: Throwable) { Err.ignore(t, "dlg?.dismiss()") }
         }
     }
