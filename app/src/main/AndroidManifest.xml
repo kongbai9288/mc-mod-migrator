@@ -54,6 +54,12 @@
         </activity>
 
         <activity
+            android:name=".FirstRunActivity"
+            android:exported="false"
+            android:label="初次设置"
+            android:screenOrientation="portrait" />
+
+        <activity
             android:name=".ModPageActivity"
             android:exported="false"
             android:label="@string/title_mod_page"
