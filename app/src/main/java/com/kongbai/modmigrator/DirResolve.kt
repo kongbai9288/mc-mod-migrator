@@ -1,6 +1,7 @@
 package com.kongbai.modmigrator
 
 import android.content.Context
+import androidx.documentfile.provider.DocumentFile
 
 /**
  * 目录解析的唯一入口。
@@ -16,6 +17,6 @@ import android.content.Context
 object DirResolve {
 
     /** mods 目录：先找游戏目录里的，找不到再用工作目录里的 */
-    fun modsDir(ctx: Context): java.io.File? =
+    fun modsDir(ctx: Context): DocumentFile? =
         Targets.modsDir(ctx) ?: WorkDir.modsDir(ctx)
 }
