@@ -28,6 +28,13 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(ThemePrefs.styleRes(this))
         super.onCreate(savedInstanceState)
+        // 初次设置：第一次打开先把「东西放哪 / 迁到哪个版本」问清楚。
+        // 放在 setContentView 之前，避免先渲染一遍主界面再跳走。
+        if (!Prefs.get(this).getBoolean(K.FIRST_RUN_DONE, false)) {
+            startActivity(android.content.Intent(this, FirstRunActivity::class.java))
+            finish()
+            return
+        }
         // 冷启动净化：Progress 是全局单例，上次运行若因异常/提前 return
         // 没走到 done()，running 会永久卡在 true，
         // 于是本次一进界面就提示"扫描运行中"——用户根本没点扫描。
