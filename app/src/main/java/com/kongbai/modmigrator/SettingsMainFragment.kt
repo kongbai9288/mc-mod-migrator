@@ -79,6 +79,31 @@ class SettingsMainFragment : Fragment() {
         super.onResume()
         // 从登录页/其他页面回来时刷新一次登录态（防止状态显示滞后）
         if (::tvAccount.isInitialized) refreshAccount()
+        // 从浏览器回到应用时，把设备码那一屏重新摆出来。
+        // 之前一点「打开授权页」就再也回不到这一步：码只在弹窗里出现过一次，
+        // 切到浏览器再切回来弹窗已经没了，用户根本不知道自己该输什么，
+        // 登录就卡死在这里、表现得像"点了没反应"。
+        resumeDeviceLogin()
+    }
+
+    /**
+     * 续上没走完的那一轮设备流。
+     *
+     * 设备码是存在磁盘上的（GhDeviceFlow.save），所以只要没过期就能接着用，
+     * 不需要重新申请一轮让用户再等一遍。
+     */
+    private fun resumeDeviceLogin() {
+        val ctx = context ?: return
+        if (!isAdded) return
+        // 已经登录成功就没什么可续的
+        if (Prefs.get(ctx).getBoolean(K.GH_PAT_OK, false)) return
+        val pending = GhDeviceFlow.peek(ctx) ?: return
+        if (deviceCodeShown) {
+            // 屏还在，只是轮询可能在切出去时被停掉了
+            if (!devicePolling) startDevicePolling()
+            return
+        }
+        showDeviceCode(ctx, pending.first, pending.second)
     }
 
     override fun onCreateView(
@@ -522,6 +547,9 @@ class SettingsMainFragment : Fragment() {
     /** 设备流轮询是否在进行中（页面销毁时要停，别空转） */
     private var devicePolling = false
 
+    /** 设备码那一屏当前是否在屏幕上。回来时要不要重新摆出来就靠它判断。 */
+    private var deviceCodeShown = false
+
     /**
      * 设备流登录 —— 现在的默认入口。
      *
@@ -578,26 +606,51 @@ class SettingsMainFragment : Fragment() {
      */
     private fun showDeviceCode(ctx: android.content.Context, userCode: String, verifyUri: String) {
         if (!isAdded) return
+        deviceCodeShown = true
+        // 码要"看得见、抄得走"：手机上字母数字混排容易看错（I/1、O/0），
+        // 所以放大单独一行，并给一个复制按钮让用户直接粘到电脑上输。
         MaterialAlertDialogBuilder(ctx)
-            .setTitle("在 GitHub 上输入这个码")
+            .setTitle("第 1 步：在 GitHub 上输入这个码")
             .setMessage(
-                "$userCode\n\n" +
-                    "打开下面的地址、把这 8 位码填进去并点授权。\n" +
+                "  $userCode\n\n" +
+                    "这是一次性的授权码，不是密码，也不等于你的令牌。\n\n" +
+                    "第 2 步：打开下面的地址，把码填进去、点授权。\n" +
                     "$verifyUri\n\n" +
-                    "在任何设备上输都行，输完不用回到这里 —— 会自动检测到。"
+                    "在手机上输、在电脑上输都行。\n" +
+                    "输完不用做任何事 —— 回到这个页面就会自动完成登录。"
             )
             .setPositiveButton("打开授权页") { _, _ ->
+                // 切到浏览器不会丢码：回来时 onResume 会重新摆出这一屏
                 runCatching {
                     startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(verifyUri)))
                 }.onFailure { toast("打不开浏览器") }
             }
+            .setNeutralButton("复制码") { _, _ ->
+                val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                        as? android.content.ClipboardManager
+                runCatching {
+                    cm?.setPrimaryClip(android.content.ClipData.newPlainText("GitHub 设备码", userCode))
+                    toast("已复制：$userCode")
+                }.onFailure { toast("复制失败，请手动记下") }
+                // 复制完通常是要去浏览器粘贴，顺手把授权页打开
+                runCatching { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(verifyUri))) }
+            }
             .setNegativeButton("取消") { _, _ ->
                 devicePolling = false
+                deviceCodeShown = false
                 GhDeviceFlow.clear(ctx)
             }
-            .setOnCancelListener { devicePolling = false }
+            .setOnCancelListener { devicePolling = false; deviceCodeShown = false }
             .show()
         startDevicePolling()
+    }
+
+    /** 登录真正完成：清掉这一轮的现场，别让 onResume 再把码摆出来 */
+    private fun finishDeviceLogin() {
+        val ctx = context ?: return
+        devicePolling = false
+        deviceCodeShown = false
+        GhDeviceFlow.clear(ctx)
     }
 
     /** 按 GitHub 给的间隔轮询，直到拿到令牌或这一轮作废 */
@@ -623,21 +676,21 @@ class SettingsMainFragment : Fragment() {
                     }
                     when (r) {
                         is GhDeviceFlow.Poll.Ok -> {
-                            devicePolling = false
+                            finishDeviceLogin()
                             onDeviceToken(ctx, r.token)
                         }
                         is GhDeviceFlow.Poll.Pending -> Unit   // 还没输，继续等
                         is GhDeviceFlow.Poll.SlowDown -> iv = r.interval.toLong()
                         is GhDeviceFlow.Poll.Expired -> {
-                            devicePolling = false
+                            finishDeviceLogin()
                             toast("设备码过期了，请重新点一次登录")
                         }
                         is GhDeviceFlow.Poll.Denied -> {
-                            devicePolling = false
+                            finishDeviceLogin()
                             toast("你在 GitHub 页面上取消了授权")
                         }
                         is GhDeviceFlow.Poll.Fail -> {
-                            devicePolling = false
+                            finishDeviceLogin()
                             LogCenter.e("Login", "设备流失败：${r.message}")
                             toast("登录失败：${r.message}")
                         }
@@ -661,6 +714,13 @@ class SettingsMainFragment : Fragment() {
                 Prefs.get(ctx).edit()
                     .putString(K.TOKEN, token)
                     .putString(K.GH_TOKEN_BACKEND, token)
+                    // ⚠️ 这两项是"登录成功但没效果"的直接原因，之前漏了：
+                    // refreshAccount() 判断登没登录看的是 GH_LOGIN + GH_PAT_OK，
+                    // 设备流只写了 TOKEN，于是提示"已登录"之后界面立刻又变回未登录，
+                    // 同步、备份、云端搜索这些依赖登录态的功能也全部拒绝执行。
+                    .putString(K.GH_LOGIN, user.login)
+                    .putString(K.GH_AVATAR, user.avatarUrl)
+                    .putBoolean(K.GH_PAT_OK, true)
                     .apply()
                 LogCenter.i("Login", "设备流登录成功：${user.login}")
                 toast("已登录：${user.login}")

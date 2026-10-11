@@ -78,7 +78,8 @@ fun search(query: String, mc: String, loader: String, limit: Int = 20, offset: I
 fun search(
     query: String, mc: String, loader: String,
     limit: Int = 20, offset: Int = 0, side: Environ.Side? = null,
-    index: String = "downloads"
+    index: String = "downloads",
+    ptype: String = "mod"
 ): List<MarketMod> {
         // ⚠️ 官方和镜像用的**不是同一版 API**，过滤语法也不同，必须分开拼。
         //   - 官方：v3，`new_filters` 用 MeiliSearch 语法，
@@ -96,7 +97,7 @@ fun search(
         if (useMirror) {
             // v2 facets：外层数组是 AND，内层是 OR
             val groups = ArrayList<String>()
-            groups.add("""["project_type:mod"]""")
+            groups.add("""["project_type:$ptype"]""")
             if (mc.isNotBlank()) groups.add("""["versions:$mc"]""")
             // v2 里加载器属于 categories（fabric/forge/quilt 都是分类名）
             if (loader.isNotBlank() && loader != "auto") groups.add("""["categories:$loader"]""")
@@ -104,7 +105,7 @@ fun search(
             searchBase = MIRROR
         } else {
             val filters = ArrayList<String>()
-            filters.add("""project_types=["mod"]""")
+            filters.add("""project_types=["$ptype"]""")
             if (mc.isNotBlank()) filters.add("""game_versions=["$mc"]""")
             // 加载器字段是 loaders，不是 categories。
             // 官方 v3 文档里两者是不同字段：categories 是内容分类（optimization 等），
@@ -141,7 +142,7 @@ fun search(
                     name = title,
                     summary = Json.s(h, "description"),
                     iconUrl = Json.s(h, "icon_url"),
-                    pageUrl = "https://modrinth.com/mod/${Json.s(h, "slug")}",
+                    pageUrl = "https://modrinth.com/$ptype/${Json.s(h, "slug")}",
                     downloads = Json.l(h, "downloads"),
                     source = "modrinth",
                     updated = Json.s(h, "date_modified").ifBlank { Json.s(h, "date_created") },
@@ -159,7 +160,7 @@ fun search(
                     // "forge"、"1.20.x" 这类版本/加载器值，
                     // 它们已经在加载器图标那一行体现过了，重复显示是噪音。
                     categories = ModCats.clean(Json.sa(h, "categories")),
-                    projectType = Json.s(h, "project_type").ifBlank { "mod" }
+                    projectType = Json.s(h, "project_type").ifBlank { ptype }
                 )
             )
         }

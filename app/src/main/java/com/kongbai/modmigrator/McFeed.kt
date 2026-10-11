@@ -1,23 +1,21 @@
 package com.kongbai.modmigrator
 
-import org.jsoup.Jsoup
-import java.util.Locale
 
 /**
- * MC 资讯分区抓取。
+ * MC 资讯分区。
  *
- * 四个分区：**官方最新版本 / 最新模组 / 最新投影 / 红石**。
+ * 四个分区：**官方最新版本 / 最新模组 / 最新整合包 / 最新光影**。
  *
- * 实现要点（按成熟爬虫的做法，而不是随手正则）：
- *  1. 用 Jsoup（MIT）做真正的 DOM 解析 + CSS 选择器，
- *     不拿正则去匹配 HTML——正则遇到属性顺序变化、换行就直接失效。
- *  2. **每个分区独立 try**：某一个站点挂了只影响那一块，
- *     其余照常显示，不会整页空白。
- *  3. **标明来源**：每条都带来源站点名与原文链接，点进去是原站，
- *     不把别人的内容伪装成自己的。
- *  4. 结果有内存缓存 + 强制同步落盘，避免每次进页面都重复抓。
- *  5. 选择器失效（站点改版）时该分区返回空并显示降级文案，
- *     同时保留"打开原站"入口，用户永远有路可走。
+ * ⚠️ 之前这一块是**抓网页**（Jsoup 解析 HTML），四个分区全靠它，
+ * 结果就是"完全没法用"：
+ *  1. Modrinth 是前端渲染的 SPA，抓下来的静态 HTML 里根本没有列表；
+ *  2. minecraft-schematics.com、curseforge.com 在国内基本连不上；
+ *  3. 站点一改版选择器就失效，而失效的表现是**空白**，看不出原因。
+ *
+ * 现在**全部改成接口取数**，一个网页都不抓：
+ *  · 官方版本 → [McVer] 的清单（本身已带镜像与 7 天缓存，抓不到还有内置兜底）
+ *  · 其余三块 → Modrinth 搜索接口，按发布时间倒序
+ * 这样任何一块拿不到都能明确降级，而不是整页空白。
  *
  * 只取标题与链接这类摘要信息，不整页搬运正文。
  */
@@ -26,8 +24,8 @@ object McFeed {
     /** 分区标识 */
     const val OFFICIAL = "official"
     const val MODS = "mods"
-    const val SCHEMATIC = "schematic"
-    const val REDSTONE = "redstone"
+    const val MODPACK = "modpack"
+    const val SHADER = "shader"
 
     data class Item(
         val title: String,
@@ -36,7 +34,7 @@ object McFeed {
         val extra: String = ""
     )
 
-    /** 分区定义：名字、站点名、地址、选择器 */
+    /** 分区定义：名字、站点名、原站地址、Modrinth 项目类型（官方版本那块为空） */
     data class Zone(
         val key: String,
         val label: String,
@@ -48,31 +46,28 @@ object McFeed {
 
     private val ZONES = listOf(
         Zone(
-            OFFICIAL, "官方最新版本", "中文 Minecraft Wiki",
-            "https://zh.minecraft.wiki/w/%E7%89%88%E6%9C%AC",
-            "a[href*='Java%E7%89%88'], a[href*='/w/Java']",
-            "Java 版版本历史"
+            OFFICIAL, "官方最新版本", "Minecraft 版本清单",
+            "https://zh.minecraft.wiki/w/Java%E7%89%88",
+            "",
+            "最新的 Java 版正式版"
         ),
         Zone(
             MODS, "最新模组", "Modrinth",
-            "https://modrinth.com/mods?g=1.20.1",
-            "a[href^='/mod/']",
-            "Modrinth 最新模组"
+            "https://modrinth.com/mods",
+            "mod",
+            "刚发布的模组"
         ),
         Zone(
-            SCHEMATIC, "最新投影", "Minecraft Schematics",
-            "https://www.minecraft-schematics.com/search/?sort=date",
-            "a[href*='/schematic/']",
-            "投影（schematic）下载"
+            MODPACK, "最新整合包", "Modrinth",
+            "https://modrinth.com/modpacks",
+            "modpack",
+            "刚发布的整合包"
         ),
-        // ⚠️ 原站点是 `https://www.redstoneplan.com/`，**无法核实**（连接失败），
-        //    且"红石计划"本身是一个 MOD 名（ProjectRed 的非官方续作）而非站点。
-        //    换成确实存在、且有红石/生电内容的入口。
         Zone(
-            REDSTONE, "红石与生电", "CurseForge 存档",
-            "https://www.curseforge.com/minecraft/worlds",
-            "a[href*='/worlds/'], a[href*='/minecraft/worlds/']",
-            "生电存档与红石机械"
+            SHADER, "最新光影", "Modrinth",
+            "https://modrinth.com/shaders",
+            "shader",
+            "刚发布的光影 / 着色器"
         )
     )
 
@@ -111,35 +106,13 @@ object McFeed {
 
         val zone = ZONES.firstOrNull { it.key == key } ?: return emptyList()
 
-        // 官方版本这一块优先用 Modrinth 的游戏版本接口（结构化，比抓 HTML 稳），
-        // 抓不到才退回 Jsoup 抓 Wiki
-        if (key == OFFICIAL) {
-            val viaApi = officialVersions(ctx)
-            if (viaApi.isNotEmpty()) {
-                put(key, viaApi)
-                return viaApi
-            }
-        }
-
-        // ── "最新模组"改用 Modrinth 的**接口**，不再抓网页 ──
-        // 之前是 Jsoup 抓 `https://modrinth.com/mods?g=1.20.1`：
-        //  1. **Modrinth 是 SPA**（前端渲染），Jsoup 拿到的静态 HTML 里
-        //     根本没有模组列表 → 这一块永远空着，只会显示"暂时没抓到内容"。
-        //     同一个坑在 PageParser 那边已经踩过一次。
-        //  2. 版本**写死 1.20.1**，用户在 1.21 看到的还是 1.20.1 的模组。
-        // 改成走 /v3/search 并按 newest 排序（之前 index 写死 downloads，
-        // 排出来全是老牌热门，没有新模组）。
-        if (key == MODS) {
-            val viaApi = latestMods(ctx)
-            if (viaApi.isNotEmpty()) {
-                put(key, viaApi)
-                return viaApi
-            }
-        }
-
         val list = try {
-            scrape(zone)
+            when {
+                key == OFFICIAL -> officialVersions()
+                else -> latestProjects(ctx, zone)
+            }
         } catch (t: Throwable) {
+            Err.ignore(t, "资讯：$key")
             emptyList()
         }
         if (list.isNotEmpty()) put(key, list)
@@ -152,48 +125,23 @@ object McFeed {
         stampAt[key] = System.currentTimeMillis()
     }
 
-    /** Jsoup 抓取：解析 DOM、按选择器取条目、过滤导航项 */
-    private fun scrape(zone: Zone): List<Item> {
-        // 短超时：这只是个资讯列表页，没有理由让用户等两分钟。
-        // 站点抓不通就快速失败，界面显示该分区的降级文案。
-        val html = Http.get(
-            zone.url,
-            mapOf(
-                "Accept" to "text/html,application/xhtml+xml",
-                "User-Agent" to Http.UA
-            ),
-            Http.SHORT
-        )
-        val doc = Jsoup.parse(html, zone.url)
+    /**
+     * 官方最新版本：直接读 [McVer] 的清单。
+     *
+     * 之前是去 Modrinth 现抓一个写死的 v3 地址，**没走镜像开关**，
+     * 国内连不上就整块空白。而 [McVer] 那份清单本来就已经带镜像、
+     * 带 7 天缓存、抓不到还有内置兜底，复用它就够了——
+     * 同一份版本数据没必要在两处各拉一次。
+     */
+    private fun officialVersions(): List<Item> {
         val out = ArrayList<Item>()
-        val seen = HashSet<String>()
-
-        val els = try {
-            doc.select(zone.selector)
-        } catch (t: Throwable) {
-            doc.select("a[href]")
-        }
-
-        for (el in els) {
-            if (out.size >= PER_ZONE) break
-            val href = runCatching { el.absUrl("href") }.getOrNull()
-            if (href.isNullOrBlank() || !href.startsWith("http")) continue
-
-            val title = el.text().trim()
-                .ifBlank { el.attr("title") }
-                .replace(Regex("\\s+"), " ")
-            if (title.length < 2 || isNav(title)) continue
-
-            val k = title.lowercase(Locale.ROOT)
-            if (seen.contains(k)) continue
-            seen.add(k)
-
+        for (v in McVer.known().take(PER_ZONE)) {
             out.add(
                 Item(
-                    title = title.take(60),
-                    url = href,
-                    source = zone.site,
-                    extra = zone.desc
+                    title = "Minecraft $v",
+                    url = "https://zh.minecraft.wiki/w/Java%E7%89%88$v",
+                    source = "Minecraft 版本清单",
+                    extra = "Java 版正式版"
                 )
             )
         }
@@ -201,80 +149,35 @@ object McFeed {
     }
 
     /**
-     * 官方最新版本：优先用 Modrinth 的游戏版本列表（结构化数据）。
-     * 拿不到就返回空，由调用方退回 Wiki 抓取。
-     */
-    private fun officialVersions(ctx: android.content.Context): List<Item> {
-        return try {
-            val json = Http.get(
-                "https://api.modrinth.com/v3/tag/game_version",
-                timeout = Http.SHORT
-            )
-            val arr = Json.arr(json) ?: return emptyList()
-            val out = ArrayList<Item>()
-            // Modrinth 返回按时间倒序，前几个就是最新的正式版
-            var n = 0
-            for (e in arr) {
-                if (n >= 6) break
-                val v = Json.s(e, "version")
-                val type = Json.s(e, "type")
-                if (v.isBlank()) continue
-                // 只要正式 release，过滤快照与预览版
-                if (type.isNotBlank() && !type.equals("release", true)) continue
-                out.add(
-                    Item(
-                        title = "Minecraft $v",
-                        url = "https://zh.minecraft.wiki/w/Java%E7%89%88$v",
-                        source = "Modrinth 版本接口",
-                        extra = Json.s(e, "type").ifBlank { "release" }
-                    )
-                )
-                n++
-            }
-            out
-        } catch (t: Throwable) {
-            emptyList()
-        }
-    }
-
-    /**
-     * 最新模组：走 Modrinth 的搜索接口，按**发布时间**倒序。
+     * 最新项目：走 Modrinth 搜索接口，按**发布时间**倒序。
      *
-     * 用设置里的默认 MC 版本/加载器过滤；没填版本就不过滤，
+     * 用设置里的默认 MC 版本过滤；没填版本就不过滤，
      * 至少能看到东西，而不是空白。
+     *
+     * @param zone 里的 selector 字段这里复用为 Modrinth 的项目类型
+     *             （mod / modpack / shader），不再当 CSS 选择器用。
      */
-    private fun latestMods(ctx: android.content.Context): List<Item> {
-        return try {
-            val p = Prefs.get(ctx)
-            val mc = p.getString(K.DEF_VERSION, "") ?: ""
-            val ld = p.getString(K.DEF_LOADER, "auto") ?: "auto"
-            val hits = ModrinthApi.search("", mc, ld, PER_ZONE, 0, null, "newest")
-            val out = ArrayList<Item>()
-            for (h in hits) {
-                val page = h.pageUrl.ifBlank { "https://modrinth.com/mod/${h.slug}" }
-                out.add(
-                    Item(
-                        title = h.name.take(60),
-                        url = page,
-                        source = "Modrinth",
-                        extra = h.summary.take(30)
-                    )
+    private fun latestProjects(ctx: android.content.Context, zone: Zone): List<Item> {
+        val p = Prefs.get(ctx)
+        val mc = p.getString(K.DEF_VERSION, "") ?: ""
+        val ld = p.getString(K.DEF_LOADER, "auto") ?: "auto"
+        val ptype = zone.selector.ifBlank { "mod" }
+        val hits = ModrinthApi.search(
+            "", mc, ld, PER_ZONE, 0, null, "newest", ptype
+        )
+        val out = ArrayList<Item>()
+        for (h in hits) {
+            val page = h.pageUrl.ifBlank { "https://modrinth.com/$ptype/${h.slug}" }
+            out.add(
+                Item(
+                    title = h.name.take(60),
+                    url = page,
+                    source = "Modrinth",
+                    extra = h.summary.take(30)
                 )
-            }
-            out
-        } catch (t: Throwable) {
-            Err.ignore(t, "抓最新模组（Modrinth 接口）")
-            emptyList()
+            )
         }
-    }
-
-    private fun isNav(t: String): Boolean {
-        val low = t.lowercase(Locale.ROOT)
-        return low in setOf(
-            "登录", "注册", "首页", "更多", "下一页", "上一页",
-            "login", "sign in", "sign up", "home", "next", "previous",
-            "下载", "download", "搜索", "search", "全部", "all"
-        ) || low.length <= 1
+        return out
     }
 
     fun clearCache() {
