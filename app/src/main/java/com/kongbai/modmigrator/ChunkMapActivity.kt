@@ -150,6 +150,7 @@ class ChunkMapActivity : AppCompatActivity() {
     private lateinit var btnMode: MaterialButton
     private lateinit var btnDim: MaterialButton
     private lateinit var btnSave: MaterialButton
+    private lateinit var btnY: MaterialButton
 
     /**
      * 渲染线程池。
@@ -226,10 +227,11 @@ class ChunkMapActivity : AppCompatActivity() {
             text = "跳转"
             setOnClickListener { askGoto() }
         })
-        bar.addView(MaterialButton(this).apply {
-            text = "Y范围"
+        btnY = MaterialButton(this).apply {
+            text = "高度"
             setOnClickListener { askYRange() }
-        })
+        }
+        bar.addView(btnY)
 
         tvHint = TextView(this).apply {
             textSize = 11f
@@ -315,6 +317,10 @@ class ChunkMapActivity : AppCompatActivity() {
         row3.addView(MaterialButton(this).apply {
             text = "回原点"
             setOnClickListener { map.resetView(); map.invalidate() }
+        })
+        row3.addView(MaterialButton(this).apply {
+            text = "地图缓存"
+            setOnClickListener { askTileCache() }
         })
 
         // 载入
@@ -437,7 +443,10 @@ class ChunkMapActivity : AppCompatActivity() {
         stagedChunk.clear()
         loadDone = 0
         loadTotal = 0
+        // 公有目录的瓦片子目录按「世界 / 维度」拼，用户打开相册就知道在看哪个世界
+        McaTiles.setNamespace(worldDir?.name ?: d.label, d.label)
         btnDim.text = d.label
+        syncYButton()
         if (refs.isEmpty()) {
             tvStatus.text = "「${d.label}」里没有区域文件"
             return
@@ -797,24 +806,56 @@ class ChunkMapActivity : AppCompatActivity() {
 
     // ------------------------------------------------------------------ 跳转
 
-    /** 跳到指定坐标。MCA Selector / Blocktopograph 都有，找崩溃点全靠它 */
     // ---------------------------------------------------------------- Y 范围
 
     /**
-     * 设置高度显示区间。
+     * 设置高度区间。
      *
-     * 下界用来"只看某一层以上"（比如设 60 就只看地表往上），
-     * 上界用来"只看某一层以下"（找地下矿道、古城靠这个）。
-     * 留空就是恢复默认：每列最高的非空气方块。
+     * ⚠️ 上一版写成两个空输入框「下界 Y / 上界 Y」，配一句抽象说明 ——
+     * 除了写它的人没人知道该填什么、填完会变成什么样。
+     *
+     * 实际语义是：在指定的这一段高度里，每格显示最高的那个方块。
+     * 所以这里改成先给几个一眼就懂的档位，自定义放最后，
+     * 并且按钮上直接写出"现在在看哪一段"。
      */
     private fun askYRange() {
+        val opts = arrayOf(
+            "全部高度（默认）",
+            "只看地表以上（Y ≥ 60）",
+            "只看地表以下（Y ≤ 59）",
+            "只看深层矿洞（Y -64 ~ 0）",
+            "只看下界那一层（Y 0 ~ 128）",
+            "自定义…"
+        )
+        MaterialAlertDialogBuilder(this)
+            .setTitle("看哪一段高度")
+            .setMessage(
+                "在指定的这一段高度里，每格显示最高的那个方块。\n" +
+                    "想看矿洞就选「地表以下」，想看地形轮廓就选「地表以上」。"
+            )
+            .setItems(opts) { _, which ->
+                when (which) {
+                    0 -> applyYRange(null, null)
+                    1 -> applyYRange(60, null)
+                    2 -> applyYRange(null, 59)
+                    3 -> applyYRange(-64, 0)
+                    4 -> applyYRange(0, 128)
+                    5 -> askYRangeCustom()
+                }
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    /** 自定义档位。只有这里才需要填数字，并且写清楚填的是什么 */
+    private fun askYRangeCustom() {
         val lo = EditText(this).apply {
-            hint = "下界 Y（留空=不限）"
+            hint = "最低看第几层（留空=不限）"
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED
             if (McaTiles.yLo != Int.MIN_VALUE) setText(McaTiles.yLo.toString())
         }
         val hi = EditText(this).apply {
-            hint = "上界 Y（留空=不限）"
+            hint = "最高看第几层（留空=不限）"
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED
             if (McaTiles.yHi != Int.MAX_VALUE) setText(McaTiles.yHi.toString())
         }
@@ -823,31 +864,77 @@ class ChunkMapActivity : AppCompatActivity() {
             val pd = (16 * resources.displayMetrics.density).toInt()
             setPadding(pd, pd, pd, pd)
             addView(TextView(this@ChunkMapActivity).apply {
-                text = "只看这个高度区间内的方块（世界 Y，含端点）。\n" +
-                    "留空恢复默认。改完会重画。"
+                text = "1.18 起主世界是 -64 ~ 319，更早的版本是 0 ~ 255。\n" +
+                    "两个都留空就是恢复默认的全部高度。"
             })
             addView(lo); addView(hi)
         }
         MaterialAlertDialogBuilder(this)
-            .setTitle("高度区间")
+            .setTitle("自定义高度区间")
             .setView(box)
             .setNegativeButton("取消", null)
-            .setNeutralButton("恢复默认") { _, _ ->
-                McaTiles.setYRange(null, null)
-                McaTiles.evictAll()
-                map.invalidate(); kickLoad()
-                toast("已恢复")
-            }
+            .setNeutralButton("恢复默认") { _, _ -> applyYRange(null, null) }
             .setPositiveButton("应用") { _, _ ->
                 val a = lo.text.toString().trim().toIntOrNull()
                 val b = hi.text.toString().trim().toIntOrNull()
                 if (a != null && b != null && a > b) {
-                    toast("下界不能大于上界"); return@setPositiveButton
+                    toast("最低不能大于最高"); return@setPositiveButton
                 }
-                McaTiles.setYRange(a, b)
-                McaTiles.evictAll()
-                map.invalidate(); kickLoad()
-                toast(if (a == null && b == null) "已恢复" else "已应用")
+                applyYRange(a, b)
+            }
+            .show()
+    }
+
+    private fun applyYRange(lo: Int?, hi: Int?) {
+        McaTiles.setYRange(lo, hi)
+        McaTiles.evictAll()
+        syncYButton()
+        map.invalidate()
+        kickLoad()
+        toast(
+            if (lo == null && hi == null) "已恢复全部高度"
+            else when {
+                lo == null -> "只看 Y $hi 以下"
+                hi == null -> "只看 Y $lo 以上"
+                else -> "只看 Y $lo ~ $hi"
+            }
+        )
+    }
+
+    /** 按钮上直接写出当前在看哪一段，不用再点进去猜 */
+    private fun syncYButton() {
+        if (!::btnY.isInitialized) return
+        val lo = McaTiles.yLo
+        val hi = McaTiles.yHi
+        btnY.text = when {
+            lo == Int.MIN_VALUE && hi == Int.MAX_VALUE -> "高度"
+            lo == Int.MIN_VALUE -> "高度 ≤$hi"
+            hi == Int.MAX_VALUE -> "高度 ≥$lo"
+            else -> "高度 $lo~$hi"
+        }
+    }
+
+    /**
+     * 瓦片缓存放在公有目录，用户可以自己去看、自己去删。
+     * 这里给出占用和一次清空的入口 —— 写到磁盘上的东西必须让用户看得见。
+     */
+    private fun askTileCache() {
+        val (n, bytes) = McaTiles.cacheStats(this)
+        val mb = bytes / 1024.0 / 1024.0
+        MaterialAlertDialogBuilder(this)
+            .setTitle("地图缓存")
+            .setMessage(
+                "当前世界已缓存 $n 张区域图，共 ${"%.1f".format(mb)} MB。\n\n" +
+                    "位置：相册 / Pictures / ModMigrator / 地图缓存 /\n" +
+                    "<世界> / <维度> / <高度档> / r.<x>.<z>.png\n\n" +
+                    "清掉不会丢失存档，只是下次打开要重新画一遍。"
+            )
+            .setNegativeButton("关闭", null)
+            .setPositiveButton("清空") { _, _ ->
+                McaTiles.clearCache(this)
+                map.invalidate()
+                kickLoad()
+                toast("已清空，正在重画")
             }
             .show()
     }
@@ -872,9 +959,14 @@ class ChunkMapActivity : AppCompatActivity() {
         submitPool {
             val hits = ArrayList<McaStructures.Hit>()
             for (r in refs) {
-                val raw = runCatching { r.file.readBytes() }.getOrNull() ?: continue
-                val reg = runCatching { McaEdit.Region(raw) }.getOrNull() ?: continue
-                runCatching { hits.addAll(McaStructures.scan(reg, r.rx, r.rz)) }
+                // 走文件来源：找结构要把整个维度的区域全扫一遍，
+                // 每个都整文件读进内存会一路把堆吃光
+                val reg = runCatching { McaEdit.Region(r.file) }.getOrNull() ?: continue
+                try {
+                    runCatching { hits.addAll(McaStructures.scan(reg, r.rx, r.rz)) }
+                } finally {
+                    reg.close()
+                }
             }
             val grouped = McaStructures.group(hits)
             runOnUiThread {
@@ -980,8 +1072,7 @@ class ChunkMapActivity : AppCompatActivity() {
             var n = 0
             for (ref in targets) {
                 try {
-                    val raw = ref.file.readBytes()
-                    val dst = McaEdit.Region(raw)
+                    val dst = McaEdit.Region(ref.file)
                     val slots = dst.present().toIntArray()
                     val k = McaOps.replaceSlots(dst, src, slots)
                     if (k == 0) continue
@@ -1272,10 +1363,9 @@ class ChunkMapActivity : AppCompatActivity() {
                 val ref = byRef[rk] ?: continue
                 try {
                     val f = ref.file
-                    val raw = f.readBytes()
                     val bak = File("${f.absolutePath}.bak")
-                    if (!bak.exists()) runCatching { bak.writeBytes(raw) }
-                    val reg = McaEdit.Region(raw)
+                    if (!bak.exists()) runCatching { f.copyTo(bak) }
+                    val reg = McaEdit.Region(f)
                     if (slots.isEmpty()) {
                         for (s in reg.present()) if (reg.remove(s)) removed++
                     } else {
@@ -1368,7 +1458,7 @@ class ChunkMapActivity : AppCompatActivity() {
             for ((rk, slots) in targets) {
                 val ref = byRef[rk] ?: continue
                 try {
-                    val src = McaEdit.Region(ref.file.readBytes())
+                    val src = McaEdit.Region(ref.file)
                     val want = if (slots.isEmpty()) src.present().toList() else slots.toList()
                     // 空头（8192 字节全 0）就是一个"没有任何区块"的区域
                     val out = McaEdit.Region(ByteArray(8192))

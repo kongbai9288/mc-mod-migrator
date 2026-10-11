@@ -10,6 +10,7 @@ import com.viaversion.nbt.tag.StringTag
 import com.viaversion.nbt.tag.Tag
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.util.zip.DeflaterOutputStream
 import java.util.zip.GZIPInputStream
 import java.util.zip.InflaterInputStream
@@ -37,33 +38,91 @@ object McaEdit {
     private const val SLOTS = 1024
     private const val HEADER = SECTOR * 2
 
-    class Region(raw: ByteArray) {
+    /**
+     * 一个已打开的区域文件。
+     *
+     * ⚠️ 之前只有「整文件读进内存」一种构造，而且构造时就把 1024 个区块的
+     * 压缩负载 copyOfRange 出来另存一份 —— 同一份数据被放了两次：
+     * 原始字节 + 全部负载副本。区域文件大的是十几 MB 起，
+     * 渲染又是多线程并行的（最多 4 路），峰值就是「文件大小 ×2 ×4」，
+     * 这正是"一加载就 OOM"的直接来源。
+     *
+     * 现在两种来源都**按需读取**：只解析头部两张表（8KB），
+     * 真正要读某个区块时才去把那一段取出来，读完即弃。
+     * · [ByteArray] 来源：整份仍在内存里，但不再复制出第二份
+     * · [File] 来源：连整文件都不进内存，用 RandomAccessFile 定位读
+     */
+    class Region {
 
-        /** 每个槽位压缩后的原始负载；槽位为空则是 null */
-        private val payloads = arrayOfNulls<ByteArray>(SLOTS)
+        private val has = BooleanArray(SLOTS)
+        private val pOff = IntArray(SLOTS)
+        private val pLen = IntArray(SLOTS)
         private val comps = ByteArray(SLOTS)
+        /** 只有被改过的槽位才在这里存新负载，没改过的按需从来源读 */
+        private val pending = arrayOfNulls<ByteArray>(SLOTS)
 
-        init {
-            // 头部两张表各占一个扇区，文件比这还小就肯定不是有效的区域文件。
-            // 不挡住的话下面按槽位读表会直接越界。
-            if (raw.size >= HEADER) {
-                for (i in 0 until SLOTS) {
-                    val e = int24(raw, i * 4)
-                    val cnt = raw[i * 4 + 3].toInt() and 0xFF
-                    if (e == 0 || cnt == 0) continue
-                    val pos = e * SECTOR
-                    if (pos + 5 > raw.size) continue
-                    val len = int32(raw, pos)
-                    // length 字段 = 压缩数据长度 + 1（含压缩类型那一字节）
-                    if (len < 2 || pos + 4 + len > raw.size) continue
-                    comps[i] = raw[pos + 4]
-                    payloads[i] = raw.copyOfRange(pos + 5, pos + 4 + len)
-                }
+        private var raw: ByteArray? = null
+        private var raf: java.io.RandomAccessFile? = null
+
+        constructor(raw: ByteArray) {
+            this.raw = raw
+            scan(raw.size) { i -> int24(raw, i * 4) to (raw[i * 4 + 3].toInt() and 0xFF) }
+        }
+
+        constructor(file: File) {
+            val r = java.io.RandomAccessFile(file, "r")
+            raf = r
+            val size = r.length().toInt()
+            val head = ByteArray(HEADER)
+            val n = r.read(head, 0, HEADER)
+            if (n >= HEADER) {
+                scan(size) { i -> int24(head, i * 4) to (head[i * 4 + 3].toInt() and 0xFF) }
+            }
+        }
+
+        /**
+         * 扫头部两张表，把每个槽位的「位置 + 长度 + 压缩类型」记下来。
+         * 头部两张表各占一个扇区，文件比这还小就肯定不是有效的区域文件 ——
+         * 不挡住的话下面按槽位读表会直接越界。
+         */
+        private fun scan(size: Int, entry: (Int) -> Pair<Int, Int>) {
+            if (size < HEADER) return
+            for (i in 0 until SLOTS) {
+                val (e, cnt) = entry(i)
+                if (e == 0 || cnt == 0) continue
+                val pos = e * SECTOR
+                if (pos + 5 > size) continue
+                // 槽位开头 5 字节 = 4 字节长度 + 1 字节压缩类型
+                val five = readAt(pos, 5) ?: continue
+                val len = int32(five, 0)
+                // length 字段 = 压缩数据长度 + 1（含压缩类型那一字节）
+                if (len < 2 || pos + 4 + len > size) continue
+                comps[i] = five[4]
+                pOff[i] = pos + 5
+                pLen[i] = len - 1
+                has[i] = true
+            }
+        }
+
+        private fun readAt(off: Int, len: Int): ByteArray? {
+            if (off < 0 || len < 0) return null
+            raw?.let { r ->
+                if (off + len > r.size) return null
+                return r.copyOfRange(off, off + len)
+            }
+            val rf = raf ?: return null
+            return try {
+                val b = ByteArray(len)
+                rf.seek(off.toLong())
+                rf.readFully(b)
+                b
+            } catch (_: Throwable) {
+                null
             }
         }
 
         /** 已存在的槽位列表 */
-        fun present(): List<Int> = (0 until SLOTS).filter { payloads[it] != null }
+        fun present(): List<Int> = (0 until SLOTS).filter { has[it] }
 
         /**
          * 读一个区块的 NBT。
@@ -83,7 +142,8 @@ object McaEdit {
          * 万一遇到哪个版本真的不带名字也不会全军覆没。
          */
         fun chunk(slot: Int): CompoundTag? {
-            val p = payloads[slot] ?: return null
+            if (!has[slot]) return null
+            val p = pending[slot] ?: readAt(pOff[slot], pLen[slot]) ?: return null
             val bytes = inflate(comps[slot], p) ?: return null
             val named = readNbt(bytes, true)
             if (named != null && !named.isEmpty()) return named
@@ -113,15 +173,17 @@ object McaEdit {
          */
         fun remove(slot: Int): Boolean {
             if (slot !in 0 until SLOTS) return false
-            val had = payloads[slot] != null
-            payloads[slot] = null
+            val had = has[slot]
+            has[slot] = false
+            pending[slot] = null
             comps[slot] = 0
             return had
         }
 
         fun put(slot: Int, tag: CompoundTag) {
+            pending[slot] = deflate(tag)
             comps[slot] = 2
-            payloads[slot] = deflate(tag)
+            has[slot] = true
         }
 
         /**
@@ -137,7 +199,8 @@ object McaEdit {
             // 数据区从 sector 2 开始（0、1 是两张表）
             var sector = 2
             for (i in 0 until SLOTS) {
-                val p = payloads[i] ?: continue
+                if (!has[i]) continue
+                val p = pending[i] ?: readAt(pOff[i], pLen[i]) ?: continue
                 val total = 5 + p.size
                 val need = (total + SECTOR - 1) / SECTOR
                 offsets[i] = sector
@@ -163,6 +226,13 @@ object McaEdit {
                 res[i * 4 + 3] = counts[i]
             }
             return res
+        }
+
+        /** 文件来源要显式关掉，否则 RandomAccessFile 一直握着句柄 */
+        fun close() {
+            runCatching { raf?.close() }
+            raf = null
+            raw = null
         }
 
         private fun int24(b: ByteArray, o: Int): Int =

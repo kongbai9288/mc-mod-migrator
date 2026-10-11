@@ -2,7 +2,6 @@ package com.kongbai.modmigrator
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -17,8 +16,8 @@ import java.security.MessageDigest
  *
  * 参照 MCA Selector 的做法分两级：
  *
- *   1. 磁盘：每个区域渲染成一张 PNG，下次打开直接读图，不用再解一遍 NBT。
- *      这是最关键的一级 —— 解析一个区域要解压上千个区块，
+ *   1. 磁盘：每个区域渲染成一张 PNG 存在**公有目录**，下次打开直接读图，
+ *      不用再解一遍 NBT。这是最关键的一级 —— 解析一个区域要解压上千个区块，
  *      而读一张 PNG 只要几毫秒。
  *   2. 内存：最近看过的几张图留在内存里（LRU，按字节数封顶），
  *      平移回来不用再碰磁盘。
@@ -51,7 +50,7 @@ object McaTiles {
      */
     private val MEM_MAX_BYTES: Int = run {
         val max = Runtime.getRuntime().maxMemory()
-        (max / 5).toInt().coerceIn(32 * 1024 * 1024, 96 * 1024 * 1024)
+        (max / 8).toInt().coerceIn(12 * 1024 * 1024, 32 * 1024 * 1024)
     }
 
     /** 缓存格式版本。渲染逻辑或元数据字段改了就 +1，旧缓存自动作废 */
@@ -66,6 +65,30 @@ object McaTiles {
      * 它必须进缓存键：区间不同画出来的图不一样，
      * 共用一个缓存文件会看到上一档的图。
      */
+    /**
+     * 公有目录里这一批瓦片放在哪个子目录下。
+     *
+     * 用「世界名 / 维度名」拼成人能看懂的路径，
+     * 而不是 md5 —— 用户拿文件管理器打开就知道自己在看哪个世界。
+     */
+    @Volatile private var nsWorld = "world"
+    @Volatile private var nsDim = "dim"
+
+    fun setNamespace(world: String, dim: String) {
+        nsWorld = McaTileStore.sanitize(world)
+        nsDim = McaTileStore.sanitize(dim)
+    }
+
+    /**
+     * 当前这批瓦片在公有目录里的命名空间。
+     * 高度区间单独占一层子目录 —— 区间不同画出来的图不一样，
+     * 混在一起就会看到上一档的图。
+     */
+    private fun ns(): String = "$nsWorld/$nsDim/${yDir()}"
+
+    private fun yDir(): String =
+        if (!yLimited) "全部高度" else "y${yLo}_$yHi"
+
     @Volatile
     var yLo: Int = Int.MIN_VALUE
         private set
@@ -147,9 +170,7 @@ object McaTiles {
         return h.take(16)
     }
 
-    private fun pngOf(ctx: Context, ref: McaWorld.Ref): File =
-        File(cacheRoot(ctx), "${dirKey(ref.file.parentFile ?: ref.file)}/" +
-            "${ref.rx}.${ref.rz}.v$CACHE_VER${yTag()}.png")
+    private fun tileName(ref: McaWorld.Ref): String = "r.${ref.rx}.${ref.rz}.png"
 
     private fun metaOf(ctx: Context, ref: McaWorld.Ref): File =
         File(cacheRoot(ctx), "${dirKey(ref.file.parentFile ?: ref.file)}/" +
@@ -157,14 +178,14 @@ object McaTiles {
 
     /**
      * 缓存是否还有效。
-     * 源文件的大小或修改时间只要有一个对不上就作废 ——
+     * 瓦片的写入时间只要早于源文件的修改时间就作废 ——
      * 改过区块后保存，图必须重画，否则用户会看到旧的地形。
+     * 两边都按秒比，留 1 秒余量免得文件系统精度差导致反复重画。
      */
-    private fun valid(png: File, ref: McaWorld.Ref): Boolean {
-        if (!png.isFile) return false
-        val f = ref.file
-        if (png.length() == 0L) return false
-        return png.lastModified() >= f.lastModified()
+    private fun valid(ctx: Context, ref: McaWorld.Ref): Boolean {
+        val sec = McaTileStore.modifiedSec(ctx, ns(), tileName(ref))
+        if (sec <= 0L) return false
+        return sec >= ref.file.lastModified() / 1000 - 1
     }
 
     // ------------------------------------------------------------------ 取图
@@ -182,18 +203,19 @@ object McaTiles {
 
         mem.get(key)?.let { return it }
 
-        val png = pngOf(ctx, ref)
-        if (valid(png, ref)) {
-            val b = BitmapFactory.decodeFile(png.absolutePath)
+        val ns = ns()
+        val name = tileName(ref)
+        if (valid(ctx, ref)) {
+            val b = McaTileStore.read(ctx, ns, name)
             if (b != null) {
                 mem.put(key, b)
                 // 图是旧的，元数据大概率也在，顺手读回来
                 ensureMeta(ctx, ref)
                 return b
             }
-            // 读不出来多半是上次写入被打断留下的半个文件。
+            // 读不出来多半是上次写入被打断留下的半截文件。
             // 不删掉的话它永远"有效"，这张图就永久黑着。
-            runCatching { png.delete() }
+            McaTileStore.remove(ctx, ns, name)
         }
 
         synchronized(inflight) {
@@ -204,12 +226,9 @@ object McaTiles {
             val out = render(ctx, ref)
             val bmp = out?.first
             if (bmp != null) {
-                runCatching {
-                    png.parentFile?.mkdirs()
-                    png.outputStream().use {
-                        bmp.compress(Bitmap.CompressFormat.PNG, 100, it)
-                    }
-                }
+                // 画完立刻落盘：磁盘才是真相，内存只留屏幕上那一圈。
+                // 哪怕下一秒就被 LRU 踢掉，也不过是重新解码一次 PNG。
+                McaTileStore.write(ctx, ns, name, bmp)
                 mem.put(key, bmp)
             }
             val m = out?.second
@@ -239,17 +258,13 @@ object McaTiles {
      */
     fun fromDisk(ctx: Context, ref: McaWorld.Ref): Bitmap? {
         val key = keyOf(ref)
-        val png = pngOf(ctx, ref)
-        if (!valid(png, ref)) return null
-        val b = try {
-            BitmapFactory.decodeFile(png.absolutePath)
-        } catch (t: Throwable) {
-            Err.ignore(t, "读取区域缩略图缓存")
-            null
-        }
+        val ns = ns()
+        val name = tileName(ref)
+        if (!valid(ctx, ref)) return null
+        val b = McaTileStore.read(ctx, ns, name)
         if (b == null) {
             // 多半是上次写入被打断留下的半截文件，删掉让它重画
-            runCatching { png.delete() }
+            McaTileStore.remove(ctx, ns, name)
             return null
         }
         mem.put(key, b)
@@ -302,12 +317,28 @@ object McaTiles {
         val k = keyOf(ref)
         mem.remove(k)
         metaMem.remove(k)
-        runCatching { pngOf(ctx, ref).delete() }
+        McaTileStore.remove(ctx, ns(), tileName(ref))
         runCatching { metaOf(ctx, ref).delete() }
+    }
+
+    /** 公有目录里这批瓦片的占用，给用户看 */
+    fun cacheStats(ctx: Context): Pair<Int, Long> = McaTileStore.stats(ctx, ns())
+
+    /**
+     * 清掉当前世界/维度的瓦片缓存。
+     *
+     * 注意只清**当前高度档**之外的全部 —— 清完会自动重画，
+     * 不会少画东西，只是下次打开要重新等一遍。
+     */
+    fun clearCache(ctx: Context) {
+        val base = "$nsWorld/$nsDim"
+        McaTileStore.clear(ctx, base)
+        mem.evictAll()
     }
 
     fun clearDisk(ctx: Context) {
         runCatching { cacheRoot(ctx).deleteRecursively() }
+        McaTileStore.clear(ctx, nsWorld)
         mem.evictAll()
         metaMem.clear()
     }
@@ -325,18 +356,25 @@ object McaTiles {
      * 分开做等于把最贵的那一步做两遍。
      */
     private fun render(ctx: Context, ref: McaWorld.Ref): Pair<Bitmap, Meta>? {
-        val raw = try {
-            ref.file.readBytes()
-        } catch (_: Throwable) {
-            return null
-        }
-        if (raw.size < 8192) return null
+        if (!ref.file.isFile) return null
+        if (ref.file.length() < 8192) return null
 
+        // ⚠️ 这里必须走文件来源（而不是 readBytes）：
+        // 整文件读进内存 + 1024 份区块负载副本，几路并行就把堆吃光了。
+        // 流式读只在解某个区块时把那一段取出来。
         val region = try {
-            McaEdit.Region(raw)
+            McaEdit.Region(ref.file)
         } catch (_: Throwable) {
             return null
         }
+        try {
+            return renderRegion(ctx, region)
+        } finally {
+            region.close()
+        }
+    }
+
+    private fun renderRegion(ctx: Context, region: McaEdit.Region): Pair<Bitmap, Meta>? {
         val present = region.present()
         if (present.isEmpty()) return null
 

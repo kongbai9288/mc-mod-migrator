@@ -1,5 +1,6 @@
 package com.kongbai.modmigrator
 
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
@@ -225,5 +226,32 @@ class McaRealWorldTest {
         val rebuilt = McaEdit.Region(r.build())
         assertEquals("删除并重新打包后槽位又回来了", before - 1, rebuilt.present().size)
         println("删除槽位 $victim 生效（$before → ${before - 1}）")
+    }
+
+    /**
+     * 文件来源（流式）必须和「整文件读进内存」得到完全一致的结果。
+     *
+     * 这条是为了 OOM 改的：之前渲染是 readBytes() 再复制出 1024 份区块负载，
+     * 几路并行就把堆吃光。改成 [McaEdit.Region] 用 RandomAccessFile 按需读之后，
+     * 必须证明"省了内存但没读错" —— 重新打包出来的字节完全一致就是最强证据：
+     * 只要有一个槽位的位置、长度、压缩类型算错，产物就不可能逐字节相同。
+     */
+    @Test
+    fun fileBackedRegionBuildsSameBytes() {
+        val f = regionFiles().first
+        val byBytes = McaEdit.Region(f.readBytes())
+        val byFile = McaEdit.Region(f)
+        try {
+            assertEquals(
+                "两种来源读到的槽位数量不一致",
+                byBytes.present().size, byFile.present().size
+            )
+            assertArrayEquals(
+                "两种来源重新打包的字节不一致（槽位定位或长度算错了）",
+                byBytes.build(), byFile.build()
+            )
+        } finally {
+            byFile.close()
+        }
     }
 }
