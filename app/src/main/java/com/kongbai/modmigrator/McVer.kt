@@ -96,7 +96,7 @@ object McVer {
      */
     fun known(): List<String> {
         val ctx = Prefs.appCtx() ?: return sortDesc(BUILTIN)
-        val raw = Prefs.get(ctx).getString(Prefs.K.MCVER_LIST, null)
+        val raw = Prefs.get(ctx).getString(K.MCVER_LIST, null)
         if (raw.isNullOrBlank()) return sortDesc(BUILTIN)
         val remote = raw.split(',').map { it.trim() }.filter { isRelease(it) }
         if (remote.isEmpty()) return sortDesc(BUILTIN)
@@ -111,7 +111,7 @@ object McVer {
      */
     fun defaultMc(ctx: android.content.Context?): String {
         if (ctx != null) {
-            val saved = Prefs.get(ctx).getString(Prefs.K.TARGET_MC, null)
+            val saved = Prefs.get(ctx).getString(K.TARGET_MC, null)
             if (isRelease(saved)) return saved!!.trim()
         }
         return latest(known())
@@ -126,9 +126,9 @@ object McVer {
     fun refresh(ctx: android.content.Context?) {
         val c = ctx ?: Prefs.appCtx() ?: return
         val sp = Prefs.get(c)
-        val at = sp.getLong(Prefs.K.MCVER_AT, 0L)
+        val at = sp.getLong(K.MCVER_AT, 0L)
         val stale = System.currentTimeMillis() - at > TTL
-        val empty = sp.getString(Prefs.K.MCVER_LIST, null).isNullOrBlank()
+        val empty = sp.getString(K.MCVER_LIST, null).isNullOrBlank()
         if (!stale && !empty) return
         Thread {
             val list = try {
@@ -139,8 +139,8 @@ object McVer {
             if (list.isEmpty()) return@Thread
             try {
                 Prefs.get(c).edit()
-                    .putString(Prefs.K.MCVER_LIST, list.joinToString(","))
-                    .putLong(Prefs.K.MCVER_AT, System.currentTimeMillis())
+                    .putString(K.MCVER_LIST, list.joinToString(","))
+                    .putLong(K.MCVER_AT, System.currentTimeMillis())
                     .apply()
             } catch (t: Throwable) {
                 // 写不进去就算了，下次启动再试
