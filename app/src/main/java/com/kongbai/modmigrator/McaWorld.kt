@@ -39,11 +39,11 @@ object McaWorld {
     /** 一个区域文件的引用。坐标从文件名 r.X.Z.mca 来。 */
     class Ref(val rx: Int, val rz: Int, val file: File) {
         /** 该区域左下角对应的世界区块坐标 */
-        val baseChunkX get() = rx * 32
-        val baseChunkZ get() = rz * 32
+        val baseChunkX get() = rx * McaFormat.REGION_SPAN
+        val baseChunkZ get() = rz * McaFormat.REGION_SPAN
         /** 该区域左下角对应的方块坐标 */
-        val baseBlockX get() = rx * 512
-        val baseBlockZ get() = rz * 512
+        val baseBlockX get() = rx * McaFormat.REGION_SPAN * McaFormat.SECTION_SPAN
+        val baseBlockZ get() = rz * McaFormat.REGION_SPAN * McaFormat.SECTION_SPAN
         val name get() = file.name
     }
 

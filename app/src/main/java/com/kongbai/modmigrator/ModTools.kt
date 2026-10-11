@@ -70,7 +70,7 @@ object ModTools {
         if (root == null) {
             return Report("模组体检", "源目录不可访问，请先在迁移页选择「迁移前」的版本目录。")
         }
-        val mods = Fs.find(root, "mods", 0)
+        val mods = Fs.find(root, McDirs.MODS, 0)
         if (mods == null) {
             return Report("模组体检", "源目录里没有找到 mods 文件夹。")
         }
@@ -158,8 +158,8 @@ object ModTools {
                 "需要同时设置「迁移前」与「迁移后」的目录，请先在迁移页选好两处。"
             )
         }
-        val srcDir = Fs.find(srcRoot, "config", 0) ?: srcRoot
-        val dstDir = Fs.find(dstRoot, "config", 0) ?: dstRoot
+        val srcDir = Fs.find(srcRoot, McDirs.CONFIG, 0) ?: srcRoot
+        val dstDir = Fs.find(dstRoot, McDirs.CONFIG, 0) ?: dstRoot
 
         val a = LinkedHashMap<String, Long>()
         val b = LinkedHashMap<String, Long>()

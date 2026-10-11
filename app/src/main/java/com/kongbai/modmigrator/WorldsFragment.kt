@@ -108,7 +108,7 @@ class WorldsFragment : Fragment() {
         if (game.isNotBlank() && !game.startsWith("content://")) {
             val base = File(game)
             for (cand in listOf(
-                File(base, "saves"), base,
+                File(base, McDirs.SAVES), base,
                 File(base, ".minecraft/saves")
             )) {
                 // 只要求是目录。世界是它下面的子目录，
@@ -119,12 +119,12 @@ class WorldsFragment : Fragment() {
         // 有「所有文件访问」权限时，直接扫已知启动器目录
         if (Perms.allFiles()) {
             for ((_, f) in LauncherDirs.detect(ctx)) {
-                val s = File(f, "saves")
+                val s = File(f, McDirs.SAVES)
                 if (s.isDirectory) out.add(s)
                 // 版本隔离：mods 在 versions/<v>/ 下，saves 也可能在那
-                val versions = File(f, "versions")
+                val versions = File(f, McDirs.VERSIONS)
                 versions.listFiles()?.forEach { v ->
-                    val vs = File(v, "saves")
+                    val vs = File(v, McDirs.SAVES)
                     if (vs.isDirectory) out.add(vs)
                 }
             }
@@ -139,7 +139,7 @@ class WorldsFragment : Fragment() {
      */
     private fun loadFromSaf(ctx: android.content.Context, uriStr: String): List<WorldInfo.World> {
         val tree = Fs.tree(ctx, uriStr) ?: return emptyList()
-        val saves = tree.findFile("saves") ?: tree
+        val saves = tree.findFile(McDirs.SAVES) ?: tree
         val out = ArrayList<WorldInfo.World>()
         for (d in saves.listFiles()) {
             if (!d.isDirectory) continue

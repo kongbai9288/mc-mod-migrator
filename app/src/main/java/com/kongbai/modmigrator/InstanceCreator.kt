@@ -43,7 +43,7 @@ object InstanceCreator {
      */
     fun scaffold(ctx: Context, dst: DocumentFile): List<String> {
         val made = ArrayList<String>()
-        val dirs = listOf("mods", "config", "saves", "resourcepacks", "shaderpacks")
+        val dirs = McDirs.NEW_INSTANCE
         for (d in dirs) {
             try {
                 val exist = dst.findFile(d)

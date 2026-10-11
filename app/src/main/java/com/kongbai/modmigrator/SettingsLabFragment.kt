@@ -120,6 +120,9 @@ class SettingsLabFragment : Fragment() {
 
         // ---------- 诊断 ----------
         section("诊断")
+        root.addView(button("旧版网页生成器（备用）") {
+            startActivity(android.content.Intent(requireContext(), MisodeActivity::class.java))
+        })
         root.addView(button("查看崩溃日志") { viewCrash() })
         root.addView(button("分享崩溃日志（系统分享）") { shareCrash() })
         root.addView(button("保存崩溃日志到工作目录") { saveCrash() })

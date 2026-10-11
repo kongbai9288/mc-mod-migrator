@@ -35,8 +35,8 @@ object McaStructures {
         val exact: Boolean
     ) {
         /** 世界区块坐标 */
-        val worldChunkX get() = rx * 32 + cx
-        val worldChunkZ get() = rz * 32 + cz
+        val worldChunkX get() = rx * McaFormat.REGION_SPAN + cx
+        val worldChunkZ get() = rz * McaFormat.REGION_SPAN + cz
     }
 
     /** 结构 id → 中文名 */
@@ -92,8 +92,8 @@ object McaStructures {
     fun scan(region: McaEdit.Region, rx: Int, rz: Int): List<Hit> {
         val out = ArrayList<Hit>()
         for (slot in region.present()) {
-            val cx = slot and 31
-            val cz = (slot shr 5) and 31
+            val cx = McaFormat.cx(slot)
+            val cz = McaFormat.cz(slot)
             val c = try {
                 region.chunk(slot)
             } catch (_: Throwable) {

@@ -296,7 +296,7 @@ class ToolsFragment : Fragment() {
             if (game.startsWith("content://")) {
                 runCatching {
                     val tree = Fs.tree(ctx, game) ?: return@runCatching
-                    val saves = tree.findFile("saves") ?: tree
+                    val saves = tree.findFile(McDirs.SAVES) ?: tree
                     for (d in saves.listFiles()) {
                         if (d.isDirectory && d.findFile("level.dat") != null) {
                             safWorlds.add((d.name ?: "存档") to d)
@@ -386,14 +386,14 @@ class ToolsFragment : Fragment() {
     private fun savesDirsOf(base: java.io.File): List<java.io.File> {
         val out = LinkedHashSet<java.io.File>()
         for (c in listOf(
-            java.io.File(base, "saves"), base,
+            java.io.File(base, McDirs.SAVES), base,
             java.io.File(base, ".minecraft/saves")
         )) {
             if (c.isDirectory) out.add(c)
         }
         // 版本隔离：saves 也可能在 versions/<版本>/ 下
-        java.io.File(base, "versions").listFiles()?.forEach { v ->
-            val vs = java.io.File(v, "saves")
+        java.io.File(base, McDirs.VERSIONS).listFiles()?.forEach { v ->
+            val vs = java.io.File(v, McDirs.SAVES)
             if (vs.isDirectory) out.add(vs)
         }
         return out.toList()
@@ -463,16 +463,9 @@ class ToolsFragment : Fragment() {
 
     private fun openDatapack() {
         val ctx = context ?: return
-        // 两个入口：完整的 137 个生成器（离线网页版），以及内置的 9 张表单。
-        // 前者种类全但要下载对应版本的数据；后者填完就能写，种类少。
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("用哪个生成器")
-            .setItems(arrayOf("全部 137 个（推荐）", "内置表单（9 个，不需要额外数据）")) { _, i ->
-                if (i == 0) MisodeActivity.open(ctx)
-                else ctx.startActivity(android.content.Intent(ctx, DatapackActivity::class.java))
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+        // 原生生成器，列表从 schema 推导。
+        // 旧的网页版入口撤到开发者实验室里当备用，避免同一个功能两个入口。
+        ctx.startActivity(android.content.Intent(ctx, DatapackActivity::class.java))
     }
 
     // ---------------- 跨加载器迁移 ----------------
@@ -793,8 +786,8 @@ class ToolsFragment : Fragment() {
                 toast("源目录不可访问")
                 return@bg
             }
-            val modsDir = Fs.find(src, "mods")
-            val configDir = Fs.find(src, "config")
+            val modsDir = Fs.find(src, McDirs.MODS)
+            val configDir = Fs.find(src, McDirs.CONFIG)
             val mc = Prefs.get(ctx).getString(K.MC_VERSION, "") ?: ""
             val loader = Prefs.get(ctx).getString(K.LOADER, "") ?: ""
             val name = (src.name ?: "整合包")

@@ -166,7 +166,7 @@ class MainActivity : AppCompatActivity() {
             val dir = if (dstUri.isNullOrBlank()) null
             else runCatching {
                 val t = Fs.tree(ctx, dstUri)
-                if (t == null) null else Fs.ensureDir(t, "mods")
+                if (t == null) null else Fs.ensureDir(t, McDirs.MODS)
             }.getOrNull()
 
             if (dir == null) {

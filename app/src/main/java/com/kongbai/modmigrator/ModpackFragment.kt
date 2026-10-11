@@ -122,7 +122,7 @@ class ModpackFragment : Fragment() {
         }
         bg {
             val root = Fs.tree(ctx, src)
-            val mods = root?.let { Fs.find(it, "mods", 2) }
+            val mods = root?.let { Fs.find(it, McDirs.MODS, 2) }
             if (mods == null) {
                 setState("源目录里没有找到 mods 文件夹")
                 return@bg

@@ -35,7 +35,8 @@ import java.security.MessageDigest
 object McaTiles {
 
     /** 一个区域 = 32×32 个区块，每个区块 16×16 格，所以整图 512×512 */
-    const val IMG = 512
+    /** 一张区域图的边长（像素）：区域边长 × section 边长 */
+    const val IMG = McaFormat.REGION_SPAN * McaFormat.SECTION_SPAN
 
     /**
      * 内存里最多留多少张图（按字节算，不是按张数）。
@@ -387,8 +388,8 @@ object McaTiles {
 
         var drawn = 0
         for (slot in present) {
-            val cx = slot and 31
-            val cz = (slot shr 5) and 31
+            val cx = McaFormat.cx(slot)
+            val cz = McaFormat.cz(slot)
             val c = try {
                 region.chunk(slot)
             } catch (_: Throwable) {
@@ -398,13 +399,13 @@ object McaTiles {
                 // 读不出来的区块画成"损坏"标记，而不是留黑 ——
                 // 留黑会被当成没生成过，用户就不知道这里其实有问题
                 brokenList.add(slot)
-                markBroken(px, cx * 16, cz * 16)
+                markBroken(px, cx * McaFormat.SECTION_SPAN, cz * McaFormat.SECTION_SPAN)
                 continue
             }
             inhabited[slot] = inhabitedOf(c)
             updated[slot] = updatedOf(c)
-            if (McaRender.drawTop(c, px, IMG, cx * 16, cz * 16, 1, yLo, yHi)) drawn++
-            else markEmpty(px, cx * 16, cz * 16)
+            if (McaRender.drawTop(c, px, IMG, cx * McaFormat.SECTION_SPAN, cz * McaFormat.SECTION_SPAN, 1, yLo, yHi)) drawn++
+            else markEmpty(px, cx * McaFormat.SECTION_SPAN, cz * McaFormat.SECTION_SPAN)
         }
 
         val meta = Meta(
@@ -463,7 +464,7 @@ object McaTiles {
     private fun paintBackdrop(px: IntArray) {
         for (z in 0 until IMG) {
             for (x in 0 until IMG) {
-                val checker = ((x / 16) + (z / 16)) and 1
+                val checker = ((x / McaFormat.SECTION_SPAN) + (z / McaFormat.SECTION_SPAN)) and 1
                 px[z * IMG + x] = if (checker == 0) 0xFF171717.toInt()
                 else 0xFF1D1D1D.toInt()
             }
@@ -471,17 +472,18 @@ object McaTiles {
     }
 
     private fun markEmpty(px: IntArray, ox: Int, oz: Int) {
-        for (z in 0 until 16) {
-            for (x in 0 until 16) {
+        for (z in 0 until McaFormat.SECTION_SPAN) {
+            for (x in 0 until McaFormat.SECTION_SPAN) {
                 px[(oz + z) * IMG + (ox + x)] = 0xFF232323.toInt()
             }
         }
     }
 
     private fun markBroken(px: IntArray, ox: Int, oz: Int) {
-        for (z in 0 until 16) {
-            for (x in 0 until 16) {
-                val edge = x == 0 || z == 0 || x == 15 || z == 15
+        for (z in 0 until McaFormat.SECTION_SPAN) {
+            for (x in 0 until McaFormat.SECTION_SPAN) {
+                val last = McaFormat.SECTION_SPAN - 1
+                val edge = x == 0 || z == 0 || x == last || z == last
                 px[(oz + z) * IMG + (ox + x)] =
                     if (edge) 0xFF7A3B3B.toInt() else 0xFF4A2222.toInt()
             }
@@ -554,7 +556,7 @@ object McaTiles {
         }
         if (chunkMode) {
             if (selChunk.isEmpty()) return
-            val cell = size / 32f
+            val cell = size / McaFormat.REGION_SPAN.toFloat()
             val top = packChunk(rx, rz, 0, 0) and (0xFFFFFFFFL shl 32)
             for (key in selChunk) {
                 if (key and (0xFFFFFFFFL shl 32) != top) continue

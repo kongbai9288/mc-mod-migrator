@@ -22,7 +22,7 @@ object Targets {
         val uri = Prefs.get(ctx).getString(K.DST_URI, null)
         if (uri.isNullOrBlank()) return null
         val t = Fs.tree(ctx, uri) ?: return null
-        return Fs.ensureDir(t, "mods")
+        return Fs.ensureDir(t, McDirs.MODS)
     }
 
     fun modsDir(ctx: Context): DocumentFile? {
@@ -33,7 +33,7 @@ object Targets {
             // 这里要在失败时**继续往下走**用应用私有目录兜底，
             // 不能直接把 null 返回出去。
             if (t != null) {
-                val m = Fs.ensureDir(t, "mods")
+                val m = Fs.ensureDir(t, McDirs.MODS)
                 if (m != null) return m
             }
         }

@@ -127,7 +127,7 @@ object WorkDir {
     }
 
     fun packs(ctx: Context): DocumentFile? = sub(ctx, "packs")
-    fun mods(ctx: Context): DocumentFile? = sub(ctx, "mods")
+    fun mods(ctx: Context): DocumentFile? = sub(ctx, McDirs.MODS)
     fun configs(ctx: Context): DocumentFile? = sub(ctx, "configs")
     fun cache(ctx: Context): DocumentFile? = sub(ctx, "cache")
     fun translate(ctx: Context): DocumentFile? = sub(ctx, "translate")

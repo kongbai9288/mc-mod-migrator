@@ -43,7 +43,7 @@ object SyncManager {
         val loader = (p.getString(K.DEF_LOADER, "") ?: "").ifBlank { "auto" }
 
         val mods = JSONArray()
-        val modDir = if (src == null) null else Fs.find(src, "mods")
+        val modDir = if (src == null) null else Fs.find(src, McDirs.MODS)
         if (modDir != null) {
             // ── 先本地算完所有指纹，再一次性批量反查 ──────────────
             // 之前是在循环里逐个调 lookupHashSimple：
@@ -99,7 +99,7 @@ object SyncManager {
 
         if (src != null) {
             val zip = File(ctx.cacheDir, "bundle.zip")
-            val names = listOf("config", "scripts", "resourcepacks", "shaderpacks")
+            val names = listOf(McDirs.CONFIG, McDirs.SCRIPTS, McDirs.RESOURCEPACKS, McDirs.SHADERPACKS)
             val okZip = BundleManager.zipInto(ctx, src, names, zip) { log?.invoke(it) }
             if (okZip && zip.exists() && zip.length() > 0) {
                 val mb = zip.length() / 1024 / 1024
@@ -190,7 +190,7 @@ object SyncManager {
                 val mc = o.optString("mcVersion", "")
                 val loader = o.optString("loader", "auto").ifBlank { "auto" }
                 val arr = o.optJSONArray("mods") ?: JSONArray()
-                val dir = Fs.ensureDir(dst, "mods")
+                val dir = Fs.ensureDir(dst, McDirs.MODS)
                 // ensureDir 失败返回 null 时不能继续往下走，
                 // 否则 Downloader.download 收到 null 目录会失败，
                 // 却照样计入"成功"（见 BatchModOps 的计数修正）。

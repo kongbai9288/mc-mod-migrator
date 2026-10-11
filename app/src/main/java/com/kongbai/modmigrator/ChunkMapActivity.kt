@@ -670,7 +670,7 @@ class ChunkMapActivity : AppCompatActivity() {
         if (map.chunkMode()) {
             for (r in v) {
                 for (slot in slotsOf(r)) {
-                    selChunk.add(McaTiles.packChunk(r.rx, r.rz, slot and 31, (slot shr 5) and 31))
+                    selChunk.add(McaTiles.packChunk(r.rx, r.rz, McaFormat.cx(slot), McaFormat.cz(slot)))
                 }
             }
         } else {
@@ -689,7 +689,7 @@ class ChunkMapActivity : AppCompatActivity() {
             val next = HashSet<Long>()
             for (r in v) {
                 for (slot in slotsOf(r)) {
-                    val k = McaTiles.packChunk(r.rx, r.rz, slot and 31, (slot shr 5) and 31)
+                    val k = McaTiles.packChunk(r.rx, r.rz, McaFormat.cx(slot), McaFormat.cz(slot))
                     if (!selChunk.contains(k)) next.add(k)
                 }
             }
@@ -748,8 +748,8 @@ class ChunkMapActivity : AppCompatActivity() {
                 continue
             }
             for (slot in slotsOf(r)) {
-                val cx = slot and 31
-                val cz = (slot shr 5) and 31
+                val cx = McaFormat.cx(slot)
+                val cz = McaFormat.cz(slot)
                 val bx = r.baseBlockX + cx * BLOCKS_PER_CHUNK
                 val bz = r.baseBlockZ + cz * BLOCKS_PER_CHUNK
                 if (bx + BLOCKS_PER_CHUNK < x0 || bx > x1) continue
@@ -820,8 +820,8 @@ class ChunkMapActivity : AppCompatActivity() {
                     McaTiles.Meta.EMPTY
                 }
                 for (slot in m.slots) {
-                    val cx = slot and 31
-                    val cz = (slot shr 5) and 31
+                    val cx = McaFormat.cx(slot)
+                    val cz = McaFormat.cz(slot)
                     val ok = when (which) {
                         0, 1, 2, 3 -> m.inhabited[slot] <= maxTicks
                         4 -> m.inhabited[slot] > 60 * 60L * TPS
@@ -834,8 +834,8 @@ class ChunkMapActivity : AppCompatActivity() {
                 }
                 if (which == 5) {
                     for (slot in m.broken) {
-                        val cx = slot and 31
-                        val cz = (slot shr 5) and 31
+                        val cx = McaFormat.cx(slot)
+                        val cz = McaFormat.cz(slot)
                         if (chunkMode) hitChunk.add(McaTiles.packChunk(r.rx, r.rz, cx, cz))
                         else hitReg.add(McaTiles.packRegion(r.rx, r.rz))
                     }
@@ -1442,8 +1442,8 @@ class ChunkMapActivity : AppCompatActivity() {
                 }
                 var n = 0
                 for (cz in cz0..cz1) for (cx in cx0..cx1) {
-                    val rx = kotlin.math.floor(cx / 32.0).toInt()
-                    val rz = kotlin.math.floor(cz / 32.0).toInt()
+                    val rx = McaFormat.regionOf(cx)
+                    val rz = McaFormat.regionOf(cz)
                     val lcx = cx - rx * 32
                     val lcz = cz - rz * 32
                     stagedChunk.add(McaTiles.packChunk(rx, rz, lcx, lcz))

@@ -38,17 +38,17 @@ object InstanceScanner {
      */
     private val INNER = setOf(
         "logs", "log", "share", "crash-reports", "crashreport",
-        "screenshots", "resourcepacks", "resource_packs", "texturepacks",
-        "shaderpacks", "assets", "libraries", "natives", "runtime",
-        "jre", "java", "backups", "saves", "mods", "config",
-        "defaultconfigs", "kubejs", "scripts", "options.txt",
-        "versions", "assets", "indexes", "objects", "virtual",
+        "screenshots", McDirs.RESOURCEPACKS, "resource_packs", "texturepacks",
+        McDirs.SHADERPACKS, "assets", "libraries", "natives", "runtime",
+        "jre", "java", "backups", McDirs.SAVES, McDirs.MODS, McDirs.CONFIG,
+        "defaultconfigs", "kubejs", McDirs.SCRIPTS, McDirs.OPTIONS_TXT,
+        McDirs.VERSIONS, "assets", "indexes", "objects", "virtual",
         "cache", "temp", "tmp", "plugins"
     )
 
     /** 游戏目录（= 实例）的标志性内容：有这些之一才算 */
     private val GAME_MARKS = setOf(
-        "mods", "saves", "config", "options.txt", "level.dat",
+        McDirs.MODS, McDirs.SAVES, McDirs.CONFIG, McDirs.OPTIONS_TXT, McDirs.LEVEL_DAT,
         "mmc-pack.json", "manifest.json", "instance.cfg", "version.json",
         // CurseForge / HMCL 的实例清单（对照成熟启动器的探测顺序补充）
         "minecraftinstance.json", "launcher_profiles.json"
@@ -66,7 +66,7 @@ object InstanceScanner {
 
     private val LAUNCHER_DIRS = listOf(
         "pojav", "PojavLauncher", "zalithlauncher", "ZalithLauncher",
-        "instances", "versions", "hmcl", "HMCL"
+        McDirs.INSTANCES, McDirs.VERSIONS, "hmcl", "HMCL"
     )
 
     /**
@@ -265,13 +265,13 @@ object InstanceScanner {
             if (info.kind.isBlank()) info.kind = "原版/Forge"
         }
 
-        val mods = Fs.find(dir, "mods", 0)
+        val mods = Fs.find(dir, McDirs.MODS, 0)
         if (mods != null) {
             info.modCount = Fs.children(mods).count {
                 it.isFile && (it.name ?: "").endsWith(".jar", true)
             }
         }
-        info.hasConfig = Fs.find(dir, "config", 0) != null
+        info.hasConfig = Fs.find(dir, McDirs.CONFIG, 0) != null
         if (info.kind.isBlank()) info.kind = "目录"
         return info
     }
@@ -345,7 +345,7 @@ object InstanceScanner {
                 log("发现游戏目录：${info.name}（MC ${info.mcVersion.ifBlank { "?" }} / ${info.loader}）")
             }
             // 版本隔离：.minecraft/versions/<名字> 下含 mods/saves/config 的才算独立实例
-            val vs = java.io.File(f, "versions")
+            val vs = java.io.File(f, McDirs.VERSIONS)
             if (vs.isDirectory) {
                 for (g in vs.listFiles() ?: emptyArray()) {
                     if (!g.isDirectory) continue
@@ -507,7 +507,7 @@ object InstanceScanner {
 
     /** 中间容器层：这些目录本身不是实例，但它们里面就是各个版本 */
     private val CONTAINERS = setOf(
-        "instances", "versions", "version", "minecraft", ".minecraft",
+        McDirs.INSTANCES, McDirs.VERSIONS, "version", "minecraft", ".minecraft",
         "instance", "profiles", "modpacks", "packs", "game", "games"
     )
 

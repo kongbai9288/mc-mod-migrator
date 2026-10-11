@@ -246,7 +246,7 @@ object McaRender {
         /** 取 (x,y,z) 处的方块名。y 是 section 内的局部高度 0..15。 */
         fun at(x: Int, y: Int, z: Int): String {
             if (legacy) return McaEdit.blockAt(sec, x, y, z)
-            val idx = (y * 16 + z) * 16 + x
+            val idx = (y * McaFormat.SECTION_SPAN + z) * McaFormat.SECTION_SPAN + x
             val d = data
             val v = if (d == null || d.isEmpty()) 0 else McaEdit.readIndex(d, bits, idx)
             return if (v < names.size) names[v] else "minecraft:air"
@@ -280,19 +280,19 @@ object McaRender {
      * 旧格式某一段是否全是空气（ID 0）。
      *
      * 扁平型（Beta 1.3）所有段共用同一个 32768 字节的数组，
-     * 判空只能看本段那 16 层，不能整块判 ——
+     * 判空只能看本段那一层的高度，不能整块判 ——
      * 否则只要有一段有内容，其余七段就不会被跳过。
      */
     private fun legacySectionEmpty(sec: McaEdit.Sec): Boolean {
         val a = sec.raw ?: return false
         return when (sec.rawMode) {
             McaEdit.RawMode.FLAT_Y_FAST -> {
-                val h = a.size / 256
+                val h = a.size / (McaFormat.SECTION_SPAN * McaFormat.SECTION_SPAN)
                 val base = sec.yBase
-                for (x in 0 until 16) {
-                    for (z in 0 until 16) {
-                        val col = (x * 16 + z) * h
-                        for (y in 0 until 16) {
+                for (x in 0 until McaFormat.SECTION_SPAN) {
+                    for (z in 0 until McaFormat.SECTION_SPAN) {
+                        val col = (x * McaFormat.SECTION_SPAN + z) * h
+                        for (y in 0 until McaFormat.SECTION_SPAN) {
                             val yy = base + y
                             if (yy >= h) break
                             if (a[col + yy] != 0.toByte()) return false
@@ -329,24 +329,24 @@ object McaRender {
         // 下界/上界：只在用户圈定的高度区间里找表面。
         // 用途是"看某一层" —— 比如只想看地下矿道，就设上界；
         // 只想看地表以上，就设下界。不设就是原行为。
-        val lo = (rs.minOf { it.y } * 16).coerceAtLeast(yMin)
-        val hi = ((rs.maxOf { it.y } * 16) + 15).coerceAtMost(yMax)
+        val lo = (rs.minOf { it.y } * McaFormat.SECTION_SPAN).coerceAtLeast(yMin)
+        val hi = ((rs.maxOf { it.y } * McaFormat.SECTION_SPAN) + McaFormat.SECTION_SPAN - 1).coerceAtMost(yMax)
         if (hi < lo) return false
         val span = (hi - lo).coerceAtLeast(1)
         var painted = 0
-        for (z in 0 until 16) {
-            for (x in 0 until 16) {
+        for (z in 0 until McaFormat.SECTION_SPAN) {
+            for (x in 0 until McaFormat.SECTION_SPAN) {
                 var col = 0
                 var wy = lo
                 outer@ for (i in rs.indices) {
                     val r = rs[i]
-                    for (y in 15 downTo 0) {
-                        val wy0 = r.y * 16 + y
+                    for (y in McaFormat.SECTION_SPAN - 1 downTo 0) {
+                        val wy0 = r.y * McaFormat.SECTION_SPAN + y
                         if (wy0 < yMin || wy0 > yMax) continue
                         val n = r.at(x, y, z)
                         if (!isAir(n)) {
                             col = colorOf(n)
-                            wy = r.y * 16 + y
+                            wy = r.y * McaFormat.SECTION_SPAN + y
                             break@outer
                         }
                     }
@@ -380,10 +380,10 @@ object McaRender {
         val rs = ready(chunk)
         val r = rs.firstOrNull { it.y == sectionY } ?: return false
         var painted = 0
-        for (z in 0 until 16) {
-            for (x in 0 until 16) {
+        for (z in 0 until McaFormat.SECTION_SPAN) {
+            for (x in 0 until McaFormat.SECTION_SPAN) {
                 var col = 0
-                for (y in 15 downTo 0) {
+                for (y in McaFormat.SECTION_SPAN - 1 downTo 0) {
                     val n = r.at(x, y, z)
                     if (!isAir(n)) { col = colorOf(n); break }
                 }
@@ -421,9 +421,9 @@ object McaRender {
         val rs = ready(chunk)
         val r = rs.firstOrNull { it.y == sectionY } ?: return false
         for (i in 0 until McaFormat.SECTION_ENTRIES) {
-            val x = i % 16
-            val z = (i / 16) % 16
-            val y = i / 256
+            val x = i % McaFormat.SECTION_SPAN
+            val z = (i / McaFormat.SECTION_SPAN) % McaFormat.SECTION_SPAN
+            val y = i / (McaFormat.SECTION_SPAN * McaFormat.SECTION_SPAN)
             if (!isAir(r.at(x, y, z))) return true
         }
         return false

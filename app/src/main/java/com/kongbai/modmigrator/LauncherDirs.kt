@@ -111,9 +111,7 @@ object LauncherDirs {
         if (!f.isDirectory) return false
         val names = f.list()?.toSet() ?: return false
         return names.any {
-            it.equals("mods", true) || it.equals("saves", true) ||
-                it.equals("versions", true) || it.equals("resourcepacks", true) ||
-                it.equals("config", true)
+            McDirs.ROOT_MARKS.any { m -> it.equals(m, true) }
         }
     }
 

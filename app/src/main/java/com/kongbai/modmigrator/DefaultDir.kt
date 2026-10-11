@@ -29,7 +29,7 @@ object DefaultDir {
         return d
     }
 
-    fun mods(ctx: Context): File = sub(ctx, "mods")
+    fun mods(ctx: Context): File = sub(ctx, McDirs.MODS)
     fun configs(ctx: Context): File = sub(ctx, "configs")
     fun packs(ctx: Context): File = sub(ctx, "packs")
     fun trash(ctx: Context): File = sub(ctx, "trash")

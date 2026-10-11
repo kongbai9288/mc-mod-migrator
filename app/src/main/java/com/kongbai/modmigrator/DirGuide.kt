@@ -164,12 +164,12 @@ object DirGuide {
         val looksLikeAppRoot = names.any {
             it.startsWith("com.") || it.startsWith("net.") || it.startsWith("org.")
         }
-        if (looksLikeAppRoot && !names.contains("mods") && !names.contains("versions")) {
+        if (looksLikeAppRoot && !names.contains(McDirs.MODS) && !names.contains(McDirs.VERSIONS)) {
             return "这里像是启动器的上层目录（下面都是包名文件夹）。请再往里进一层，选到能直接看到 mods 的那一层。"
         }
 
         // 游戏目录的直接特征：这些文件夹就在它下面
-        val direct = listOf("mods", "saves", "config", "versions", "resourcepacks", "shaderpacks")
+        val direct = McDirs.ROOT_MARKS + listOf(McDirs.SHADERPACKS)
         val hasDirect = direct.any { names.contains(it) }
 
         if (!hasDirect) {

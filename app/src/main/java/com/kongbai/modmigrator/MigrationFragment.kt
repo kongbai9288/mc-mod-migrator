@@ -715,7 +715,7 @@ class MigrationFragment : Fragment() {
      * 按文件名投票，出现最多的那个胜出。
      */
     private fun detectLoaderFromMods(root: DocumentFile): String {
-        val mods = runCatching { Fs.find(root, "mods") }.getOrNull() ?: return "auto"
+        val mods = runCatching { Fs.find(root, McDirs.MODS) }.getOrNull() ?: return "auto"
         val files = runCatching { mods.listFiles() }.getOrNull() ?: return "auto"
         val votes = HashMap<String, Int>()
         for (f in files) {
@@ -845,7 +845,7 @@ class MigrationFragment : Fragment() {
                 safePost(handler) { pb.visibility = View.GONE }
                 return@bg
             }
-            val dir = Fs.find(root, "mods")
+            val dir = Fs.find(root, McDirs.MODS)
             if (dir == null) {
                 log("「迁移前」的目录里没有找到 mods 文件夹")
                 safePost(handler) { pb.visibility = View.GONE }
@@ -1048,7 +1048,7 @@ class MigrationFragment : Fragment() {
         pb.visibility = View.VISIBLE
         bg {
             val dst = Fs.tree(ctx, dstUri)
-            val dir = if (dst != null) Fs.ensureDir(dst, "mods") else null
+            val dir = if (dst != null) Fs.ensureDir(dst, McDirs.MODS) else null
             if (dir == null) {
                 safePost(handler) {
                     pb.visibility = View.GONE
@@ -1358,14 +1358,14 @@ class MigrationFragment : Fragment() {
 
             // ---- 阶段一：复制配置文件 ----
             val steps = ArrayList<Pair<String, String>>()
-            if (wantConfig) steps.add(Pair("config", "配置文件"))
+            if (wantConfig) steps.add(Pair(McDirs.CONFIG, "配置文件"))
             if (wantScripts) steps.add(Pair("scripts", "脚本"))
             if (wantOptions) steps.add(Pair("options.txt", "游戏设置"))
             if (wantPacks) {
-                steps.add(Pair("resourcepacks", "资源包"))
-                steps.add(Pair("shaderpacks", "光影包"))
+                steps.add(Pair(McDirs.RESOURCEPACKS, "资源包"))
+                steps.add(Pair(McDirs.SHADERPACKS, "光影包"))
             }
-            if (wantSaves) steps.add(Pair("saves", "存档"))
+            if (wantSaves) steps.add(Pair(McDirs.SAVES, "存档"))
 
             for ((idx, step) in steps.withIndex()) {
                 // 每项之间检查一次：暂停就挂起，取消就退出
@@ -1395,7 +1395,7 @@ class MigrationFragment : Fragment() {
                 return@bg
             }
 
-            val dir = Fs.ensureDir(dst, "mods")
+            val dir = Fs.ensureDir(dst, McDirs.MODS)
             if (dir == null) {
                 Progress.done("目标 mods 目录创建失败")
                 safePost(handler) { pb.visibility = View.GONE }
