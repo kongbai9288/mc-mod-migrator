@@ -21,12 +21,7 @@ import java.io.File
 object DefaultDir {
 
     /** 根目录：/sdcard/Android/data/<包名>/files/ModMigrator */
-    fun root(ctx: Context): File {
-        val base = ctx.getExternalFilesDir(null) ?: ctx.filesDir
-        val d = File(base, "ModMigrator")
-        if (!d.exists()) d.mkdirs()
-        return d
-    }
+    fun root(ctx: Context): File = WorkRoot.base(ctx)
 
     fun sub(ctx: Context, name: String): File {
         val d = File(root(ctx), name)
