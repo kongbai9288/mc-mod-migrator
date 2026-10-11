@@ -812,6 +812,23 @@ class MigrationFragment : Fragment() {
         log("未能自动识别版本，请手动填写目标 MC 版本")
     }
 
+    /**
+     * 把一条已经摆在列表里的结果刷新一下。
+     *
+     * 第 1 步算指纹时就先把条目加进去了，所以第 5 步回填时
+     * 应该**改那一行**而不是再插一条——否则同一个模组会出现两次。
+     * 找不到（比如中途清过列表）才退回插入。
+     */
+    private fun refreshRow(e: ModEntry) {
+        val at = mods.indexOfFirst { it === e }
+        if (at >= 0) {
+            adapter.notifyItemChanged(at)
+        } else {
+            mods.add(e)
+            adapter.notifyItemInserted(mods.size - 1)
+        }
+    }
+
     private fun scan() {
         val ctx = requireContext()
         val p = Prefs.get(ctx)
@@ -876,6 +893,7 @@ class MigrationFragment : Fragment() {
                 idx++
                 Progress.update("计算文件指纹（$idx/${files.size}）", idx, files.size)
                 val e = ModEntry(fileName = f.name ?: "mod.jar", uri = f.uri.toString())
+                e.status = "正在识别…"
                 e.sha1 = Fs.sha1(ctx, f)
                 if (e.sha1.isBlank()) {
                     // 打不开的文件（权限/损坏）：单独标出来，
@@ -889,6 +907,13 @@ class MigrationFragment : Fragment() {
                     log("× ${e.fileName}：无法读取")
                 }
                 entries.add(e)
+                // 算完一条就先摆进列表，别让用户对着空列表干等后面的网络请求。
+                // 之前五个步骤全跑完才有第一条出现，而中间那几次批量请求在国内
+                // 动辄十几秒，页面一直空着，看着就像“扫描没反应”。
+                safePost(handler) {
+                    mods.add(e)
+                    adapter.notifyItemInserted(mods.size - 1)
+                }
             }
             val hashes = entries.map { it.sha1.lowercase() }
 
@@ -924,10 +949,7 @@ class MigrationFragment : Fragment() {
             // ── 第 5 步：回填每个条目的状态（不再有网络请求）────────
             for (e in entries) {
                 if (e.sha1.isBlank()) {
-                    safePost(handler) {
-                        mods.add(e)
-                        adapter.notifyItemInserted(mods.size - 1)
-                    }
+                    safePost(handler) { refreshRow(e) }
                     continue
                 }
                 val key = e.sha1.lowercase()
@@ -978,10 +1000,7 @@ class MigrationFragment : Fragment() {
                         }
                     }
                 }
-                safePost(handler) {
-                    mods.add(e)
-                    adapter.notifyItemInserted(mods.size - 1)
-                }
+                safePost(handler) { refreshRow(e) }
             }
             log("扫描完成（网络请求：识别 1 次 + 取版本 1 次 + 取名 1 次）")
             val nf = netFail
