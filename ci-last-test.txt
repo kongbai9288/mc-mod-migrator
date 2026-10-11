@@ -1,22 +1,15 @@
 # 真实存档验证（ai.zip / 26.2 世界）
-run: 38101612180
+run: 38103375766
 
 ## 测试类清单
-app/build/test-results/testDebugUnitTest/TEST-com.kongbai.modmigrator.McaRealWorldTest.xml
-app/build/test-results/testDebugUnitTest/TEST-com.kongbai.modmigrator.McaSamplesTest.xml
-app/build/test-results/testDebugUnitTest/TEST-com.kongbai.modmigrator.McaWorldTest.xml
-== TEST-com.kongbai.modmigrator.McaRealWorldTest.xml
-tests="8" skipped="0" failures="0" errors="0"
-== TEST-com.kongbai.modmigrator.McaSamplesTest.xml
-tests="5" skipped="0" failures="1" errors="0"
-    <failure message="java.lang.AssertionError: 1.20.5：一个像素都没画出来（渲染层漏掉了这种格式？）" type="java.lang.AssertionError">java.lang.AssertionError: 1.20.5：一个像素都没画出来（渲染层漏掉了这种格式？）
-	at org.junit.Assert.fail(Assert.java:89)
-	at org.junit.Assert.assertTrue(Assert.java:42)
-	at com.kongbai.modmigrator.McaSamplesTest.everyVersionRendersPixels(McaSamplesTest.kt:160)
-== TEST-com.kongbai.modmigrator.McaWorldTest.xml
-tests="4" skipped="0" failures="0" errors="0"
+(无结果)
 
 ## gradle 末尾 40 行
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
 > Task :app:packageDebugResources UP-TO-DATE
 > Task :app:parseDebugLocalResources UP-TO-DATE
 > Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
@@ -31,29 +24,24 @@ tests="4" skipped="0" failures="0" errors="0"
 > Task :app:preDebugUnitTestBuild UP-TO-DATE
 > Task :app:processDebugJavaRes UP-TO-DATE
 > Task :app:javaPreCompileDebugUnitTest
-> Task :app:bundleDebugClassesToCompileJar
 > Task :app:bundleDebugClassesToRuntimeJar
-> Task :app:compileDebugUnitTestKotlin
-> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
-> Task :app:processDebugUnitTestJavaRes
+> Task :app:bundleDebugClassesToCompileJar
 
-> Task :app:testDebugUnitTest
-
-com.kongbai.modmigrator.McaSamplesTest > everyVersionRendersPixels FAILED
-    java.lang.AssertionError at McaSamplesTest.kt:160
-
-17 tests completed, 1 failed
-
-> Task :app:testDebugUnitTest FAILED
+> Task :app:compileDebugUnitTestKotlin FAILED
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/test/java/com/kongbai/modmigrator/McaRealWorldTest.kt:241:31 Function invocation 'first()' expected
 
 FAILURE: Build failed with an exception.
 
 * What went wrong:
-Execution failed for task ':app:testDebugUnitTest'.
-> There were failing tests. See the report at: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/build/reports/tests/testDebugUnitTest/index.html
+Execution failed for task ':app:compileDebugUnitTestKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
 
 * Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
 > Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
 
-BUILD FAILED in 20s
-23 actionable tasks: 7 executed, 16 up-to-date
+BUILD FAILED in 11s
+21 actionable tasks: 5 executed, 16 up-to-date
