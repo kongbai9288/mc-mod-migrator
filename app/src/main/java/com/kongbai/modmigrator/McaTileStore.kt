@@ -46,9 +46,9 @@ object McaTileStore {
             .trim().ifBlank { "x" }.take(48)
 
     private fun root(ctx: Context): File {
-        val base = ctx.getExternalFilesDir(null) ?: ctx.filesDir
-        val d = File(base, ROOT)
-        if (!d.exists()) d.mkdirs()
+        // 走 WorkRoot：用户在设置里指定了目录就用它，没指定才用应用私有目录。
+        // 之前这里是写死的应用私有目录，等于把用户指定的目录当不存在。
+        val d = WorkRoot.sub(ctx, ROOT)
         // .nomedia 对整个目录树生效，写一次就够
         runCatching { File(d, NOMEDIA).createNewFile() }
         return d
