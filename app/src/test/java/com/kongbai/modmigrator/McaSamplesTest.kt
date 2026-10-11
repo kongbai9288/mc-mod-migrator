@@ -141,6 +141,29 @@ class McaSamplesTest {
         }
     }
 
+    /**
+     * 守**渲染**这一层 —— 光解析对不代表画得出来。
+     *
+     * 之前渲染器只认调色板，遇到 1.13 之前的「数字 ID 数组」就直接跳过整段，
+     * 于是 Beta 1.3 / 1.2.1 的存档解析全部正常、画面却一片空白。
+     * 解析层的测试一条都测不到这个，必须让渲染器真去画一次才算数。
+     */
+    @Test
+    fun everyVersionRendersPixels() {
+        for (s in ALL) {
+            val f = fetch(s) ?: continue
+            val c = firstChunk(f) ?: continue
+            val px = IntArray(16 * 16)
+            val ok = McaRender.drawTop(c, px, 16, 0, 0, 1)
+            val painted = px.count { it != 0 }
+            println("${s.ver} 渲染：drawTop=$ok，着色像素 $painted/256")
+            assertTrue(
+                "${s.ver}：一个像素都没画出来（渲染层漏掉了这种格式？）",
+                ok && painted > 0
+            )
+        }
+    }
+
     /** 旧格式读出来必须是能认出的方块名，不能一片 unknown。 */
     @Test
     fun legacyIdsResolve() {

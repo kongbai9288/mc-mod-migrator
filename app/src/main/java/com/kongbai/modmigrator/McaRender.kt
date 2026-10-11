@@ -225,12 +225,45 @@ object McaRender {
 
     // ---------------------------------------------------------------- 渲染
 
-    private class Ready(val y: Int, val names: List<String>, val bits: Int, val data: LongArray?)
+    /**
+     * 一个待画的 section。
+     *
+     * [legacy] 为 true 表示 1.13 之前的写法：格子里存的是**数字 ID**，
+     * 没有调色板也没有 long[] 打包，必须走 [McaEdit.blockAt] 才能拿到方块名。
+     * 之前这里只认调色板，旧存档的 section 全部被当成"没有数据"跳过 ——
+     * 表现就是 Beta 1.3 / 1.2.1 的存档打开一片空白，
+     * 而解析层其实早就读出来了。
+     */
+    private class Ready(
+        val y: Int,
+        val sec: McaEdit.Sec,
+        val names: List<String>,
+        val bits: Int,
+        val data: LongArray?
+    ) {
+        val legacy: Boolean get() = sec.raw != null
+
+        /** 取 (x,y,z) 处的方块名。y 是 section 内的局部高度 0..15。 */
+        fun at(x: Int, y: Int, z: Int): String {
+            if (legacy) return McaEdit.blockAt(sec, x, y, z)
+            val idx = (y * 16 + z) * 16 + x
+            val d = data
+            val v = if (d == null || d.isEmpty()) 0 else McaEdit.readIndex(d, bits, idx)
+            return if (v < names.size) names[v] else "minecraft:air"
+        }
+    }
 
     private fun ready(chunk: CompoundTag): List<Ready> {
         val secs = McaEdit.sections(chunk)
         val out = ArrayList<Ready>(secs.size)
         for (s in secs) {
+            // ① 旧格式：数字 ID 数组。整段全空就跳过，别进逐格扫描。
+            if (s.raw != null) {
+                if (legacySectionEmpty(s)) continue
+                out.add(Ready(s.y, s, emptyList(), 0, null))
+                continue
+            }
+            // ② 现代格式：调色板 + long[] 打包
             val nm = McaEdit.paletteNames(s)
             if (nm.isEmpty()) continue
             val data = McaEdit.dataArray(s)
@@ -238,9 +271,42 @@ object McaRender {
             // 未生成区域的 section 调色板只有空气、data 全是 0，
             // 一个区域 1024 个空区块能把渲染拖到几分钟 —— 手机上必须省掉。
             if (isAir(nm[0]) && (data == null || data.isEmpty() || data.all { it == 0L })) continue
-            out.add(Ready(s.y, nm, McaEdit.bitsFor(nm.size), data))
+            out.add(Ready(s.y, s, nm, McaEdit.bitsFor(nm.size), data))
         }
         return out
+    }
+
+    /**
+     * 旧格式某一段是否全是空气（ID 0）。
+     *
+     * 扁平型（Beta 1.3）所有段共用同一个 32768 字节的数组，
+     * 判空只能看本段那 16 层，不能整块判 ——
+     * 否则只要有一段有内容，其余七段就不会被跳过。
+     */
+    private fun legacySectionEmpty(sec: McaEdit.Sec): Boolean {
+        val a = sec.raw ?: return false
+        return when (sec.rawMode) {
+            McaEdit.RawMode.FLAT_Y_FAST -> {
+                val h = a.size / 256
+                val base = sec.yBase
+                for (x in 0 until 16) {
+                    for (z in 0 until 16) {
+                        val col = (x * 16 + z) * h
+                        for (y in 0 until 16) {
+                            val yy = base + y
+                            if (yy >= h) break
+                            if (a[col + yy] != 0.toByte()) return false
+                        }
+                    }
+                }
+                true
+            }
+            McaEdit.RawMode.SECTION_X_FAST -> {
+                for (b in a) if (b != 0.toByte()) return false
+                true
+            }
+            McaEdit.RawMode.NONE -> false
+        }
     }
 
     private fun isAir(n: String) =
@@ -277,9 +343,7 @@ object McaRender {
                     for (y in 15 downTo 0) {
                         val wy0 = r.y * 16 + y
                         if (wy0 < yMin || wy0 > yMax) continue
-                        val idx = (y * 16 + z) * 16 + x
-                        val v = McaEdit.readIndex(r.data, r.bits, idx)
-                        val n = if (v < r.names.size) r.names[v] else "minecraft:air"
+                        val n = r.at(x, y, z)
                         if (!isAir(n)) {
                             col = colorOf(n)
                             wy = r.y * 16 + y
@@ -320,9 +384,7 @@ object McaRender {
             for (x in 0 until 16) {
                 var col = 0
                 for (y in 15 downTo 0) {
-                    val idx = (y * 16 + z) * 16 + x
-                    val v = McaEdit.readIndex(r.data, r.bits, idx)
-                    val n = if (v < r.names.size) r.names[v] else "minecraft:air"
+                    val n = r.at(x, y, z)
                     if (!isAir(n)) { col = colorOf(n); break }
                 }
                 if (col == 0) {
@@ -359,9 +421,10 @@ object McaRender {
         val rs = ready(chunk)
         val r = rs.firstOrNull { it.y == sectionY } ?: return false
         for (i in 0 until 4096) {
-            val v = McaEdit.readIndex(r.data, r.bits, i)
-            val n = if (v < r.names.size) r.names[v] else "minecraft:air"
-            if (!isAir(n)) return true
+            val x = i % 16
+            val z = (i / 16) % 16
+            val y = i / 256
+            if (!isAir(r.at(x, y, z))) return true
         }
         return false
     }
