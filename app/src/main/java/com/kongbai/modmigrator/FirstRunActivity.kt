@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
-import android.widget.Button
 import android.widget.CheckBox
 import android.widget.LinearLayout
 import android.widget.Spinner
@@ -13,6 +12,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.button.MaterialButton
 
 /**
  * 初次启动设置页。
@@ -25,11 +25,19 @@ import androidx.appcompat.app.AppCompatActivity
  *
  * 开发者模式里留了重跑入口（见 SettingsLabFragment），
  * 改坏了可以随时回来重设，不用清数据。
+ *
+ * ## 关于按钮
+ *
+ * 之前这里用的是原生 Button，而主题的 `materialButtonStyle` 只对
+ * **布局 XML 里的** <Button> 生效，代码里 new 出来的不受它影响 ——
+ * 于是整页按钮是系统默认的灰底，跟界面其它部分完全不是一个风格。
+ * 现在统一用 MaterialButton：实心走 AppButton，次要操作走描边，
+ * 两者都跟随主题主色。
  */
 class FirstRunActivity : AppCompatActivity() {
 
     private lateinit var tvWork: TextView
-    private lateinit var tvGame: TextView
+    private lateinit var boxGame: LinearLayout
     private lateinit var spMc: Spinner
     private lateinit var spLoader: Spinner
     private lateinit var cbMirror: CheckBox
@@ -39,31 +47,29 @@ class FirstRunActivity : AppCompatActivity() {
         ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
         if (uri == null) return@registerForActivityResult
-        grant(uri)
+        GameDirs.grant(this, uri)
         Prefs.get(this).edit().putString(K.WORKDIR_URI, uri.toString()).apply()
         refresh()
     }
 
+    /**
+     * 选游戏目录。
+     *
+     * ⚠️ 这里是**追加**不是覆盖：手机上装多个启动器时，
+     * 每个启动器的 .minecraft 各自独立，覆盖掉就等于把前一个的权限扔了，
+     * 那个启动器下的模组再也扫不到。见 [GameDirs]。
+     */
     private val pickGame = registerForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
         if (uri == null) return@registerForActivityResult
-        grant(uri)
-        Prefs.get(this).edit()
-            .putString(K.GAME_DIR, uri.toString())
-            .putString(K.GAME_DIR_NAME, readable(uri.toString()))
-            .apply()
+        val added = GameDirs.add(this, uri)
+        Toast.makeText(
+            this,
+            if (added) "已添加，可继续添加其它启动器的目录" else "这个目录已经加过了，已切到它",
+            Toast.LENGTH_SHORT
+        ).show()
         refresh()
-    }
-
-    private fun grant(uri: android.net.Uri) {
-        runCatching {
-            contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            )
-        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -79,8 +85,12 @@ class FirstRunActivity : AppCompatActivity() {
         scroll.addView(root)
         setContentView(scroll)
 
-        root.addView(title("初次设置"))
-        root.addView(note("下面几项都可以跳过，之后在设置里随时改。"))
+        // ---- 欢迎 ----
+        root.addView(title("欢迎使用模组迁移助手"))
+        root.addView(note(
+            "帮你把旧版本的模组、配置和存档搬到新版本。\n" +
+                "下面几步是让它知道东西该放哪、要迁到哪个版本 —— 都可以跳过，之后在设置里随时改。"
+        ))
 
         // ---- 工作目录 ----
         root.addView(section("工作目录"))
@@ -88,28 +98,20 @@ class FirstRunActivity : AppCompatActivity() {
         root.addView(tvWork)
         root.addView(
             row(
-                btn("用应用目录") {
+                outline("用应用目录") {
                     Prefs.get(this).edit().remove(K.WORKDIR_URI).apply()
                     refresh()
                 },
-                btn("选我的目录") { pickWork.launch(null) }
+                outline("选我的目录") { pickWork.launch(null) }
             )
         )
 
-        // ---- 游戏目录 ----
+        // ---- 游戏目录（可多个） ----
         root.addView(section("游戏目录（.minecraft）"))
-        tvGame = body("")
-        root.addView(tvGame)
-        root.addView(note("填了才能把模组直接装进启动器认的位置。手机启动器一般在内部存储里。"))
-        root.addView(
-            row(
-                btn("选目录") { pickGame.launch(null) },
-                btn("清除") {
-                    Prefs.get(this).edit().remove(K.GAME_DIR).remove(K.GAME_DIR_NAME).apply()
-                    refresh()
-                }
-            )
-        )
+        root.addView(note("填了才能把模组直接装进启动器认的位置。装了多个启动器就把每个的目录都加上。"))
+        boxGame = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        root.addView(boxGame)
+        root.addView(outline("添加游戏目录") { pickGame.launch(null) })
 
         // ---- 目标版本与加载器 ----
         root.addView(section("迁移目标"))
@@ -127,17 +129,11 @@ class FirstRunActivity : AppCompatActivity() {
         root.addView(cbMirror)
 
         // ---- 完成 ----
-        val done = Button(this).apply {
-            text = "开始使用"
-            setOnClickListener { finishSetup() }
-        }
-        root.addView(done)
-        root.addView(
-            btn("跳过，直接进主界面") {
-                markDone()
-                goMain()
-            }
-        )
+        root.addView(primary("开始使用") { finishSetup() })
+        root.addView(outline("跳过，直接进主界面") {
+            markDone()
+            goMain()
+        })
 
         refresh()
     }
@@ -168,16 +164,48 @@ class FirstRunActivity : AppCompatActivity() {
         tvWork.text = if (work.isNullOrBlank()) {
             "应用目录（默认，无需授权）\n${DefaultDir.path(this)}"
         } else {
-            "已选：${readable(work)}"
+            "已选：${GameDirs.readable(work)}"
         }
-        val game = p.getString(K.GAME_DIR, null)
-        tvGame.text = if (game.isNullOrBlank()) "未设置" else "已选：${readable(game)}"
-    }
 
-    /** SAF Uri 长得没法读，只取最后一段给用户看 */
-    private fun readable(s: String): String {
-        val i = s.lastIndexOf('%')
-        return if (i >= 0) s.substring(i + 1) else s.substringAfterLast('/')
+        // 游戏目录：列出全部，当前那个标出来，每个都能单独移除
+        boxGame.removeAllViews()
+        val items = GameDirs.list(this)
+        if (items.isEmpty()) {
+            boxGame.addView(body("未设置"))
+            return
+        }
+        val cur = GameDirs.current(this)
+        for (e in items) {
+            val isCur = cur != null && cur.uri == e.uri
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, 0, 0, 6)
+            }
+            val tv = TextView(this).apply {
+                text = "${if (isCur) "● " else "○ "}${e.label()}"
+                textSize = 13f
+                layoutParams = LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
+                )
+                setOnClickListener {
+                    GameDirs.setCurrent(this@FirstRunActivity, e.uri)
+                    refresh()
+                }
+            }
+            val rm = MaterialButton(
+                this, null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle
+            ).apply {
+                text = "移除"
+                safeClickUnit {
+                    GameDirs.remove(this@FirstRunActivity, e.uri)
+                    refresh()
+                }
+            }
+            row.addView(tv)
+            row.addView(rm)
+            boxGame.addView(row)
+        }
     }
 
     // ------------------------------------------------------------ 控件
@@ -222,17 +250,29 @@ class FirstRunActivity : AppCompatActivity() {
         )
     }
 
-    private fun btn(t: String, fn: () -> Unit) = Button(this).apply {
+    /** 主要按钮：实心，跟随主题主色 */
+    private fun primary(t: String, fn: () -> Unit) = MaterialButton(this).apply {
         text = t
-        setOnClickListener { fn() }
+        safeClickUnit { fn() }
+    }
+
+    /** 次要按钮：描边，同样跟随主题主色 */
+    private fun outline(t: String, fn: () -> Unit) = MaterialButton(
+        this, null,
+        com.google.android.material.R.attr.materialButtonOutlinedStyle
+    ).apply {
+        text = t
+        safeClickUnit { fn() }
     }
 
     private fun row(vararg views: View): LinearLayout {
         val l = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         views.forEach { v ->
-            l.addView(v, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            v.layoutParams = LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
+            )
+            l.addView(v)
         }
         return l
     }
-
 }

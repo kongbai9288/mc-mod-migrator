@@ -11,6 +11,12 @@
              不设这个的话，XML 里的 <Button> 会用系统默认灰色，
              换主题色完全不跟着变（"按钮是灰的"就是这个原因）。 -->
         <item name="materialButtonStyle">@style/AppButton</item>
+        <!-- 描边按钮同样要指过去。
+             不设这一条的话，代码里用 materialButtonOutlinedStyle 造出来的按钮
+             （UiCards.outlinedButton 等）会走组件库的默认样式，
+             描边和文字是灰的，换主题色完全不跟着变 ——
+             同一个界面里实心按钮是主色、描边按钮是灰的，看起来像两套设计。 -->
+        <item name="materialButtonOutlinedStyle">@style/AppButtonOutlined</item>
     </style>
 
     <style name="Theme.ModMigrator.Green" parent="Theme.ModMigrator" />

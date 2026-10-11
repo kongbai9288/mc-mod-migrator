@@ -254,4 +254,6 @@
     <string name="btn_refresh_log">刷新</string>
     <string name="btn_only_errors">只看错误</string>
     <string name="menu_patch">补丁</string>
+    <string name="collapse_cfg">收起筛选</string>
+    <string name="expand_cfg">展开筛选</string>
 </resources>

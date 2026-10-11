@@ -83,10 +83,19 @@ object UiCards {
      * 换主题色也不跟着变——这正是"某些页面按钮是灰的"的原因。
      * 这里统一返回 MaterialButton，背景自动取当前主题主色。
      */
+    /**
+     * 实心按钮。
+     *
+     * ⚠️ 点击走 [safeClickUnit]：手快连点、或界面卡顿后反复戳，
+     * 同一个动作会被排队执行好几遍，而这里的按钮多半对应
+     * 扫描 / 下载 / 打开地图这类重活，跑几遍就把内存顶满。
+     * 放在工厂里是为了自动覆盖所有调用方 —— 逐个调用点去加，
+     * 加一个漏一个，等于没做。
+     */
     fun button(ctx: Context, text: String, onClick: (() -> Unit)? = null): View =
         com.google.android.material.button.MaterialButton(ctx).apply {
             this.text = text
-            onClick?.let { setOnClickListener { it() } }
+            onClick?.let { fn -> safeClickUnit { fn() } }
         }
 
     /** 描边按钮（次要操作），描边与文字同样跟随主题主色 */
@@ -95,7 +104,7 @@ object UiCards {
             ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle
         ).apply {
             this.text = text
-            onClick?.let { setOnClickListener { it() } }
+            onClick?.let { fn -> safeClickUnit { fn() } }
         }
 
     private fun avatarDrawable(ctx: Context, name: String): android.graphics.drawable.Drawable {

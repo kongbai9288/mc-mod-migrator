@@ -223,13 +223,26 @@ class MainActivity : AppCompatActivity() {
     /** 供设置页改动导航栏后调用重建 */
     fun rebuildNav() {
         try {
-            buildNav()
+            buildNav(force = true)
         } catch (t: Throwable) { Err.ignore(t, "buildNav()") }
     }
 
-    private fun buildNav() {
+    private fun buildNav(force: Boolean = false) {
         val n = nav ?: return
         val menu = n.menu
+        // ── 没变就别重建 ──────────────────────────────────────
+        // onResume 里每次都调 buildNav()，而 menu.clear() + 重新 add
+        // 会让 BottomNavigationView 把整排 item 拆掉再装回去，
+        // 它内部带平移动画 —— 于是每次从任何页面返回主界面，
+        // 底部栏都会"动一下"，切页也跟着慢半拍。
+        // 导航栏配置其实极少改动（只有用户在设置里调序才变），
+        // 所以这里先比对签名：内容一样就直接跳过，只补高亮。
+        val sig = NavConfig.bottom(this).joinToString(",")
+        if (!force && sig == navSig && menu.size() > 0) {
+            if (currentTabId > 0) syncNavSelection(currentTabId)
+            return
+        }
+        navSig = sig
         menu.clear()
         val pages = NavConfig.navPages(this)
         // Material 硬性上限 5 项，这里自定义最多 4 项 + 固定的「更多」
@@ -266,6 +279,9 @@ class MainActivity : AppCompatActivity() {
      */
     private val tabHistory = ArrayList<Int>()
     private var currentTabId: Int = -1
+
+    /** 上次构建底部导航时的内容签名，用于判断"真的变了吗" */
+    private var navSig: String = ""
 
     // ── 底部导航防抖 ──────────────────────────────────────────
     // 快速连点底部导航栏时，FragmentManager 会把多个事务排队执行。

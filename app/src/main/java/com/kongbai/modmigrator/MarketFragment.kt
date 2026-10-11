@@ -26,6 +26,17 @@ class MarketFragment : Fragment() {
     private lateinit var rvMods: RecyclerView
     private lateinit var rvLinks: RecyclerView
 
+    /**
+     * 筛选区的折叠开关。
+     *
+     * 之前布局把配置区和列表按 1:2 写死，于是筛选块永远占着三分之一屏，
+     * 结果只露出两三条 —— 想看列表就得忍着，想改条件又得在那小半屏里滚。
+     *
+     * 现在：搜到结果后自动收起，整屏给列表；要改条件点一下再展开。
+     */
+    private var scrollCfg: androidx.core.widget.NestedScrollView? = null
+    private var btnToggleCfg: android.widget.TextView? = null
+
     // 搜索/推荐的结果存在 MarketState 单例里：
     // 底部导航是 replace()，切页签时本 Fragment 会被销毁重建，
     // 结果放在实例字段里会全部清零（表现为"切回来列表空了"）。
@@ -184,6 +195,12 @@ class MarketFragment : Fragment() {
                 if (last >= total - 3) loadMore()
             }
         })
+        scrollCfg = v.findViewById(R.id.scrollCfg)
+        btnToggleCfg = v.findViewById(R.id.btnToggleCfg)
+        btnToggleCfg?.safeClickUnit { toggleCfg() }
+        // 已经有结果（比如切页签回来）就直接收起，别让用户再看一遍空筛选区
+        if (MarketState.hasContent()) setCfgCollapsed(true)
+
         v.findViewById<Button>(R.id.btnSearch).setOnClickListener { search() }
         v.findViewById<Button>(R.id.btnRecommend)?.setOnClickListener { recommend() }
         v.findViewById<Button>(R.id.btnAddLink).setOnClickListener { addLinkDialog() }
@@ -554,6 +571,9 @@ class MarketFragment : Fragment() {
      * @param structural 排序或筛选条件变了，必须整表重排
      */
     private fun refreshList(appended: Int = 0, structural: Boolean = false) {
+        // 有东西可看了就把筛选区收起来：这时候用户要看的是结果，
+        // 而不是顶上那块搜索框。要改条件点「展开筛选」即可。
+        if (searchResults.isNotEmpty()) setCfgCollapsed(true)
         val src = if (currentTab == "search") searchResults else favResults
         val filtered = if (activeCats.isEmpty()) src else src.filter { m ->
             val cs = m.categories.map { it.lowercase() }
@@ -1006,6 +1026,21 @@ class MarketFragment : Fragment() {
             }
             .show()
     }
+    /** 展开/收起筛选区 */
+    private fun toggleCfg() {
+        setCfgCollapsed(scrollCfg?.visibility != android.view.View.GONE)
+    }
+
+    /**
+     * @param collapsed true 收起。收起时配置区 GONE，
+     *   列表那 2 的权重就吃满整屏，不再被压成两行。
+     */
+    private fun setCfgCollapsed(collapsed: Boolean) {
+        val sc = scrollCfg ?: return
+        sc.visibility = if (collapsed) android.view.View.GONE else android.view.View.VISIBLE
+        btnToggleCfg?.text = getString(if (collapsed) R.string.expand_cfg else R.string.collapse_cfg)
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         // 清理 Handler：页面销毁后若还有未执行的 post，
