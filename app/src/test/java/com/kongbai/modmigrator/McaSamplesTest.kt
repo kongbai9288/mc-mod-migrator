@@ -42,7 +42,11 @@ class McaSamplesTest {
             Sample("1.13", "1.13/region/r.-1.-1.mca", McaEdit.RawMode.NONE),
             Sample("1.16", "1.16/region/r.0.0.mca", McaEdit.RawMode.NONE),
             Sample("1.18", "1.18/region/r.-1.0.mca", McaEdit.RawMode.NONE),
-            Sample("1.20.5", "1.20.5/region/r.-2.-1.mca", McaEdit.RawMode.NONE)
+            // ⚠️ 原来用的是 r.-2.-1.mca，实测那一份 154 个区块的调色板里
+            // 只有 air（外加生物群系 plains 和结构起点），**整份没有地形**。
+            // 用它验"画不画得出像素"必然失败，但这不是渲染坏了，是样本没内容。
+            // r.-2.0.mca 有真实地形（484 个区块里 121 个含 stone/dirt/grass_block）。
+            Sample("1.20.5", "1.20.5/region/r.-2.0.mca", McaEdit.RawMode.NONE)
         )
 
         private fun fetch(s: Sample): File? {
@@ -66,6 +70,25 @@ class McaSamplesTest {
             for (slot in r.present()) {
                 val c = r.chunk(slot) ?: continue
                 if (!c.isEmpty() && McaEdit.sections(c).isNotEmpty()) return c
+            }
+            return null
+        }
+
+        /**
+         * 挑一个**真的有方块**的区块。
+         *
+         * [firstChunk] 只要求"section 不为空"，而官方生成的世界里
+         * 大量区块只有生物群系和结构起点、没有填地形 —— 拿这种区块
+         * 去验渲染，画不出像素是正常的，会误报成渲染层坏了。
+         */
+        private fun firstTerrainChunk(f: File): com.viaversion.nbt.tag.CompoundTag? {
+            val r = McaEdit.Region(f.readBytes())
+            for (slot in r.present()) {
+                val c = r.chunk(slot) ?: continue
+                if (c.isEmpty()) continue
+                for (sec in McaEdit.sections(c)) {
+                    if (nonAir(sec) > 0) return c
+                }
             }
             return null
         }
@@ -152,7 +175,10 @@ class McaSamplesTest {
     fun everyVersionRendersPixels() {
         for (s in ALL) {
             val f = fetch(s) ?: continue
-            val c = firstChunk(f) ?: continue
+            val c = firstTerrainChunk(f)
+            // 整份样本都没有地形（官方世界常见：只有生物群系和结构起点）
+            // 时不算失败 —— 那验的是样本，不是渲染器。
+            assumeTrue("样本 ${s.ver} 里没有任何带地形的区块，跳过渲染断言", c != null)
             val px = IntArray(16 * 16)
             val ok = McaRender.drawTop(c, px, 16, 0, 0, 1)
             val painted = px.count { it != 0 }
