@@ -54,17 +54,16 @@ class MigrationFragment : Fragment() {
 
     /**
      * 进度回调。
-     *
      * 注意两件事：
      * 1. 这个 lambda 在 onResume 注册后可能立刻被回调一次，
      *    所以里面用到的 lateinit 字段必须先判断有没有初始化，否则会崩。
-     * 2. ⚠️ 扫描是在 `bg {}`（后台线程）里跑的，`Progress.update()` 每处理一个
-     *    文件就调一次，而 `fire()` **在调用方线程上直接执行 hook** ——
-     *    也就是说这个 lambda 是在**后台线程**上改 View。
+     * 2. 扫描是在 `bg {}`（后台线程）里跑的，`Progress.update()` 每处理一个
+     *    文件就调一次，而 `fire()` 在调用方线程上直接执行 hook ——
+     *    也就是说这个 lambda 是在后台线程上改 View。
      *    Android 不允许非 UI 线程操作 View，会抛
      *    CalledFromWrongThreadException；而 Progress.fire() 里是
-     *    `catch { Err.ignore }`，**异常被静默吞掉、没有任何提示**。
-     *    表现就是：进度数字走到某个点突然停住不再变化，界面却一切正常，
+     *    `catch { Err.ignore }`，异常被静默吞掉、没有任何提示。
+
      *    看上去像"卡住了"。文件越多越容易撞上。
      *    现在改成 post 到主线程执行。
      * 3. 另外扫描上千个文件时会连续触发上千次 UI 更新，
@@ -112,8 +111,7 @@ class MigrationFragment : Fragment() {
 
     /**
      * 严重错误时弹窗提示。
-     *
-     * ⚠️ 这里**必须切到主线程**，真实崩溃日志为证：
+     * 这里必须切到主线程，真实崩溃日志为证：
      * ```
      * java.lang.IllegalStateException: Method addObserver must be called on the main thread
      *   at androidx.lifecycle.LifecycleRegistry.addObserver(LifecycleRegistry.kt:181)
@@ -123,22 +121,16 @@ class MigrationFragment : Fragment() {
      *   at com.kongbai.modmigrator.MigrationFragment$errorHook$1.invoke(...)
      *   at com.kongbai.modmigrator.LogCenter.push(LogCenter.kt:113)
      * ```
-     * 日志可能从**任意后台线程**写入（网络回调、下载线程、WorkManager），
+     * 日志可能从任意后台线程写入（网络回调、下载线程、WorkManager），
      * 而 errorHook 是直接被 push() 同步调用的 —— 于是 `Dialog.show()`
      * 跑在后台线程上。AlertDialog 内部要经 SavedStateRegistry → Lifecycle
      * 注册观察者，只允许主线程，直接抛异常。
-     *
      * 更糟的是这次异常又被 push 的 catch 捕获、再次走一遍日志链路，
      * 于是每弹一次失败就再触发一次 → 递归，日志滚到 8 万字符。
      */
     /**
-     * 用户点了「本次不再提示」后，错误只进日志、不再弹窗。
-     *
-     * 批量迁移几十个模组时，每一个失败都弹一次的话，
-     * 就算合并成一个对话框也会一直跳出来打断操作。
-     * 给一个立即生效的出口，比在设置里翻开关直接。
-     * 只影响本次会话：下次进页面重新可提示（字段在 Fragment 上，重建即清零）。
-     */
+ * 用户点了「本次不再提示」后，错误只进日志、不再弹窗。只影响本次会话。
+ */
     private var errDialogMuted = false
 
     private val errorHook: (LogCenter.LogLine) -> Unit = { line ->
@@ -155,16 +147,8 @@ class MigrationFragment : Fragment() {
     }
 
     /**
-     * 错误弹窗的节流时间戳。
-     *
-     * ⚠️ 真实体验问题：批量操作时（比如几十个模组逐个失败），
-     * 每条错误都弹一个对话框，**一个叠一个往上堆**。
-     * 用户看到的不是提示，而是一叠关不完的弹窗 ——
-     * 底下的「复制」按钮根本点不到，只能一个一个点掉。
-     *
-     * 现在：3 秒内只弹一次，后续错误**追加到已弹的那个对话框里**，
-     * 而不是再开一个新的。
-     */
+ * 错误弹窗的节流时间戳。3 秒内只弹一次，后续错误追加进已弹的那个对话框。
+ */
     private var lastErrDialogAt = 0L
     private var pendingErrText: StringBuilder? = null
     private var pendingErrCount = 0
@@ -364,13 +348,8 @@ class MigrationFragment : Fragment() {
     }
 
     /**
-     * 手动改的版本 / 加载器要立刻存下来。
-     *
-     * ⚠️ 之前只有点「扫描」才写 DEF_VERSION / DEF_LOADER，
-     * 于是：改完下拉 → 切到别的页 → 再回来，下拉又变回「自动」，
-     * 看着像改动没生效。而扫描时写的那份反而是"改之前的旧值"，
-     * 出现"我明明选了 Fabric，扫完又成 Forge"的错位。
-     */
+ * 手动改的版本 / 加载器要立刻存下来，不等扫描。
+ */
     private fun keepVersionAndLoader() {
         val ctx = context ?: return
         val p = Prefs.get(ctx)
@@ -480,7 +459,7 @@ class MigrationFragment : Fragment() {
 
     private fun pickDir(code: Int) {
         //
-        // ⚠️ 之前直接 startActivityForResult 拉起系统文件选择器，
+
         // 用户面对整台手机的目录树，完全不知道该选到哪一层 ——
         // 选错的表现是"扫出 0 个实例""识别不出版本"，
         // 界面上却只说"请选择目录"，没有任何指引。
@@ -612,7 +591,7 @@ class MigrationFragment : Fragment() {
                 }
             }
             // 用户在设置里添加的每个启动器目录都单独再扫一遍。
-            // 之前只认 K.SCAN_ROOT 一个，装了多个启动器时其余的全部漏掉。
+
             val fromDirs = InstanceScanner.scanAll(ctx) { m -> log(m) }
             val known = list.map { it.uri }.toHashSet()
             for (info in fromDirs) {
@@ -720,22 +699,8 @@ class MigrationFragment : Fragment() {
     }
 
     /**
-     * 后台执行一段任务。
-     *
-     * ⚠️ 之前这里只有 try/catch，**没有 finally**。
-     * 而 `Progress` 是全局单例，任务开始时置 running=true、结束时调 done() 复位。
-     * 一旦 block 抛异常、或内部某个分支提前 return，
-     * `Progress.done()` 就永远不会执行 ——
-     * running 标志位**永久卡在 true**。
-     *
-     * 后果：下次打开 App，全局单例还带着这个脏状态，
-     * 一进界面就提示"扫描运行中"，而用户根本没点过扫描。
-     * 这种"幽灵进度条"看起来像 App 出现幻觉，极难联想到是上次异常留下的。
-     *
-     * 这里统一在 finally 里兜底复位。
-     * 正常路径下 block 内部已经调过 done()，再调一次是幂等的（只是重置状态），
-     * 不会有任何副作用。
-     */
+ * 后台执行一段任务。block 抛异常或提前 return 时也要复位 Progress，否则 running 永久卡在 true。
+ */
     private fun bg(block: () -> Unit) {
         exec.execute {
             try {
@@ -751,13 +716,11 @@ class MigrationFragment : Fragment() {
 
     /**
      * 从已装模组的文件名推断加载器。
-     *
-     * 手机启动器（FCL / Pojav / Zalith）的实例目录里通常**没有**
+     * 手机启动器（FCL / Pojav / Zalith）的实例目录里通常没有
      * mmc-pack.json / manifest.json 这类清单文件，加载器信息只体现在
      * mods 目录里的文件名上（sodium-fabric-xxx.jar、jei-1.20.1-forge.jar）。
-     * 之前这三种清单都找不到就直接放弃，加载器一直停在「自动」——
+
      * 后面的版本匹配也就跟着错。
-     *
      * 按文件名投票，出现最多的那个胜出。
      */
     private fun detectLoaderFromMods(root: DocumentFile): String {
@@ -931,7 +894,7 @@ class MigrationFragment : Fragment() {
             }
 
             // ── 第 1 步：本地算指纹（纯 IO，不需要联网）──────────────
-            // 之前这一步和网络请求交错在一个循环里，一个慢全部慢。
+
             // 先把所有指纹算完，网络请求就能合并成整批发出去。
             val entries = ArrayList<ModEntry>(files.size)
             var idx = 0
@@ -954,7 +917,7 @@ class MigrationFragment : Fragment() {
                 }
                 entries.add(e)
                 // 算完一条就先摆进列表，别让用户对着空列表干等后面的网络请求。
-                // 之前五个步骤全跑完才有第一条出现，而中间那几次批量请求在国内
+
                 // 动辄十几秒，页面一直空着，看着就像“扫描没反应”。
                 safePost(handler) {
                     mods.add(e)
@@ -1094,8 +1057,6 @@ class MigrationFragment : Fragment() {
 
     /**
      * 只重下"下载失败"的项，成功的不再动。
-     * （原来有个 `count` 参数，从没被用到——失败项是从 mods 里现筛的，
-     *   传进来的数字既不信也不准。删掉，避免误导。）
      */
     private fun retryDownloads() {
         val ctx = context ?: return
@@ -1176,7 +1137,7 @@ class MigrationFragment : Fragment() {
         val loader = pp.getString(K.DEF_LOADER, "auto") ?: "auto"
         bg {
             var fixed = 0
-            // 重试同样走批量接口：之前是逐个请求，
+
             // 失败项可能有几十个，逐个重试又会慢到像死机。
             val hashes = todo.map { it.sha1.lowercase() }
             val found = ModrinthApi.lookupHashes(hashes)
@@ -1300,21 +1261,11 @@ class MigrationFragment : Fragment() {
     }
 
     /**
-     * 执行迁移。
-     *
-     * 两个关键改动：
-     * 1. 模组下载改成并发（默认 3 个同时下），之前是串行一个一个下，
-     *    几十个模组要等很久，这是「迁移非常慢」的主因。
-     * 2. 全程汇报进度：阶段名 + 第几个/共几个 + 已用时间 + 预计剩余，
-     *    之前只有个转圈，用户不知道进行到哪、还要多久。
-     */
+ * 执行迁移。模组下载并发（默认 3 个），全程汇报阶段名、第几个/共几个、已用与预计剩余。
+ */
     /**
-     * 打开工具箱里属于迁移的那些步骤。
-     *
-     * 体检、依赖体检、配置对比、模组开关、跨加载器、代码级迁移
-     * 本来都是迁移流程里的环节，之前只在工具箱里有，
-     * 从迁移页过去要退回「更多」再找一层。这里给个直达入口。
-     */
+ * 打开工具箱里属于迁移的那些步骤，省去退回「更多」再找一层。
+ */
     private fun openMigrationTools() {
         val ctx = context ?: return
         val items = listOf(
@@ -1352,12 +1303,8 @@ class MigrationFragment : Fragment() {
     }
 
     /**
-     * 跨加载器转换。
-     *
-     * 放在迁移页而不是工具箱：这边已经知道目标 MC 版本和目标加载器，
-     * 不用再让用户重填一遍。两个页面各问一次时，
-     * 填的版本很容易不一致，结果是"换了加载器但版本对不上"。
-     */
+ * 跨加载器转换。放在迁移页：这边已有目标 MC 版本与加载器，不用再填一遍。
+ */
     private fun crossLoader() {
         val ctx = context ?: return
         val mc = etVersion.text.toString().trim()
@@ -1581,12 +1528,8 @@ class MigrationFragment : Fragment() {
     }
 
     /**
-     * 生成「复制哪些东西」的勾选框。
-     *
-     * 以前是布局里写死五个 CheckBox：加一类要改布局、改字段、改执行处三处，
-     * 少改一处就是「界面上有、实际没复制」。现在从 [McParts] 生成，
-     * 加一类只改 McParts 一处，迁移和导出永远对得上。
-     */
+ * 生成「复制哪些东西」的勾选框。清单来自 McParts，增删分类只改那里。
+ */
     private fun buildPartBoxes(v: android.view.View) {
         val ctx = requireContext()
         val box = v.findViewById<android.widget.LinearLayout>(R.id.partsBox) ?: return
@@ -1730,7 +1673,7 @@ class MigrationFragment : Fragment() {
             } catch (t: Throwable) {
                 // 线程池关闭等待被打断。这里本来就是收尾动作，
                 // 等不到不影响结果，但至少要留一条记录。
-                // （之前这里的提示文本是半截代码字符串，看不出在说什么）
+
                 Err.ignore(t, "等待下载线程池关闭")
             }
 
@@ -1739,7 +1682,7 @@ class MigrationFragment : Fragment() {
             val bad = ArrayList(failed)
             // ⚠️ 只有真正跑完才清断点记录。
             // 被中止时磁盘上必须留着记录：下次打开才问"要不要接着做"，
-            // 已下好的不重复下。之前不管跑完还是中止都清，
+            // 已下好的不重复下。
             // 等于把"续做"这个功能废掉了。
             if (Progress.isCanceled()) {
                 Progress.done("已中止")
