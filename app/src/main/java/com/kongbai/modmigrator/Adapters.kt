@@ -426,8 +426,8 @@ class UpdateAdapter(
 }
 
 class PluginAdapter(
-    private val items: MutableList<PluginApi.Plugin>,
-    private val onRun: (PluginApi.Plugin) -> Unit
+    private val items: MutableList<PluginHost.Plugin>,
+    private val onRun: (PluginHost.Plugin) -> Unit
 ) : RecyclerView.Adapter<PluginAdapter.VH>() {
 
     class VH(v: View) : RecyclerView.ViewHolder(v) {
@@ -446,9 +446,13 @@ class PluginAdapter(
 
     override fun onBindViewHolder(h: VH, pos: Int) {
         val p = items[pos]
-        h.name.text = p.label
-        h.meta.text = p.pkg
-        h.status.text = p.desc.ifBlank { "点右侧按钮触发动作" }
+        h.name.text = p.title()
+        h.meta.text = p.summary()
+        h.status.text = buildString {
+            append(if (p.enabled) "已启用" else "已禁用")
+            if (p.permissions.isNotEmpty()) append(" · ").append(p.permissions.joinToString("/"))
+            if (p.desc.isNotBlank()) append(" · ").append(p.desc)
+        }
         h.itemView.findViewById<View>(R.id.btnTrans)?.visibility = View.GONE
         h.action.text = "运行"
         h.action.setOnClickListener { onRun(p) }

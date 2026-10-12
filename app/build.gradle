@@ -12,7 +12,7 @@ android {
         minSdk 26
         targetSdk 34
         versionCode 85
-        versionName "2.10.4"
+        versionName "2.10.5"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -166,5 +166,13 @@ dependencies {
     // ViaNBT 源码里用了 org.jetbrains.annotations.Nullable，
     // 融合进本工程后这个注解必须有出处，否则整包编译不过。
     implementation 'org.jetbrains:annotations:24.1.0'
+
+    // ── 插件脚本引擎（Rhino，MPL 2.0）─────────────────────────
+    // 插件改成「目录里的 manifest.json + js 脚本」之后需要一个 JS 引擎。
+    // 选 Rhino 的原因：纯 Java，没有 native 代码，
+    // 在 Android 上不用为每种 ABI 分别编译，一个 jar 全平台通用。
+    // 注意运行时必须把 optimizationLevel 设为 -1（见 PluginHost），
+    // 否则 Rhino 会走 JVM 字节码那条路，在 Android 上直接失败。
+    implementation 'org.mozilla:rhino:1.7.15'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
 }
