@@ -159,11 +159,7 @@
                 android:orientation="vertical"
                 android:padding="12dp">
 
-                <!--
-                    迁移要复制哪些东西，由 McParts 在代码里生成。
-                    以前这里写死五个 CheckBox，加一类要改布局 + 改字段 + 改执行处，
-                    少改一处就是"界面上有、实际没复制"。
-                -->
+                <!-- 勾选框由 McParts 在代码里生成，增删分类只改 McParts -->
                 <LinearLayout
                     android:id="@+id/partsBox"
                     android:layout_width="match_parent"
@@ -172,10 +168,7 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!--
-            主次分开：扫描是"先看方案"，执行才是这一步的目的。
-            之前两个都用填充样式，看着一样重，
-            真正要点的那个反而淹没在一排按钮里。
+        <!-- 扫描用描边，执行用填充 -->
         -->
         <Button
             android:id="@+id/btnScan"
@@ -223,13 +216,8 @@
             android:layout_marginBottom="4dp"
             android:text="@string/btn_run" />
 
-        <!--
-            任务运行中的暂停 / 继续 / 中止。
-            ⚠️ 这四个 id 是 MigrationFragment 里实打实在用的
-            （rowPause / btnPause / btnCancelTask / btnMigTools），
-            之前只改了 Kotlin 没同步布局，编译直接 unresolved reference。
-            默认 GONE，任务跑起来才显示，平时不占地方。
-        -->
+        <!-- 任务运行中的暂停 / 继续 / 中止。默认 GONE。
+             rowPause / btnPause / btnCancelTask / btnMigTools 由 MigrationFragment 引用 -->
         <LinearLayout
             android:id="@+id/rowPause"
             android:layout_width="match_parent"
