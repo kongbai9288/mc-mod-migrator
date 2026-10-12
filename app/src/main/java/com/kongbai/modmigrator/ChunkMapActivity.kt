@@ -1934,7 +1934,9 @@ class ChunkMapActivity : AppCompatActivity() {
             }.take(MAX_VISIBLE_REGIONS)
         }
 
-        private fun hasRegion(rx: Int, rz: Int): Boolean =
+        // 长按菜单在 Activity 层也要判断这一格有没有区域文件，
+        // 所以不加 private
+        fun hasRegion(rx: Int, rz: Int): Boolean =
             refs.any { it.rx == rx && it.rz == rz }
 
         // ------------------------------------------------------------ 标尺
