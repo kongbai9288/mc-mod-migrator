@@ -1,5 +1,6 @@
 package com.kongbai.modmigrator
 
+import android.content.Context
 import android.net.Uri
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
@@ -8,6 +9,17 @@ import java.util.concurrent.ConcurrentHashMap
  * 客户端请求限速。按域名各自计数，避免把某个平台打爆。
  */
 object NetGate {
+
+    /**
+     * 联网用途。每一项对应一个断网分项开关，见 Prefs.K 的 OFFLINE_*。
+     */
+    enum class Area(val key: String) {
+        SEARCH(K.OFFLINE_SEARCH),
+        TRANSLATE(K.OFFLINE_TRANSLATE),
+        FEED(K.OFFLINE_FEED),
+        UPDATE(K.OFFLINE_UPDATE),
+        ANNOUNCE(K.OFFLINE_ANNOUNCE),
+    }
 
     const val SLOW = 60
     const val NORMAL = 120
@@ -19,6 +31,16 @@ object NetGate {
     }
 
     private val buckets = ConcurrentHashMap<String, Bucket>()
+
+    /**
+     * 该用途现在能不能联网。总开关打开时一律断网。
+     */
+    fun allow(ctx: Context?, area: Area): Boolean {
+        val c = ctx ?: Prefs.appCtx() ?: return false
+        val p = Prefs.get(c)
+        if (p.getBoolean(K.OFFLINE, false)) return false
+        return !p.getBoolean(area.key, false)
+    }
 
     fun perMin(): Int {
         val ctx = Prefs.appCtx() ?: return NORMAL
