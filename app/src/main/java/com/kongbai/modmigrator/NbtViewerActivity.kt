@@ -124,6 +124,10 @@ class NbtViewerActivity : AppCompatActivity() {
             )
         }
         tvTree = TextView(this).apply {
+            // 等待期间先给几行字占住位置。之前解析完成前这一整块是空白的，
+            // 大存档（playerdata、大 region）要读好几秒，
+            // 用户看到的就是"打开了个空页面"，分不清是在读还是坏了。
+            text = "正在读取，稍等…\n（文件越大读得越久）"
             textSize = 11f
             typeface = android.graphics.Typeface.MONOSPACE
             setHorizontallyScrolling(true)
@@ -143,6 +147,10 @@ class NbtViewerActivity : AppCompatActivity() {
             textSize = 11f
             typeface = android.graphics.Typeface.MONOSPACE
             minLines = 6
+            // 读出来之前不让改：框里还是空的，
+            // 提前打字会在数据到达时被整体覆盖，白打。
+            isEnabled = false
+            setHint("读取完成后可在这里改")
         }
         root.addView(etSnbt)
 
@@ -209,14 +217,19 @@ class NbtViewerActivity : AppCompatActivity() {
             handler.post {
                 if (tag == null) {
                     tvState.text = "读取失败：这个文件不是有效的 NBT，或已损坏"
+                tvTree.text = "读不出来。可能原因：\n" +
+                    "· 它不是 NBT 文件（比如是 .json 或 .txt）\n" +
+                    "· 压缩方式不是 gzip / zlib\n" +
+                    "· 文件本身已损坏"
                     btnSave.isEnabled = false
                     btnSaveTop.isEnabled = false
                     return@post
                 }
                 this.root = tag
                 tvState.text = "已读取 ${tag.getValue().size} 个顶层字段"
-                tvTree.text = tree
+                tvTree.text = tree.ifBlank { "（这个文件里没有顶层字段）" }
                 etSnbt.setText(snbt)
+                etSnbt.isEnabled = true
                 btnSave.isEnabled = true
                 btnSaveTop.isEnabled = true
             }

@@ -607,6 +607,54 @@ object UiCards {
             })
         }
 
+    /**
+     * 加载占位（骨架块）。
+     *
+     * 之前慢功能出结果之前，页面上只有一行「正在读取…」，其余全是空白 ——
+     * 用户分不清是"在忙"还是"坏了"。列表类页面尤其明显：等待期间那一片
+     * 空白看着就像什么都没有，数据到了又凭空冒出一大片，观感像跳变。
+     *
+     * 现在等待时先摆出几块灰色条，占住最终内容大致的位置和行数，
+     * 数据到了再换成真卡片。
+     */
+    fun skeleton(ctx: Context, rows: Int, titleDp: Int = 13, lineDp: Int = 9): View {
+        val card = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            background = cardBg(ctx)
+            setPadding(dp(ctx, 16), dp(ctx, 16), dp(ctx, 16), dp(ctx, 16))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(ctx, 8) }
+        }
+        fun bar(hDp: Int, wPct: Int): View = View(ctx).apply {
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#1E000000"))
+                cornerRadius = dp(ctx, 4).toFloat()
+            }
+            val lp = LinearLayout.LayoutParams(0, dp(ctx, hDp))
+            lp.weight = wPct.toFloat()
+            layoutParams = lp
+        }
+        // 第一行用权重做"长短不一"的效果：标题占 60%，右侧留一块短的
+        card.addView(LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(bar(titleDp, 60))
+            addView(View(ctx).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(ctx, 8), 1)
+            })
+            addView(bar(titleDp, 25))
+        })
+        for (r in 0 until rows) {
+            card.addView(LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(ctx, 8), 0, 0)
+                addView(bar(lineDp, if (r % 2 == 0) 90 else 70))
+            })
+        }
+        return card
+    }
+
     /** 一行说明文字（带内边距，用于页面顶部提示） */
     fun hint(ctx: Context, text: String): TextView =
         TextView(ctx).apply {

@@ -364,6 +364,14 @@ class ChunkMapActivity : AppCompatActivity() {
                         if (dims.isEmpty()) {
                             tvStatus.text = "这个世界里没找到任何 region 目录"
                         } else {
+                            // 扫完先报个数：用户能立刻判断"扫全了没有"，
+                            // 否则只能等图慢慢画出来才知道有几个维度。
+                            val total = found.sumOf {
+                                it.regionDir.listFiles()?.count { f ->
+                                    f.name.endsWith(".mca")
+                                } ?: 0
+                            }
+                            tvStatus.text = "找到 ${found.size} 个维度，共 $total 个区域文件"
                             val pick = dims.firstOrNull { it.key == dimKey } ?: dims.first()
                             useDim(pick)
                         }

@@ -64,19 +64,38 @@ class WorldsFragment : Fragment() {
         box = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
         root.addView(box)
 
+        //
+        // 等待期间先把骨架摆出来。
+        // 之前这半秒到几秒里整页只有一行小字，下面是彻底空白的，
+        // 看着跟"扫完了但没有存档"一模一样 —— 特别是第一次进来的用户，
+        // 会以为功能坏了。现在占位块占住最终卡片的位置，数据到了再换。
+        //
+        showSkeleton(ctx)
+
         load()
         return scroll
+    }
+
+    private fun showSkeleton(ctx: android.content.Context) {
+        box.removeAllViews()
+        // 摆三块：够撑起一屏，又不至于多到让人以为已经扫出这么多
+        repeat(3) { box.addView(UiCards.skeleton(ctx, 3)) }
     }
 
     private fun load() {
         val ctx = context ?: return
         tvState.text = "正在找存档…"
+        showSkeleton(ctx)
         exec.execute {
             val list = ArrayList<WorldInfo.World>()
-            for (d in findSavesDirs(ctx)) list.addAll(WorldInfo.listIn(d))
+            for (d in findSavesDirs(ctx)) {
+                safePost(handler) { tvState.text = "正在找存档…（已看 ${list.size} 个）" }
+                list.addAll(WorldInfo.listIn(d))
+            }
             // SAF 授权的目录（content://）走另一条路
             val gameUri = Prefs.get(ctx).getString(K.GAME_DIR, "") ?: ""
             if (gameUri.startsWith("content://")) {
+                safePost(handler) { tvState.text = "正在读取授权目录里的存档…" }
                 list.addAll(loadFromSaf(ctx, gameUri))
             }
             // 按最后游玩时间排：正在玩的排最前
