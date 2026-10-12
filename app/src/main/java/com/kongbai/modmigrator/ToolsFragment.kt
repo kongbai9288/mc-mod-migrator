@@ -49,10 +49,13 @@ class ToolsFragment : Fragment() {
             UiCards.tile(ctx, R.drawable.ic_info, "崩溃日志") { showCrashLog() }
         )))
 
+        // ── 跨加载器已挪到迁移页 ──────────────────────────────
+        // 它要用到迁移页已经填好的目标 MC 版本和目标加载器。
+        // 放在这里就得让用户再填一遍，两处填的不一致时
+        // 会出现"换了加载器但版本对不上"。入口见迁移页「迁移相关工具」。
         root.addView(UiCards.sectionTitle(ctx, "迁移 · 模组处理"))
         root.addView(UiCards.grid(ctx, 3, listOf(
             UiCards.tile(ctx, R.drawable.ic_warning, "模组开关") { modToggle() },
-            UiCards.tile(ctx, R.drawable.ic_swap_horiz, "跨加载器") { crossLoader() },
             UiCards.tile(ctx, R.drawable.ic_bolt, "代码级迁移") { codeMigrate() }
         )))
 
@@ -466,144 +469,6 @@ class ToolsFragment : Fragment() {
         // 原生生成器，列表从 schema 推导。
         // 旧的网页版入口撤到开发者实验室里当备用，避免同一个功能两个入口。
         ctx.startActivity(android.content.Intent(ctx, DatapackActivity::class.java))
-    }
-
-    // ---------------- 跨加载器迁移 ----------------
-
-    /**
-     * 跨加载器迁移。
-     * 关键约束：只在**同一个 MC 版本**内换加载器；
-     * 跨 MC 版本一律拒绝（版本间 API 不兼容，搬过去必崩）。
-     */
-    private fun crossLoader() {
-        val ctx = context ?: return
-        val pairs = listOf(
-            "forge" to "fabric", "fabric" to "forge",
-            "forge" to "neoforge", "fabric" to "quilt"
-        )
-        val labels = pairs.map { "${it.first} → ${it.second}" }.toTypedArray()
-
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("跨加载器迁移")
-            .setMessage(
-                "把选定模组换成另一个加载器的版本。\n\n" +
-                    "只在同一个 MC 版本内替换；跨 MC 版本的情况不做，" +
-                    "那种需求请用「检查更新」找新版。"
-            )
-            .setItems(labels) { _, w ->
-                val (from, to) = pairs[w]
-                askMcThenPlan(from, to)
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
-
-    private fun askMcThenPlan(from: String, to: String) {
-        val ctx = context ?: return
-        val et = android.widget.EditText(ctx).apply {
-            setText(Prefs.get(ctx).getString(K.MC_VERSION, "") ?: "")
-            hint = "例如 1.20.1（必须与源模组同版本）"
-            setSingleLine(true)
-        }
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("目标 MC 版本")
-            .setView(et)
-            .setPositiveButton("开始分析") { _, _ ->
-                val mc = et.text.toString().trim()
-                if (mc.isBlank()) {
-                    toast("请填写 MC 版本")
-                    return@setPositiveButton
-                }
-                Prefs.get(ctx).edit().putString(K.MC_VERSION, mc).apply()
-                runCrossLoader(from, to, mc)
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
-
-    private fun runCrossLoader(from: String, to: String, mc: String) {
-        val ctx = context ?: return
-        toast("正在分析…")
-        bg {
-            val dir = DirResolve.modsDir(ctx)
-            if (dir == null) {
-                toast("没有可用的 mods 目录")
-                return@bg
-            }
-            // 排除已禁用的（x.jar.disabled）：禁用的没被装载，
-            // 给它做跨加载器替换没有意义，还会多下载一堆装不上的文件
-            val names = dir.listFiles()
-                .filter { (it.name ?: "").endsWith(".jar", true) && !ModToggle.isDisabled(it) }
-                .map { it.name ?: "" }
-
-            if (names.isEmpty()) {
-                toast("mods 目录是空的（或全部被禁用）")
-                return@bg
-            }
-
-            val plans = CrossLoader.plan(ctx, names, from, to, mc)
-            handler.post {
-                if (!isAdded) return@post
-                MaterialAlertDialogBuilder(ctx)
-                    .setTitle("$from → $to（MC $mc）")
-                    .setMessage(CrossLoader.report(plans))
-                    .setPositiveButton("下载可替换的") { _, _ ->
-                        doCrossDownload(plans)
-                    }
-                    .setNegativeButton(R.string.cancel, null)
-                    .show()
-            }
-        }
-    }
-
-    /** 按方案下载替换用的模组；原文件进回收站（可还原） */
-    private fun doCrossDownload(plans: List<CrossLoader.Plan>) {
-        val ctx = context ?: return
-        val todo = plans.filter { it.url.isNotBlank() }
-        if (todo.isEmpty()) {
-            toast("没有可替换的项")
-            return
-        }
-        toast("开始下载 ${todo.size} 个…")
-        bg {
-            val dir = DirResolve.modsDir(ctx)
-            if (dir == null) {
-                toast("目标目录不可用")
-                return@bg
-            }
-            var ok = 0
-            val failed = ArrayList<String>()
-            // 变量名不能用 to —— 与标准库的中缀函数 to 同名，
-            // 在字符串模板里 $to 会被解析成函数调用而报编译错。
-            val targetLoader = plans.firstOrNull()?.toLoader ?: ""
-            for (p in todo) {
-                val name = p.url.substringAfterLast('/').ifBlank { "${p.modName}.jar" }
-                val f = try {
-                    Downloader.download(ctx, p.url, dir, name)
-                } catch (t: Throwable) {
-                    null
-                }
-                if (f != null) ok++
-                else failed.add(p.modName)
-            }
-            handler.post {
-                if (!isAdded) return@post
-                MaterialAlertDialogBuilder(ctx)
-                    .setTitle("替换完成")
-                    .setMessage(
-                        buildString {
-                            append("已下载 $ok / ${todo.size} 个 $targetLoader 版本。\n\n")
-                            append("原来的文件还留在 mods 目录里，")
-                            append("请到「模组管理」里删掉旧的那份（会进回收站，可还原）。")
-                            if (failed.isNotEmpty()) {
-                                append("\n\n失败的：").append(failed.joinToString("、"))
-                            }
-                        }
-                    )
-                    .setPositiveButton(R.string.ok, null)
-                    .show()
-            }
-        }
     }
 
     // ---------------- 依赖体检 ----------------
