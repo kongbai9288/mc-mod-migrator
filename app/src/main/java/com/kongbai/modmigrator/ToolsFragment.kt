@@ -644,6 +644,34 @@ class ToolsFragment : Fragment() {
             toast("请先在迁移页设置「迁移前」的目录")
             return
         }
+        val kinds = Mrpack.Kind.values()
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("导出成什么用途")
+            .setItems(kinds.map { "${it.label}（文件名后缀 _${it.suffix}）" }.toTypedArray()) { _, w ->
+                askEmbed(srcUri, kinds[w])
+            }
+            .show()
+    }
+
+    private fun askEmbed(srcUri: String, kind: Mrpack.Kind) {
+        val ctx = context ?: return
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("模组本体怎么带")
+            .setMessage(
+                "按 Modrinth 规范导出（推荐）：\n" +
+                    "清单里只写下载地址与哈希，包只有几十 KB，" +
+                    "装的时候由启动器下载并校验。\n" +
+                    "Modrinth 没收录的模组会自动随包带走，不会丢。\n\n" +
+                    "全部随包带走：\n" +
+                    "包会很大，但没网也能装。"
+            )
+            .setPositiveButton("按规范导出") { _, _ -> doExport(srcUri, kind, false) }
+            .setNegativeButton("全部随包") { _, _ -> doExport(srcUri, kind, true) }
+            .show()
+    }
+
+    private fun doExport(srcUri: String, kind: Mrpack.Kind, embedAll: Boolean) {
+        val ctx = context ?: return
         toast("正在打包…")
         bg {
             val src = Fs.tree(ctx, srcUri)
@@ -651,26 +679,26 @@ class ToolsFragment : Fragment() {
                 toast("源目录不可访问")
                 return@bg
             }
-            val modsDir = Fs.find(src, McDirs.MODS)
-            val configDir = Fs.find(src, McDirs.CONFIG)
             val mc = Prefs.get(ctx).getString(K.MC_VERSION, "") ?: ""
             val loader = Prefs.get(ctx).getString(K.LOADER, "") ?: ""
-            val name = (src.name ?: "整合包")
-
-            val out = java.io.File(ctx.cacheDir, "export/${name}.mrpack")
+            val name = src.name ?: "整合包"
+            // 文件名带用途后缀：导几个包之后还能分清哪个是模组包、哪个是地图包
+            val out = java.io.File(ctx.cacheDir, "export/${Mrpack.fileName(name, kind)}")
             out.parentFile?.mkdirs()
-
-            val f = MrpackExport.export(
+            val r = MrpackExport.export(
                 ctx,
                 MrpackExport.Options(
                     name = name,
                     mcVersion = mc,
-                    loader = loader
-                ),
-                modsDir, configDir, out
+                    loader = loader,
+                    kind = kind,
+                    embedAll = embedAll
+                ) { msg -> LogCenter.i("整合包", msg) },
+                src, out
             )
             handler.post {
                 if (!isAdded) return@post
+                val f = r.file
                 if (f == null || !f.exists()) {
                     toast("导出失败")
                     return@post
@@ -678,11 +706,12 @@ class ToolsFragment : Fragment() {
                 MaterialAlertDialogBuilder(ctx)
                     .setTitle("已导出")
                     .setMessage(
-                        "$name.mrpack\n${f.length() / 1024} KB\n\n" +
-                            "包含 mods 与 config，离线可用（模组本体已打包进 overrides）。"
+                        "${f.name}\n${f.length() / 1024} KB\n\n" +
+                            "远程下载 ${r.indexed} 个，随包带走 ${r.embedded} 个。\n" +
+                            "「远程下载」的由启动器按清单拉取并校验哈希。"
                     )
                     .setPositiveButton("分享") { _, _ ->
-                        QuickTransfer.shareOne(ctx, f, "$name.mrpack")
+                        QuickTransfer.shareOne(ctx, f, f.name)
                     }
                     .setNegativeButton(R.string.ok, null)
                     .show()
