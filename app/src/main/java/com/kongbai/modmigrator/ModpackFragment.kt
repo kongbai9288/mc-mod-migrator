@@ -31,6 +31,18 @@ class ModpackFragment : Fragment() {
     private lateinit var tvState: TextView
     private val results = mutableListOf<UpdateRow>()
 
+    /**
+     * 选一个 .mrpack 导入。
+     *
+     * 导入是「用户主动」这个前提的入口：只有走这里进来的包才会被登记，
+     * 也只有登记过的包才会被更新检查碰。
+     */
+    private val openPack = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) doImport(uri)
+    }
+
     data class UpdateRow(
         var file: String,
         var current: String,
@@ -58,6 +70,13 @@ class ModpackFragment : Fragment() {
             setTextColor(resources.getColor(R.color.textSecondary, null))
         }
         root.addView(tvState)
+        root.addView(mkButton("导入 .mrpack 整合包") { pickPack() })
+        root.addView(mkButton("已导入的整合包（更新 / 多实例安装）") { showImported() })
+        root.addView(TextView(ctx).apply {
+            text = "下面这一段是按目录检查模组更新，不属于整合包更新，也不会登记"
+            textSize = 12f
+            setTextColor(resources.getColor(R.color.textSecondary, null))
+        })
         root.addView(mkButton("检查更新") { checkUpdates() })
         root.addView(mkButton("下载全部更新") { downloadAll() })
         root.addView(box)
@@ -332,6 +351,191 @@ class ModpackFragment : Fragment() {
             }
         }.start()
     }
+    // ------------------------------------------------------------------
+    // 整合包：导入 → 登记 → 更新检查 / 多实例统一安装
+    // ------------------------------------------------------------------
+
+    private fun pickPack() {
+        runCatching {
+            openPack.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
+        }.onFailure {
+            toast("打不开文件选择器：${it.message}")
+        }
+    }
+
+    private fun doImport(uri: android.net.Uri) {
+        val ctx = context ?: return
+        // 之后安装还要从这个 uri 里读 overrides，权限必须留下来，
+        // 只拿到 uri 不申请持久权限的话，重开应用就读不了了。
+        runCatching {
+            ctx.contentResolver.takePersistableUriPermission(
+                uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        }
+        setState("正在读取清单…")
+        bg {
+            val msgs = ArrayList<String>()
+            val pack = MrpackInstall.importFrom(ctx, uri) { msgs.add(it) }
+            handler.post {
+                if (!isAdded) return@post
+                if (pack == null) {
+                    setState(msgs.joinToString("\n").ifBlank { "导入失败：不是有效的 .mrpack" })
+                    return@post
+                }
+                setState("已导入：${pack.label()}\n共 ${pack.fileCount} 个待下载文件")
+                showPackActions(pack)
+            }
+        }
+    }
+
+    private fun showImported() {
+        val ctx = context ?: return
+        val packs = MrpackInstall.list(ctx)
+        if (packs.isEmpty()) {
+            toast("还没有导入过整合包。点上面的「导入 .mrpack 整合包」")
+            return
+        }
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("已导入的整合包")
+            .setItems(packs.map { "${it.label()}\n${it.fileCount} 个文件" }.toTypedArray()) { _, w ->
+                showPackActions(packs[w])
+            }
+            .show()
+    }
+
+    private fun showPackActions(pack: MrpackInstall.Pack) {
+        val ctx = context ?: return
+        val acts = arrayOf("检查更新", "安装到多个实例 / 启动器", "移除登记")
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle(pack.name)
+            .setItems(acts) { _, w ->
+                when (w) {
+                    0 -> checkPackUpdate(pack)
+                    1 -> installPack(pack)
+                    2 -> {
+                        MrpackInstall.remove(ctx, pack.id)
+                        setState("已移除登记：${pack.name}（之后不再检查它的更新）")
+                    }
+                }
+            }
+            .show()
+    }
+
+    private fun checkPackUpdate(pack: MrpackInstall.Pack) {
+        val ctx = context ?: return
+        if (Prefs.get(ctx).getBoolean(K.OFFLINE, false)) {
+            setState("离线模式：无法联网检查更新")
+            return
+        }
+        setState("正在检查「${pack.name}」的更新…")
+        bg {
+            val msgs = ArrayList<String>()
+            val items = MrpackUpdate.check(ctx, pack) { msgs.add(it) }
+            handler.post {
+                if (!isAdded) return@post
+                if (items == null) {
+                    setState(msgs.joinToString("\n").ifBlank { "检查失败" })
+                    return@post
+                }
+                if (items.isEmpty()) {
+                    setState("「${pack.name}」都已是最新")
+                    return@post
+                }
+                setState("${items.size} 个文件可更新")
+                MaterialAlertDialogBuilder(ctx)
+                    .setTitle("可更新 ${items.size} 个")
+                    .setMessage(items.take(12).joinToString("\n") {
+                        "${it.currentName}\n  → ${it.latestName}"
+                    })
+                    .setPositiveButton("更新到全部实例") { _, _ ->
+                        pickTargets { targets ->
+                            bg {
+                                val log = ArrayList<String>()
+                                val n = MrpackUpdate.apply(ctx, items, targets) { log.add(it) }
+                                handler.post {
+                                    if (!isAdded) return@post
+                                    setState("更新完成 $n 处\n" + log.takeLast(6).joinToString("\n"))
+                                }
+                            }
+                        }
+                    }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
+            }
+        }
+    }
+
+    private fun installPack(pack: MrpackInstall.Pack) {
+        val ctx = context ?: return
+        pickTargets { targets ->
+            setState("正在安装到 ${targets.size} 个目标…")
+            bg {
+                val msgs = ArrayList<String>()
+                val ok = MrpackInstall.install(
+                    ctx, pack, targets, MrpackInstall.Side.CLIENT
+                ) { msgs.add(it) }
+                handler.post {
+                    if (!isAdded) return@post
+                    setState("安装完成 $ok/${targets.size}\n" + msgs.takeLast(8).joinToString("\n"))
+                }
+            }
+        }
+    }
+
+    /**
+     * 让用户挑安装目标。
+     *
+     * 候选来自**所有已授权的游戏目录**以及它们下面扫出来的实例 ——
+     * 手机上装了 FCL 又装了 Zalith 时，两边都能出现在列表里，
+     * 一个包可以同时装进多个启动器。
+     */
+    private fun pickTargets(onOk: (List<DocumentFile>) -> Unit) {
+        val ctx = context ?: return
+        setState("正在扫描可安装的目标…")
+        bg {
+            val cands = ArrayList<Pair<String, DocumentFile>>()
+            val seen = HashSet<String>()
+            for (e in GameDirs.list(ctx)) {
+                val tree = runCatching {
+                    DocumentFile.fromTreeUri(ctx, android.net.Uri.parse(e.uri))
+                }.getOrNull()
+                if (tree != null && seen.add(tree.uri.toString())) {
+                    cands.add(Pair("游戏目录 · ${e.label()}", tree))
+                }
+                val insts = runCatching {
+                    InstanceScanner.scanFrom(ctx, e.uri) { }
+                }.getOrDefault(emptyList())
+                for (i in insts) {
+                    val d = runCatching {
+                        DocumentFile.fromTreeUri(ctx, android.net.Uri.parse(i.uri))
+                    }.getOrNull()
+                    if (d != null && seen.add(d.uri.toString())) {
+                        val from = i.source.ifBlank { e.label() }
+                        cands.add(Pair("实例 · ${i.name}（来自 $from）", d))
+                    }
+                }
+            }
+            handler.post {
+                if (!isAdded) return@post
+                if (cands.isEmpty()) {
+                    toast("没有可安装的目标。先在设置 → 存储里添加启动器目录")
+                    return@post
+                }
+                val labels = cands.map { it.first }.toTypedArray()
+                val checked = BooleanArray(cands.size)
+                MaterialAlertDialogBuilder(ctx)
+                    .setTitle("装到哪里（可多选）")
+                    .setMultiChoiceItems(labels, checked) { _, w, b -> checked[w] = b }
+                    .setPositiveButton("安装") { _, _ ->
+                        val picked = cands.filterIndexed { i, _ -> checked[i] }.map { it.second }
+                        if (picked.isEmpty()) toast("没有选中任何目标") else onOk(picked)
+                    }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
+            }
+        }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         // 清理 Handler：页面销毁后若还有未执行的 post，
