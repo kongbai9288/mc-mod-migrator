@@ -366,7 +366,41 @@ class MigrationFragment : Fragment() {
         etVersion.setText(p.getString(K.DEF_VERSION, "") ?: "")
         selectLoader(p.getString(K.DEF_LOADER, "") ?: "auto")
         refreshPaths()
+        keepVersionAndLoader()
         return v
+    }
+
+    /**
+     * 手动改的版本 / 加载器要立刻存下来。
+     *
+     * ⚠️ 之前只有点「扫描」才写 DEF_VERSION / DEF_LOADER，
+     * 于是：改完下拉 → 切到别的页 → 再回来，下拉又变回「自动」，
+     * 看着像改动没生效。而扫描时写的那份反而是"改之前的旧值"，
+     * 出现"我明明选了 Fabric，扫完又成 Forge"的错位。
+     */
+    private fun keepVersionAndLoader() {
+        val ctx = context ?: return
+        val p = Prefs.get(ctx)
+        etVersion.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                p.edit().putString(K.DEF_VERSION, s?.toString()?.trim() ?: "").apply()
+            }
+        })
+        spLoader.onItemSelectedListener =
+            object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(
+                    parent: android.widget.AdapterView<*>?,
+                    view: View?,
+                    position: Int,
+                    id: Long
+                ) {
+                    p.edit().putString(K.DEF_LOADER, LoaderSpinner.value(spLoader)).apply()
+                }
+
+                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+            }
     }
 
     /** 点迁移列表里的某一行 → 打开该模组的叙述页 */
@@ -1290,6 +1324,29 @@ class MigrationFragment : Fragment() {
      */
     private fun openMigrationTools() {
         val ctx = context ?: return
+        val items = listOf(
+            "模组体检" to { runDoctor() },
+            "配置对比" to { runDiff() },
+            "跨加载器转换" to { crossLoader() },
+            "代码级迁移" to { codeMigrate() },
+            "打开完整工具箱" to { openAllTools() }
+        )
+        try {
+            MaterialAlertDialogBuilder(ctx)
+                .setTitle("迁移相关工具")
+                .setItems(items.map { it.first }.toTypedArray()) { _, w ->
+                    items[w].second.invoke()
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        } catch (t: Throwable) {
+            Err.fail(t, "打开迁移工具")
+            openAllTools()
+        }
+    }
+
+    private fun openAllTools() {
+        val ctx = context ?: return
         try {
             parentFragmentManager.beginTransaction()
                 .replace(R.id.fragment_container, ToolsFragment())
@@ -1299,6 +1356,164 @@ class MigrationFragment : Fragment() {
             Err.fail(t, "打开工具箱")
             Tips.short(ctx, "打不开工具箱，请从「更多」进入")
         }
+    }
+
+    /**
+     * 跨加载器转换。
+     *
+     * 放在迁移页而不是工具箱：这边已经知道目标 MC 版本和目标加载器，
+     * 不用再让用户重填一遍。两个页面各问一次时，
+     * 填的版本很容易不一致，结果是"换了加载器但版本对不上"。
+     */
+    private fun crossLoader() {
+        val ctx = context ?: return
+        val mc = etVersion.text.toString().trim()
+        if (mc.isBlank()) {
+            toast("请先填写目标 MC 版本")
+            return
+        }
+        val targetLoader = LoaderSpinner.value(spLoader)
+        val pairs = listOf(
+            "forge" to "fabric", "fabric" to "forge",
+            "forge" to "neoforge", "fabric" to "quilt"
+        )
+        // 通往当前目标加载器的那一条排前面；没选中具体加载器时保持原顺序
+        val ordered = if (targetLoader == "auto") pairs
+        else pairs.sortedByDescending { it.second == targetLoader }
+        val labels = ordered.map {
+            "${Loaders.label(it.first)} → ${Loaders.label(it.second)}"
+        }.toTypedArray()
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("跨加载器转换（MC $mc）")
+            .setMessage(
+                "把 mods 目录里的模组换成另一个加载器的版本。\n\n" +
+                    "只在同一个 MC 版本内替换；跨 MC 版本不做，" +
+                    "那种需求用「检查更新」找新版。"
+            )
+            .setItems(labels) { _, w ->
+                val (from, to) = ordered[w]
+                runCrossLoader(from, to, mc)
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun runCrossLoader(from: String, to: String, mc: String) {
+        val ctx = context ?: return
+        toast("正在分析…")
+        bg {
+            val dir = DirResolve.modsDir(ctx)
+            if (dir == null) {
+                toast("没有可用的 mods 目录")
+                return@bg
+            }
+            // 排除已禁用的（x.jar.disabled）：禁用的没被装载，
+            // 给它做跨加载器替换没有意义，还会多下载一堆装不上的文件
+            val names = dir.listFiles()
+                .filter { (it.name ?: "").endsWith(".jar", true) && !ModToggle.isDisabled(it) }
+                .map { it.name ?: "" }
+            if (names.isEmpty()) {
+                toast("mods 目录是空的（或全部被禁用）")
+                return@bg
+            }
+            val plans = CrossLoader.plan(ctx, names, from, to, mc)
+            handler.post {
+                if (!isAdded) return@post
+                MaterialAlertDialogBuilder(ctx)
+                    .setTitle("${Loaders.label(from)} → ${Loaders.label(to)}（MC $mc）")
+                    .setMessage(CrossLoader.report(plans))
+                    .setPositiveButton("下载可替换的") { _, _ -> doCrossDownload(plans) }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
+            }
+        }
+    }
+
+    /** 按方案下载替换用的模组；原文件留在 mods 目录，由用户自行清理 */
+    private fun doCrossDownload(plans: List<CrossLoader.Plan>) {
+        val ctx = context ?: return
+        val todo = plans.filter { it.url.isNotBlank() }
+        if (todo.isEmpty()) {
+            toast("没有可替换的项")
+            return
+        }
+        toast("开始下载 ${todo.size} 个…")
+        bg {
+            val dir = DirResolve.modsDir(ctx)
+            if (dir == null) {
+                toast("目标目录不可用")
+                return@bg
+            }
+            var ok = 0
+            val failed = ArrayList<String>()
+            // 变量名不能用 to —— 与标准库的中缀函数 to 同名，
+            // 在字符串模板里 $to 会被解析成函数调用而报编译错。
+            val targetLoader = plans.firstOrNull()?.toLoader ?: ""
+            for (p in todo) {
+                val name = p.url.substringAfterLast('/').ifBlank { "${p.modName}.jar" }
+                val f = try {
+                    Downloader.download(ctx, p.url, dir, name)
+                } catch (t: Throwable) {
+                    null
+                }
+                if (f != null) ok++
+                else failed.add(p.modName)
+            }
+            handler.post {
+                if (!isAdded) return@post
+                MaterialAlertDialogBuilder(ctx)
+                    .setTitle("替换完成")
+                    .setMessage(
+                        buildString {
+                            append("已下载 $ok / ${todo.size} 个 ${Loaders.label(targetLoader)} 版本。\n\n")
+                            append("原来的文件还留在 mods 目录里，")
+                            append("请到「模组管理」里删掉旧的那份（会进回收站，可还原）。")
+                            if (failed.isNotEmpty()) {
+                                append("\n\n失败的：").append(failed.joinToString("、"))
+                            }
+                        }
+                    )
+                    .setPositiveButton(R.string.ok, null)
+                    .show()
+            }
+        }
+    }
+
+    /** 代码级迁移：按官方改名表改源码里的包名/类名 */
+    private fun codeMigrate() {
+        val ctx = context ?: return
+        val pairs = CodeMigrator.supportedPairs()
+        val labels = pairs.map { "${it.first} → ${it.second}" }.toTypedArray()
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("代码级迁移")
+            .setItems(labels) { _, w ->
+                val (from, to) = pairs[w]
+                val root = WorkDir.root(ctx)
+                val dir = java.io.File(ctx.getExternalFilesDir(null), "code")
+                val target = if (root != null && root.uri.scheme == "file") {
+                    java.io.File(root.uri.path ?: "")
+                } else dir
+                toast("正在扫描…")
+                bg {
+                    val hits = CodeMigrator.scan(target, from, to)
+                    handler.post {
+                        if (!isAdded) return@post
+                        MaterialAlertDialogBuilder(ctx)
+                            .setTitle("$from → $to")
+                            .setMessage(CodeMigrator.report(hits))
+                            .setPositiveButton("全部应用") { _, _ ->
+                                bg {
+                                    val (ok, bad) = CodeMigrator.apply(target, hits)
+                                    toast("已改 $ok 个文件${if (bad > 0) "，$bad 个失败" else ""}")
+                                }
+                            }
+                            .setNegativeButton(R.string.cancel, null)
+                            .show()
+                    }
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     /** 暂停 / 继续。只改标志位，正在进行的那一个下载会写完再停。 */
