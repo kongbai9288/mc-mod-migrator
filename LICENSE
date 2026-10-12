@@ -19,3 +19,22 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+附：使用限制（Additional terms）
+
+在上面 MIT 许可之外，这个项目对「整合包更新检查」这一功能附加如下约定。
+它们是关于本应用**运行时行为**的约定，用来约束分发版本的行为，
+不是对 MIT 已授予权利的额外限制：
+
+1. 整合包更新检查只能用于**用户主动导入并登记**的 .mrpack 整合包。
+   不得对应用自行扫描到的目录、或任何未经用户导入登记的文件集合
+   执行该项检查。
+2. 用户移除某条登记后，必须立即删除本机保存的对应清单，
+   并停止对该整合包的任何更新查询，不得在后台继续。
+3. 检查更新时向 Modrinth 或其镜像发送的，只能是清单中记录的文件哈希
+   （SHA-1）与版本过滤条件，不得附加文件名、路径、设备信息或身份信息。
+4. 导出整合包时，Modrinth 未收录的文件应随包放进 overrides/ 一并带走，
+   不得静默丢弃——丢一个依赖模组会造成装完即崩且无从排查。
+5. 若修改本应用并分发，请保留本节条款与 PRIVACY.md 中对应的说明。
