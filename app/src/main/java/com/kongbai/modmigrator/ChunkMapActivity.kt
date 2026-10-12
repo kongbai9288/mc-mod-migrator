@@ -275,76 +275,31 @@ class ChunkMapActivity : AppCompatActivity() {
         }
         root.addView(tvStatus)
 
-        // 选择
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        root.addView(row)
-        row.addView(MaterialButton(this).apply {
-            text = "按条件选"
-            setOnClickListener { askFilter() }
-        })
-        row.addView(MaterialButton(this).apply {
-            text = "全选可见"
-            setOnClickListener { selectVisible() }
-        })
-        row.addView(MaterialButton(this).apply {
-            text = "反选"
-            setOnClickListener { invertVisible() }
-        })
-        row.addView(MaterialButton(this).apply {
-            text = "清空"
-            setOnClickListener { clearSelection() }
-        })
-        row.addView(MaterialButton(this).apply {
-            text = "找结构"
-            setOnClickListener { askFindStructure() }
-        })
-
-        // 操作
-        val row2 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        root.addView(row2)
-        row2.addView(MaterialButton(this).apply {
-            text = "标记删除"
-            setOnClickListener { stageSelection() }
-        })
-        row2.addView(MaterialButton(this).apply {
-            text = "按范围删"
-            setOnClickListener { askRangeDelete() }
-        })
-        row2.addView(MaterialButton(this).apply {
-            text = "导出选中"
-            setOnClickListener { askExport() }
-        })
-        row2.addView(MaterialButton(this).apply {
-            text = "替换区块"
-            setOnClickListener { askReplace() }
-        })
-        row2.addView(MaterialButton(this).apply {
-            text = "导出图"
-            setOnClickListener { askExportPng() }
-        })
-
-        // 保存 / 撤销 / 复位
-        val row3 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        root.addView(row3)
+        //
+        // 下面这一片原本是三行、十四颗按钮平铺。
+        // 参考 MCA Selector（MIT）与 Blocktopograph 的做法重排：
+        //   · 地图要占主要空间，不能让按钮把画面挤成一条
+        //   · 高频操作（标记删除 / 保存）留在手边，其余收进「更多」
+        //   · 点地图是选，长按地图是菜单 —— 移动端用户习惯这样
+        //
+        // 主操作行：只留最常按的三颗，外加「更多」
         btnSave = MaterialButton(this).apply {
             text = "保存"
             setOnClickListener { askSave() }
         }
-        row3.addView(btnSave)
-        row3.addView(MaterialButton(this).apply {
-            text = "撤销标记"
-            setOnClickListener { clearStaged() }
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        root.addView(row)
+        row.addView(MaterialButton(this).apply {
+            text = "标记删除"
+            setOnClickListener { stageSelection() }
         })
-        row3.addView(MaterialButton(this).apply {
-            text = "回原点"
-            setOnClickListener { map.resetView(); map.invalidate() }
-        })
-        row3.addView(MaterialButton(this).apply {
-            text = "地图缓存"
-            setOnClickListener { askTileCache() }
+        row.addView(btnSave)
+        row.addView(MaterialButton(this).apply {
+            text = "更多"
+            setOnClickListener { showMoreMenu() }
         })
 
-        // 按钮行整齐化（等宽 + 统一间距）
+        // 剩下的两行按钮也统一等宽、等间距（顶部那行和主操作行）
         tidyRows(root)
 
         // 载入
@@ -1000,6 +955,107 @@ class ChunkMapActivity : AppCompatActivity() {
      * 这里额外处理**上一版误写进相册**的那批 —— 那批是历史遗留，
      * 不提示的话用户永远不知道相册里那几百张图是从哪来的。
      */
+    /**
+     * 「更多」里收纳的操作。
+     *
+     * 之前这些按钮和「标记删除」「保存」一起平铺在底部，
+     * 一共十四颗 —— 地图被挤到只剩一条，而且找一颗按钮要横着扫三行。
+     * 现在按用途分四组放进一个列表，手边只留最高频的两颗。
+     *
+     * 用居中列表而不是底部小弹窗：底部那类提示会被这一页自身的
+     * 操作区盖住，多点几下就看不见了。
+     */
+    private fun showMoreMenu() {
+        data class Op(val title: String, val run: () -> Unit)
+        val groups = listOf(
+            "选择" to listOf(
+                Op("按条件选") { askFilter() },
+                Op("全选可见") { selectVisible() },
+                Op("反选") { invertVisible() },
+                Op("清空选择") { clearSelection() },
+                Op("找结构") { askFindStructure() },
+            ),
+            "修改" to listOf(
+                Op("按范围删") { askRangeDelete() },
+                Op("替换区块") { askReplace() },
+                Op("撤销标记") { clearStaged() },
+            ),
+            "导出" to listOf(
+                Op("导出选中区块") { askExport() },
+                Op("导出地图图片") { askExportPng() },
+            ),
+            "视图" to listOf(
+                Op("跳到坐标") { askGoto() },
+                Op("高度区间") { askYRange() },
+                Op("回原点") { map.resetView(); map.invalidate() },
+                Op("地图缓存") { askTileCache() },
+            ),
+        )
+        val titles = ArrayList<String>()
+        val runs = ArrayList<() -> Unit>()
+        for ((name, ops) in groups) {
+            titles.add("── $name ──")
+            runs.add({})                      // 分组标题，点了没动作
+            for (o in ops) { titles.add(o.title); runs.add(o.run) }
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("更多操作")
+            .setItems(titles.toTypedArray()) { _, which ->
+                runs.getOrNull(which)?.invoke()
+            }
+            .setNegativeButton("关闭", null)
+            .show()
+    }
+
+    /**
+     * 长按地图弹出的菜单。
+     *
+     * 移动端看地图的习惯是「点一下看信息、长按出菜单」
+     * （Blocktopograph 就是这样），而之前这一页只有点按选中一种手势，
+     * 想对某一格做别的操作必须先去底部找对应按钮、再回来点。
+     */
+    private fun showMapMenu(bx: Int, bz: Int) {
+        val cx = Math.floorDiv(bx, BLOCKS_PER_CHUNK)
+        val cz = Math.floorDiv(bz, BLOCKS_PER_CHUNK)
+        val rx = Math.floorDiv(cx, CHUNKS_PER_REGION)
+        val rz = Math.floorDiv(cz, CHUNKS_PER_REGION)
+        val items = arrayOf(
+            "以这里为中心",
+            "选中/取消这个区块",
+            "复制方块坐标",
+            "复制区块坐标",
+            "跳到这里（填坐标）",
+        )
+        MaterialAlertDialogBuilder(this)
+            .setTitle("方块 $bx, $bz")
+            .setItems(items) { _, which ->
+                when (which) {
+                    0 -> { map.gotoBlock(bx, bz); map.invalidate(); updateStatus() }
+                    1 -> {
+                        if (!hasRegion(rx, rz)) {
+                            toast("这里没有区域文件（还没生成过）")
+                        } else {
+                            toggleAt(rx, rz, cx - rx * CHUNKS_PER_REGION, cz - rz * CHUNKS_PER_REGION)
+                            map.invalidate()
+                        }
+                        updateStatus()
+                    }
+                    2 -> copyText("$bx $bz", "方块坐标")
+                    3 -> copyText("$cx $cz", "区块坐标")
+                    4 -> { map.gotoBlock(bx, bz); map.invalidate(); askGoto() }
+                }
+            }
+            .setNegativeButton("关闭", null)
+            .show()
+    }
+
+    private fun copyText(t: String, what: String) {
+        val cm = getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                as android.content.ClipboardManager
+        cm.setPrimaryClip(android.content.ClipData.newPlainText(what, t))
+        toast("已复制$what：$t")
+    }
+
     private fun askTileCache() {
         Bg.run {
             val stats = McaTiles.cacheStats(this@ChunkMapActivity)
@@ -1775,6 +1831,14 @@ class ChunkMapActivity : AppCompatActivity() {
                 invalidate()
                 updateStatus()
                 return true
+            }
+
+            override fun onLongPress(e: MotionEvent) {
+                // 标尺是读数带，长按它不该弹出菜单
+                if (e.y < rulerH() || e.x < rulerW()) return
+                val b = screenToBlock(e.x, e.y)
+                lastTapBlock = b
+                showMapMenu(b.first, b.second)
             }
         })
 
