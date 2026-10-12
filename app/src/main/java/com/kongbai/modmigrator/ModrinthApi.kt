@@ -216,7 +216,13 @@ data class LookupResult(
     val version: String = "",
     val slug: String = "",
     val netError: Boolean = false,
-    val msg: String = ""
+    val msg: String = "",
+    // 下面三项供整合包导出使用：version_files 返回的 version 对象里带着 files[]，
+    // 取其中 primary 的那个就能拿到规范要求的下载地址与文件大小。
+    // 放在最后并带默认值，是为了不影响已有的位置参数调用。
+    val downloadUrl: String = "",
+    val fileName: String = "",
+    val fileSize: Long = 0L
 )
 
 fun lookupHash(sha1: String): LookupResult {
@@ -307,10 +313,23 @@ fun lookupHashSimple(sha1: String): Triple<String, String, String>? {
                 val pid = Json.s(v, "project_id")
                 if (pid.isBlank()) continue
                 matchedInChunk++
+                // files[] 里可能同时有主文件和附加文件（sources jar 之类），
+                // 只取 primary=true 那个；没有标记就取第一个。
+                var chosen: com.google.gson.JsonElement? = null
+                val farr = Json.a(v, "files")
+                if (farr != null) {
+                    for (f in farr) {
+                        if (chosen == null || Json.s(f, "primary") == "true") chosen = f
+                    }
+                }
+                val url = if (chosen != null) mirrorUrl(Json.s(chosen, "url")) else ""
                 out[h] = LookupResult(
                     found = true,
                     projectId = pid,
-                    version = Json.s(v, "version_number").ifBlank { Json.s(v, "name") }
+                    version = Json.s(v, "version_number").ifBlank { Json.s(v, "name") },
+                    downloadUrl = url,
+                    fileName = if (chosen != null) Json.s(chosen, "filename") else "",
+                    fileSize = if (chosen != null) Json.l(chosen, "size") else 0L
                 )
             }
             if (matchedInChunk > 0) anyMatched = true
