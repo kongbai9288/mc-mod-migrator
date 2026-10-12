@@ -70,7 +70,7 @@ class ModpackFragment : Fragment() {
             setTextColor(resources.getColor(R.color.textSecondary, null))
         }
         root.addView(tvState)
-        root.addView(mkButton("导入 .mrpack 整合包") { pickPack() })
+        root.addView(mkButton("导入整合包（.mrpack / .zip）") { pickPack() })
         root.addView(mkButton("已导入的整合包（更新 / 多实例安装）") { showImported() })
         root.addView(TextView(ctx).apply {
             text = "下面这一段是按目录检查模组更新，不属于整合包更新，也不会登记"
@@ -379,10 +379,10 @@ class ModpackFragment : Fragment() {
             handler.post {
                 if (!isAdded) return@post
                 if (pack == null) {
-                    setState(msgs.joinToString("\n").ifBlank { "导入失败：不是有效的 .mrpack" })
+                    setState(msgs.joinToString("\n").ifBlank { "导入失败：这个文件读不出清单，也不是能直接解压的 zip" })
                     return@post
                 }
-                setState("已导入：${pack.label()}\n共 ${pack.fileCount} 个待下载文件")
+                setState("已导入：${pack.label()}（${pack.kindLabel()}）\n共 ${pack.fileCount} 个文件")
                 showPackActions(pack)
             }
         }
@@ -392,12 +392,15 @@ class ModpackFragment : Fragment() {
         val ctx = context ?: return
         val packs = MrpackInstall.list(ctx)
         if (packs.isEmpty()) {
-            toast("还没有导入过整合包。点上面的「导入 .mrpack 整合包」")
+            toast("还没有导入过整合包。点上面的「导入整合包」")
             return
         }
         MaterialAlertDialogBuilder(ctx)
             .setTitle("已导入的整合包")
-            .setItems(packs.map { "${it.label()}\n${it.fileCount} 个文件" }.toTypedArray()) { _, w ->
+            .setItems(
+                packs.map { "${it.label()}（${it.kindLabel()}）\n${it.fileCount} 个文件" }
+                    .toTypedArray()
+            ) { _, w ->
                 showPackActions(packs[w])
             }
             .show()
