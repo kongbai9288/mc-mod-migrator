@@ -1,6 +1,8 @@
 package com.kongbai.modmigrator
 
 import com.google.gson.JsonElement
+import org.json.JSONArray
+import org.json.JSONObject
 
 object CurseForgeApi {
 
@@ -120,6 +122,34 @@ object CurseForgeApi {
     }
 
     /** 取某个文件的真实下载地址（后台线程调用） */
+    /**
+     * 批量取下载地址。一次请求换回整包的文件地址，
+     * 避免按每个文件各发一次请求把配额打满。
+     * 返回 fileId →（下载地址, 文件名）
+     */
+    fun fileUrls(fileIds: List<String>, key: String): Map<String, Pair<String, String>> {
+        val ids = fileIds.mapNotNull { it.toLongOrNull() }
+        if (key.isBlank() || ids.isEmpty()) return emptyMap()
+        val arr = JSONArray()
+        for (i in ids) arr.put(i)
+        val body = JSONObject().put("fileIds", arr).toString()
+        val headers = mapOf("x-api-key" to key, "Content-Type" to "application/json")
+        val root = runCatching {
+            Json.obj(Http.postJson("${base(key)}/mods/files", body, headers))
+        }.getOrNull() ?: return emptyMap()
+        val data = Json.a(root, "data") ?: return emptyMap()
+        val out = LinkedHashMap<String, Pair<String, String>>()
+        for (i in 0 until data.size()) {
+            val o = runCatching { data.get(i).asJsonObject }.getOrNull() ?: continue
+            val id = Json.s(o, "id")
+            val url = Json.s(o, "downloadUrl")
+            if (id.isBlank() || url.isBlank()) continue
+            val name = Json.s(o, "fileName").ifBlank { "$id.jar" }
+            out[id] = Pair(url, name)
+        }
+        return out
+    }
+
     fun fileUrl(modId: String, fileId: String, fileName: String, key: String): String {
         val b = base(key)
         val headers = if (key.isNotBlank()) mapOf("x-api-key" to key) else emptyMap()
