@@ -22,6 +22,7 @@ data class PanelFile(
     var latestVersion: String = "",
     var latestUrl: String = "",
     var latestName: String = "",
+    var latestSource: String = "",
     var status: String = "待检测"
 )
 
@@ -39,16 +40,6 @@ object ServerPanelApi {
         "Content-Type" to "application/json"
     )
 
-    /**
-     * 校验 key 形态，提前给出人话提示。
-     *
-     * 官方明确区分两类 key：
-     *   - **Client API key**：`ptlc_`（Pterodactyl）/ `plcn_`（Pelican），
-     *     用户在 `/account/api` 自己创建，客户端 API **只认这种**
-     *   - **Application API key**：`ptla_` / `peli_`，管理员用，
-     *     拿它访问 `/api/client/...` 会直接 403
-     * 用户常常填错，而 403 的返回体对用户等于天书，这里提前拦下来。
-     */
     fun keyHint(key: String): String? {
         val k = key.trim()
         if (k.isBlank()) return "还没填 API Key"
@@ -71,22 +62,11 @@ object ServerPanelApi {
             val attrNode = d.asJsonObject.get("attributes")
             val attrs = if (attrNode != null && attrNode.isJsonObject) attrNode.asJsonObject else null
 
-            // ── 关键修正：identifier 在 **attributes 里**，不在对象顶层 ──
-            // 之前写的是 Json.s(d, "identifier")（读对象顶层），
-            // 而 Pterodactyl 的返回是
-            // { object:"server", attributes:{ identifier:"abcd1234", uuid:"...", name:"...", node:"..." } }
-            // → 顶层没有 identifier，取到空串；uuid 若也没有，
-            //   最终 id = "" → 拼出 /api/client/servers//files/list
-            //   → 404，表现为"服务器列表出来了，但点进去什么都加载不了"。
             val identifier = Json.s(attrs, "identifier")
             val uuid = Json.s(attrs, "uuid")
             // URL 里用短 id 或 uuid 都可以，优先短 id
             val id = identifier.ifBlank { uuid }
 
-            // ⚠️ 两个都没有就必须跳过。
-            // 硬塞进列表的话，点进去会拼出 /api/client/servers//files/list
-            // → 404，界面表现为"列表能显示、点进去什么都加载不了"，
-            // 而且看不出是哪台服务器有问题。跳过并留下名字更好排查。
             if (id.isBlank()) continue
 
             val eggName = Json.s(attrs, "name")
@@ -172,44 +152,12 @@ object ServerPanelApi {
         var token: String = ""
     )
 
-    /**
-     * 关于「账号 + 密码登录」。
-     *
-     * ⚠️ 之前这里依次 POST `/api/auth/login`、`/api/client/login`、`/auth/login`，
-     * 然后从返回体里找 `token` —— **这条路走不通**：
-     *
-     * 1. Pterodactyl 客户端 API **只认 `ptlc_` 开头的 Client API Key**，
-     *    官方文档明确：Client API Key 由用户在 **`/account/api`** 页面手动创建，
-     *    **没有任何 API 能用账号密码换出一把 ptlc_ key**。
-     * 2. 面板的 `/auth/login` 是 **Web 登录路由**（Laravel/Sanctum 会话）：
-     *    要先 GET `/sanctum/csrf-cookie` 拿 XSRF-TOKEN，再带
-     *    `X-XSRF-TOKEN` / `Referer` / `X-Pterodactyl-Route: 1` 提交
-     *    `{"user":..., "password":...}`，返回的是 **会话 Cookie**，
-     *    不是 token —— 而 OkHttp 的 Cookie 又和面板的 API 鉴权不是一回事，
-     *    照样访问不了 `/api/client/...`。
-     *
-     * 所以这个功能以前只是"点了没反应然后报一句登录失败"。
-     * 现在如实说明，把用户引到真正能用的做法上，不再假装能登。
-     */
-    /**
-     * 账号密码不可用的说明。
-     * 抽成常量，好让 UI 在**发起连接之前**就能直接展示，不必等到抛异常。
-     */
     val LOGIN_UNSUPPORTED_MSG = "无法用账号密码登录。\n\n" +
         "Pterodactyl 的客户端接口只接受 **Client API Key**：\n" +
         "登录面板 → 右上角账号 → API 凭证（/account/api）→ 创建，\n" +
         "复制那把以 ptlc_ 开头的 Key，填回这里即可。\n\n" +
         "（注意：以 ptla_ 开头的是应用 API Key，客户端接口不接受。）"
 
-    /**
-     * 账号密码登录。**永远返回 null**——这条路走不通。
-     *
-     * ⚠️ 之前这里是 `throw RuntimeException(说明文案)`。
-     * 用异常来承载"功能不支持"这种**预期内的业务结论**是错的设计：
-     * 异常意味着"出了意外"，而这里每次都会发生；
-     * 一旦某个调用点忘了 try-catch，用户看到的就是崩溃。
-     * 现在改成返回 null（= 拿不到 token），由调用方决定怎么提示。
-     */
     fun login(base: String, user: String, pass: String): String? = null
 
     /**
@@ -233,17 +181,6 @@ object ServerPanelApi {
         "/"
     )
 
-    /**
-     * 自动探测：试候选目录，返回有内容的那些。
-     *
-     * ⚠️ 之前是**串行**试 11 个目录，哪怕每个只用短超时，
-     * 网络差时累计也要几十秒，界面一直转圈，看着像"找不到"。
-     * 改成并发，总耗时取决于最慢的那一个而不是全部之和。
-     *
-     * 超时**刻意保持 SHORT**：探测本来就是"试探"，
-     * 某个目录响应慢就该立刻放弃换下一个，
-     * 换成 NORMAL（读取 120 秒）反而会让探测卡死在第一个不通的目录上。
-     */
     fun probeDirs(base: String, key: String, uuid: String): List<String> {
         val pool = java.util.concurrent.Executors.newFixedThreadPool(
             (DIR_CANDIDATES.size).coerceAtMost(6)
@@ -282,12 +219,6 @@ object ServerPanelApi {
         for (d in data) {
             val attrs = d.asJsonObject.get("attributes")
             val name = Json.s(attrs, "name")
-            // ── 官方字段是 is_file，不是 is_directory ──
-            // Pterodactyl 文件对象 attributes 实际为：
-            //   name / mode / mode_bits / size / **is_file** / is_symlink / mimetype
-            // 没有 is_directory 这个字段。之前靠它判定，
-            // 恒为 false → 文件夹被当成文件，目录树点不进去。
-            // 现在以 is_file 为主，mimetype 兜底。
             val isDir = !Json.b(attrs, "is_file", true) ||
                 Json.s(attrs, "mimetype") == "inode/directory"
             out.add(Pair(name, isDir))

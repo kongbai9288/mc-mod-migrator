@@ -212,6 +212,8 @@ object K {
     const val ANNO_CLEARED = "anno_cleared"
     const val FIRST_MARKET_VISIT = "first_market_visit"
     const val GH_AVATAR = "gh_avatar"
+    const val NET_LIMIT = "net_limit"              // 每域名每分钟请求上限
+    const val SERVER_SRC = "server_src"            // 服务器更新查哪些平台
     // 远程文件（FTP / FTPS / SFTP）
     const val REMOTE_KIND = "remote_kind"       // 0=面板API 1=FTP 2=FTPS 3=SFTP
     const val REMOTE_HOST = "remote_host"

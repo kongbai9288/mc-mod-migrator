@@ -56,11 +56,6 @@ object Http {
             m.contains("connectionreset") || m.contains("reset") -> "连接被重置"
             m.contains("failed to connect") || m.contains("econnrefused") -> "连不上服务器"
             m.contains("network is unreachable") -> "网络不可用"
-            // 401 单列：CurseForge 官方博客明确说明，自 2025-07-16 起
-            // edge.forgecdn.net 的直连下载**强制要求 API Key**，
-            // 不带有效 Key 一律返回 401 Unauthorized。
-            // 之前 401 被笼统归到"请求被拒绝"，用户只知道下载失败，
-            // 不知道根因是没填 Key。这里直说，省得反复试。
             m.contains("http 401") -> "未授权（401）：API Key 无效或没填。CurseForge 官方 CDN 已强制要求 Key，请在设置里填写，或改用镜像"
             m.startsWith("http 4") -> "请求被拒绝（${t.message?.take(24)}）"
             m.startsWith("http 5") -> "服务器出错（${t.message?.take(24)}）"
@@ -72,21 +67,15 @@ object Http {
     fun enc(s: String): String = URLEncoder.encode(s, "UTF-8")
 
     fun call(url: String, headers: Map<String, String> = emptyMap(), timeout: Int = NORMAL): Response {
+        NetGate.acquire(url)
         val c = if (timeout == SHORT) shortClient else client
         val b = Request.Builder().url(url).header("User-Agent", UA)
         for ((k, v) in headers) b.header(k, v)
         return c.newCall(b.build()).execute()
     }
 
-    /**
-     * HEAD 请求：只取响应头，不下载正文。
-     *
-     * 探测文件长度、是否支持断点续传这类场景必须用 HEAD ——
-     * 之前全用 GET，服务器会把整个文件发过来再被丢弃，
-     * 等于**每下一个模组前先白下载一遍**，流量和时间都翻倍。
-     * 部分服务器不支持 HEAD（返回 405），调用方要准备回退。
-     */
     fun head(url: String, headers: Map<String, String> = emptyMap(), timeout: Int = NORMAL): Response {
+        NetGate.acquire(url)
         val c = if (timeout == SHORT) shortClient else client
         val b = Request.Builder().url(url).head().header("User-Agent", UA)
         for ((k, v) in headers) b.header(k, v)
@@ -96,21 +85,11 @@ object Http {
     fun get(url: String, headers: Map<String, String> = emptyMap(), timeout: Int = NORMAL): String {
         val r = call(url, headers, timeout)
         r.use {
-            // ⚠️ 先取真实字节数，再读 body。
-            // 之前用 `body.length.toLong()` 统计流量是错的：
-            // Kotlin String.length 返回的是 **UTF-16 代码单元数**，不是网络传输的字节数。
-            // 一个中文字符 UTF-8 占 3 字节但 length 只算 1，
-            // Emoji 更夸张（UTF-8 占 4 字节，UTF-16 算 2 个单元）。
-            // 后端返回的模组名、简介大量含中文，误差可达 60% 以上 ——
-            // 流量提醒形同虚设：实际跑了几百 MB，统计里才几十 MB。
             val bytes = it.body?.contentLength() ?: -1L
             val body = it.body?.string() ?: ""
             if (!it.isSuccessful) throw RuntimeException("HTTP ${it.code} ${body.take(160)}")
             // 流量统计：移动网络下累计，超阈值由调用方提示
             runCatching {
-                // contentLength() 在 chunked 等未知长度时返回 -1，
-                // 此时按实际解码后的字节数算（UTF-8），
-                // 再用 String.length 就会重蹈上面的覆辙。
                 val real = if (bytes > 0) bytes else body.toByteArray(Charsets.UTF_8).size.toLong()
                 Prefs.appCtx()?.let { c -> Traffic.record(c, real + 512) }
             }
@@ -119,6 +98,7 @@ object Http {
     }
 
     fun postJson(url: String, json: String, headers: Map<String, String> = emptyMap()): String {
+        NetGate.acquire(url)
         val b = Request.Builder().url(url).header("User-Agent", UA)
         for ((k, v) in headers) b.header(k, v)
         val body = json.toRequestBody("application/json; charset=utf-8".toMediaType())
@@ -132,6 +112,7 @@ object Http {
     }
 
     fun put(url: String, json: String, headers: Map<String, String>): String {
+        NetGate.acquire(url)
         val b = Request.Builder().url(url).header("User-Agent", UA)
         for ((k, v) in headers) b.header(k, v)
         val body = json.toRequestBody("application/json; charset=utf-8".toMediaType())
@@ -144,15 +125,6 @@ object Http {
         }
     }
 
-    /**
-     * 以 multipart/form-data 上传一个文件。
-     *
-     * 用于云盘备份：上传地址是用户自己在网盘上拿到的，
-     * 各家网盘接受的字段名各不相同（file / upload / upfile…），
-     * 这里按最常见的 `file` 提交；返回 false 时调用方提示用户重新取地址。
-     *
-     * @return 服务端返回 2xx 视为成功
-     */
     fun postFile(
         url: String, file: java.io.File, fileName: String,
         field: String = "file", headers: Map<String, String> = emptyMap()

@@ -11,8 +11,8 @@ android {
         applicationId "com.kongbai.modmigrator"
         minSdk 26
         targetSdk 34
-        versionCode 87
-        versionName "2.10.8"
+        versionCode 88
+        versionName "2.10.9"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 

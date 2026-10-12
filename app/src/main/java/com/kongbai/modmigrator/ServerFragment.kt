@@ -33,15 +33,15 @@ class ServerFragment : Fragment() {
     private lateinit var tvServer: TextView
     private lateinit var tvLog: TextView
     private lateinit var rv: RecyclerView
+    private lateinit var cbSrcModrinth: android.widget.CheckBox
+    private lateinit var cbSrcCurseforge: android.widget.CheckBox
+    private lateinit var cbSrcBackend: android.widget.CheckBox
 
     private val servers = mutableListOf<PanelServer>()
     private val files = mutableListOf<PanelFile>()
     private lateinit var adapter: UpdateAdapter
     private var chosen: PanelServer? = null
 
-    // ---- 远程文件（FTP / FTPS / SFTP）----
-    // 面板 API 必须有 ptlc_ Key，而很多服务器只给了 FTP/SSH 账号，
-    // 之前那种情况就完全没法用。这里让两种连接方式共存。
     private lateinit var spRemoteKind: Spinner
     private lateinit var boxRemote: View
     private lateinit var etRemoteHost: android.widget.EditText
@@ -74,6 +74,17 @@ class ServerFragment : Fragment() {
         tvServer = v.findViewById(R.id.tvServer)
         tvLog = v.findViewById(R.id.tvLog)
         rv = v.findViewById(R.id.rvUpdates)
+        cbSrcModrinth = v.findViewById(R.id.cbSrcModrinth)
+        cbSrcCurseforge = v.findViewById(R.id.cbSrcCurseforge)
+        cbSrcBackend = v.findViewById(R.id.cbSrcBackend)
+        val saved = ServerUpdate.sources(requireContext())
+        cbSrcModrinth.isChecked = saved.contains(ServerUpdate.MODRINTH)
+        cbSrcCurseforge.isChecked = saved.contains(ServerUpdate.CURSEFORGE)
+        cbSrcBackend.isChecked = saved.contains(ServerUpdate.BACKEND)
+        val onSrc = android.widget.CompoundButton.OnCheckedChangeListener { _, _ -> saveSources() }
+        cbSrcModrinth.setOnCheckedChangeListener(onSrc)
+        cbSrcCurseforge.setOnCheckedChangeListener(onSrc)
+        cbSrcBackend.setOnCheckedChangeListener(onSrc)
         spRemoteKind = v.findViewById(R.id.spRemoteKind)
         boxRemote = v.findViewById(R.id.boxRemote)
         etRemoteHost = v.findViewById(R.id.etRemoteHost)
@@ -201,13 +212,6 @@ class ServerFragment : Fragment() {
 
     // ---------------- 目录浏览器 ----------------
 
-    /**
-     * 逐级浏览服务器目录。
-     *
-     * 之前只能手填路径，面板结构各家不同，用户根本猜不出该填什么。
-     * 现在列当前目录的内容：目录可进入，jar 会实时标出来，
-     * 选好了直接"就用这个目录"去扫描。
-     */
     private fun browseDir(path: String) {
         val srv = chosen
         if (srv == null) {
@@ -297,17 +301,6 @@ class ServerFragment : Fragment() {
         }
     }
 
-    /**
-     * 按连接方式切换**整块**字段。
-     *
-     * ⚠️ 之前只把面板地址/Key 两个框设成 GONE，顶部标题
-     * 「面板连接（Pterodactyl Client API）」还留在那儿，
-     * 而下面出现的却是主机/用户名/密码 —— 标题说的是 A，
-     * 底下填的是 B，看的人根本不知道自己在用哪套。
-     *
-     * 现在两组字段各带自己的标题，整块互斥显示，
-     * 并且用 tvConnMode 一句话说清当前这套是什么、需要什么。
-     */
     private fun syncRemoteFields() {
         if (!::boxPanel.isInitialized || !::boxRemote.isInitialized) return
         val remote = isRemote()
@@ -506,8 +499,6 @@ class ServerFragment : Fragment() {
             toast("请填写 Client API Key")
             return
         }
-        // 提前校验 Key 形态：填成应用 Key（ptla_）会直接 403，
-        // 而面板返回的 403 信息对用户等于天书，这里先拦下来说明白
         val hint = ServerPanelApi.keyHint(c.key)
         if (hint != null) {
             log("Key 检查：$hint")
@@ -522,14 +513,6 @@ class ServerFragment : Fragment() {
         doConnect(c)
     }
 
-    /**
-     * 账号密码模式走不通时的引导。
-     *
-     * 之前依赖 `login()` 抛异常把这段话带出来 —— 那是**异常当业务提示用**，
-     * 任何一处漏了 try-catch 就是崩溃。现在 login() 返回 null，
-     * 提示统一由这里弹，并且在**发起连接之前**就拦下来，
-     * 不再让用户先等一轮网络请求才看到结论。
-     */
     private fun showLoginUnsupported() {
         val ctx = context ?: return
         runCatching {
@@ -542,12 +525,6 @@ class ServerFragment : Fragment() {
         }
     }
 
-    /**
-     * FTP / SFTP 连接：测通 → 自动找 mods/plugins 目录 → 列出 jar。
-     *
-     * 之所以要整条串起来：面板模式下用户要自己填目录，
-     * 而 FTP 根目录结构各家都不一样，让用户猜路径等于让他放弃。
-     */
     /** FTP/SFTP 下列出目录里的 jar */
     private fun scanRemote() {
         val dir = remoteDir ?: etDir.text.toString().trim().ifBlank { "/mods" }
@@ -657,10 +634,6 @@ class ServerFragment : Fragment() {
                     return@safePost
                 }
 
-                // ⚠️ 之前**无论如何都要弹窗让用户选一台**：
-                // 面板上明明只有一台服务器，也要用户多点一次；
-                // 而且每次重新连接都要再选一遍，很烦。
-                // 现在：只有一台就直接选上，不再弹窗。
                 val saved = Prefs.get(requireContext()).getString(K.PANEL_SERVER_ID, "") ?: ""
                 val remembered = list.firstOrNull { it.id == saved }
                 val auto = remembered ?: if (list.size == 1) list[0] else null
@@ -750,34 +723,24 @@ class ServerFragment : Fragment() {
             return
         }
         val mc = etVersion.text.toString().trim()
-        val loader = spLoader.selectedItem?.toString() ?: "auto"
+        val loader = LoaderSpinner.value(spLoader)
         val ctx = requireContext()
         if (mc.isBlank()) {
             toast("请填写服务器 MC 版本，用于匹配更新")
             return
         }
-        log("开始检测更新（MC $mc / $loader / ${sideLabel()}）")
+        val srcs = selectedSources()
+        if (srcs.isEmpty()) {
+            toast("至少选一个平台")
+            return
+        }
+        val names = srcs.joinToString("、") { ServerUpdate.label(it) }
+        log("开始检测更新（MC $mc / $loader / ${sideLabel()} / $names）")
         bg {
-            // ── 三个问题一起修 ──────────────────────────────
-            // 1) `res.firstOrNull()`：搜索是模糊匹配，装的是 sodium
-            //    可能匹配到 Sodium Extra，然后把它的版本当成本项目的更新
-            //    → 给出**错误的下载地址**，用户下载到的是另一个模组。
-            //    改用 CrossLoader.pickProject 做名称核对，对不上就如实跳过。
-            // 2) 不看运行环境：服务端场景会把纯客户端模组（Mod Menu）
-            //    也列成"可更新"。Modrinth 官方 environment 字段
-            //    （client_side/server_side 已废弃）能区分，这里按端过滤并标注。
-            // 3) 串行逐个请求：几十个文件就是几十次排队等待。
-            //    改成并发（受下载并发设置约束的一半，上限 4）。
             val side = currentSide()
             val targets = ArrayList<PanelFile>()
             for (f in files) {
-                val q = f.name
-                    .replace(Regex("\\.jar$", RegexOption.IGNORE_CASE), "")
-                    .replace(Regex("[-_](fabric|forge|neoforge|quilt)$", RegexOption.IGNORE_CASE), "")
-                    .replace(Regex("[-_]mc1?[._-]?\\d+.*$", RegexOption.IGNORE_CASE), "")
-                    .replace(Regex("[._-]"), " ")
-                    .trim()
-                if (q.isBlank()) continue
+                if (ServerUpdate.queryOf(f.name).isBlank()) continue
                 targets.add(f)
                 f.status = "检测中…"
             }
@@ -790,52 +753,12 @@ class ServerFragment : Fragment() {
             for (f in targets) {
                 pool.execute {
                     try {
-                        val q = f.name
-                            .replace(Regex("\\.jar$", RegexOption.IGNORE_CASE), "")
-                            .replace(Regex("[-_](fabric|forge|neoforge|quilt)$", RegexOption.IGNORE_CASE), "")
-                            .replace(Regex("[-_]mc1?[._-]?\\d+.*$", RegexOption.IGNORE_CASE), "")
-                            .replace(Regex("[._-]"), " ")
-                            .trim()
-                        // ⚠️ 这里**不再把 side 传给 API 层过滤**。
-                        // 之前传 side 会往 new_filters 里拼
-                        // `environment!="client_only"`，但：
-                        //   1) Modrinth 官方可过滤字段清单里**没有 environment**；
-                        //   2) 官方前端源码里 environment 过滤器明确标注
-                        //      supports_negative_filter = false（不支持否定过滤）。
-                        // 非法字段可能让整串 new_filters 失效、请求异常或返回空，
-                        // 结果就是搜索直接搜不出东西。
-                        // 运行环境改为**拿到结果后本地筛**（下面 Environ.okFor 已经在做），
-                        // 不依赖 API 支持，行为一致且更稳。
-                        val res = try {
-                            ModrinthApi.search(q, mc, loader, 8, 0, null)
-                        } catch (t: Throwable) {
-                            emptyList<MarketMod>()
-                        }
-                        val hit = CrossLoader.pickProject(res, q)
-                        if (hit == null) {
-                            f.status = if (res.isEmpty()) "平台上没搜到（可手动搜）" else "搜到但名字对不上，已跳过"
-                        } else if (!Environ.okFor(hit.environment, side)) {
-                            f.status = "「${Environ.label(hit.environment)}」，不适用于${sideLabel()}"
+                        val q = ServerUpdate.queryOf(f.name)
+                        val hits = ServerUpdate.find(ctx, q, mc, loader, side, f.kind, srcs)
+                        if (hits.isEmpty()) {
+                            f.status = "没搜到，点一下手动指定"
                         } else {
-                            val vers = try {
-                                ModrinthApi.versions(hit.id, mc, loader)
-                            } catch (t: Throwable) {
-                                emptyList<ModFile>()
-                            }
-                            val v0 = vers.firstOrNull { Environ.okFor(it.environment, side) }
-                                ?: vers.firstOrNull()
-                            if (v0 == null) {
-                                f.status = "无 ${mc} 版本"
-                            } else {
-                                f.projectId = hit.id
-                                f.latestVersion = v0.version
-                                f.latestUrl = v0.url
-                                f.latestName = v0.fileName.ifBlank { Downloader.guessName(v0.url) }
-                                f.status = "可更新 → ${v0.version}"
-                                if (Environ.isClientOnly(v0.environment)) {
-                                    f.status += "（仅客户端）"
-                                }
-                            }
+                            applyHit(f, hits.first(), side)
                         }
                     } catch (t: Throwable) {
                         Err.ignore(t, "检测服务器模组更新")
@@ -857,6 +780,93 @@ class ServerFragment : Fragment() {
         }
     }
 
+    private fun applyHit(f: PanelFile, h: ServerUpdate.Hit, side: Environ.Side) {
+        f.projectId = h.projectId
+        f.latestVersion = h.version
+        f.latestUrl = h.url
+        f.latestName = h.fileName
+        f.latestSource = h.source
+        f.status = "可更新 → ${h.version}（${ServerUpdate.label(h.source)}）"
+        if (Environ.isClientOnly(h.environment)) {
+            f.status += "（仅客户端）"
+        }
+    }
+
+    /** 手动指定：自己搜、自己挑，用于自动匹配认不出来的文件 */
+    private fun manualPick(f: PanelFile) {
+        val ctx = context ?: return
+        val q0 = ServerUpdate.queryOf(f.name)
+        val et = android.widget.EditText(ctx)
+        et.setText(q0)
+        et.setSelection(q0.length)
+        et.setSingleLine(true)
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("手动搜索：${f.name}")
+            .setView(et)
+            .setPositiveButton("搜索") { _, _ ->
+                val q = et.text.toString().trim()
+                if (q.isBlank()) return@setPositiveButton
+                val mc = etVersion.text.toString().trim()
+                val loader = LoaderSpinner.value(spLoader)
+                val srcs = selectedSources()
+                toast("正在搜索 $q …")
+                bg {
+                    val list = ServerUpdate.searchAll(ctx, q, mc, loader, srcs)
+                    safePost(handler) { showCandidates(f, list, mc, loader) }
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun showCandidates(
+        f: PanelFile, list: List<MarketMod>, mc: String, loader: String
+    ) {
+        val ctx = context ?: return
+        if (list.isEmpty()) {
+            MaterialAlertDialogBuilder(ctx)
+                .setTitle("没搜到")
+                .setMessage("换一个关键词试试，或者在设置里换一个平台。")
+                .setPositiveButton(R.string.ok, null)
+                .show()
+            return
+        }
+        val labels = list.map { "${it.name}（${ServerUpdate.label(it.source)}）" }.toTypedArray()
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("选一个：${f.name}")
+            .setItems(labels) { _, w ->
+                val mod = list.getOrNull(w) ?: return@setItems
+                val side = currentSide()
+                bg {
+                    val h = ServerUpdate.resolve(ctx, mod, mc, loader, side)
+                    safePost(handler) {
+                        if (h == null) {
+                            toast("这个项目没有可用于 MC $mc 的文件")
+                        } else {
+                            applyHit(f, h, side)
+                            adapter.notifyDataSetChanged()
+                            toast("已指定：${h.version}")
+                        }
+                    }
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun selectedSources(): Set<String> {
+        val s = LinkedHashSet<String>()
+        if (::cbSrcModrinth.isInitialized && cbSrcModrinth.isChecked) s.add(ServerUpdate.MODRINTH)
+        if (::cbSrcCurseforge.isInitialized && cbSrcCurseforge.isChecked) s.add(ServerUpdate.CURSEFORGE)
+        if (::cbSrcBackend.isInitialized && cbSrcBackend.isChecked) s.add(ServerUpdate.BACKEND)
+        return s
+    }
+
+    private fun saveSources() {
+        val ctx = context ?: return
+        ServerUpdate.saveSources(ctx, selectedSources())
+    }
+
     /** 当前要按哪一端来匹配：服务端 or 客户端 */
     private fun currentSide(): Environ.Side =
         if (spSide.selectedItemPosition == 0) Environ.Side.SERVER else Environ.Side.CLIENT
@@ -866,7 +876,7 @@ class ServerFragment : Fragment() {
 
     private fun downloadOne(f: PanelFile) {
         if (f.latestUrl.isBlank()) {
-            toast("这个还没有可用的更新地址")
+            manualPick(f)
             return
         }
         val ctx = requireContext()
