@@ -38,11 +38,8 @@ class MigrationFragment : Fragment() {
     private lateinit var tvTarget: TextView
     private lateinit var etVersion: EditText
     private lateinit var spLoader: Spinner
-    private lateinit var cbConfig: CheckBox
-    private lateinit var cbScripts: CheckBox
-    private lateinit var cbOptions: CheckBox
-    private lateinit var cbPacks: CheckBox
-    private lateinit var cbSaves: CheckBox
+    /** 迁移要复制哪些东西。由 [McParts] 动态生成，不再写死五个。id → 勾选框 */
+    private val partBoxes = LinkedHashMap<String, android.widget.CheckBox>()
     private lateinit var pb: ProgressBar
     private lateinit var rvMods: RecyclerView
     private lateinit var tvLog: TextView
@@ -326,11 +323,7 @@ class MigrationFragment : Fragment() {
         spLoader = v.findViewById(R.id.spLoader)
         // 换成带加载器图标的下拉（原来 android:entries 是纯文字）
         LoaderSpinner.attachByPref(spLoader)
-        cbConfig = v.findViewById(R.id.cbConfig)
-        cbScripts = v.findViewById(R.id.cbScripts)
-        cbOptions = v.findViewById(R.id.cbOptions)
-        cbPacks = v.findViewById(R.id.cbPacks)
-        cbSaves = v.findViewById(R.id.cbSaves)
+        buildPartBoxes(v)
         pb = v.findViewById(R.id.pb)
         rvMods = v.findViewById(R.id.rvMods)
         tvLog = v.findViewById(R.id.tvLog)
@@ -1587,15 +1580,42 @@ class MigrationFragment : Fragment() {
         doMigrate(srcUri, dstUri)
     }
 
+    /**
+     * 生成「复制哪些东西」的勾选框。
+     *
+     * 以前是布局里写死五个 CheckBox：加一类要改布局、改字段、改执行处三处，
+     * 少改一处就是「界面上有、实际没复制」。现在从 [McParts] 生成，
+     * 加一类只改 McParts 一处，迁移和导出永远对得上。
+     */
+    private fun buildPartBoxes(v: android.view.View) {
+        val ctx = requireContext()
+        val box = v.findViewById<android.widget.LinearLayout>(R.id.partsBox) ?: return
+        box.removeAllViews()
+        partBoxes.clear()
+        val saved = Prefs.get(ctx).getString(McParts.PREF_MIGRATE, "") ?: ""
+        val on = McParts.resolve(saved, false)
+        for (p in McParts.ALL) {
+            val cb = android.widget.CheckBox(ctx)
+            cb.text = if (p.hint.isBlank()) p.label else p.label + "\n" + p.hint
+            cb.isChecked = on.contains(p)
+            cb.setOnCheckedChangeListener { _, _ ->
+                Prefs.get(ctx).edit()
+                    .putString(McParts.PREF_MIGRATE, McParts.toPref(currentParts()))
+                    .apply()
+            }
+            box.addView(cb)
+            partBoxes[p.id] = cb
+        }
+    }
+
+    private fun currentParts(): List<McParts.Part> =
+        McParts.ALL.filter { partBoxes[it.id]?.isChecked == true }
+
     /** 真正的迁移执行（同实例检查通过后才会走到这里） */
     private fun doMigrate(srcUri: String, dstUri: String) {
         val ctx = requireContext()
         val p = Prefs.get(ctx)
-        val wantConfig = cbConfig.isChecked
-        val wantScripts = cbScripts.isChecked
-        val wantOptions = cbOptions.isChecked
-        val wantPacks = cbPacks.isChecked
-        val wantSaves = cbSaves.isChecked
+        val chosen = currentParts()
         pb.visibility = View.VISIBLE
         log("开始迁移…")
 
@@ -1611,14 +1631,10 @@ class MigrationFragment : Fragment() {
 
             // ---- 阶段一：复制配置文件 ----
             val steps = ArrayList<Pair<String, String>>()
-            if (wantConfig) steps.add(Pair(McDirs.CONFIG, "配置文件"))
-            if (wantScripts) steps.add(Pair("scripts", "脚本"))
-            if (wantOptions) steps.add(Pair("options.txt", "游戏设置"))
-            if (wantPacks) {
-                steps.add(Pair(McDirs.RESOURCEPACKS, "资源包"))
-                steps.add(Pair(McDirs.SHADERPACKS, "光影包"))
+            for (p in chosen) {
+                if (p.id == McDirs.MODS) continue // 模组走下载阶段，不在这里复制
+                steps.add(Pair(p.name, p.label))
             }
-            if (wantSaves) steps.add(Pair(McDirs.SAVES, "存档"))
 
             for ((idx, step) in steps.withIndex()) {
                 // 每项之间检查一次：暂停就挂起，取消就退出

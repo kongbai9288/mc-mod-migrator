@@ -644,33 +644,80 @@ class ToolsFragment : Fragment() {
             toast("请先在迁移页设置「迁移前」的目录")
             return
         }
-        val kinds = Mrpack.Kind.values()
+        askFormat(srcUri)
+    }
+
+    /**
+     * 先选格式。
+     *
+     * 只出 .mrpack 的话，用 CurseForge 启动器、Prism / MultiMC 的人就装不了。
+     */
+    private fun askFormat(srcUri: String) {
+        val ctx = context ?: return
+        val fs = ModpackFormat.values()
         MaterialAlertDialogBuilder(ctx)
-            .setTitle("导出成什么用途")
-            .setItems(kinds.map { "${it.label}（文件名后缀 _${it.suffix}）" }.toTypedArray()) { _, w ->
-                askEmbed(srcUri, kinds[w])
+            .setTitle("导出成哪种整合包")
+            .setItems(fs.map { it.label + "\n" + it.note }.toTypedArray()) { _, w ->
+                askParts(srcUri, fs[w])
             }
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
-    private fun askEmbed(srcUri: String, kind: Mrpack.Kind) {
+    /**
+     * 再选打包哪些内容。
+     *
+     * 个人数据（存档、按键设置、服务器列表）默认不选：
+     * 导出工具普遍把它们归为"可见但默认不勾"，
+     * 因为分享整合包时把别人的存档和服务器列表带出去是没道理的。
+     */
+    private fun askParts(srcUri: String, fmt: ModpackFormat) {
         val ctx = context ?: return
+        val saved = Prefs.get(ctx).getString(McParts.PREF_EXPORT, "") ?: ""
+        val on = McParts.resolve(saved, true)
+        val items = McParts.ALL.map {
+            if (it.personal) it.label + "（个人数据）" else it.label
+        }.toTypedArray()
+        val checked = McParts.ALL.map { on.contains(it) }.toBooleanArray()
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("打包哪些内容")
+            .setMultiChoiceItems(items, checked) { _, w, isChecked -> checked[w] = isChecked }
+            .setPositiveButton("下一步") { _, _ ->
+                val picked = McParts.ALL.filterIndexed { i, _ -> checked[i] }
+                if (picked.isEmpty()) {
+                    toast("至少选一类")
+                    return@setPositiveButton
+                }
+                Prefs.get(ctx).edit().putString(McParts.PREF_EXPORT, McParts.toPref(picked)).apply()
+                askEmbed(srcUri, fmt, picked)
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun askEmbed(srcUri: String, fmt: ModpackFormat, parts: List<McParts.Part>) {
+        val ctx = context ?: return
+        val msg = if (fmt == ModpackFormat.MULTIMC || fmt == ModpackFormat.PLAIN) {
+            "这个格式没有远程下载，文件会全部随包带走。"
+        } else {
+            "按规范导出（推荐）：\n" +
+                "清单里只写下载地址与哈希，包只有几十 KB，" +
+                "装的时候由启动器下载并校验。\n" +
+                "查不到的模组会自动随包带走，不会丢。\n\n" +
+                "全部随包带走：\n" +
+                "包会很大，但没网也能装。"
+        }
         MaterialAlertDialogBuilder(ctx)
             .setTitle("模组本体怎么带")
-            .setMessage(
-                "按 Modrinth 规范导出（推荐）：\n" +
-                    "清单里只写下载地址与哈希，包只有几十 KB，" +
-                    "装的时候由启动器下载并校验。\n" +
-                    "Modrinth 没收录的模组会自动随包带走，不会丢。\n\n" +
-                    "全部随包带走：\n" +
-                    "包会很大，但没网也能装。"
-            )
-            .setPositiveButton("按规范导出") { _, _ -> doExport(srcUri, kind, false) }
-            .setNegativeButton("全部随包") { _, _ -> doExport(srcUri, kind, true) }
+            .setMessage(msg)
+            .setPositiveButton("按规范导出") { _, _ -> doExport(srcUri, fmt, parts, false) }
+            .setNegativeButton("全部随包") { _, _ -> doExport(srcUri, fmt, parts, true) }
             .show()
     }
 
-    private fun doExport(srcUri: String, kind: Mrpack.Kind, embedAll: Boolean) {
+    private fun doExport(
+        srcUri: String, fmt: ModpackFormat, parts: List<McParts.Part>, embedAll: Boolean
+    ) {
         val ctx = context ?: return
         toast("正在打包…")
         bg {
@@ -682,8 +729,7 @@ class ToolsFragment : Fragment() {
             val mc = Prefs.get(ctx).getString(K.MC_VERSION, "") ?: ""
             val loader = Prefs.get(ctx).getString(K.LOADER, "") ?: ""
             val name = src.name ?: "整合包"
-            // 文件名带用途后缀：导几个包之后还能分清哪个是模组包、哪个是地图包
-            val out = java.io.File(ctx.cacheDir, "export/${Mrpack.fileName(name, kind)}")
+            val out = java.io.File(ctx.cacheDir, "export/${fmt.fileName(name, parts)}")
             out.parentFile?.mkdirs()
             val r = MrpackExport.export(
                 ctx,
@@ -691,7 +737,8 @@ class ToolsFragment : Fragment() {
                     name = name,
                     mcVersion = mc,
                     loader = loader,
-                    kind = kind,
+                    format = fmt,
+                    parts = parts,
                     embedAll = embedAll
                 ) { msg -> LogCenter.i("整合包", msg) },
                 src, out
@@ -700,16 +747,16 @@ class ToolsFragment : Fragment() {
                 if (!isAdded) return@post
                 val f = r.file
                 if (f == null || !f.exists()) {
-                    toast("导出失败")
+                    toast(if (r.note.isBlank()) "导出失败" else r.note)
                     return@post
                 }
+                var msg = "${f.name}\n${f.length() / 1024} KB\n\n"
+                msg += "清单远程下载 ${r.indexed} 个，随包带走 ${r.embedded} 个。\n"
+                msg += "「远程下载」的由启动器按清单拉取并校验哈希。"
+                if (r.note.isNotBlank()) msg += "\n\n" + r.note
                 MaterialAlertDialogBuilder(ctx)
                     .setTitle("已导出")
-                    .setMessage(
-                        "${f.name}\n${f.length() / 1024} KB\n\n" +
-                            "远程下载 ${r.indexed} 个，随包带走 ${r.embedded} 个。\n" +
-                            "「远程下载」的由启动器按清单拉取并校验哈希。"
-                    )
+                    .setMessage(msg)
                     .setPositiveButton("分享") { _, _ ->
                         QuickTransfer.shareOne(ctx, f, f.name)
                     }

@@ -159,11 +159,16 @@
                 android:orientation="vertical"
                 android:padding="12dp">
 
-                <CheckBox android:id="@+id/cbConfig" android:layout_width="match_parent" android:layout_height="wrap_content" android:checked="true" android:text="@string/copy_config" />
-                <CheckBox android:id="@+id/cbScripts" android:layout_width="match_parent" android:layout_height="wrap_content" android:checked="true" android:text="@string/copy_scripts" />
-                <CheckBox android:id="@+id/cbOptions" android:layout_width="match_parent" android:layout_height="wrap_content" android:checked="true" android:text="@string/copy_options" />
-                <CheckBox android:id="@+id/cbPacks" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/copy_packs" />
-                <CheckBox android:id="@+id/cbSaves" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/copy_saves" />
+                <!--
+                    迁移要复制哪些东西，由 McParts 在代码里生成。
+                    以前这里写死五个 CheckBox，加一类要改布局 + 改字段 + 改执行处，
+                    少改一处就是"界面上有、实际没复制"。
+                -->
+                <LinearLayout
+                    android:id="@+id/partsBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
