@@ -1934,7 +1934,7 @@ class ChunkMapActivity : AppCompatActivity() {
             }.take(MAX_VISIBLE_REGIONS)
         }
 
-        private fun hasRegion(rx: Int, rz: Int): Boolean =
+        fun hasRegion(rx: Int, rz: Int): Boolean =
             refs.any { it.rx == rx && it.rz == rz }
 
         // ------------------------------------------------------------ 标尺
