@@ -19,12 +19,28 @@
         android:textColor="@color/textSecondary"
         android:textSize="12sp" />
 
-    <Button
-        android:id="@+id/btnScan"
-        style="@style/AppButtonOutlined"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/plugin_scan" />
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnInstall"
+            style="@style/AppButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/plugin_install" />
+
+        <Button
+            android:id="@+id/btnScan"
+            style="@style/AppButtonOutlined"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:text="@string/plugin_scan" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/tvEmpty"
