@@ -169,7 +169,6 @@
         </com.google.android.material.card.MaterialCardView>
 
         <!-- 扫描用描边，执行用填充 -->
-        -->
         <Button
             android:id="@+id/btnScan"
             style="@style/AppButtonOutlined"
