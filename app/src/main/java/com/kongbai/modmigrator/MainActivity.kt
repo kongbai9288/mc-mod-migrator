@@ -254,7 +254,7 @@ class MainActivity : AppCompatActivity() {
                 .setIcon(p.icon)
         }
         menu.add(0, ID_MORE, pages.size, getString(R.string.tab_more))
-            .setIcon(R.drawable.ic_filter_list)
+            .setIcon(R.drawable.ti_filter)
 
         // ── 重建后必须把高亮补回去 ────────────────────────────────
         // menu.clear() 会连同"当前选中项"一起清掉。

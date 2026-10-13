@@ -73,7 +73,7 @@ class SettingsPatchFragment : Fragment() {
             }
             box.addView(
                 UiCards.infoCard(
-                    ctx, R.drawable.ic_cloud_sync, "${k.title}（${k.key}）",
+                    ctx, R.drawable.ti_refresh_dot, "${k.title}（${k.key}）",
                     "${k.desc}\n$state", "刷新"
                 ) { refreshOne(k) }
             )

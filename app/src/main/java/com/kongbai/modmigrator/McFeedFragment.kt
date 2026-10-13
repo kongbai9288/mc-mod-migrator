@@ -117,7 +117,7 @@ class McFeedFragment : Fragment() {
                         for (it in list) {
                             slot.addView(
                                 UiCards.infoCard(
-                                    ctx, R.drawable.ic_open_in_new,
+                                    ctx, R.drawable.ti_external_link,
                                     it.title,
                                     "来源：${it.source}${if (it.extra.isNotBlank()) " · ${it.extra}" else ""}",
                                     "查看"

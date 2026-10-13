@@ -130,7 +130,7 @@ class AppAdapter(
         h.name.text = a.label
         h.meta.text = a.pkg + if (a.hint) "  · 疑似启动器" else ""
         if (a.icon != null) h.icon.setImageDrawable(a.icon)
-        else h.icon.setImageResource(R.drawable.ic_extension)
+        else h.icon.setImageResource(R.drawable.ti_puzzle)
         h.itemView.setOnClickListener { onPick(a) }
     }
 }

@@ -79,7 +79,7 @@ object TaskNotifier {
                 flags
             )
             val nb = NotificationCompat.Builder(ctx, Notifier.CHANNEL)
-                .setSmallIcon(R.drawable.ic_download)
+                .setSmallIcon(R.drawable.ti_download)
                 .setContentTitle(title)
                 .setContentText(text)
                 .setContentIntent(pi)

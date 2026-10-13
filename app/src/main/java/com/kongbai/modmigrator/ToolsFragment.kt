@@ -43,10 +43,10 @@ class ToolsFragment : Fragment() {
         // 标题直接写明「迁移」，并且在迁移页底部也有直达入口。
         root.addView(UiCards.sectionTitle(ctx, "迁移 · 检查"))
         root.addView(UiCards.grid(ctx, 3, listOf(
-            UiCards.tile(ctx, R.drawable.ic_check_circle, "模组体检") { doctor() },
-            UiCards.tile(ctx, R.drawable.ic_extension, "依赖体检") { depCheck() },
-            UiCards.tile(ctx, R.drawable.ic_content_copy, "配置对比") { diff() },
-            UiCards.tile(ctx, R.drawable.ic_info, "崩溃日志") { showCrashLog() }
+            UiCards.tile(ctx, R.drawable.ti_circle_check, "模组体检") { doctor() },
+            UiCards.tile(ctx, R.drawable.ti_puzzle, "依赖体检") { depCheck() },
+            UiCards.tile(ctx, R.drawable.ti_copy, "配置对比") { diff() },
+            UiCards.tile(ctx, R.drawable.ti_info_circle, "崩溃日志") { showCrashLog() }
         )))
 
         // ── 跨加载器已挪到迁移页 ──────────────────────────────
@@ -55,33 +55,33 @@ class ToolsFragment : Fragment() {
         // 会出现"换了加载器但版本对不上"。入口见迁移页「迁移相关工具」。
         root.addView(UiCards.sectionTitle(ctx, "迁移 · 模组处理"))
         root.addView(UiCards.grid(ctx, 3, listOf(
-            UiCards.tile(ctx, R.drawable.ic_warning, "模组开关") { modToggle() },
-            UiCards.tile(ctx, R.drawable.ic_bolt, "代码级迁移") { codeMigrate() }
+            UiCards.tile(ctx, R.drawable.ti_alert_triangle, "模组开关") { modToggle() },
+            UiCards.tile(ctx, R.drawable.ti_bolt, "代码级迁移") { codeMigrate() }
         )))
 
         root.addView(UiCards.sectionTitle(ctx, "世界与数据"))
         root.addView(UiCards.grid(ctx, 3, listOf(
-            UiCards.tile(ctx, R.drawable.ic_folder, "世界存档") { openWorlds() },
-            UiCards.tile(ctx, R.drawable.ic_inventory, "区块编辑器") { openMca() },
-            UiCards.tile(ctx, R.drawable.ic_edit, "NBT 编辑器") { openNbt() },
-            UiCards.tile(ctx, R.drawable.ic_code, "数据包") { openDatapack() }
+            UiCards.tile(ctx, R.drawable.ti_folder, "世界存档") { openWorlds() },
+            UiCards.tile(ctx, R.drawable.ti_packages, "区块编辑器") { openMca() },
+            UiCards.tile(ctx, R.drawable.ti_pencil, "NBT 编辑器") { openNbt() },
+            UiCards.tile(ctx, R.drawable.ti_code, "数据包") { openDatapack() }
         )))
 
         root.addView(UiCards.sectionTitle(ctx, "实例与整合包"))
         root.addView(UiCards.grid(ctx, 3, listOf(
-            UiCards.tile(ctx, R.drawable.ic_rocket_launch, "补齐实例") { createInstance() },
-            UiCards.tile(ctx, R.drawable.ic_devices, "加载器支持器") {
+            UiCards.tile(ctx, R.drawable.ti_rocket, "补齐实例") { createInstance() },
+            UiCards.tile(ctx, R.drawable.ti_devices, "加载器支持器") {
                 startActivity(android.content.Intent(ctx, LoaderForgeActivity::class.java))
             },
-            UiCards.tile(ctx, R.drawable.ic_cloud_upload, "导出整合包") { exportMrpack() }
+            UiCards.tile(ctx, R.drawable.ti_cloud_up, "导出整合包") { exportMrpack() }
         )))
 
         root.addView(UiCards.sectionTitle(ctx, "存储与传输"))
         root.addView(UiCards.grid(ctx, 3, listOf(
-            UiCards.tile(ctx, R.drawable.ic_cloud_sync, "存储用量") { usage() },
-            UiCards.tile(ctx, R.drawable.ic_delete, "清理缓存") { clearCache() },
-            UiCards.tile(ctx, R.drawable.ic_storefront, "云盘") { CloudDriveActivity.open(ctx) },
-            UiCards.tile(ctx, R.drawable.ic_open_in_new, "打包发送") { shareMods() }
+            UiCards.tile(ctx, R.drawable.ti_refresh_dot, "存储用量") { usage() },
+            UiCards.tile(ctx, R.drawable.ti_trash, "清理缓存") { clearCache() },
+            UiCards.tile(ctx, R.drawable.ti_building_store, "云盘") { CloudDriveActivity.open(ctx) },
+            UiCards.tile(ctx, R.drawable.ti_external_link, "打包发送") { shareMods() }
         )))
 
         return scroll

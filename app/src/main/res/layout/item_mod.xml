@@ -20,7 +20,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:contentDescription="@string/app_name"
-            android:src="@drawable/ic_extension" />
+            android:src="@drawable/ti_puzzle" />
 
         <com.kongbai.modmigrator.WrapRow
             android:id="@+id/rowLoaders"

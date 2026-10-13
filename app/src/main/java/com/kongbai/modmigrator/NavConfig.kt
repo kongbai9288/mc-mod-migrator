@@ -27,22 +27,22 @@ object NavConfig {
     )
 
     fun items(): List<Item> = listOf(
-        Item("migration", R.string.tab_migration, R.drawable.ic_swap_horiz) { MigrationFragment() },
-        Item("market", R.string.tab_market, R.drawable.ic_storefront) { MarketFragment() },
-        Item("server", R.string.tab_server, R.drawable.ic_cloud_sync) { ServerFragment() },
-        Item("sync", R.string.tab_sync, R.drawable.ic_devices) { SyncFragment() },
-        Item("update", R.string.tab_update, R.drawable.ic_cloud_download) { ModpackFragment() },
-        Item("tools", R.string.tab_tools, R.drawable.ic_bolt) { ToolsFragment() },
-        Item("plugin", R.string.tab_plugin, R.drawable.ic_extension) { PluginFragment() },
-        Item("settings", R.string.tab_settings, R.drawable.ic_settings) { SettingsMainFragment() },
-        Item("devs", R.string.menu_devs, R.drawable.ic_person) { DevsFragment() },
-        Item("log", R.string.menu_log, R.drawable.ic_info) { SettingsLogFragment() },
-        Item("favorites", R.string.tab_favorites, R.drawable.ic_check_circle) { FavoritesFragment() },
-        Item("feed", R.string.tab_feed, R.drawable.ic_layers) { McFeedFragment() },
-        Item("weekly", R.string.tab_weekly, R.drawable.ic_history) { WeeklyReportFragment() },
-        Item("sites", R.string.tab_sites, R.drawable.ic_open_in_new) { SitesFragment() },
-        Item("mods", R.string.tab_mods, R.drawable.ic_inventory) { ModManagerFragment() },
-        Item("trash", R.string.tab_trash, R.drawable.ic_delete) { TrashFragment() }
+        Item("migration", R.string.tab_migration, R.drawable.ti_arrows_left_right) { MigrationFragment() },
+        Item("market", R.string.tab_market, R.drawable.ti_building_store) { MarketFragment() },
+        Item("server", R.string.tab_server, R.drawable.ti_refresh_dot) { ServerFragment() },
+        Item("sync", R.string.tab_sync, R.drawable.ti_devices) { SyncFragment() },
+        Item("update", R.string.tab_update, R.drawable.ti_cloud_down) { ModpackFragment() },
+        Item("tools", R.string.tab_tools, R.drawable.ti_bolt) { ToolsFragment() },
+        Item("plugin", R.string.tab_plugin, R.drawable.ti_puzzle) { PluginFragment() },
+        Item("settings", R.string.tab_settings, R.drawable.ti_settings) { SettingsMainFragment() },
+        Item("devs", R.string.menu_devs, R.drawable.ti_user) { DevsFragment() },
+        Item("log", R.string.menu_log, R.drawable.ti_info_circle) { SettingsLogFragment() },
+        Item("favorites", R.string.tab_favorites, R.drawable.ti_circle_check) { FavoritesFragment() },
+        Item("feed", R.string.tab_feed, R.drawable.ti_layers_subtract) { McFeedFragment() },
+        Item("weekly", R.string.tab_weekly, R.drawable.ti_history) { WeeklyReportFragment() },
+        Item("sites", R.string.tab_sites, R.drawable.ti_external_link) { SitesFragment() },
+        Item("mods", R.string.tab_mods, R.drawable.ti_packages) { ModManagerFragment() },
+        Item("trash", R.string.tab_trash, R.drawable.ti_trash) { TrashFragment() }
     )
 
     fun defaultKeys(): List<String> = listOf("migration", "market")

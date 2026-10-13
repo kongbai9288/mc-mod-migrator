@@ -72,7 +72,7 @@ class FavoritesFragment : Fragment() {
         }
         tvState.text = "共 ${list.size} 个"
         for (m in list) {
-            // ⚠️ 之前这里传的是 R.drawable.ic_storefront（商店图标），
+            // ⚠️ 之前这里传的是 R.drawable.ti_building_store（商店图标），
             // 于是每张卡片都是同一个图标，看不出是哪个模组 ——
             // 这就是"收藏看不到图标"。
             // 改用 modCard，加载模组自己的远程图标。

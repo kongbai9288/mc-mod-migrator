@@ -28,7 +28,7 @@ object Notifier {
     fun show(ctx: Context, title: String, text: String) {
         try {
             val n = NotificationCompat.Builder(ctx, CHANNEL)
-                .setSmallIcon(R.drawable.ic_download)
+                .setSmallIcon(R.drawable.ti_download)
                 .setContentTitle(title)
                 .setContentText(text)
                 .setPriority(NotificationCompat.PRIORITY_LOW)

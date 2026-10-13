@@ -34,9 +34,17 @@ GitHub REST API
   条款：https://docs.github.com
 
 —— 图标 ——
+Tabler Icons（Paweł Kuna）
+  许可：MIT License
+  https://tabler.io/icons
+  本应用界面图标所用图标集。取自其 outline 风格（24×24，2px 描边），
+  随打包发布时以 Android vector drawable 形式内置，资源名统一以 ti_ 开头。
+  版权声明：Copyright (c) 2020-2024 Paweł Kuna
+
 Material Symbols（Google）
   许可：Apache License 2.0
   https://fonts.google.com/icons
+  启动器品牌图标与加载器标识仍沿用此套，未随界面图标替换。
 
 —— 开源库 ——
 OkHttp（Square）—— Apache-2.0

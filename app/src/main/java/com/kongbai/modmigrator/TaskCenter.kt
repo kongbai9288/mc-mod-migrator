@@ -76,7 +76,7 @@ object TaskCenter {
     ) {
         try {
             val b = NotificationCompat.Builder(ctx, Notifier.CHANNEL)
-                .setSmallIcon(R.drawable.ic_download)
+                .setSmallIcon(R.drawable.ti_download)
                 .setContentTitle(title)
                 .setContentText(text)
                 .setOngoing(ongoing)

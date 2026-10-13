@@ -195,7 +195,7 @@ class WeeklyReportFragment : Fragment() {
                     // 用户点进去看到的是站点主页，等于没跳转，
                     // 还得自己在列表里找刚才那条。
                     val card = UiCards.infoCard(
-                        ctx, R.drawable.ic_open_in_new,
+                        ctx, R.drawable.ti_external_link,
                         source, sb.toString(), "查看原文"
                     ) {
                         WebActivity.open(ctx, first.url, first.title)

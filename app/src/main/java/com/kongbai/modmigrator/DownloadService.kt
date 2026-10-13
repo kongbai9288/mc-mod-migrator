@@ -287,7 +287,7 @@ class DownloadService : Service() {
             val nb = NotificationCompat.Builder(this, Notifier.CHANNEL)
                 .setContentTitle("下载：${task.name}")
                 .setContentText(text)
-                .setSmallIcon(R.drawable.ic_bolt)
+                .setSmallIcon(R.drawable.ti_bolt)
                 .setOngoing(task.state == "下载中")
                 .setProgress(100, if (task.total > 0) (task.done * 100 / task.total).toInt() else 0,
                     task.total <= 0)

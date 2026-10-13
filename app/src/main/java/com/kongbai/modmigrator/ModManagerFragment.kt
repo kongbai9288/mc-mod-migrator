@@ -374,7 +374,7 @@ class ModManagerFragment : Fragment() {
             val size = f.length()
             val disabled = ModToggle.isDisabled(f)
             val card = UiCards.infoCard(
-                ctx, if (disabled) R.drawable.ic_close else R.drawable.ic_extension,
+                ctx, if (disabled) R.drawable.ti_x else R.drawable.ti_puzzle,
                 ModToggle.displayName(f).substringBeforeLast("."),
                 buildString {
                     append("${size / 1024} KB")

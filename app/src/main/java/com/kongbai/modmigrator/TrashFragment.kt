@@ -165,7 +165,7 @@ class TrashFragment : Fragment() {
             line.addView(cb)
             line.addView(
                 UiCards.infoCard(
-                    ctx, R.drawable.ic_delete,
+                    ctx, R.drawable.ti_trash,
                     // 显示原始文件名；回收站里那份如果带序号，在副行说明，
                     // 否则用户会看到 sodium(1).jar 却不知道它还原出来叫什么
                     item.restoreName,

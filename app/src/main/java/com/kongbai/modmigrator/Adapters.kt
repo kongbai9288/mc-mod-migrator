@@ -53,7 +53,7 @@ class ModAdapter(
         // 图标：优先从本地 jar 里提取（离线可用、不耗流量），
         // 取不到就保留默认的方块占位图。
         h.icon.tag = m.uri
-        h.icon.setImageResource(R.drawable.ic_extension)
+        h.icon.setImageResource(R.drawable.ti_puzzle)
         if (m.uri.isNotBlank()) {
             iconPool.submit {
                 val bmp = try {
@@ -294,7 +294,7 @@ class MarketAdapter(
                 crossfade(true)
             }
         } else {
-            h.icon.setImageResource(R.drawable.ic_extension)
+            h.icon.setImageResource(R.drawable.ti_puzzle)
         }
         // ── 安装按钮：不支持当前加载器时置灰但仍可点 ──────────
         // 用"变灰 + 点弹警告"而不是 setEnabled(false)：

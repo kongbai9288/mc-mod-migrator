@@ -299,7 +299,7 @@ object UiCards {
 
         if (url.isNotBlank()) {
             card.addView(ImageView(ctx).apply {
-                setImageResource(R.drawable.ic_open_in_new)
+                setImageResource(R.drawable.ti_external_link)
                 val s2 = dp(ctx, 20)
                 layoutParams = LinearLayout.LayoutParams(s2, s2)
                 alpha = 0.5f
@@ -568,10 +568,10 @@ object UiCards {
         if (iconUrl.isNotBlank()) {
             LoaderIcons.loadRemote(
                 ctx, iv, iconUrl,
-                androidx.core.content.ContextCompat.getDrawable(ctx, R.drawable.ic_extension)
+                androidx.core.content.ContextCompat.getDrawable(ctx, R.drawable.ti_puzzle)
             )
         } else {
-            iv.setImageResource(R.drawable.ic_extension)
+            iv.setImageResource(R.drawable.ti_puzzle)
         }
         return card
     }

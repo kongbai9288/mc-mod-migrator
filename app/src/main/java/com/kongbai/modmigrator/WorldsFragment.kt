@@ -273,7 +273,7 @@ class WorldsFragment : Fragment() {
         // 光看路径分不清这个存档属于谁。按路径认出品牌，配一枚图标。
         val brand = LauncherBrand.fromPath(w.dir.absolutePath)
         val card = UiCards.infoCard(
-            ctx, R.drawable.ic_folder, w.name, desc, "详情",
+            ctx, R.drawable.ti_folder, w.name, desc, "详情",
             badge = brand.icon, badgeHint = "属于 ${brand.label}"
         ) {
             showDetail(ctx, w)

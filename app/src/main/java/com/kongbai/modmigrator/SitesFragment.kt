@@ -38,7 +38,7 @@ class SitesFragment : Fragment() {
             if (list.isEmpty()) continue
             root.addView(UiCards.sectionTitle(ctx, g))
             for (s in list) {
-                val card = UiCards.infoCard(ctx, R.drawable.ic_open_in_new, s.name, s.desc) {
+                val card = UiCards.infoCard(ctx, R.drawable.ti_external_link, s.name, s.desc) {
                     WebActivity.open(ctx, s.url, s.name)
                 }
                 card.setOnLongClickListener {

@@ -47,54 +47,54 @@ class DevLabActivity : AppCompatActivity() {
         val n = c.name
         return when {
             c.group == "副作用" -> when {
-                n.contains("登出") -> R.drawable.ic_shield
-                n.contains("造") -> R.drawable.ic_bug_report
-                n.contains("清") -> R.drawable.ic_delete
-                else -> R.drawable.ic_warning
+                n.contains("登出") -> R.drawable.ti_shield
+                n.contains("造") -> R.drawable.ti_bug
+                n.contains("清") -> R.drawable.ti_trash
+                else -> R.drawable.ti_alert_triangle
             }
             c.group == "本机" -> when {
-                n.contains("区域") -> R.drawable.ic_grid_view
-                n.contains("断点") -> R.drawable.ic_history
-                n.contains("HTTP") -> R.drawable.ic_terminal
-                n.contains("网络") -> R.drawable.ic_dns
-                n.contains("目录") -> R.drawable.ic_folder
-                n.contains("工作目录") -> R.drawable.ic_storage
-                n.contains("启动器") -> R.drawable.ic_rocket_launch
-                else -> R.drawable.ic_devices
+                n.contains("区域") -> R.drawable.ti_layout_grid
+                n.contains("断点") -> R.drawable.ti_history
+                n.contains("HTTP") -> R.drawable.ti_terminal_2
+                n.contains("网络") -> R.drawable.ti_server
+                n.contains("目录") -> R.drawable.ti_folder
+                n.contains("工作目录") -> R.drawable.ti_database
+                n.contains("启动器") -> R.drawable.ti_rocket
+                else -> R.drawable.ti_devices
             }
             c.group == "后端" -> when {
-                n.contains("登录") || n.contains("授权") -> R.drawable.ic_login
-                n.contains("诊断") -> R.drawable.ic_health_and_safety
-                n.contains("地址") -> R.drawable.ic_link
-                else -> R.drawable.ic_dns
+                n.contains("登录") || n.contains("授权") -> R.drawable.ti_login
+                n.contains("诊断") -> R.drawable.ti_shield_check
+                n.contains("地址") -> R.drawable.ti_link
+                else -> R.drawable.ti_server
             }
             c.group == "GitHub" -> when {
-                n.contains("镜像") -> R.drawable.ic_open_in_new
-                else -> R.drawable.ic_download
+                n.contains("镜像") -> R.drawable.ti_external_link
+                else -> R.drawable.ti_download
             }
             c.group == "Modrinth" -> when {
-                n.contains("哈希") -> R.drawable.ic_code
-                n.contains("刷新") -> R.drawable.ic_refresh
-                else -> R.drawable.ic_inventory
+                n.contains("哈希") -> R.drawable.ti_code
+                n.contains("刷新") -> R.drawable.ti_refresh
+                else -> R.drawable.ti_packages
             }
-            c.group == "CurseForge" -> R.drawable.ic_search
-            c.group == "公告" -> R.drawable.ic_info
-            c.group == "补丁" -> R.drawable.ic_sync
-            else -> R.drawable.ic_terminal
+            c.group == "CurseForge" -> R.drawable.ti_search
+            c.group == "公告" -> R.drawable.ti_info_circle
+            c.group == "补丁" -> R.drawable.ti_arrows_exchange
+            else -> R.drawable.ti_terminal_2
         }
     }
 
     /** 分组标题的图标 */
     private fun groupIcon(g: String): Int = when (g) {
-        "Modrinth" -> R.drawable.ic_storefront
-        "CurseForge" -> R.drawable.ic_extension
-        "后端" -> R.drawable.ic_dns
-        "GitHub" -> R.drawable.ic_login
-        "公告" -> R.drawable.ic_info
-        "补丁" -> R.drawable.ic_sync
-        "本机" -> R.drawable.ic_devices
-        "副作用" -> R.drawable.ic_warning
-        else -> R.drawable.ic_science
+        "Modrinth" -> R.drawable.ti_building_store
+        "CurseForge" -> R.drawable.ti_puzzle
+        "后端" -> R.drawable.ti_server
+        "GitHub" -> R.drawable.ti_login
+        "公告" -> R.drawable.ti_info_circle
+        "补丁" -> R.drawable.ti_arrows_exchange
+        "本机" -> R.drawable.ti_devices
+        "副作用" -> R.drawable.ti_alert_triangle
+        else -> R.drawable.ti_flask
     }
 
     /**
@@ -170,14 +170,14 @@ class DevLabActivity : AppCompatActivity() {
             text = "  启动器开场动画"
             textSize = 14f
             setPadding(0, (18 * resources.displayMetrics.density).toInt(), 0, 4)
-            setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_movie, 0, 0, 0)
+            setCompoundDrawablesWithIntrinsicBounds(R.drawable.ti_movie, 0, 0, 0)
             compoundDrawablePadding = (6 * resources.displayMetrics.density).toInt()
         })
         for (b in LauncherBrand.all()) {
             root.addView(MaterialButton(this).apply {
                 text = "播放：${b.label}"
                 gravity = Gravity.START
-                withIcon(this, R.drawable.ic_play_arrow)
+                withIcon(this, R.drawable.ti_player_play)
                 setOnClickListener {
                     LauncherSplash.play(
                         this@DevLabActivity,
@@ -188,12 +188,12 @@ class DevLabActivity : AppCompatActivity() {
         }
         root.addView(MaterialButton(this).apply {
             text = "依次播放全部"
-            withIcon(this, R.drawable.ic_movie)
+            withIcon(this, R.drawable.ti_movie)
             setOnClickListener { playAllSplash() }
         })
         root.addView(MaterialButton(this).apply {
             text = "模拟从启动器进来（重启主界面）"
-            withIcon(this, R.drawable.ic_science)
+            withIcon(this, R.drawable.ti_flask)
             setOnClickListener { askLauncherName() }
         })
 
