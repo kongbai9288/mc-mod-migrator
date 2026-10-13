@@ -20,6 +20,9 @@ class MainActivity : AppCompatActivity() {
     /** 主线程 handler，用于切换后的兜底校验 */
     private val handler = Bg.ui
 
+    /** 上一次按返回键的时间，用于「再按一次退出」 */
+    private var backPressedAt = 0L
+
     /** 语言拓展包在这层注入，之后所有 getString 都会走译文 */
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(LangPack.wrap(newBase))
@@ -543,7 +546,14 @@ class MainActivity : AppCompatActivity() {
             switchTo(prev)
             return
         }
-        // 3. 都没有，真的退出
+        // 3. 都没有：三秒内再按一次才真的退出
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - backPressedAt > 3000L) {
+            backPressedAt = now
+            android.widget.Toast.makeText(this, "再按一次退出", android.widget.Toast.LENGTH_SHORT)
+                .show()
+            return
+        }
         super.onBackPressed()
     }
 
