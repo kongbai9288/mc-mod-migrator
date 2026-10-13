@@ -9,20 +9,24 @@ import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 /**
- * 插件页：列出插件目录里的插件，可运行、可开关。
+ * 插件页：装插件、跑插件、启停、卸载。
  *
  * 插件是**目录里的文件**（manifest.json + 脚本），不是独立 APK。
- * 扫描是读目录，很快，直接放后台跑；运行是跑脚本，
- * 可能连网或读写文件，必须在后台跑。
+ * 扫描是读目录，很快；安装要解压，跑脚本可能连网或读写文件，都放后台。
  */
 class PluginFragment : Fragment() {
 
     private val items = mutableListOf<PluginHost.Plugin>()
     private lateinit var adapter: PluginAdapter
     private lateinit var tvEmpty: TextView
+    private val handler = Bg.ui
+    private var offered = false
+
+    private val openZip = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri -> if (uri != null) doInstall(uri) }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -34,6 +38,7 @@ class PluginFragment : Fragment() {
         rv.layoutManager = LinearLayoutManager(requireContext())
         rv.adapter = adapter
         v.findViewById<Button>(R.id.btnScan).setOnClickListener { scan() }
+        v.findViewById<Button>(R.id.btnInstall).setOnClickListener { pickZip() }
         tvEmpty.setOnClickListener { showHelp() }
         scan()
         return v
@@ -41,10 +46,9 @@ class PluginFragment : Fragment() {
 
     private fun scan() {
         val ctx = requireContext().applicationContext
-        val h = android.os.Handler(android.os.Looper.getMainLooper())
         Thread {
             val found = PluginHost.scan(ctx)
-            h.post {
+            handler.post {
                 if (!isAdded) return@post
                 items.clear()
                 items.addAll(found)
@@ -52,14 +56,42 @@ class PluginFragment : Fragment() {
                 tvEmpty.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
                 if (items.isEmpty()) {
                     tvEmpty.text = buildString {
-                        append("插件目录里还没有插件。\n\n")
-                        append(PluginHost.dir(ctx).absolutePath)
-                        append("\n\n插件是一个子目录：manifest.json 加一个 js 脚本。")
-                        append("\n点这里看完整说明，或写入三个内置示例。")
+                        append("还没有插件。点上面的「安装」选一个插件包，或点这里看说明。\n\n")
+                        append("插件目录：").append(PluginHost.dir(ctx).absolutePath)
                     }
-                    // 第一次进来目录是空的，与其让用户对着说明猜，
-                    // 不如直接给能跑的示例，跑通了再照着改。
-                    offerSamples()
+                    if (!offered) {
+                        offered = true
+                        offerSamples()
+                    }
+                }
+            }
+        }.start()
+    }
+
+    private fun pickZip() {
+        runCatching {
+            openZip.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
+        }.onFailure { toast("打不开文件选择器：${it.message}") }
+    }
+
+    private fun doInstall(uri: android.net.Uri) {
+        val ctx = context ?: return
+        runCatching {
+            ctx.contentResolver.takePersistableUriPermission(
+                uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        }
+        toast("正在安装…")
+        val app = ctx.applicationContext
+        Thread {
+            val (ok, msg) = PluginHost.installFromZip(app, uri)
+            handler.post {
+                if (!isAdded) return@post
+                if (ok) {
+                    toast(msg)
+                    scan()
+                } else {
+                    SheetDialog.show(ctx, "安装失败", msg, listOf("知道了" to null))
                 }
             }
         }.start()
@@ -68,31 +100,32 @@ class PluginFragment : Fragment() {
     private fun offerSamples() {
         val ctx = context ?: return
         if (!isAdded) return
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("写入示例插件")
-            .setMessage("会在插件目录里写入三个可运行的示例（打招呼 / 列目录 / 取网页）。\n\n同名目录已存在时跳过，不会覆盖你改过的东西。")
-            .setPositiveButton("写入") { _, _ ->
-                val n = PluginHost.writeSamples(ctx)
-                Tips.short(ctx, if (n > 0) "已写入 $n 个示例" else "示例已存在，没有重复写入")
-                if (n > 0) scan()
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+        SheetDialog.show(
+            ctx,
+            "写入示例插件",
+            "会在插件目录里写入三个能跑的示例（打招呼 / 列目录 / 取网页）。\n\n" +
+                "同名目录已存在时跳过，不会覆盖你改过的东西。\n\n" +
+                "跑通之后再照着改成自己的，比对着说明猜快。",
+            listOf(
+                "写入" to {
+                    val n = PluginHost.writeSamples(ctx)
+                    toast(if (n > 0) "已写入 $n 个示例" else "示例已存在，没有重复写入")
+                    if (n > 0) scan()
+                },
+                getString(R.string.cancel) to null
+            )
+        )
     }
 
     private fun showHelp() {
         val ctx = context ?: return
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("插件怎么用")
-            .setMessage(PluginHost.help(ctx))
-            .setPositiveButton(R.string.ok, null)
-            .show()
+        SheetDialog.show(ctx, "插件怎么用", PluginHost.help(ctx), listOf(getString(R.string.ok) to null))
     }
 
     private fun showPluginMenu(p: PluginHost.Plugin) {
         val ctx = context ?: return
-        val acts = listOf("运行", if (p.enabled) "禁用" else "启用", "详情")
-        MaterialAlertDialogBuilder(ctx)
+        val acts = listOf("运行", if (p.enabled) "禁用" else "启用", "详情", "卸载")
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
             .setTitle(p.title())
             .setItems(acts.toTypedArray()) { _, w ->
                 when (w) {
@@ -101,52 +134,67 @@ class PluginFragment : Fragment() {
                         PluginHost.setEnabled(ctx, p.id, !p.enabled)
                         scan()
                     }
-                    else -> MaterialAlertDialogBuilder(ctx)
-                        .setTitle(p.title())
-                        .setMessage(
-                            buildString {
-                                append("id：").append(p.id).append('\n')
-                                append("版本：").append(p.version.ifBlank { "未写" }).append('\n')
-                                append("作者：").append(p.author.ifBlank { "未写" }).append('\n')
-                                append("引擎：").append(p.engine).append('\n')
-                                append("入口：").append(p.entry?.name ?: "找不到").append('\n')
-                                append("权限：").append(
-                                    if (p.permissions.isEmpty()) "无"
-                                    else p.permissions.joinToString("、")
-                                ).append('\n')
-                                append("状态：").append(if (p.enabled) "已启用" else "已禁用").append('\n')
-                                if (p.desc.isNotBlank()) append('\n').append(p.desc)
-                            }
-                        )
-                        .setPositiveButton(R.string.ok, null)
-                        .show()
+                    2 -> detail(p)
+                    3 -> confirmUninstall(p)
                 }
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
+    private fun detail(p: PluginHost.Plugin) {
+        val ctx = context ?: return
+        SheetDialog.show(ctx, p.title(), buildString {
+            append("id：").append(p.id).append('\n')
+            append("版本：").append(p.version.ifBlank { "未写" }).append('\n')
+            append("作者：").append(p.author.ifBlank { "未写" }).append('\n')
+            append("引擎：").append(p.engine).append('\n')
+            append("入口：").append(p.entry?.name ?: "找不到").append('\n')
+            append("权限：").append(
+                if (p.permissions.isEmpty()) "无" else p.permissions.joinToString("、")
+            ).append('\n')
+            append("状态：").append(if (p.enabled) "已启用" else "已禁用").append('\n')
+            if (p.desc.isNotBlank()) append('\n').append(p.desc)
+        }, listOf(getString(R.string.ok) to null))
+    }
+
+    private fun confirmUninstall(p: PluginHost.Plugin) {
+        val ctx = context ?: return
+        SheetDialog.show(
+            ctx, "卸载 ${p.title()}",
+            "会删掉整个插件目录，脚本和清单一起没，不可恢复。\n\n只是暂时不想用的话，点「禁用」就够了。",
+            listOf(
+                "卸载" to {
+                    val ok = PluginHost.uninstall(ctx, p)
+                    toast(if (ok) "已卸载" else "删不掉这个目录")
+                    scan()
+                },
+                getString(R.string.cancel) to null
+            )
+        )
+    }
+
     private fun runPlugin(p: PluginHost.Plugin) {
         val ctx = context ?: return
         if (!p.enabled) {
-            Tips.short(ctx, "这个插件已禁用")
+            toast("这个插件已禁用")
             return
         }
-        Tips.short(ctx, "正在执行…")
+        toast("正在执行…")
         val app = ctx.applicationContext
-        val h = android.os.Handler(android.os.Looper.getMainLooper())
         Thread {
-            // 脚本可能连网或读写文件，也可能死循环。
-            // 死循环由宿主的指令数上限截断，不会把界面卡死。
             val out = PluginHost.run(app, p)
-            h.post {
+            handler.post {
                 if (!isAdded) return@post
-                MaterialAlertDialogBuilder(ctx)
-                    .setTitle("执行结果：${p.title()}")
-                    .setMessage(out.take(4000))
-                    .setPositiveButton(R.string.ok, null)
-                    .show()
+                SheetDialog.show(
+                    ctx, "执行结果：${p.title()}", out.take(8000),
+                    listOf(getString(R.string.ok) to null)
+                )
             }
         }.start()
+    }
+
+    private fun toast(s: String) {
+        handler.post { if (isAdded) Tips.short(context, s) }
     }
 }
