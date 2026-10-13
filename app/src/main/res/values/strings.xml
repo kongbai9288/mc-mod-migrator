@@ -102,8 +102,9 @@
     <string name="pick_src_after">选择「迁移后」的实例/目录</string>
     <string name="editor_title">配置编辑器</string>
     <string name="plugin_title">插件</string>
-    <string name="plugin_hint">插件是独立安装的 APK，声明响应约定广播即可被识别并调用，宿主不需要预先认识插件的任何类。</string>
-    <string name="plugin_scan">扫描已安装插件</string>
+    <string name="plugin_hint">插件是工作目录里的一个文件夹（清单加脚本），不是 APK，不用安装也不用授权。点「安装」选一个插件包即可。</string>
+    <string name="plugin_scan">刷新列表</string>
+    <string name="plugin_install">安装插件</string>
     <string name="devs_title">开发者名单</string>
     <string name="tab_plugin">插件</string>
     <string name="menu_plugin">插件</string>
