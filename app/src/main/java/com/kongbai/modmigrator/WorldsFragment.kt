@@ -8,6 +8,8 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.text.Editable
+import android.text.TextWatcher
 import android.widget.Toast
 import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.Fragment
@@ -32,6 +34,9 @@ class WorldsFragment : Fragment() {
     private lateinit var box: LinearLayout
     private lateinit var tvState: TextView
     private var worlds: List<WorldInfo.World> = emptyList()
+    private var query = ""
+    private var sortMode = 0
+    private val sortBtns = ArrayList<android.widget.Button>()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -51,6 +56,56 @@ class WorldsFragment : Fragment() {
                     "只读取展示；要改具体数值请用下面的「NBT 编辑器」。"
             )
         )
+
+        val search = android.widget.EditText(ctx).apply {
+            hint = "搜存档名"
+            setSingleLine(true)
+            textSize = 14f
+            val p = (10 * resources.displayMetrics.density).toInt()
+            setPadding(p, p, p, p)
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(resources.getColor(R.color.cardBg, null))
+                cornerRadius = 10 * resources.displayMetrics.density
+            }
+            addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(
+                    s: CharSequence?, st: Int, c: Int, a: Int
+                ) = Unit
+                override fun onTextChanged(
+                    s: CharSequence?, st: Int, b: Int, c: Int
+                ) = Unit
+                override fun afterTextChanged(e: Editable?) {
+                    query = e?.toString()?.trim().orEmpty()
+                    render(ctx)
+                }
+            })
+        }
+        root.addView(search)
+
+        val sortRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, (8 * resources.displayMetrics.density).toInt(), 0, 0)
+        }
+        val labels = listOf("最近游玩", "按名字", "按体积")
+        labels.forEachIndexed { i, t ->
+            val b = android.widget.Button(
+                ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle
+            ).apply {
+                text = t
+                textSize = 12f
+                minHeight = 0
+                minimumHeight = 0
+                val pp = (6 * resources.displayMetrics.density).toInt()
+                setPadding(pp * 2, pp, pp * 2, pp)
+                setOnClickListener { sortMode = i; render(ctx) }
+            }
+            sortBtns.add(b)
+            sortRow.addView(b, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { marginEnd = (8 * resources.displayMetrics.density).toInt() })
+        }
+        root.addView(sortRow)
 
         tvState = TextView(ctx).apply {
             text = "正在找存档…"
@@ -74,6 +129,44 @@ class WorldsFragment : Fragment() {
 
         load()
         return scroll
+    }
+
+    /** 按当前搜索词和排序方式重画列表 */
+    private fun render(ctx: android.content.Context) {
+        if (!isAdded) return
+        sortBtns.forEachIndexed { i, b ->
+            b.setTypeface(null, if (i == sortMode) android.graphics.Typeface.BOLD
+            else android.graphics.Typeface.NORMAL)
+            b.isSelected = (i == sortMode)
+        }
+        val q = query
+        var list = if (q.isBlank()) worlds
+        else worlds.filter { it.name.contains(q, true) }
+        list = when (sortMode) {
+            1 -> list.sortedBy { it.name }
+            2 -> list.sortedByDescending { it.sizeBytes }
+            else -> list.sortedByDescending { it.lastPlayed }
+        }
+        box.removeAllViews()
+        if (worlds.isEmpty()) {
+            box.addView(
+                UiCards.emptyCard(
+                    ctx, "没找到存档",
+                    "先在设置 → 存储里把游戏目录指到启动器的 .minecraft，" +
+                        "并且确认那个启动器至少启动过一次游戏。"
+                )
+            )
+            tvState.text = ""
+            return
+        }
+        if (list.isEmpty()) {
+            box.addView(UiCards.emptyCard(ctx, "没有匹配的存档", "换个名字再试试"))
+            tvState.text = "存档 ${worlds.size} 个"
+            return
+        }
+        tvState.text = if (q.isBlank()) "共 ${list.size} 个存档"
+        else "匹配 ${list.size} / ${worlds.size} 个"
+        for (w in list) box.addView(worldCard(ctx, w))
     }
 
     private fun showSkeleton(ctx: android.content.Context) {
@@ -102,20 +195,7 @@ class WorldsFragment : Fragment() {
             list.sortByDescending { it.lastPlayed }
             safePost(handler) {
                 worlds = list
-                box.removeAllViews()
-                if (list.isEmpty()) {
-                    box.addView(
-                        UiCards.emptyCard(
-                            ctx, "没找到存档",
-                            "先在设置 → 存储里把游戏目录指到启动器的 .minecraft，" +
-                                "并且确认那个启动器至少启动过一次游戏。"
-                        )
-                    )
-                    tvState.text = ""
-                } else {
-                    tvState.text = "共 ${list.size} 个存档"
-                    for (w in list) box.addView(worldCard(ctx, w))
-                }
+                render(ctx)
             }
         }
     }
