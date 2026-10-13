@@ -80,7 +80,9 @@ object PluginHost {
         val engine: String = "js",
         val entry: File? = null,
         val permissions: List<String> = emptyList(),
-        var enabled: Boolean = true
+        var enabled: Boolean = true,
+        /** 插件所在目录。卸载要按它删，不能靠 id 拼——目录名可能被改过 */
+        val root: File? = null
     ) {
         /** 列表上显示的名字：没写 name 就退回 id */
         fun title(): String = name.ifBlank { id }
@@ -135,12 +137,96 @@ object PluginHost {
                 desc = o.optString("desc").trim(),
                 engine = o.optString("engine").trim().lowercase(Locale.ROOT).ifBlank { "js" },
                 entry = if (entry.isFile) entry else null,
-                permissions = perms
+                permissions = perms,
+                root = f.parentFile
             )
         } catch (t: Throwable) {
             Err.ignore(t, "读取插件清单")
             null
         }
+    }
+
+    /**
+     * 从一个 zip 装插件。
+     *
+     * 两种打包都认：根目录直接放 manifest.json，或整包套一层目录。
+     * 后者更常见，不剥掉的话装完会多一层，宿主按 <id>/manifest.json 找不到，
+     * 表现就是"装了却扫不出来"。
+     *
+     * 装到已存在的 id 上时先清空再写，否则新旧文件混在一起，
+     * 旧脚本残留也看不出来。
+     */
+    fun installFromZip(ctx: Context, uri: android.net.Uri): Pair<Boolean, String> {
+        val entries = LinkedHashMap<String, ByteArray>()
+        try {
+            ctx.contentResolver.openInputStream(uri)?.use { ins ->
+                java.util.zip.ZipInputStream(ins).use { zs ->
+                    while (true) {
+                        val e = zs.nextEntry ?: break
+                        val name = e.name
+                        if (!e.isDirectory && entries.size < 400 && !name.contains("..")) {
+                            entries[name] = zs.readBytes()
+                        }
+                        zs.closeEntry()
+                    }
+                }
+            } ?: return Pair(false, "打不开这个文件")
+        } catch (t: Throwable) {
+            Err.ignore(t, "读插件压缩包")
+            return Pair(false, "读不了这个文件：${t.message ?: "格式不对"}")
+        }
+        if (entries.isEmpty()) return Pair(false, "压缩包是空的，或者不是 zip")
+
+        val mfKey = entries.keys
+            .filter { it.endsWith(MANIFEST, ignoreCase = true) }
+            .sortedBy { it.count { c -> c == '/' } }
+            .firstOrNull()
+            ?: return Pair(false, "压缩包里找不到 $MANIFEST")
+        val id = runCatching {
+            org.json.JSONObject(String(entries[mfKey]!!, Charsets.UTF_8))
+                .optString("id").trim()
+        }.getOrDefault("")
+        if (id.isBlank()) return Pair(false, "清单里没写 id")
+
+        val safeId = id.replace(Regex("[^A-Za-z0-9._-]"), "_")
+        val prefix = mfKey.substringBeforeLast('/', "").let { if (it.isEmpty()) "" else "$it/" }
+        val target = File(dir(ctx), safeId)
+        return try {
+            if (target.exists()) target.deleteRecursively()
+            target.mkdirs()
+            val base = target.canonicalPath
+            var n = 0
+            for ((k, v) in entries) {
+                if (prefix.isNotEmpty() && !k.startsWith(prefix)) continue
+                val rel = k.removePrefix(prefix)
+                if (rel.isBlank()) continue
+                val out = File(target, rel)
+                // 越界保护：名字里带 .. 或绝对路径时会写到插件目录外面
+                if (!out.canonicalPath.startsWith(base)) continue
+                out.parentFile?.mkdirs()
+                out.writeBytes(v)
+                n++
+            }
+            if (!File(target, MANIFEST).isFile) return Pair(false, "装完找不到清单")
+            // 新装的默认启用，否则装完扫出来是禁用的，像是没装成功
+            val off = disabled(ctx).toMutableSet()
+            off.remove(safeId)
+            Prefs.get(ctx).edit().putStringSet(K_DISABLED, off).apply()
+            Pair(true, "已安装 $safeId，共 $n 个文件")
+        } catch (t: Throwable) {
+            Err.ignore(t, "写插件目录")
+            Pair(false, "写不进插件目录：${t.message ?: "存储不可用"}")
+        }
+    }
+
+    /** 卸载：删掉整个插件目录，并从禁用记录里去掉 */
+    fun uninstall(ctx: Context, p: Plugin): Boolean {
+        val d = p.root ?: File(dir(ctx), p.id)
+        val ok = runCatching { d.deleteRecursively() }.getOrDefault(false)
+        val off = disabled(ctx).toMutableSet()
+        off.remove(p.id)
+        Prefs.get(ctx).edit().putStringSet(K_DISABLED, off).apply()
+        return ok
     }
 
     /** 启用 / 禁用。只改记录，不删文件 */
