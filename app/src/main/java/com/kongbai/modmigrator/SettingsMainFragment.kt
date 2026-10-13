@@ -154,6 +154,18 @@ class SettingsMainFragment : Fragment() {
             toast(if (c) "已开启：加载器分类里会显示手机不支持的那些" else "已关闭")
         }
 
+        val rgMode = v.findViewById<android.widget.RadioGroup>(R.id.rgMode)
+        val serverMode = Prefs.get(requireContext()).getInt(K.APP_MODE, 0) == 1
+        rgMode.check(if (serverMode) R.id.rbModeServer else R.id.rbModeClient)
+        rgMode.setOnCheckedChangeListener { _, id ->
+            if (loading) return@setOnCheckedChangeListener
+            val isServer = id == R.id.rbModeServer
+            Prefs.get(requireContext()).edit()
+                .putInt(K.APP_MODE, if (isServer) 1 else 0)
+                .apply()
+            toast(if (isServer) "已切换到服务器端迁移" else "已切换到客户端迁移")
+        }
+
         btnAccount.setOnClickListener { deviceLogin() }
         v.findViewById<Button>(R.id.btnGoBackend).setOnClickListener { go("backend") }
         v.findViewById<Button>(R.id.btnGoSearch).setOnClickListener { go("search") }

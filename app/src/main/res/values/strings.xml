@@ -276,4 +276,8 @@
     <string name="dir_state_ro">只读（迁移会失败）</string>
     <string name="dir_state_bad">打不开，请重新授权</string>
     <string name="dir_state_none">还没选目录</string>
+    <string name="mode_title">迁移模式</string>
+    <string name="mode_client_hint">从手机上的游戏目录取模组和配置。</string>
+    <string name="mode_server_hint">从服务器（面板 / FTP）取模组和配置。</string>
+    <string name="mode_tip">大多数情况用客户端。改回客户端：设置 → 迁移模式。</string>
 </resources>

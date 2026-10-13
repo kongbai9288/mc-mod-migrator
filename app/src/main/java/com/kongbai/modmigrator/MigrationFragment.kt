@@ -35,7 +35,6 @@ class MigrationFragment : Fragment() {
 
     private lateinit var tvSource: TextView
     private lateinit var tvDirState: android.widget.TextView
-    private lateinit var segMode: com.google.android.material.button.MaterialButtonToggleGroup
     private lateinit var cardSource: android.view.View
     private lateinit var cardServer: android.view.View
     private lateinit var tvServerState: android.widget.TextView
@@ -290,6 +289,7 @@ class MigrationFragment : Fragment() {
         LogCenter.addListener(logHook)
         LogCenter.addErrorHook(errorHook)
         refreshLogSummary()
+        if (::cardSource.isInitialized) applyMode()
     }
 
     override fun onPause() {
@@ -308,20 +308,11 @@ class MigrationFragment : Fragment() {
         tvSource = v.findViewById(R.id.tvSource)
         tvDirState = v.findViewById(R.id.tvDirState)
         tvScanHint = v.findViewById(R.id.tvScanHint)
-        segMode = v.findViewById(R.id.segMode)
         cardSource = v.findViewById(R.id.cardSource)
         cardServer = v.findViewById(R.id.cardServer)
         tvServerState = v.findViewById(R.id.tvServerState)
         v.findViewById<Button>(R.id.btnOpenServer).setOnClickListener {
             (activity as? MainActivity)?.showTab("server")
-        }
-        segMode.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (!isChecked) return@addOnButtonCheckedListener
-            val server = checkedId == R.id.btnModeServer
-            Prefs.get(requireContext()).edit()
-                .putInt(K.APP_MODE, if (server) 1 else 0)
-                .apply()
-            applyMode()
         }
         tvTarget = v.findViewById(R.id.tvTarget)
         etVersion = v.findViewById(R.id.etTargetVersion)
@@ -489,8 +480,6 @@ class MigrationFragment : Fragment() {
         val server = Prefs.get(requireContext()).getInt(K.APP_MODE, 0) == 1
         cardSource.visibility = if (server) android.view.View.GONE else android.view.View.VISIBLE
         cardServer.visibility = if (server) android.view.View.VISIBLE else android.view.View.GONE
-        val want = if (server) R.id.btnModeServer else R.id.btnModeClient
-        if (segMode.checkedButtonId != want) segMode.check(want)
         if (server) refreshServerState()
     }
 

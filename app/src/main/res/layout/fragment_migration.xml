@@ -10,30 +10,6 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <com.google.android.material.button.MaterialButtonToggleGroup
-            android:id="@+id/segMode"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
-            app:singleSelection="true"
-            app:selectionRequired="true"
-            app:checkedButton="@+id/btnModeClient">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnModeClient"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/mode_client" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnModeServer"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/mode_server" />
-        </com.google.android.material.button.MaterialButtonToggleGroup>
-
         <TextView
             android:id="@+id/tvLogSummary"
             android:layout_width="match_parent"
@@ -86,6 +62,14 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:text="@string/btn_open_server" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/mode_tip"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="12sp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
