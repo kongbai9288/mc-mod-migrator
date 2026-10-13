@@ -31,17 +31,17 @@ object NavConfig {
         Item("market", R.string.tab_market, R.drawable.ic_storefront) { MarketFragment() },
         Item("server", R.string.tab_server, R.drawable.ic_cloud_sync) { ServerFragment() },
         Item("sync", R.string.tab_sync, R.drawable.ic_devices) { SyncFragment() },
-        Item("update", R.string.tab_update, R.drawable.ic_rocket_launch) { ModpackFragment() },
+        Item("update", R.string.tab_update, R.drawable.ic_cloud_download) { ModpackFragment() },
         Item("tools", R.string.tab_tools, R.drawable.ic_bolt) { ToolsFragment() },
         Item("plugin", R.string.tab_plugin, R.drawable.ic_extension) { PluginFragment() },
         Item("settings", R.string.tab_settings, R.drawable.ic_settings) { SettingsMainFragment() },
         Item("devs", R.string.menu_devs, R.drawable.ic_person) { DevsFragment() },
         Item("log", R.string.menu_log, R.drawable.ic_info) { SettingsLogFragment() },
         Item("favorites", R.string.tab_favorites, R.drawable.ic_check_circle) { FavoritesFragment() },
-        Item("feed", R.string.tab_feed, R.drawable.ic_bolt) { McFeedFragment() },
-        Item("weekly", R.string.tab_weekly, R.drawable.ic_rocket_launch) { WeeklyReportFragment() },
+        Item("feed", R.string.tab_feed, R.drawable.ic_layers) { McFeedFragment() },
+        Item("weekly", R.string.tab_weekly, R.drawable.ic_history) { WeeklyReportFragment() },
         Item("sites", R.string.tab_sites, R.drawable.ic_open_in_new) { SitesFragment() },
-        Item("mods", R.string.tab_mods, R.drawable.ic_extension) { ModManagerFragment() },
+        Item("mods", R.string.tab_mods, R.drawable.ic_inventory) { ModManagerFragment() },
         Item("trash", R.string.tab_trash, R.drawable.ic_delete) { TrashFragment() }
     )
 
