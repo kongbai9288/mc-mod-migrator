@@ -16,10 +16,26 @@
             android:padding="12dp">
 
             <TextView
+                android:id="@+id/tvLogin"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textColor="@color/textSecondary" />
+
+            <Button
+                android:id="@+id/btnLogin"
+                style="@style/AppButtonOutlined"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="去设置里登录"
+                android:visibility="gone" />
+
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/device"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:layout_marginTop="8dp" />
 
             <TextView
                 android:id="@+id/tvDeviceId"
