@@ -34,6 +34,11 @@ private const val MAX_ERR_LINES = 20
 class MigrationFragment : Fragment() {
 
     private lateinit var tvSource: TextView
+    private lateinit var tvDirState: android.widget.TextView
+    private lateinit var segMode: com.google.android.material.button.MaterialButtonToggleGroup
+    private lateinit var cardSource: android.view.View
+    private lateinit var cardServer: android.view.View
+    private lateinit var tvServerState: android.widget.TextView
     private lateinit var tvScanHint: android.widget.TextView
     private lateinit var tvTarget: TextView
     private lateinit var etVersion: EditText
@@ -301,7 +306,23 @@ class MigrationFragment : Fragment() {
     ): View {
         val v = inflater.inflate(R.layout.fragment_migration, container, false)
         tvSource = v.findViewById(R.id.tvSource)
+        tvDirState = v.findViewById(R.id.tvDirState)
         tvScanHint = v.findViewById(R.id.tvScanHint)
+        segMode = v.findViewById(R.id.segMode)
+        cardSource = v.findViewById(R.id.cardSource)
+        cardServer = v.findViewById(R.id.cardServer)
+        tvServerState = v.findViewById(R.id.tvServerState)
+        v.findViewById<Button>(R.id.btnOpenServer).setOnClickListener {
+            (activity as? MainActivity)?.showTab("server")
+        }
+        segMode.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            val server = checkedId == R.id.btnModeServer
+            Prefs.get(requireContext()).edit()
+                .putInt(K.APP_MODE, if (server) 1 else 0)
+                .apply()
+            applyMode()
+        }
         tvTarget = v.findViewById(R.id.tvTarget)
         etVersion = v.findViewById(R.id.etTargetVersion)
         spLoader = v.findViewById(R.id.spLoader)
@@ -343,6 +364,7 @@ class MigrationFragment : Fragment() {
         etVersion.setText(p.getString(K.DEF_VERSION, "") ?: "")
         selectLoader(p.getString(K.DEF_LOADER, "") ?: "auto")
         refreshPaths()
+        applyMode()
         keepVersionAndLoader()
         return v
     }
@@ -451,6 +473,38 @@ class MigrationFragment : Fragment() {
             .ifBlank { getString(R.string.empty_hint) }
         tvTarget.text = DirGuide.human(p.getString(K.DST_URI, "") ?: "")
             .ifBlank { getString(R.string.empty_hint) }
+        if (::tvDirState.isInitialized) {
+            tvDirState.text = DirGuide.state(requireContext(), p.getString(K.SRC_URI, "") ?: "")
+        }
+    }
+
+    /**
+     * 切换客户端 / 服务器端模式。
+     *
+     * 两种模式要填的东西不一样：客户端从本地目录取，服务器端从面板或 FTP 取。
+     * 所以只显示当前模式用得上的那张卡片，另一张整块藏掉 ——
+     * 留着不相关的输入框，用户会以为也要填。
+     */
+    private fun applyMode() {
+        val server = Prefs.get(requireContext()).getInt(K.APP_MODE, 0) == 1
+        cardSource.visibility = if (server) android.view.View.GONE else android.view.View.VISIBLE
+        cardServer.visibility = if (server) android.view.View.VISIBLE else android.view.View.GONE
+        val want = if (server) R.id.btnModeServer else R.id.btnModeClient
+        if (segMode.checkedButtonId != want) segMode.check(want)
+        if (server) refreshServerState()
+    }
+
+    private fun refreshServerState() {
+        val p = Prefs.get(requireContext())
+        val host = p.getString(K.REMOTE_HOST, "") ?: ""
+        tvServerState.text = if (host.isBlank()) {
+            getString(R.string.server_not_connected)
+        } else {
+            val kind = when (p.getInt(K.REMOTE_KIND, 0)) {
+                1 -> "FTP"; 2 -> "FTPS"; 3 -> "SFTP"; else -> "面板"
+            }
+            "$kind · $host"
+        }
     }
 
     private fun selectLoader(name: String) {

@@ -123,7 +123,7 @@
     <string name="cfg_copy_callback">复制回调地址</string>
     <string name="cfg_gh_oauth">打开 GitHub 开发者设置</string>
     <string name="cfg_callback_hint">回调地址按访问域名拼，用哪个域名就要在 GitHub 登记哪条。报 redirect_uri 不匹配时，去 OAuth Apps 把当前域名加进回调列表。</string>
-    <string name="scan_launcher_dir_hint">选启动器收版本的那个总文件夹（通常是 instances 或 versions），会自动钻进去找出里面的每个版本。</string>
+    <string name="scan_launcher_dir_hint">选 instances 或 versions 那层，会自动找出里面的每个版本。</string>
     <string name="btn_scan_local2">扫描本机版本</string>
     <string name="panel_mode_login">账号密码</string>
     <string name="panel_mode_key">API 密钥</string>
@@ -266,4 +266,14 @@
     <string name="menu_patch">补丁</string>
     <string name="collapse_cfg">收起筛选</string>
     <string name="expand_cfg">展开筛选</string>
+    <string name="mode_client">客户端迁移</string>
+    <string name="mode_server">服务器端迁移</string>
+    <string name="mode_server_desc">从服务器（面板 / FTP）取模组与配置，再迁移到目标版本。</string>
+    <string name="server_card_title">服务器</string>
+    <string name="server_not_connected">还没连接服务器</string>
+    <string name="btn_open_server">打开服务器管理</string>
+    <string name="dir_state_ok">可用</string>
+    <string name="dir_state_ro">只读（迁移会失败）</string>
+    <string name="dir_state_bad">打不开，请重新授权</string>
+    <string name="dir_state_none">还没选目录</string>
 </resources>

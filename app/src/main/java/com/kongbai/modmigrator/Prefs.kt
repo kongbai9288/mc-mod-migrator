@@ -232,5 +232,6 @@ object K {
     const val MC_VERSION = "mc_version"            // 目标 MC 版本
     const val LOADER = "loader_type"                // 目标加载器 fabric/forge/quilt/neoforge
     const val DOWNLOAD_SPEED = "download_speed"      // 下载并发：0单线程 1适中 2最大
+    const val APP_MODE = "app_mode"                  // 0=客户端迁移 1=服务器端迁移
 
 }

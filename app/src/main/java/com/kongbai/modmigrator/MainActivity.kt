@@ -345,7 +345,7 @@ class MainActivity : AppCompatActivity() {
      * replace 会把底下的 tab 一起 remove，
      * 子页一开一关 tab 又被重建，缓存就白做了。
      */
-    private fun showTab(key: String) {
+    fun showTab(key: String) {
         val fm = supportFragmentManager
         val tag = "tab:$key"
         var f = fm.findFragmentByTag(tag)

@@ -146,6 +146,20 @@ object DirGuide {
     }
 
     /**
+     * 目录当前能不能用。
+     *
+     * 选了目录不等于能用：授权可能过期、被系统收回，或者只有读权限。
+     * 之前界面只显示路径，写的时候才失败，用户以为是功能坏了。
+     */
+    fun state(ctx: Context, uri: String): String {
+        if (uri.isBlank()) return ctx.getString(R.string.dir_state_none)
+        val d = Fs.tree(ctx, uri) ?: return ctx.getString(R.string.dir_state_bad)
+        if (!d.isDirectory) return ctx.getString(R.string.dir_state_bad)
+        return if (d.canWrite()) ctx.getString(R.string.dir_state_ok)
+        else ctx.getString(R.string.dir_state_ro)
+    }
+
+    /**
      * 授权回来后校验：这个目录选对了吗。
      *
      * 返回 null 表示没问题；返回非空则是给用户看的一句提醒。
