@@ -1,5 +1,5 @@
 # 真实存档验证（ai.zip / 26.2 世界）
-run: 38278900076
+run: 38435661024
 
 ## 测试类清单
 app/build/test-results/testDebugUnitTest/TEST-com.kongbai.modmigrator.McaRealWorldTest.xml
