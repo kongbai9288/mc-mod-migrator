@@ -17,6 +17,8 @@ import java.util.concurrent.Executors
 
 class SyncFragment : Fragment() {
 
+    private lateinit var tvLogin: TextView
+    private lateinit var btnLogin: Button
     private lateinit var tvDeviceId: TextView
     private lateinit var tvLog: TextView
     private lateinit var swAutoSync: SwitchMaterial
@@ -33,6 +35,8 @@ class SyncFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         val v = inflater.inflate(R.layout.fragment_sync, container, false)
+        tvLogin = v.findViewById(R.id.tvLogin)
+        btnLogin = v.findViewById(R.id.btnLogin)
         tvDeviceId = v.findViewById(R.id.tvDeviceId)
         tvLog = v.findViewById(R.id.tvLog)
         swAutoSync = v.findViewById(R.id.swAutoSync)
@@ -44,6 +48,8 @@ class SyncFragment : Fragment() {
 
         val ctx = requireContext()
         val p = Prefs.get(ctx)
+        btnLogin.setOnClickListener { gotoLogin(ctx) }
+        refreshLogin(ctx)
         tvDeviceId.text = "ID ${Store.deviceId(ctx)} · ${Store.deviceLabel(ctx)} · ${p.getString(K.OWNER, "kongbai9288")}/${p.getString(K.REPO, "")}"
         swAutoSync.isChecked = p.getBoolean(K.AUTO_SYNC, false)
         swAutoSync.setOnCheckedChangeListener { _, checked ->
@@ -55,6 +61,34 @@ class SyncFragment : Fragment() {
         v.findViewById<Button>(R.id.btnUpload).setOnClickListener { upload() }
         v.findViewById<Button>(R.id.btnRefresh).setOnClickListener { refresh() }
         return v
+    }
+
+    /** 同步要往 GitHub 仓库读写，没登录时按钮点了只会默默失败，先把状态说清楚 */
+    private fun refreshLogin(ctx: android.content.Context) {
+        val p = Prefs.get(ctx)
+        val token = p.getString(K.TOKEN, "").orEmpty()
+        val login = p.getString(K.GH_LOGIN, "").orEmpty()
+        if (token.isBlank()) {
+            tvLogin.text = "未登录：同步需要 GitHub 账号，否则上传和读取设备列表都会失败"
+            btnLogin.visibility = View.VISIBLE
+        } else {
+            tvLogin.text = if (login.isBlank()) "已登录，可以同步"
+            else "已登录：$login"
+            btnLogin.visibility = View.GONE
+        }
+    }
+
+    private fun gotoLogin(ctx: android.content.Context) {
+        val main = activity as? MainActivity
+        if (main != null) {
+            main.openSettingsPage("main")
+            return
+        }
+        runCatching {
+            val i = android.content.Intent(ctx, SettingsHostActivity::class.java)
+            i.putExtra("page", "main")
+            startActivity(i)
+        }.onFailure { toast("打不开设置页") }
     }
 
     private fun log(s: String) {
@@ -90,6 +124,11 @@ class SyncFragment : Fragment() {
 
     private fun upload() {
         val ctx = requireContext()
+        if (Prefs.get(ctx).getString(K.TOKEN, "").isNullOrBlank()) {
+            refreshLogin(ctx)
+            toast("请先登录 GitHub")
+            return
+        }
         log("开始上传…")
         bg {
             val msg = SyncManager.upload(ctx) { log(it) }
@@ -100,6 +139,11 @@ class SyncFragment : Fragment() {
 
     private fun refresh() {
         val ctx = requireContext()
+        if (Prefs.get(ctx).getString(K.TOKEN, "").isNullOrBlank()) {
+            refreshLogin(ctx)
+            toast("请先登录 GitHub")
+            return
+        }
         toast("正在读取仓库…")
         bg {
             val list = SyncManager.devices(ctx)
@@ -125,6 +169,12 @@ class SyncFragment : Fragment() {
             }
         }
     }
+    override fun onResume() {
+        super.onResume()
+        val ctx = context ?: return
+        if (::tvLogin.isInitialized) refreshLogin(ctx)
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         // 清理 Handler：页面销毁后若还有未执行的 post，
