@@ -41,7 +41,7 @@ class SettingsPatchFragment : Fragment() {
         scroll.addView(root)
 
         root.addView(
-            UiCards.hint(
+            UiCards.collapsingHint(
                 ctx,
                 "应用内置的数据会随 MC 与启动器变化而过期。下面的内容可以从仓库" +
                     "单独更新，装了旧版本也能拿到新数据，不需要重装应用。"

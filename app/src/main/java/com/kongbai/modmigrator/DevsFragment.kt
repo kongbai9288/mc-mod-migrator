@@ -55,7 +55,7 @@ class DevsFragment : Fragment() {
         }
         scroll.addView(root)
 
-        root.addView(UiCards.hint(ctx, "感谢这些项目与个人。点击卡片可打开主页。\n（长按这里或连点 5 次有彩蛋）"))
+        root.addView(UiCards.collapsingHint(ctx, "感谢这些项目与个人。点击卡片可打开主页。\n（长按这里或连点 5 次有彩蛋）"))
 
         tvState = TextView(ctx).apply {
             text = "正在读取名单…"

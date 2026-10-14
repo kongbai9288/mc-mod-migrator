@@ -26,7 +26,7 @@ class SitesFragment : Fragment() {
         scroll.addView(root)
 
         root.addView(
-            UiCards.hint(
+            UiCards.collapsingHint(
                 ctx,
                 "点击用内置浏览器打开，长按用系统浏览器打开。\n" +
                     "内置浏览器里遇到下载链接会自动交给系统处理。"

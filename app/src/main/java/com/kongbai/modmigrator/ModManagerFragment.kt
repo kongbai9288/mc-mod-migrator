@@ -54,7 +54,7 @@ class ModManagerFragment : Fragment() {
         scroll.addView(root)
 
         root.addView(
-            UiCards.hint(
+            UiCards.collapsingHint(
                 ctx,
                 "点击卡片看详情，长按删除（先进回收站，可撤销）。\n" +
                     "当前目录：${WorkDir.describe(ctx)}"

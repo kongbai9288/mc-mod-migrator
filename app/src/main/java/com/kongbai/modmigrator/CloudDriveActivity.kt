@@ -191,7 +191,7 @@ class CloudDriveActivity : AppCompatActivity() {
             )
         )
 
-        root.addView(UiCards.hint(this, "接哪家网盘由你决定，凭据只存在本机。"))
+        root.addView(UiCards.collapsingHint(this, "接哪家网盘由你决定，凭据只存在本机。"))
 
         tvState = TextView(this).apply { textSize = 12f }
         root.addView(tvState)

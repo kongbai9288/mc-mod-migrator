@@ -50,7 +50,7 @@ class WorldsFragment : Fragment() {
         }
         scroll.addView(root)
         root.addView(
-            UiCards.hint(
+            UiCards.collapsingHint(
                 ctx,
                 "列出存档的世界名、版本、种子、最后游玩时间、难度等。\n" +
                     "只读取展示；要改具体数值请用下面的「NBT 编辑器」。"

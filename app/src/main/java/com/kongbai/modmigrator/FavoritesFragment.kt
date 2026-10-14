@@ -37,7 +37,7 @@ class FavoritesFragment : Fragment() {
         }
         scroll.addView(root)
 
-        root.addView(UiCards.hint(ctx, "长按卡片可以移除收藏。点「安装」会装到目标 mods 目录。"))
+        root.addView(UiCards.collapsingHint(ctx, "长按卡片可以移除收藏。点「安装」会装到目标 mods 目录。"))
 
         tvState = TextView(ctx).apply {
             textSize = 12f

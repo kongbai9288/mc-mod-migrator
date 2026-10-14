@@ -65,21 +65,24 @@ class ModpackFragment : Fragment() {
         scroll.addView(root)
         box = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
         tvState = TextView(ctx).apply {
-            text = "上面两个按钮是整合包：导入后才登记，可检查更新、一次装进多个启动器。" +
-                "\n下面的「检查更新」是按目录查模组更新，不是整合包更新，也不登记。"
+            text = "上面两个按钮是整合包：导入后才登记，可检查更新、一次装进多个启动器。"
             textSize = 13f
             setTextColor(resources.getColor(R.color.textSecondary, null))
         }
         root.addView(tvState)
+
+        // 主次分开：整合包的两个入口留在页面上，
+        // 按目录查模组更新是另一件事，收进「更多」。
+        // 之前五个按钮一路竖排，还夹着两段说明，看着像一整页字。
         root.addView(mkButton("导入整合包（.mrpack / .zip）") { pickPack() })
         root.addView(mkButton("已导入的整合包（更新 / 多实例安装）") { showImported() })
-        root.addView(TextView(ctx).apply {
-            text = "下面这一段是按目录检查模组更新，不属于整合包更新，也不会登记"
-            textSize = 12f
-            setTextColor(resources.getColor(R.color.textSecondary, null))
-        })
-        root.addView(mkButton("检查更新") { checkUpdates() })
-        root.addView(mkButton("下载全部更新") { downloadAll() })
+
+        val (more, moreBody) = UiCards.moreBox(ctx, "按目录检查模组更新")
+        moreBody.addView(UiCards.hint(ctx, "不属于整合包更新，也不会登记。"))
+        moreBody.addView(mkButton("检查更新") { checkUpdates() })
+        moreBody.addView(mkButton("下载全部更新") { downloadAll() })
+        root.addView(more)
+
         root.addView(box)
         return scroll
     }

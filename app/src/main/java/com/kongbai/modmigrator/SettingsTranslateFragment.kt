@@ -35,7 +35,7 @@ class SettingsTranslateFragment : Fragment() {
         }
         scroll.addView(root)
 
-        root.addView(UiCards.hint(ctx, getString(R.string.translate_hint)))
+        root.addView(UiCards.collapsingHint(ctx, getString(R.string.translate_hint)))
 
         tvState = TextView(ctx).apply {
             textSize = 13f

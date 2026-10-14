@@ -46,7 +46,7 @@ class TrashFragment : Fragment() {
         scroll.addView(root)
 
         root.addView(
-            UiCards.hint(
+            UiCards.collapsingHint(
                 ctx,
                 "删掉的模组先放这里，过期自动清掉。点卡片可还原或彻底删除。"
             )

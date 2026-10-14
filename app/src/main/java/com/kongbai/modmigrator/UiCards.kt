@@ -655,6 +655,73 @@ object UiCards {
         return card
     }
 
+    /**
+     * 说明文字，默认收起，点一下「说明」才展开。
+     *
+     * 之前每个页面顶部都常驻一段解释（有的四五行），
+     * 真正的内容被推到下面。这里跟 XML 版 Hints 同一套做法，
+     * 只是给代码建 UI 的页面用。
+     */
+    fun collapsingHint(ctx: Context, text: String): View {
+        val box = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        val body = TextView(ctx).apply {
+            this.text = text
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            setTextColor(
+                if (android.os.Build.VERSION.SDK_INT >= 23) ctx.getColor(R.color.textSecondary)
+                else @Suppress("DEPRECATION") ctx.resources.getColor(R.color.textSecondary)
+            )
+            setPadding(dp(ctx, 2), dp(ctx, 2), dp(ctx, 2), dp(ctx, 8))
+            setLineSpacing(0f, 1.3f)
+            visibility = View.GONE
+        }
+        val toggle = TextView(ctx).apply {
+            this.text = "说明"
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            setTextColor(primary(ctx))
+            setPadding(dp(ctx, 2), dp(ctx, 4), dp(ctx, 2), dp(ctx, 4))
+            isClickable = true
+            isFocusable = true
+        }
+        toggle.safeClickUnit {
+            val show = body.visibility != View.VISIBLE
+            body.visibility = if (show) View.VISIBLE else View.GONE
+            toggle.text = if (show) "收起说明" else "说明"
+        }
+        box.addView(toggle)
+        box.addView(body)
+        return box
+    }
+
+    /**
+     * 「更多」折叠区：主操作留在页面上，次要入口收进来。
+     *
+     * 返回外层容器，第二个元素是内容容器，往里 addView 即可。
+     */
+    fun moreBox(ctx: Context, label: String = "更多"): Pair<View, LinearLayout> {
+        val outer = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        val body = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+        }
+        val toggle = TextView(ctx).apply {
+            text = label
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setTextColor(primary(ctx))
+            setPadding(dp(ctx, 2), dp(ctx, 10), dp(ctx, 2), dp(ctx, 6))
+            isClickable = true
+            isFocusable = true
+        }
+        toggle.safeClickUnit {
+            val show = body.visibility != View.VISIBLE
+            body.visibility = if (show) View.VISIBLE else View.GONE
+            toggle.text = if (show) "收起" else label
+        }
+        outer.addView(toggle)
+        outer.addView(body)
+        return outer to body
+    }
+
     /** 一行说明文字（带内边距，用于页面顶部提示） */
     fun hint(ctx: Context, text: String): TextView =
         TextView(ctx).apply {

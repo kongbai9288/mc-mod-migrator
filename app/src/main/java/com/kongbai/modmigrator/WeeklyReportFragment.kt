@@ -52,7 +52,7 @@ class WeeklyReportFragment : Fragment() {
         scroll.addView(root)
         refresh.addView(scroll)
 
-        root.addView(UiCards.hint(ctx, "最近发生了什么。下拉刷新或重进本页可重新拉取。"))
+        root.addView(UiCards.collapsingHint(ctx, "最近发生了什么。下拉刷新或重进本页可重新拉取。"))
 
         tvState = TextView(ctx).apply {
             text = "正在生成周报…"
