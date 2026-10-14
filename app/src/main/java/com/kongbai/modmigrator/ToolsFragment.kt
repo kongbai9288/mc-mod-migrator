@@ -817,7 +817,7 @@ class ToolsFragment : Fragment() {
             )
             lp.bottomMargin = (8 * resources.displayMetrics.density).toInt()
             layoutParams = lp
-            setOnClickListener { act() }
+            safeClickUnit { act() }
         }
     }
 

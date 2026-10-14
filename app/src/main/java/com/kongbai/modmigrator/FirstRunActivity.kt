@@ -42,6 +42,14 @@ class FirstRunActivity : AppCompatActivity() {
     private lateinit var spLoader: Spinner
     private lateinit var cbMirror: CheckBox
 
+    /** 完成后那层加载遮罩：进度条 + 当前在做的事 */
+    private lateinit var overlay: android.widget.FrameLayout
+    private lateinit var bar: android.widget.ProgressBar
+    private lateinit var tvStep: TextView
+
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val setupExec = java.util.concurrent.Executors.newSingleThreadExecutor()
+
     /** 选工作目录（SAF 树授权，结果会持久保留跨重启） */
     private val pickWork = registerForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
@@ -83,7 +91,12 @@ class FirstRunActivity : AppCompatActivity() {
             setPadding(p, p, p, p)
         }
         scroll.addView(root)
-        setContentView(scroll)
+        val container = android.widget.FrameLayout(this)
+        container.addView(scroll)
+        overlay = buildOverlay()
+        overlay.visibility = View.GONE
+        container.addView(overlay)
+        setContentView(container)
 
         // ---- 欢迎 ----
         root.addView(title("欢迎使用模组迁移助手"))
@@ -132,7 +145,7 @@ class FirstRunActivity : AppCompatActivity() {
         root.addView(primary("开始使用") { finishSetup() })
         root.addView(outline("跳过，直接进主界面") {
             markDone()
-            goMain()
+            runSetupSteps()
         })
 
         refresh()
@@ -146,7 +159,97 @@ class FirstRunActivity : AppCompatActivity() {
         ed.apply()
         markDone()
         Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show()
-        goMain()
+        runSetupSteps()
+    }
+
+    /** 建好工作目录下的各个子目录，省得第一次用到时才临时建 */
+    private fun primeDirs() {
+        DefaultDir.mods(this)
+        DefaultDir.configs(this)
+        DefaultDir.packs(this)
+        DefaultDir.trash(this)
+        DefaultDir.downloads(this)
+        DefaultDir.cache(this)
+        DefaultDir.logs(this)
+    }
+
+    /** 完成设置后的加载层。每一步都会真实做一点事，不只是装样子 */
+    private fun runSetupSteps() {
+        overlay.visibility = View.VISIBLE
+        val steps: List<Pair<String, () -> Unit>> = listOf(
+            "正在准备工作目录…" to { runCatching { primeDirs() } },
+            "正在读取版本清单…" to { runCatching { McVer.known() } },
+            "正在同步最新版本…" to { runCatching { McVer.refresh(this) } },
+            "正在核对游戏目录…" to { runCatching { GameDirs.list(this) } },
+            "正在载入主界面…" to {}
+        )
+        var idx = 0
+        val advance = object : Runnable {
+            override fun run() {
+                if (isFinishing) return
+                if (idx >= steps.size) {
+                    handler.postDelayed({ goMain() }, 260)
+                    return
+                }
+                val s = steps[idx]
+                tvStep.text = s.first
+                bar.progress = ((idx + 1) * 100) / steps.size
+                setupExec.execute {
+                    s.second()
+                    idx++
+                    handler.post(this)
+                }
+            }
+        }
+        handler.post(advance)
+    }
+
+    /** 加载遮罩：半透明底 + 居中卡片（进度条 + 当前步骤） */
+    private fun buildOverlay(): android.widget.FrameLayout {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val p = (20 * resources.displayMetrics.density).toInt()
+            setPadding(p, p, p, p)
+            setBackgroundColor(resources.getColor(R.color.cardBg, null))
+        }
+        val tvTitle = TextView(this).apply {
+            text = "正在完成设置"
+            textSize = 15f
+            setTextColor(resources.getColor(R.color.textPrimary, null))
+        }
+        box.addView(tvTitle)
+        bar = android.widget.ProgressBar(
+            this, null, android.R.attr.progressBarStyleHorizontal
+        ).apply {
+            max = 100
+            progress = 0
+            val lp = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            lp.topMargin = (12 * resources.displayMetrics.density).toInt()
+            layoutParams = lp
+        }
+        box.addView(bar)
+        tvStep = body("")
+        box.addView(tvStep)
+        return android.widget.FrameLayout(this).apply {
+            setBackgroundColor(0xCC000000.toInt())
+            addView(
+                box,
+                android.widget.FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    android.view.Gravity.CENTER
+                )
+            )
+        }
+    }
+
+    override fun onDestroy() {
+        setupExec.shutdownNow()
+        handler.removeCallbacksAndMessages(null)
+        super.onDestroy()
     }
 
     private fun markDone() {

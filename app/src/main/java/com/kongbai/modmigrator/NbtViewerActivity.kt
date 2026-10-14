@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.View
 import android.view.ViewGroup
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
@@ -53,6 +54,8 @@ class NbtViewerActivity : AppCompatActivity() {
 
     private lateinit var tvPath: TextView
     private lateinit var tvTree: TextView
+    private lateinit var skeletonBox: LinearLayout
+    private lateinit var treeScroll: View
     private lateinit var etSnbt: android.widget.EditText
     private lateinit var btnSave: MaterialButton
     private lateinit var btnSaveTop: MaterialButton
@@ -117,7 +120,7 @@ class NbtViewerActivity : AppCompatActivity() {
         }
         root.addView(tvState)
 
-        val treeScroll = HorizontalScrollView(this).apply {
+        treeScroll = HorizontalScrollView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 (280 * resources.displayMetrics.density).toInt()
@@ -134,7 +137,19 @@ class NbtViewerActivity : AppCompatActivity() {
             setTextIsSelectable(true)
         }
         treeScroll.addView(tvTree)
-        root.addView(treeScroll)
+        // 读取期间用骨架块占住树的整块位置，读完换成真内容
+        skeletonBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (280 * resources.displayMetrics.density).toInt()
+            )
+        }
+        repeat(3) { skeletonBox.addView(UiCards.skeleton(this, 4, 11, 7)) }
+        val treeWrap = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        treeWrap.addView(skeletonBox)
+        treeWrap.addView(treeScroll)
+        root.addView(treeWrap)
 
         root.addView(TextView(this).apply {
             text = "SNBT（可直接改，点「写回」保存）"
@@ -200,6 +215,8 @@ class NbtViewerActivity : AppCompatActivity() {
         val f = file
         val u = uri
         if (f == null && u == null) return
+        skeletonBox.visibility = View.VISIBLE
+        treeScroll.visibility = View.GONE
         exec.execute {
             val tag = try {
                 if (u != null) {
@@ -216,6 +233,8 @@ class NbtViewerActivity : AppCompatActivity() {
             val tree = tag?.let { renderTree(it) } ?: ""
             handler.post {
                 if (tag == null) {
+                    skeletonBox.visibility = View.GONE
+                    treeScroll.visibility = View.VISIBLE
                     tvState.text = "读取失败：这个文件不是有效的 NBT，或已损坏"
                 tvTree.text = "读不出来。可能原因：\n" +
                     "· 它不是 NBT 文件（比如是 .json 或 .txt）\n" +
@@ -226,6 +245,8 @@ class NbtViewerActivity : AppCompatActivity() {
                     return@post
                 }
                 this.root = tag
+                skeletonBox.visibility = View.GONE
+                treeScroll.visibility = View.VISIBLE
                 tvState.text = "已读取 ${tag.getValue().size} 个顶层字段"
                 tvTree.text = tree.ifBlank { "（这个文件里没有顶层字段）" }
                 etSnbt.setText(snbt)

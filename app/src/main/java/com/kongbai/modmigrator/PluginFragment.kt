@@ -37,9 +37,9 @@ class PluginFragment : Fragment() {
         adapter = PluginAdapter(items) { p -> showPluginMenu(p) }
         rv.layoutManager = LinearLayoutManager(requireContext())
         rv.adapter = adapter
-        v.findViewById<Button>(R.id.btnScan).setOnClickListener { scan() }
-        v.findViewById<Button>(R.id.btnInstall).setOnClickListener { pickZip() }
-        tvEmpty.setOnClickListener { showHelp() }
+        v.findViewById<Button>(R.id.btnScan).safeClickUnit { scan() }
+        v.findViewById<Button>(R.id.btnInstall).safeClickUnit { pickZip() }
+        tvEmpty.safeClickUnit { showHelp() }
         scan()
         return v
     }

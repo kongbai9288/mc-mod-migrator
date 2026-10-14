@@ -65,7 +65,8 @@ class ModpackFragment : Fragment() {
         scroll.addView(root)
         box = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
         tvState = TextView(ctx).apply {
-            text = "点「检查更新」开始。需要先在迁移页选好「迁移前」的版本目录。"
+            text = "上面两个按钮是整合包：导入后才登记，可检查更新、一次装进多个启动器。" +
+                "\n下面的「检查更新」是按目录查模组更新，不是整合包更新，也不登记。"
             textSize = 13f
             setTextColor(resources.getColor(R.color.textSecondary, null))
         }
@@ -95,7 +96,7 @@ class ModpackFragment : Fragment() {
             )
             lp.bottomMargin = (8 * resources.displayMetrics.density).toInt()
             layoutParams = lp
-            setOnClickListener { act() }
+            safeClickUnit { act() }
         }
     }
 

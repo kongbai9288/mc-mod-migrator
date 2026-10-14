@@ -262,4 +262,19 @@
     <string name="menu_patch">Patch</string>
     <string name="collapse_cfg">Hide filters</string>
     <string name="expand_cfg">Show filters</string>
+    <string name="plugin_install">Install plugin</string>
+    <string name="mode_client">Client migration</string>
+    <string name="mode_server">Server migration</string>
+    <string name="mode_server_desc">Take mods and configs from a server (panel / FTP), then migrate to the target version.</string>
+    <string name="server_card_title">Server</string>
+    <string name="server_not_connected">No server connected</string>
+    <string name="btn_open_server">Server manager</string>
+    <string name="dir_state_ok">Ready</string>
+    <string name="dir_state_ro">Read-only (migration will fail)</string>
+    <string name="dir_state_bad">Unreadable, please grant access again</string>
+    <string name="dir_state_none">No directory selected</string>
+    <string name="mode_title">Migration mode</string>
+    <string name="mode_client_hint">Take mods and configs from a game directory on this device.</string>
+    <string name="mode_server_hint">Take mods and configs from a server (panel / FTP).</string>
+    <string name="mode_tip">Client fits most cases. To switch back: Settings → Migration mode.</string>
 </resources>

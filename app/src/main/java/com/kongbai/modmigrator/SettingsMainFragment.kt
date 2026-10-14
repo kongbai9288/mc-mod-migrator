@@ -166,14 +166,14 @@ class SettingsMainFragment : Fragment() {
             toast(if (isServer) "已切换到服务器端迁移" else "已切换到客户端迁移")
         }
 
-        btnAccount.setOnClickListener { deviceLogin() }
-        v.findViewById<Button>(R.id.btnGoBackend).setOnClickListener { go("backend") }
-        v.findViewById<Button>(R.id.btnGoSearch).setOnClickListener { go("search") }
-        v.findViewById<Button>(R.id.btnGoMigrate).setOnClickListener { go("migrate") }
-        v.findViewById<Button>(R.id.btnGoTranslate).setOnClickListener { go("translate") }
-        v.findViewById<Button>(R.id.btnGoNav).setOnClickListener { go("nav") }
-        v.findViewById<Button>(R.id.btnGoStorage).setOnClickListener { go("storage") }
-        v.findViewById<Button>(R.id.btnGoAbout).setOnClickListener { go("about") }
+        btnAccount.safeClickUnit { deviceLogin() }
+        v.findViewById<Button>(R.id.btnGoBackend).safeClickUnit { go("backend") }
+        v.findViewById<Button>(R.id.btnGoSearch).safeClickUnit { go("search") }
+        v.findViewById<Button>(R.id.btnGoMigrate).safeClickUnit { go("migrate") }
+        v.findViewById<Button>(R.id.btnGoTranslate).safeClickUnit { go("translate") }
+        v.findViewById<Button>(R.id.btnGoNav).safeClickUnit { go("nav") }
+        v.findViewById<Button>(R.id.btnGoStorage).safeClickUnit { go("storage") }
+        v.findViewById<Button>(R.id.btnGoAbout).safeClickUnit { go("about") }
         v.findViewById<Button>(R.id.btnGoLab)?.setOnClickListener { go("lab") }
         v.findViewById<Button>(R.id.btnGoPatch)?.setOnClickListener { goPatch() }
 
