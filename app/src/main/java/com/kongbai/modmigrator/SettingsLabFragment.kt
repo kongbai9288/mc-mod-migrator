@@ -68,7 +68,7 @@ class SettingsLabFragment : Fragment() {
     private fun button(text: String, onClick: () -> Unit): Button =
         com.google.android.material.button.MaterialButton(requireContext()).apply {
             this.text = text
-            setOnClickListener { onClick() }
+            safeClickUnit { onClick() }
             val lp = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT

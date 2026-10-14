@@ -107,21 +107,21 @@ class SettingsNavFragment : Fragment() {
             row.addView(label)
             val up = MaterialButton(ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
             up.text = "↑"
-            up.setOnClickListener {
+            up.safeClick {
                 if (!NavConfig.moveInBottom(ctx, key, true)) toast("已经在最上面")
                 refresh()
             }
             row.addView(up)
             val down = MaterialButton(ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
             down.text = "↓"
-            down.setOnClickListener {
+            down.safeClick {
                 if (!NavConfig.moveInBottom(ctx, key, false)) toast("已经在最下面")
                 refresh()
             }
             row.addView(down)
             val out = MaterialButton(ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
             out.text = "移出"
-            out.setOnClickListener {
+            out.safeClick {
                 if (!NavConfig.moveToMore(ctx, key)) toast("底部至少保留 1 项")
                 else {
                     toast("已移到「更多」")
@@ -148,7 +148,7 @@ class SettingsNavFragment : Fragment() {
             row.addView(label)
             val add = MaterialButton(ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
             add.text = "移到底部"
-            add.setOnClickListener {
+            add.safeClick {
                 if (!NavConfig.moveToBottom(ctx, page.key)) {
                     toast("底部自定义项已满（${NavConfig.MAX_CUSTOM} 个），先从上面移一个出来")
                 } else {

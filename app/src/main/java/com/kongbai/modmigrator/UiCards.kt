@@ -304,7 +304,7 @@ object UiCards {
                 layoutParams = LinearLayout.LayoutParams(s2, s2)
                 alpha = 0.5f
             })
-            card.setOnClickListener { onClick?.invoke() }
+            card.safeClickUnit { onClick?.invoke() }
             card.isClickable = true
         }
         return card
@@ -340,7 +340,7 @@ object UiCards {
             )
             lp.bottomMargin = dp(ctx, 10)
             layoutParams = lp
-            setOnClickListener { onClick() }
+            safeClickUnit { onClick() }
             isClickable = true
         }
 
@@ -415,7 +415,7 @@ object UiCards {
             gravity = Gravity.CENTER
             background = cardBg(ctx)
             setPadding(dp(ctx, 10), dp(ctx, 12), dp(ctx, 10), dp(ctx, 12))
-            setOnClickListener { onClick() }
+            safeClickUnit { onClick() }
             isClickable = true
         }
         card.addView(ImageView(ctx).apply {
@@ -520,7 +520,7 @@ object UiCards {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply { bottomMargin = dp(ctx, 10) }
-            setOnClickListener { onClick() }
+            safeClickUnit { onClick() }
             isClickable = true
         }
 

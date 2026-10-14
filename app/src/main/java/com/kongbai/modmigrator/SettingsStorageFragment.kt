@@ -30,10 +30,10 @@ class SettingsStorageFragment : Fragment() {
         setupBackup(v)
         setupGameDir(v)
         setupMultiGameDir(v)
-        btnPick.setOnClickListener {
+        btnPick.safeClick {
             DirGuide.pick(requireActivity(), 21, DirGuide.Purpose.FREE)
         }
-        btnClear.setOnClickListener {
+        btnClear.safeClick {
             Prefs.get(requireContext()).edit().putString(K.WORKDIR_URI, "").apply()
             WorkDir.invalidate()
             refresh()
@@ -117,7 +117,7 @@ class SettingsStorageFragment : Fragment() {
                 override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
             }
 
-        btn.setOnClickListener {
+        btn.safeClick {
             // 自己指定：走 SAF 选目录。
             // 注意 Android 11+ 选不到 Android/data，提示里说清楚该选哪一层。
             DirGuide.pick(requireActivity(), 22, DirGuide.Purpose.FREE)
@@ -139,7 +139,7 @@ class SettingsStorageFragment : Fragment() {
         val ctx = requireContext()
         val box = v.findViewById<LinearLayout>(R.id.llGameDirs) ?: return
         val btn = v.findViewById<Button>(R.id.btnAddGameDir) ?: return
-        btn.setOnClickListener {
+        btn.safeClick {
             val i = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             runCatching { startActivityForResult(i, 23) }
@@ -178,7 +178,7 @@ class SettingsStorageFragment : Fragment() {
             if (!isCur) {
                 val bUse = Button(ctx)
                 bUse.text = getString(R.string.cfg_gamedir_use)
-                bUse.setOnClickListener {
+                bUse.safeClick {
                     GameDirs.setCurrent(ctx, e.uri)
                     Tips.short(ctx, "已切换到 ${e.label()}")
                     renderGameDirs(box)
@@ -188,7 +188,7 @@ class SettingsStorageFragment : Fragment() {
 
             val bDel = Button(ctx)
             bDel.text = getString(R.string.cfg_gamedir_del)
-            bDel.setOnClickListener {
+            bDel.safeClick {
                 GameDirs.remove(ctx, e.uri)
                 Tips.short(ctx, "已移除 ${e.label()}")
                 renderGameDirs(box)
@@ -244,7 +244,7 @@ class SettingsStorageFragment : Fragment() {
                 }
         }
 
-        v.findViewById<Button>(R.id.btnOpenCloud)?.setOnClickListener {
+        v.findViewById<Button>(R.id.btnOpenCloud)?.safeClick {
             val u = CloudBackup.uploadUrl(ctx)
             if (u.isBlank()) {
                 Tips.short(ctx, "先填上传地址，或直接用内置浏览器打开你的云盘")
@@ -253,7 +253,7 @@ class SettingsStorageFragment : Fragment() {
             }
         }
 
-        v.findViewById<Button>(R.id.btnBackupNow)?.setOnClickListener {
+        v.findViewById<Button>(R.id.btnBackupNow)?.safeClick {
             // ⚠️ 之前直接读 `CloudBackup.uploadUrl(ctx)`（已存的配置）。
             // 但地址框只在**失去焦点**时才保存——用户填完地址直接点「立即备份」，
             // 焦点可能还没丢，配置里仍是空的 → 弹"请先填写地址"，
@@ -264,7 +264,7 @@ class SettingsStorageFragment : Fragment() {
             val u = CloudBackup.uploadUrl(ctx)
             if (u.isBlank()) {
                 Tips.short(ctx, "请先填写云盘上传地址")
-                return@setOnClickListener
+                return@safeClick
             }
             Thread {
                 try {

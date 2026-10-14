@@ -311,7 +311,7 @@ class MigrationFragment : Fragment() {
         cardSource = v.findViewById(R.id.cardSource)
         cardServer = v.findViewById(R.id.cardServer)
         tvServerState = v.findViewById(R.id.tvServerState)
-        v.findViewById<Button>(R.id.btnOpenServer).setOnClickListener {
+        v.findViewById<Button>(R.id.btnOpenServer).safeClick {
             (activity as? MainActivity)?.showTab("server")
         }
         tvTarget = v.findViewById(R.id.tvTarget)
@@ -335,8 +335,8 @@ class MigrationFragment : Fragment() {
 
         v.findViewById<Button>(R.id.btnScanLocal)?.safeClickUnit { scanLocal() }
         v.findViewById<Button>(R.id.btnPickLauncher)?.safeClickUnit { pickLauncher() }
-        v.findViewById<Button>(R.id.btnPickSource).setOnClickListener { pickDir(11) }
-        v.findViewById<Button>(R.id.btnPickTarget).setOnClickListener { pickDir(12) }
+        v.findViewById<Button>(R.id.btnPickSource).safeClickUnit { pickDir(11) }
+        v.findViewById<Button>(R.id.btnPickTarget).safeClickUnit { pickDir(12) }
         v.findViewById<Button>(R.id.btnScan).safeClickUnit { scan() }
         // 原来这里重复写了两遍（复制粘贴残留），第二遍覆盖第一遍。
         // 保留一行。

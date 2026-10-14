@@ -107,7 +107,7 @@ class SettingsAnimFragment : Fragment() {
 
         root.addView(MaterialButton(ctx).apply {
             text = "播放一次示例动画"
-            setOnClickListener { playDemo(ctx, box) }
+            safeClickUnit { playDemo(ctx, box) }
         })
 
         // ── 开场动画（从启动器进来时播放） ────────────────────
@@ -135,7 +135,7 @@ class SettingsAnimFragment : Fragment() {
 
         root.addView(MaterialButton(ctx).apply {
             text = "预览开场动画"
-            setOnClickListener {
+            safeClick {
                 val h = LauncherBrand.Handoff(
                     LauncherBrand.byKey("zalith2"), "Zalith Launcher 2", "2.0.7"
                 )

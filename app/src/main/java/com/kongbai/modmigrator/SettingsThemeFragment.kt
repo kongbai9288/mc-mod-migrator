@@ -50,7 +50,7 @@ class SettingsThemeFragment : Fragment() {
                 gravity = android.view.Gravity.CENTER_VERTICAL
                 setPadding(0, (d * 8).toInt(), 0, (d * 8).toInt())
                 // 整行可点，不用非得戳那个小按钮
-                setOnClickListener { apply(ctx, i, t.name) }
+                safeClickUnit { apply(ctx, i, t.name) }
             }
 
             // 色块预览：选中项加一圈描边

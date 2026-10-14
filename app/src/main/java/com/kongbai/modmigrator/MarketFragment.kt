@@ -701,7 +701,7 @@ class MarketFragment : Fragment() {
                 cornerRadius = d * 10
                 setStroke((d * 1).toInt().coerceAtLeast(1), tint)
             }
-            setOnClickListener { click() }
+            safeClickUnit { click() }
             layoutParams = ViewGroup.MarginLayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT

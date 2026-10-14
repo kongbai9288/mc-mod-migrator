@@ -151,7 +151,7 @@ class DevLabActivity : AppCompatActivity() {
 
         btnAll = MaterialButton(this).apply {
             text = "全部跑一遍（安全项）"
-            setOnClickListener { runAll() }
+            safeClickUnit { runAll() }
         }
         root.addView(btnAll)
 
@@ -178,7 +178,7 @@ class DevLabActivity : AppCompatActivity() {
                 text = "播放：${b.label}"
                 gravity = Gravity.START
                 withIcon(this, R.drawable.ti_player_play)
-                setOnClickListener {
+                safeClick {
                     LauncherSplash.play(
                         this@DevLabActivity,
                         LauncherBrand.Handoff(b, b.label, "1.0.0")
@@ -189,12 +189,12 @@ class DevLabActivity : AppCompatActivity() {
         root.addView(MaterialButton(this).apply {
             text = "依次播放全部"
             withIcon(this, R.drawable.ti_movie)
-            setOnClickListener { playAllSplash() }
+            safeClickUnit { playAllSplash() }
         })
         root.addView(MaterialButton(this).apply {
             text = "模拟从启动器进来（重启主界面）"
             withIcon(this, R.drawable.ti_flask)
-            setOnClickListener { askLauncherName() }
+            safeClickUnit { askLauncherName() }
         })
 
         var lastGroup = ""
@@ -214,7 +214,7 @@ class DevLabActivity : AppCompatActivity() {
                     (if (c.desc.isNotBlank()) "\n" + c.desc else "")
                 gravity = Gravity.START
                 withIcon(this, iconFor(c))
-                setOnClickListener { askAndRun(c) }
+                safeClickUnit { askAndRun(c) }
             })
         }
     }

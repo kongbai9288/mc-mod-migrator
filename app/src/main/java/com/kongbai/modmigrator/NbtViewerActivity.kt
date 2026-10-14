@@ -172,7 +172,7 @@ class NbtViewerActivity : AppCompatActivity() {
         btnSave = MaterialButton(this).apply {
             text = "写回文件（先自动备份 .bak）"
             isEnabled = false
-            setOnClickListener { save() }
+            safeClickUnit { save() }
         }
         root.addView(btnSave)
 
@@ -185,7 +185,7 @@ class NbtViewerActivity : AppCompatActivity() {
         btnSaveTop = MaterialButton(this).apply {
             text = "写回文件（先自动备份 .bak）"
             isEnabled = false
-            setOnClickListener { save() }
+            safeClickUnit { save() }
         }
         root.addView(btnSaveTop, 0)
 
@@ -194,7 +194,7 @@ class NbtViewerActivity : AppCompatActivity() {
         // 没必要什么都自己做一遍。
         root.addView(MaterialButton(this).apply {
             text = "用其他应用打开（MT 管理器等）"
-            setOnClickListener { openExternal() }
+            safeClickUnit { openExternal() }
         }, 0)
 
         load()

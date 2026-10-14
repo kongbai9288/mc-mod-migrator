@@ -49,7 +49,7 @@ class ModAdapter(
         h.status.text = m.status
         h.action.text = if (m.targetUrl.isBlank()) "跳过" else "下载"
         h.action.isEnabled = m.targetUrl.isNotBlank()
-        h.action.setOnClickListener { onAction(m) }
+        h.action.bindClick { onAction(m) }
         // 图标：优先从本地 jar 里提取（离线可用、不耗流量），
         // 取不到就保留默认的方块占位图。
         h.icon.tag = m.uri
@@ -69,7 +69,7 @@ class ModAdapter(
             }
         }
         // 整行点击 = 打开模组详情页（有地址才跳）
-        h.itemView.setOnClickListener {
+        h.itemView.bindClick {
             onDetail?.invoke(m)
         }
     }
@@ -281,7 +281,7 @@ class MarketAdapter(
             h.trans.text = "译"
         }
         h.trans.visibility = View.VISIBLE
-        h.trans.setOnClickListener {
+        h.trans.bindClick {
             if (m.summaryZh.isNotBlank()) {
                 m.summaryZh = ""
                 notifyItemChanged(pos)
@@ -306,11 +306,11 @@ class MarketAdapter(
             // 但不禁用 —— 禁用后点了没反应，用户只会以为按钮坏了。
             h.action.text = "已安装"
             h.action.alpha = 0.6f
-            h.action.setOnClickListener { onInstall(m) }
+            h.action.bindClick { onInstall(m) }
         } else if (mismatch) {
             h.action.text = "安装?"
             h.action.alpha = 0.45f
-            h.action.setOnClickListener {
+            h.action.bindClick {
                 val sup = lds.joinToString("、") { Loaders.label(it) }
                 com.google.android.material.dialog.MaterialAlertDialogBuilder(h.itemView.context)
                     .setTitle("这个模组没有 ${Loaders.label(cur)} 版")
@@ -326,9 +326,9 @@ class MarketAdapter(
         } else {
             h.action.text = "安装"
             h.action.alpha = 1f
-            h.action.setOnClickListener { onInstall(m) }
+            h.action.bindClick { onInstall(m) }
         }
-        h.itemView.setOnClickListener { onOpen(m) }
+        h.itemView.bindClick { onOpen(m) }
         // 长按收藏 / 取消收藏
         h.itemView.setOnLongClickListener {
             onFav(m)
@@ -361,8 +361,8 @@ class LinkAdapter(
         val l = items[pos]
         h.title.text = l.title.ifBlank { l.url }
         h.url.text = l.url
-        h.download.setOnClickListener { onDownload(l) }
-        h.delete.setOnClickListener { onDelete(l) }
+        h.download.bindClick { onDownload(l) }
+        h.delete.bindClick { onDelete(l) }
     }
 }
 
@@ -388,7 +388,7 @@ class DeviceAdapter(
         val d = items[pos]
         h.device.text = "${d.label} · ${d.modCount} 个模组"
         h.time.text = "${d.time} · MC ${d.mcVersion.ifBlank { "?" }} · ${d.loader.ifBlank { "auto" }}"
-        h.restore.setOnClickListener { onRestore(d) }
+        h.restore.bindClick { onRestore(d) }
     }
 }
 
@@ -421,7 +421,7 @@ class UpdateAdapter(
             h.itemView.findViewById<View>(R.id.btnTrans).visibility = View.GONE
         }
         h.action.isEnabled = f.latestUrl.isNotBlank()
-        h.action.setOnClickListener { onDownload(f) }
+        h.action.bindClick { onDownload(f) }
     }
 }
 
@@ -455,6 +455,20 @@ class PluginAdapter(
         }
         h.itemView.findViewById<View>(R.id.btnTrans)?.visibility = View.GONE
         h.action.text = "运行"
-        h.action.setOnClickListener { onRun(p) }
+        h.action.safeClickUnit { onRun(p) }
     }
+}
+
+/**
+ * 列表项专用的点击绑定。
+ *
+ * 和 [safeClickUnit] 的区别有两点：
+ * 1. 时间窗更短——列表里快速连点两条是正常操作，用默认的会让人觉得"第二条没反应"
+ * 2. 每次绑定都清掉上一次的记录。
+ *    条目 View 是复用的，滚走再滚回来还是同一个 View 实例，
+ *    不清的话上一条点过留下的时间戳会挡住这一条。
+ */
+fun View.bindClick(fn: () -> Unit) {
+    TapGuard.reset(this)
+    setOnClickListener { v -> if (TapGuard.allowed(v, TapGuard.LIST_WINDOW)) fn() }
 }

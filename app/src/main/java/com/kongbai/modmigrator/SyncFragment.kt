@@ -48,7 +48,7 @@ class SyncFragment : Fragment() {
 
         val ctx = requireContext()
         val p = Prefs.get(ctx)
-        btnLogin.setOnClickListener { gotoLogin(ctx) }
+        btnLogin.safeClickUnit { gotoLogin(ctx) }
         refreshLogin(ctx)
         tvDeviceId.text = "ID ${Store.deviceId(ctx)} · ${Store.deviceLabel(ctx)} · ${p.getString(K.OWNER, "kongbai9288")}/${p.getString(K.REPO, "")}"
         swAutoSync.isChecked = p.getBoolean(K.AUTO_SYNC, false)

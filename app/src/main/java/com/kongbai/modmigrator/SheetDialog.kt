@@ -75,7 +75,7 @@ object SheetDialog {
                 row.addView(Button(ctx, null, android.R.attr.borderlessButtonStyle).apply {
                     text = label
                     setTextColor(accent)
-                    setOnClickListener {
+                    safeClick {
                         act?.invoke()
                         d.dismiss()
                     }

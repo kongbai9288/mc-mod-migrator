@@ -130,8 +130,8 @@ class SettingsFragment : Fragment() {
 
         v.findViewById<Button>(R.id.btnTest).safeClickUnit { test() }
         v.findViewById<Button>(R.id.btnPickLauncher).safeClickUnit { pickLauncher() }
-        v.findViewById<Button>(R.id.btnPrivacy).setOnClickListener { openInfo("privacy.txt", getString(R.string.privacy_title)) }
-        v.findViewById<Button>(R.id.btnLicenses).setOnClickListener { openInfo("licenses.txt", getString(R.string.license_title)) }
+        v.findViewById<Button>(R.id.btnPrivacy).safeClickUnit { openInfo("privacy.txt", getString(R.string.privacy_title)) }
+        v.findViewById<Button>(R.id.btnLicenses).safeClickUnit { openInfo("licenses.txt", getString(R.string.license_title)) }
         v.findViewById<Button>(R.id.btnCrash).safeClickUnit { showCrash() }
         v.findViewById<Button>(R.id.btnClear).safeClickUnit { clearData() }
 

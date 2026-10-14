@@ -72,7 +72,7 @@ class DevsFragment : Fragment() {
         // 彩蛋：长按状态行或连点 5 次
         tvState.setOnLongClickListener { showEgg(); true }
         eggClicks = 0
-        tvState.setOnClickListener {
+        tvState.safeClick {
             eggClicks++
             if (eggClicks >= 5) {
                 eggClicks = 0

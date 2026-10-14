@@ -267,7 +267,7 @@ class ModpackFragment : Fragment() {
                     ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle
                 ).apply {
                     this.text = "下载新版"
-                    setOnClickListener { downloadOne(r) }
+                    safeClickUnit { downloadOne(r) }
                 })
             }
             box.addView(row)

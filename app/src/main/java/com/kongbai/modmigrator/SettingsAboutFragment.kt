@@ -26,11 +26,11 @@ class SettingsAboutFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         val v = inflater.inflate(R.layout.fragment_settings_about, container, false)
-        v.findViewById<Button>(R.id.btnPrivacy).setOnClickListener {
+        v.findViewById<Button>(R.id.btnPrivacy).safeClick {
             openInfo("privacy.txt", getString(R.string.privacy_title))
         }
         val btnLic = v.findViewById<Button>(R.id.btnLicenses)
-        btnLic.setOnClickListener {
+        btnLic.safeClick {
             openInfo("licenses.txt", getString(R.string.license_title))
         }
         //
@@ -56,7 +56,7 @@ class SettingsAboutFragment : Fragment() {
             true
         }
         v.findViewById<Button>(R.id.btnCrash).safeClickUnit { showCrash() }
-        v.findViewById<Button>(R.id.btnClear).setOnClickListener {
+        v.findViewById<Button>(R.id.btnClear).safeClick {
             // ⚠️ 两个问题：
             //  ① `Store.clear` + 遍历删除 cacheDir 都是**磁盘 IO**，
             //     却在**主线程**跑 —— 缓存多了会明显卡顿。

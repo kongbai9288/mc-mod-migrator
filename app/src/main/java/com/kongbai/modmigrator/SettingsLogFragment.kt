@@ -29,8 +29,8 @@ class SettingsLogFragment : Fragment() {
         tv = v.findViewById(R.id.tvLog)
         tvInfo = v.findViewById(R.id.tvLogInfo)
         v.findViewById<Button>(R.id.btnRefresh).safeClickUnit { refresh() }
-        v.findViewById<Button>(R.id.btnClear).setOnClickListener {
-            val ctx = context ?: return@setOnClickListener
+        v.findViewById<Button>(R.id.btnClear).safeClick {
+            val ctx = context ?: return@safeClick
             LogCenter.clearFile(ctx)
             refresh()
         }

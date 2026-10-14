@@ -243,21 +243,21 @@ class ChunkMapActivity : AppCompatActivity() {
         ensurePickers()
         btnDim = MaterialButton(this).apply {
             text = "维度"
-            setOnClickListener { pickDim() }
+            safeClickUnit { pickDim() }
         }
         bar.addView(btnDim)
         btnMode = MaterialButton(this).apply {
             text = "框选"
-            setOnClickListener { toggleMode() }
+            safeClickUnit { toggleMode() }
         }
         bar.addView(btnMode)
         bar.addView(MaterialButton(this).apply {
             text = "跳转"
-            setOnClickListener { askGoto() }
+            safeClickUnit { askGoto() }
         })
         btnY = MaterialButton(this).apply {
             text = "高度"
-            setOnClickListener { askYRange() }
+            safeClickUnit { askYRange() }
         }
         bar.addView(btnY)
 
@@ -285,18 +285,18 @@ class ChunkMapActivity : AppCompatActivity() {
         // 主操作行：只留最常按的三颗，外加「更多」
         btnSave = MaterialButton(this).apply {
             text = "保存"
-            setOnClickListener { askSave() }
+            safeClickUnit { askSave() }
         }
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         root.addView(row)
         row.addView(MaterialButton(this).apply {
             text = "标记删除"
-            setOnClickListener { stageSelection() }
+            safeClickUnit { stageSelection() }
         })
         row.addView(btnSave)
         row.addView(MaterialButton(this).apply {
             text = "更多"
-            setOnClickListener { showMoreMenu() }
+            safeClickUnit { showMoreMenu() }
         })
 
         // 剩下的两行按钮也统一等宽、等间距（顶部那行和主操作行）

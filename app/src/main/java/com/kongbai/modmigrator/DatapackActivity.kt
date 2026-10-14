@@ -348,7 +348,7 @@ class DatapackActivity : AppCompatActivity() {
                         addNode(it, row, "", depth + 1)
                         row.addView(MaterialButton(this).apply {
                             text = "删除第 ${idx + 1} 项"
-                            setOnClickListener {
+                            safeClick {
                                 n.items.removeAt(idx)
                                 redraw()
                             }
@@ -360,8 +360,8 @@ class DatapackActivity : AppCompatActivity() {
                 sub.addView(items)
                 sub.addView(MaterialButton(this).apply {
                     text = "添加一项"
-                    setOnClickListener {
-                        if (n.items.size >= 64) { toast("最多 64 项"); return@setOnClickListener }
+                    safeClick {
+                        if (n.items.size >= 64) { toast("最多 64 项"); return@safeClick }
                         n.items.add(n.make())
                         redraw()
                     }
@@ -377,16 +377,16 @@ class DatapackActivity : AppCompatActivity() {
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         row.addView(MaterialButton(this).apply {
             text = "预览 JSON"
-            setOnClickListener { preview() }
+            safeClickUnit { preview() }
         }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         row.addView(MaterialButton(this).apply {
             text = "写入"
-            setOnClickListener { write() }
+            safeClickUnit { write() }
         }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         root.addView(row)
         root.addView(MaterialButton(this).apply {
             text = "选择存档目录"
-            setOnClickListener { pickDir.launch(null) }
+            safeClickUnit { pickDir.launch(null) }
         })
     }
 

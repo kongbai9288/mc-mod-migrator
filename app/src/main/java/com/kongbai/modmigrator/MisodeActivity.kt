@@ -410,7 +410,7 @@ class MisodeActivity : AppCompatActivity() {
 		minWidth = 0
 		setPadding(8, 0, 8, 0)
 		textSize = 11f
-		setOnClickListener { fn() }
+		safeClickUnit { fn() }
 	}
 
 	private fun toast(m: String) = Tips.long(this, m)

@@ -174,7 +174,7 @@ class SettingsMainFragment : Fragment() {
         v.findViewById<Button>(R.id.btnGoNav).safeClickUnit { go("nav") }
         v.findViewById<Button>(R.id.btnGoStorage).safeClickUnit { go("storage") }
         v.findViewById<Button>(R.id.btnGoAbout).safeClickUnit { go("about") }
-        v.findViewById<Button>(R.id.btnGoLab)?.setOnClickListener { go("lab") }
+        v.findViewById<Button>(R.id.btnGoLab)?.safeClickUnit { go("lab") }
         v.findViewById<Button>(R.id.btnGoPatch)?.safeClickUnit { goPatch() }
 
         refreshAccount()

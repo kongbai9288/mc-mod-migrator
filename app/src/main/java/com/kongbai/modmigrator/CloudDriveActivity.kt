@@ -201,7 +201,7 @@ class CloudDriveActivity : AppCompatActivity() {
 
         root.addView(MaterialButton(this).apply {
             text = "选择并连接网盘"
-            setOnClickListener { pickDrive() }
+            safeClickUnit { pickDrive() }
         })
 
         // 已存过配置就直接接上，省得每次进都重填一遍
@@ -224,19 +224,19 @@ class CloudDriveActivity : AppCompatActivity() {
         box.removeAllViews()
         box.addView(MaterialButton(this).apply {
             text = "测试连接"
-            setOnClickListener { test() }
+            safeClickUnit { test() }
         })
         box.addView(MaterialButton(this).apply {
             text = "浏览文件"
-            setOnClickListener { browse() }
+            safeClickUnit { browse() }
         })
         box.addView(MaterialButton(this).apply {
             text = "上传一个文件"
-            setOnClickListener { pickAndUpload() }
+            safeClickUnit { pickAndUpload() }
         })
         box.addView(MaterialButton(this).apply {
             text = "断开"
-            setOnClickListener {
+            safeClick {
                 Prefs.get(this@CloudDriveActivity).edit().remove(K_CFG).apply()
                 client = null
                 refresh()
@@ -283,7 +283,7 @@ class CloudDriveActivity : AppCompatActivity() {
         if (d.helpUrl.isNotBlank()) {
             root.addView(MaterialButton(ctx).apply {
                 text = "去哪拿？打开说明页"
-                setOnClickListener {
+                safeClick {
                     runCatching {
                         startActivity(
                             android.content.Intent(

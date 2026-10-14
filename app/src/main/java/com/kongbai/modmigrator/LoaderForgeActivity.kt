@@ -151,7 +151,7 @@ class LoaderForgeActivity : AppCompatActivity() {
 
         root.addView(MaterialButton(ctx).apply {
             text = "① 建私仓并下发提取任务"
-            setOnClickListener {
+            safeClick {
                 repoName = eRepo.text.toString().trim().ifBlank { repoName }
                 branch = eBranch.text.toString().trim().ifBlank { "main" }
                 loaderId = eLoader.text.toString().trim().ifBlank { "fabric" }
@@ -163,7 +163,7 @@ class LoaderForgeActivity : AppCompatActivity() {
 
         root.addView(MaterialButton(ctx).apply {
             text = "② 上传 jar 走解析模式（自动分段）"
-            setOnClickListener {
+            safeClick {
                 repoName = eRepo.text.toString().trim().ifBlank { repoName }
                 branch = eBranch.text.toString().trim().ifBlank { "main" }
                 mcVersion = eMc.text.toString().trim()
@@ -173,12 +173,12 @@ class LoaderForgeActivity : AppCompatActivity() {
 
         root.addView(MaterialButton(ctx).apply {
             text = "③ 查看最近一次任务状态"
-            setOnClickListener { runJob(modeStatus) }
+            safeClickUnit { runJob(modeStatus) }
         })
 
         root.addView(MaterialButton(ctx).apply {
             text = "复制日志"
-            setOnClickListener { CrashShare.share(ctx, sb.toString(), "LoaderForge 日志") }
+            safeClickUnit { CrashShare.share(ctx, sb.toString(), "LoaderForge 日志") }
         })
 
         log = TextView(ctx).apply {

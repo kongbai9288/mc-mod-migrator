@@ -46,12 +46,12 @@ class SettingsTranslateFragment : Fragment() {
 
         root.addView(MaterialButton(ctx).apply {
             text = getString(R.string.translate_download)
-            setOnClickListener { downloadModel() }
+            safeClickUnit { downloadModel() }
         })
 
         root.addView(MaterialButton(ctx).apply {
             text = getString(R.string.translate_test)
-            setOnClickListener { testTranslate() }
+            safeClickUnit { testTranslate() }
             val lp = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT

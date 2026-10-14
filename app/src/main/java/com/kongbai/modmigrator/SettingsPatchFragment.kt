@@ -53,7 +53,7 @@ class SettingsPatchFragment : Fragment() {
 
         root.addView(MaterialButton(ctx).apply {
             text = "全部刷新"
-            setOnClickListener { refreshAll() }
+            safeClickUnit { refreshAll() }
         })
 
         render()

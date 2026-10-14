@@ -97,7 +97,7 @@ class WorldsFragment : Fragment() {
                 minimumHeight = 0
                 val pp = (6 * resources.displayMetrics.density).toInt()
                 setPadding(pp * 2, pp, pp * 2, pp)
-                setOnClickListener { sortMode = i; render(ctx) }
+                safeClickUnit { sortMode = i; render(ctx) }
             }
             sortBtns.add(b)
             sortRow.addView(b, LinearLayout.LayoutParams(

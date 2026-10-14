@@ -290,7 +290,7 @@ class FirstRunActivity : AppCompatActivity() {
                 layoutParams = LinearLayout.LayoutParams(
                     0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
                 )
-                setOnClickListener {
+                safeClick {
                     GameDirs.setCurrent(this@FirstRunActivity, e.uri)
                     refresh()
                 }

@@ -89,7 +89,7 @@ class ModManagerFragment : Fragment() {
 
         fun barBtn(t: String, act: () -> Unit): View =
             UiCards.outlinedButton(ctx, t).apply {
-                setOnClickListener { act() }
+                safeClickUnit { act() }
                 val lp = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT

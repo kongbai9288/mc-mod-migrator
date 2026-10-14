@@ -358,7 +358,7 @@ object InAppNotice {
             textSize = 15f
             setTextColor(subColor(ctx))
             setPadding(p / 2, 0, 0, 0)
-            setOnClickListener { dismiss(s.id) }
+            safeClickUnit { dismiss(s.id) }
         }
         row.addView(close)
 

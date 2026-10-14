@@ -125,7 +125,7 @@ class WebActivity : AppCompatActivity() {
                 setBackgroundResource(R.drawable.bg_icon_button)
                 setPadding(8, 8, 8, 8)
                 layoutParams = LinearLayout.LayoutParams(btnSize, btnSize)
-                setOnClickListener { act() }
+                safeClickUnit { act() }
             }
         val btnBack = toolBtn(
             R.drawable.ti_arrow_left, "返回"

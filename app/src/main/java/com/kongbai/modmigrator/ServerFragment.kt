@@ -124,7 +124,7 @@ class ServerFragment : Fragment() {
         v.findViewById<Button>(R.id.btnCheckUpdates).safeClickUnit { checkUpdates() }
         v.findViewById<Button>(R.id.btnDownloadAll).safeClickUnit { downloadAll() }
         // 目录浏览器：连上之后逐级进入目录，边逛边看这个目录里有哪些 jar
-        v.findViewById<Button>(R.id.btnBrowseDir)?.setOnClickListener {
+        v.findViewById<Button>(R.id.btnBrowseDir)?.safeClick {
             browseDir(etDir.text.toString().trim().ifBlank { "/" })
         }
         // 选择"更新下来的文件放哪"（不上传回服务器）

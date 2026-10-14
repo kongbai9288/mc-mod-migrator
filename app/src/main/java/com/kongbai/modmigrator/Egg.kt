@@ -202,7 +202,7 @@ object Egg {
 
             // 彩蛋深处：连点标题 7 次解锁实验性功能
             var titleTaps = 0
-            root.getChildAt(0).setOnClickListener {
+            root.getChildAt(0).safeClick {
                 if (++titleTaps >= 7) {
                     titleTaps = 0
                     val on = !Prefs.get(ctx).getBoolean(K.EXPERIMENTAL_UPGRADE, false)
@@ -226,7 +226,7 @@ object Egg {
             dlg.setOnShowListener {
                 // 网格点击：换选中
                 for (i in 0 until grid.childCount) {
-                    grid.getChildAt(i).setOnClickListener {
+                    grid.getChildAt(i).safeClick {
                         picked = i
                         for (j in 0 until grid.childCount) {
                             val v = grid.getChildAt(j) as TextView
@@ -249,7 +249,7 @@ object Egg {
                 }
                 // 中性键改成切深色模式
                 dlg.getButton(android.content.DialogInterface.BUTTON_NEUTRAL)
-                    ?.setOnClickListener {
+                    ?.safeClick {
                         pickedNight = (pickedNight + 1) % 3
                         tvNight.text = "深色模式：${nightOpts[pickedNight]}"
                     }
