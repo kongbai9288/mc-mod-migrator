@@ -55,7 +55,7 @@ class NbtViewerActivity : AppCompatActivity() {
     private lateinit var tvPath: TextView
     private lateinit var tvTree: TextView
     private lateinit var skeletonBox: LinearLayout
-    private lateinit var treeScroll: View
+    private lateinit var treeScroll: HorizontalScrollView
     private lateinit var etSnbt: android.widget.EditText
     private lateinit var btnSave: MaterialButton
     private lateinit var btnSaveTop: MaterialButton
