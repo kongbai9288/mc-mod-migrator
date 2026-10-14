@@ -110,6 +110,8 @@ class SettingsMainFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         val v = inflater.inflate(R.layout.fragment_settings_main, container, false)
+        // 说明文字默认收起，点标题右边的「?」才展开
+        Hints.bind(v)
         ivAvatar = v.findViewById(R.id.ivAvatar)
         rowAccount = v.findViewById(R.id.rowAccount)
         tvAccount = v.findViewById(R.id.tvAccount)

@@ -69,6 +69,8 @@ class ServerFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         val v = inflater.inflate(R.layout.fragment_server, container, false)
+        // 说明文字默认收起，点标题右边的「?」才展开
+        Hints.bind(v)
         // 下面恢复 FTP/SFTP 表单时要读它，必须先取到
         val p = Prefs.get(requireContext())
         etBase = v.findViewById(R.id.etPanelBase)

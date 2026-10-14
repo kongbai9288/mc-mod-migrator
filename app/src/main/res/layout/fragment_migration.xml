@@ -425,7 +425,7 @@
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvMods"
             android:layout_width="match_parent"
-            android:layout_height="240dp"
+            android:layout_height="@dimen/mig_result_h"
             android:overScrollMode="never" />
 
         <TextView

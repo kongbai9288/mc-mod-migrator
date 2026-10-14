@@ -145,12 +145,32 @@
                         android:layout_height="wrap_content"
                         android:orientation="vertical">
 
-                        <TextView
-                            android:layout_width="wrap_content"
+                        <LinearLayout
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
-                            android:text="面板连接（Pterodactyl Client API）"
-                            android:textStyle="bold" />
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="面板连接（Pterodactyl Client API）"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="?attr/selectableItemBackground"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:paddingStart="8dp"
+                                android:paddingEnd="8dp"
+                                android:tag="hintbtn"
+                                android:text="?"
+                                android:textColor="?attr/colorPrimary" />
+                        </LinearLayout>
 
                         <EditText
                             android:id="@+id/etPanelBase"
@@ -171,6 +191,7 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:tag="hint"
                             android:text="@string/panel_auth_hint"
                             android:textColor="@color/textSecondary"
                             android:textSize="12sp" />
@@ -184,12 +205,32 @@
                         android:orientation="vertical"
                         android:visibility="gone">
 
-                        <TextView
-                            android:layout_width="wrap_content"
+                        <LinearLayout
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
-                            android:text="FTP / SFTP 直连"
-                            android:textStyle="bold" />
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="FTP / SFTP 直连"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="?attr/selectableItemBackground"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:paddingStart="8dp"
+                                android:paddingEnd="8dp"
+                                android:tag="hintbtn"
+                                android:text="?"
+                                android:textColor="?attr/colorPrimary" />
+                        </LinearLayout>
 
                         <LinearLayout
                             android:layout_width="match_parent"
@@ -242,6 +283,7 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:tag="hint"
                             android:text="用服务器的 FTP/SSH 账号密码直连，可以浏览并读取 mods、plugins 目录。端口留空用默认值（FTP 21 / SFTP 22）。"
                             android:textColor="@color/textSecondary"
                             android:textSize="12sp" />

@@ -224,16 +224,37 @@
                 android:orientation="vertical"
                 android:padding="12dp">
 
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/swUpdate"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:text="@string/cfg_update" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/swUpdate"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:checked="true"
+                        android:text="@string/cfg_update" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:tag="hintbtn"
+                        android:text="?"
+                        android:textColor="?attr/colorPrimary" />
+                </LinearLayout>
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:tag="hint"
                     android:text="@string/cfg_update_hint"
                     android:textColor="@color/textSecondary"
                     android:textSize="12sp" />
@@ -252,15 +273,36 @@
                 android:orientation="vertical"
                 android:padding="12dp">
 
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/swOffline"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/cfg_offline" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/swOffline"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/cfg_offline" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:tag="hintbtn"
+                        android:text="?"
+                        android:textColor="?attr/colorPrimary" />
+                </LinearLayout>
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:tag="hint"
                     android:text="@string/cfg_offline_hint"
                     android:textColor="@color/textSecondary"
                     android:textSize="12sp" />
@@ -316,6 +358,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:paddingTop="4dp"
+                    android:tag="hint"
                     android:text="上面的总开关打开时，所有联网一律关闭，分项不再单独判断。"
                     android:textColor="@color/textSecondary"
                     android:textSize="12sp" />
@@ -380,15 +423,36 @@
                 android:orientation="vertical"
                 android:padding="12dp">
 
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/swExtraLoaders"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="在加载器分类里显示手机不支持的加载器" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/swExtraLoaders"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="在加载器分类里显示手机不支持的加载器" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:tag="hintbtn"
+                        android:text="?"
+                        android:textColor="?attr/colorPrimary" />
+                </LinearLayout>
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:tag="hint"
                     android:text="如 Cleanroom / LiteLoader / Rift / Risugami / BTA。默认关闭：这些大多停在 1.12.2 及更早或已停更，手机上装了也跑不起来。开启后仅用于识别已有模组，不代表能运行。"
                     android:textColor="@color/textSecondary"
                     android:textSize="12sp" />
