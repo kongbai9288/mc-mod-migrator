@@ -10,354 +10,604 @@ For more details see https://docs.gradle.org/8.2/release-notes.html
 
 To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
 Daemon will be stopped at the end of the build 
-Checking the license for package Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/licenses
-License for package Android SDK Build-Tools 33.0.1 accepted.
-Preparing "Install Android SDK Build-Tools 33.0.1 v.33.0.1".
-"Install Android SDK Build-Tools 33.0.1 v.33.0.1" ready.
-Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tools/33.0.1
-"Install Android SDK Build-Tools 33.0.1 v.33.0.1" complete.
-"Install Android SDK Build-Tools 33.0.1 v.33.0.1" finished.
-> Task :app:buildKotlinToolingMetadata
-> Task :app:checkKotlinGradlePluginConfigurationErrors
-> Task :app:preBuild UP-TO-DATE
-> Task :app:preReleaseBuild UP-TO-DATE
-> Task :app:generateReleaseResValues
-> Task :app:checkReleaseAarMetadata
-> Task :app:mapReleaseSourceSetPaths
-> Task :app:generateReleaseResources
-> Task :app:mergeReleaseResources
-> Task :app:packageReleaseResources
-> Task :app:createReleaseCompatibleScreenManifests
-> Task :app:extractDeepLinksRelease
-> Task :app:parseReleaseLocalResources
-> Task :app:processReleaseMainManifest
-> Task :app:processReleaseManifest
-> Task :app:javaPreCompileRelease
-> Task :app:extractProguardFiles
-> Task :app:mergeReleaseJniLibFolders
-> Task :app:mergeReleaseNativeLibs
-> Task :app:desugarReleaseFileDependencies
-> Task :app:checkReleaseDuplicateClasses
-> Task :app:processReleaseManifestForPackage
-> Task :app:mergeReleaseArtProfile
 
-> Task :app:stripReleaseDebugSymbols
-Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
+FAILURE: Build failed with an exception.
 
-> Task :app:extractReleaseNativeSymbolTables
-> Task :app:processReleaseResources
-> Task :app:mergeExtDexRelease
-> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
-> Task :app:mergeReleaseShaders
-> Task :app:compileReleaseShaders NO-SOURCE
-> Task :app:generateReleaseAssets UP-TO-DATE
-> Task :app:mergeReleaseAssets
-> Task :app:compressReleaseAssets
-> Task :app:collectReleaseDependencies
-> Task :app:sdkReleaseDependencyData
-> Task :app:validateSigningRelease
-> Task :app:writeReleaseAppMetadata
-> Task :app:writeReleaseSigningConfigVersions
-> Task :app:optimizeReleaseResources
-> Task :app:compileReleaseKotlin
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:73:13 Variable 'p' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:85:41 Parameter 'source' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/App.kt:189:13 Type mismatch: inferred type is Boolean? but Boolean was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/App.kt:198:21 Variable 'line' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:148:18 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:236:16 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:295:50 Parameter 'loader' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:437:45 Parameter 'loader' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1179:32 'constructor ProgressDialog(Context!)' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1179:32 'ProgressDialog' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1180:13 'setMessage(CharSequence!): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1276:32 'constructor ProgressDialog(Context!)' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1276:32 'ProgressDialog' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1277:13 'setMessage(CharSequence!): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1349:32 'constructor ProgressDialog(Context!)' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1349:32 'ProgressDialog' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1350:13 'setMessage(CharSequence!): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1562:13 Variable 'chunkMode' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CloudDriveActivity.kt:403:23 'startActivityForResult(Intent, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CrashHandler.kt:66:58 'versionCode: Int' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CrashShare.kt:31:60 'versionCode: Int' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CrossLoader.kt:87:9 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DatapackActivity.kt:195:27 Parameter 'g' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DelayedDownload.kt:158:52 Unnecessary non-null assertion (!!) on a non-null receiver of type Runnable
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DelayedDownload.kt:160:28 Unnecessary safe call on a non-null receiver of type Runnable?
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DevLabActivity.kt:370:45 Parameter 'ctx' is never used, could be renamed to _
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DevLabActivity.kt:416:36 Parameter 'ctx' is never used, could be renamed to _
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DevTeam.kt:26:31 Parameter 'name' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DownloadService.kt:251:17 'stopForeground(Boolean): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/EditorActivity.kt:170:19 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Egg.kt:79:35 'constructor AudioTrack(Int, Int, Int, Int, Int, Int)' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Fs.kt:41:17 Condition 'arr == null' is always 'false'
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/HardLink.kt:65:59 Type mismatch: inferred type is File? but File was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/InstanceCreator.kt:44:18 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/InstanceScanner.kt:617:17 Variable 'n' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/InstanceScanner.kt:691:17 Variable 'n' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LangPack.kt:77:9 'constructor Resources(AssetManager!, DisplayMetrics!, Configuration!)' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LauncherBrand.kt:122:14 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoaderForgeActivity.kt:323:9 'startActivityForResult(Intent, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoadingOverlay.kt:74:14 Parameter 'act' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LogCenter.kt:121:13 Type mismatch: inferred type is Boolean? but Boolean was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:57:25 Variable 'cfgDetail' initializer is redundant
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:69:25 Variable 'urlDetail' initializer is redundant
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:110:28 Variable 'cookieDetail' initializer is redundant
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:129:24 Variable 'meDetail' initializer is redundant
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MainActivity.kt:557:15 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:174:53 Unnecessary non-null assertion (!!) on a non-null receiver of type LinearLayout
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:749:23 There is more than one label with such a name in this scope
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:425:49 'getValue(): Int!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:426:70 'getValue(): Int!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTileStore.kt:80:22 Variable 'ok' initializer is redundant
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTiles.kt:399:30 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaWorld.kt:160:13 Variable 'c' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocForm.kt:106:49 Type mismatch: inferred type is Nothing? but String was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocForm.kt:132:53 Type mismatch: inferred type is Nothing? but String was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocForm.kt:142:45 Type mismatch: inferred type is Nothing? but String was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocForm.kt:217:9 Parameter 'ver' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocForm.kt:218:9 Parameter 'depth' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocForm.kt:219:9 Parameter 'seen' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocForm.kt:220:9 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocForm.kt:245:63 Type mismatch: inferred type is Nothing? but String was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocForm.kt:253:42 Type mismatch: inferred type is Nothing? but String was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocSchema.kt:135:37 Type mismatch: inferred type is Nothing? but String was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:521:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:566:9 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:662:29 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:1620:18 Name shadowed: p
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MisodeActivity.kt:420:9 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModManagerFragment.kt:152:69 Parameter 'doing' is never used, could be renamed to _
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModManagerFragment.kt:447:13 Variable 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModMeta.kt:362:50 Unnecessary safe call on a non-null receiver of type Result<TomlArray?>
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModPageActivity.kt:226:19 'onReceivedError(WebView!, Int, String!, String!): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModPageActivity.kt:306:54 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModpackFragment.kt:460:57 There is more than one label with such a name in this scope
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModrinthApi.kt:80:39 Parameter 'side' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MrpackInstall.kt:510:24 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/NbtViewerActivity.kt:393:13 Variable 'df' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/OfflineTranslate.kt:194:19 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:27:30 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:36:30 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:43:23 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:45:38 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:85:22 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:181:25 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:195:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:581:51 Parameter 'i' is never used, could be renamed to _
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:689:13 Variable 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:783:61 Parameter 'side' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerPanelApi.kt:161:15 Parameter 'base' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerPanelApi.kt:161:29 Parameter 'user' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerPanelApi.kt:161:43 Parameter 'pass' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsAboutFragment.kt:244:53 There is more than one label with such a name in this scope
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsHostActivity.kt:199:15 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsMainFragment.kt:66:13 Variable 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsMainFragment.kt:479:13 Variable 'dlg' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsNavFragment.kt:96:15 Variable 'i' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsStorageFragment.kt:145:27 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsStorageFragment.kt:294:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SyncManager.kt:231:25 Name shadowed: f
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/TaskCenter.kt:74:49 Parameter 'done' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ToolsFragment.kt:230:15 Unnecessary safe call on a non-null receiver of type File!
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ToolsFragment.kt:438:23 Elvis operator (?:) always returns the left operand of non-nullable type Result<Long?>
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Translator.kt:80:9 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Translator.kt:283:21 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/TrashFragment.kt:138:49 Parameter 'total' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/UpdateInstaller.kt:90:29 Condition 'pid != null' is always 'true'
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebActivity.kt:508:20 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebTranslate.kt:163:21 Unnecessary safe call on a non-null receiver of type WebViewClient
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebTranslate.kt:179:30 Unnecessary safe call on a non-null receiver of type WebViewClient
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebTranslate.kt:179:72 Elvis operator (?:) always returns the left operand of non-nullable type Boolean
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/io/misode/mobile/MisodeDataCache.kt:130:7 Variable 'r' is never used
+* What went wrong:
+A problem occurred configuring root project 'ModMigrator'.
+> Could not resolve all files for configuration ':classpath'.
+   > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22.
+     Required by:
+         project : > org.jetbrains.kotlin.android:org.jetbrains.kotlin.android.gradle.plugin:1.9.22
+      > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugin/1.9.22/kotlin-gradle-plugin-1.9.22.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugin/1.9.22/kotlin-gradle-plugin-1.9.22.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22.
+         > Could not parse POM https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-gradle-plugin/1.9.22/kotlin-gradle-plugin-1.9.22.pom
+            > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugins-bom:1.9.22.
+               > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugins-bom:1.9.22.
+                  > Could not get resource 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugins-bom/1.9.22/kotlin-gradle-plugins-bom-1.9.22.pom'.
+                     > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugins-bom/1.9.22/kotlin-gradle-plugins-bom-1.9.22.pom'. Received status code 429 from server: Too Many Requests
+               > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugins-bom:1.9.22.
+                  > Could not get resource 'https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-gradle-plugins-bom/1.9.22/kotlin-gradle-plugins-bom-1.9.22.pom'.
+                     > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugins-bom/1.9.22/kotlin-gradle-plugins-bom-1.9.22.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.20-RC2.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:gradle-settings-api:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdk-common:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:repository:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:aaptcompiler:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.analytics-library:shared:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.lint:lint-model:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > androidx.databinding:databinding-compiler-common:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.utp:android-test-plugin-host-emulator-control-proto:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.utp:android-test-plugin-host-retention-proto:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:builder:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:builder-model:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:gradle-api:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdk-common:31.1.4 > com.android.tools:common:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:builder:8.1.4 > com.android.tools.analytics-library:tracker:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:builder:8.1.4 > com.android.tools.build:manifest-merger:31.1.4
+      > Could not resolve org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.20-RC2.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-stdlib-jdk8/1.8.20-RC2/kotlin-stdlib-jdk8-1.8.20-RC2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-stdlib-jdk8/1.8.20-RC2/kotlin-stdlib-jdk8-1.8.20-RC2.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.20-RC2.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-stdlib-jdk8/1.8.20-RC2/kotlin-stdlib-jdk8-1.8.20-RC2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-stdlib-jdk8/1.8.20-RC2/kotlin-stdlib-jdk8-1.8.20-RC2.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.apache.httpcomponents:httpmime:4.5.6.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdklib:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.analytics-library:crash:31.1.4
+      > Could not resolve org.apache.httpcomponents:httpmime:4.5.6.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/apache/httpcomponents/httpmime/4.5.6/httpmime-4.5.6.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/apache/httpcomponents/httpmime/4.5.6/httpmime-4.5.6.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.apache.httpcomponents:httpmime:4.5.6.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/apache/httpcomponents/httpmime/4.5.6/httpmime-4.5.6.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/apache/httpcomponents/httpmime/4.5.6/httpmime-4.5.6.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve commons-io:commons-io:2.4.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > androidx.databinding:databinding-compiler-common:8.1.4
+      > Could not resolve commons-io:commons-io:2.4.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/commons-io/commons-io/2.4/commons-io-2.4.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/commons-io/commons-io/2.4/commons-io-2.4.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve commons-io:commons-io:2.4.
+         > Could not get resource 'https://plugins.gradle.org/m2/commons-io/commons-io/2.4/commons-io-2.4.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/commons-io/commons-io/2.4/commons-io-2.4.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.ow2.asm:asm:9.2.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.lint:lint-typedef-remover:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:gradle-api:8.1.4
+      > Could not resolve org.ow2.asm:asm:9.2.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm/9.2/asm-9.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm/9.2/asm-9.2.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.ow2.asm:asm:9.2.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/ow2/asm/asm/9.2/asm-9.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm/9.2/asm-9.2.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.ow2.asm:asm-analysis:9.2.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+      > Could not resolve org.ow2.asm:asm-analysis:9.2.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm-analysis/9.2/asm-analysis-9.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm-analysis/9.2/asm-analysis-9.2.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.ow2.asm:asm-analysis:9.2.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/ow2/asm/asm-analysis/9.2/asm-analysis-9.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm-analysis/9.2/asm-analysis-9.2.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.ow2.asm:asm-commons:9.2.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:builder:8.1.4
+      > Could not resolve org.ow2.asm:asm-commons:9.2.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm-commons/9.2/asm-commons-9.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm-commons/9.2/asm-commons-9.2.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.ow2.asm:asm-commons:9.2.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/ow2/asm/asm-commons/9.2/asm-commons-9.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm-commons/9.2/asm-commons-9.2.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.ow2.asm:asm-util:9.2.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+      > Could not resolve org.ow2.asm:asm-util:9.2.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm-util/9.2/asm-util-9.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm-util/9.2/asm-util-9.2.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.ow2.asm:asm-util:9.2.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/ow2/asm/asm-util/9.2/asm-util-9.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm-util/9.2/asm-util-9.2.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.bouncycastle:bcpkix-jdk15on:1.67.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdk-common:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:builder:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:builder:8.1.4 > com.android.tools.build:apkzlib:8.1.4
+      > Could not resolve org.bouncycastle:bcpkix-jdk15on:1.67.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/bouncycastle/bcpkix-jdk15on/1.67/bcpkix-jdk15on-1.67.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/bouncycastle/bcpkix-jdk15on/1.67/bcpkix-jdk15on-1.67.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.bouncycastle:bcpkix-jdk15on:1.67.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/bouncycastle/bcpkix-jdk15on/1.67/bcpkix-jdk15on-1.67.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/bouncycastle/bcpkix-jdk15on/1.67/bcpkix-jdk15on-1.67.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.glassfish.jaxb:jaxb-runtime:2.3.2.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdk-common:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdklib:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:repository:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > androidx.databinding:databinding-compiler-common:8.1.4
+      > Could not resolve org.glassfish.jaxb:jaxb-runtime:2.3.2.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/glassfish/jaxb/jaxb-runtime/2.3.2/jaxb-runtime-2.3.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/glassfish/jaxb/jaxb-runtime/2.3.2/jaxb-runtime-2.3.2.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.glassfish.jaxb:jaxb-runtime:2.3.2.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/glassfish/jaxb/jaxb-runtime/2.3.2/jaxb-runtime-2.3.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/glassfish/jaxb/jaxb-runtime/2.3.2/jaxb-runtime-2.3.2.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve net.sf.jopt-simple:jopt-simple:4.9.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+      > Could not resolve net.sf.jopt-simple:jopt-simple:4.9.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/net/sf/jopt-simple/jopt-simple/4.9/jopt-simple-4.9.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/net/sf/jopt-simple/jopt-simple/4.9/jopt-simple-4.9.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve net.sf.jopt-simple:jopt-simple:4.9.
+         > Could not get resource 'https://plugins.gradle.org/m2/net/sf/jopt-simple/jopt-simple/4.9/jopt-simple-4.9.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/net/sf/jopt-simple/jopt-simple/4.9/jopt-simple-4.9.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.squareup:javapoet:1.10.0.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > androidx.databinding:databinding-compiler-common:8.1.4
+      > Could not resolve com.squareup:javapoet:1.10.0.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/squareup/javapoet/1.10.0/javapoet-1.10.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/squareup/javapoet/1.10.0/javapoet-1.10.0.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.squareup:javapoet:1.10.0.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/squareup/javapoet/1.10.0/javapoet-1.10.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/squareup/javapoet/1.10.0/javapoet-1.10.0.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.google.protobuf:protobuf-java:3.19.3.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdk-common:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.ddms:ddmlib:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:aapt2-proto:8.1.4-10154469
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:aaptcompiler:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.utp:android-device-provider-ddmlib-proto:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.utp:android-device-provider-gradle-proto:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.utp:android-test-plugin-host-additional-test-output-proto:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.utp:android-test-plugin-host-coverage-proto:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.utp:android-test-plugin-host-emulator-control-proto:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.utp:android-test-plugin-host-logcat-proto:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.utp:android-test-plugin-host-apk-installer-proto:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.utp:android-test-plugin-host-retention-proto:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.utp:android-test-plugin-result-listener-gradle-proto:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.analytics-library:shared:31.1.4 > com.android.tools.analytics-library:protos:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:builder:8.1.4 > com.android.tools.analytics-library:tracker:31.1.4
+      > Could not resolve com.google.protobuf:protobuf-java:3.19.3.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/google/protobuf/protobuf-java/3.19.3/protobuf-java-3.19.3.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/protobuf/protobuf-java/3.19.3/protobuf-java-3.19.3.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.google.protobuf:protobuf-java:3.19.3.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/google/protobuf/protobuf-java/3.19.3/protobuf-java-3.19.3.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/protobuf/protobuf-java/3.19.3/protobuf-java-3.19.3.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.google.protobuf:protobuf-java-util:3.19.3.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+      > Could not resolve com.google.protobuf:protobuf-java-util:3.19.3.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/google/protobuf/protobuf-java-util/3.19.3/protobuf-java-util-3.19.3.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/protobuf/protobuf-java-util/3.19.3/protobuf-java-util-3.19.3.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.google.protobuf:protobuf-java-util:3.19.3.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/google/protobuf/protobuf-java-util/3.19.3/protobuf-java-util-3.19.3.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/protobuf/protobuf-java-util/3.19.3/protobuf-java-util-3.19.3.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.google.code.gson:gson:2.8.9.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:builder:8.1.4 > com.android.tools.build:manifest-merger:31.1.4
+      > Could not resolve com.google.code.gson:gson:2.8.9.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/google/code/gson/gson/2.8.9/gson-2.8.9.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/code/gson/gson/2.8.9/gson-2.8.9.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.google.code.gson:gson:2.8.9.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/google/code/gson/gson/2.8.9/gson-2.8.9.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/code/gson/gson/2.8.9/gson-2.8.9.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve io.grpc:grpc-core:1.45.1.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.utp:android-test-plugin-result-listener-gradle-proto:31.1.4
+      > Could not resolve io.grpc:grpc-core:1.45.1.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/io/grpc/grpc-core/1.45.1/grpc-core-1.45.1.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/io/grpc/grpc-core/1.45.1/grpc-core-1.45.1.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve io.grpc:grpc-core:1.45.1.
+         > Could not get resource 'https://plugins.gradle.org/m2/io/grpc/grpc-core/1.45.1/grpc-core-1.45.1.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/io/grpc/grpc-core/1.45.1/grpc-core-1.45.1.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve io.grpc:grpc-netty:1.45.1.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.utp:android-test-plugin-result-listener-gradle-proto:31.1.4
+      > Could not resolve io.grpc:grpc-netty:1.45.1.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/io/grpc/grpc-netty/1.45.1/grpc-netty-1.45.1.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/io/grpc/grpc-netty/1.45.1/grpc-netty-1.45.1.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve io.grpc:grpc-netty:1.45.1.
+         > Could not get resource 'https://plugins.gradle.org/m2/io/grpc/grpc-netty/1.45.1/grpc-netty-1.45.1.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/io/grpc/grpc-netty/1.45.1/grpc-netty-1.45.1.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve io.grpc:grpc-protobuf:1.45.1.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.utp:android-test-plugin-result-listener-gradle-proto:31.1.4
+      > Could not resolve io.grpc:grpc-protobuf:1.45.1.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/io/grpc/grpc-protobuf/1.45.1/grpc-protobuf-1.45.1.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/io/grpc/grpc-protobuf/1.45.1/grpc-protobuf-1.45.1.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve io.grpc:grpc-protobuf:1.45.1.
+         > Could not get resource 'https://plugins.gradle.org/m2/io/grpc/grpc-protobuf/1.45.1/grpc-protobuf-1.45.1.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/io/grpc/grpc-protobuf/1.45.1/grpc-protobuf-1.45.1.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve io.grpc:grpc-stub:1.45.1.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.utp:android-test-plugin-result-listener-gradle-proto:31.1.4
+      > Could not resolve io.grpc:grpc-stub:1.45.1.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/io/grpc/grpc-stub/1.45.1/grpc-stub-1.45.1.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/io/grpc/grpc-stub/1.45.1/grpc-stub-1.45.1.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve io.grpc:grpc-stub:1.45.1.
+         > Could not get resource 'https://plugins.gradle.org/m2/io/grpc/grpc-stub/1.45.1/grpc-stub-1.45.1.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/io/grpc/grpc-stub/1.45.1/grpc-stub-1.45.1.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.google.crypto.tink:tink:1.7.0.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+      > Could not resolve com.google.crypto.tink:tink:1.7.0.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/google/crypto/tink/tink/1.7.0/tink-1.7.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/crypto/tink/tink/1.7.0/tink-1.7.0.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.google.crypto.tink:tink:1.7.0.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/google/crypto/tink/tink/1.7.0/tink-1.7.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/crypto/tink/tink/1.7.0/tink-1.7.0.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.google.flatbuffers:flatbuffers-java:1.12.0.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+      > Could not resolve com.google.flatbuffers:flatbuffers-java:1.12.0.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/google/flatbuffers/flatbuffers-java/1.12.0/flatbuffers-java-1.12.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/flatbuffers/flatbuffers-java/1.12.0/flatbuffers-java-1.12.0.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.google.flatbuffers:flatbuffers-java:1.12.0.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/google/flatbuffers/flatbuffers-java/1.12.0/flatbuffers-java-1.12.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/flatbuffers/flatbuffers-java/1.12.0/flatbuffers-java-1.12.0.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.tensorflow:tensorflow-lite-metadata:0.1.0-rc2.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4
+      > Could not resolve org.tensorflow:tensorflow-lite-metadata:0.1.0-rc2.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/tensorflow/tensorflow-lite-metadata/0.1.0-rc2/tensorflow-lite-metadata-0.1.0-rc2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/tensorflow/tensorflow-lite-metadata/0.1.0-rc2/tensorflow-lite-metadata-0.1.0-rc2.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.tensorflow:tensorflow-lite-metadata:0.1.0-rc2.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/tensorflow/tensorflow-lite-metadata/0.1.0-rc2/tensorflow-lite-metadata-0.1.0-rc2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/tensorflow/tensorflow-lite-metadata/0.1.0-rc2/tensorflow-lite-metadata-0.1.0-rc2.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.google.code.gson:gson:2.8.9.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdk-common:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdklib:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.analytics-library:shared:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > androidx.databinding:databinding-compiler-common:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.utp:android-test-plugin-result-listener-gradle-proto:31.1.4
+      > Could not resolve com.google.code.gson:gson:2.8.9.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/google/code/gson/gson/2.8.9/gson-2.8.9.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/code/gson/gson/2.8.9/gson-2.8.9.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.google.code.gson:gson:2.8.9.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/google/code/gson/gson/2.8.9/gson-2.8.9.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/code/gson/gson/2.8.9/gson-2.8.9.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.google.guava:guava:31.1-jre.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdk-common:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:aaptcompiler:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.analytics-library:crash:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.analytics-library:shared:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.lint:lint-typedef-remover:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > androidx.databinding:databinding-compiler-common:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:builder-test-api:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.utp:android-test-plugin-result-listener-gradle-proto:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:gradle-api:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdk-common:31.1.4 > com.android.tools:common:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:builder:8.1.4 > com.android.tools.analytics-library:tracker:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:builder:8.1.4 > com.android.tools.build:apkzlib:8.1.4
+      > Could not resolve com.google.guava:guava:31.1-jre.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/google/guava/guava/31.1-jre/guava-31.1-jre.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/guava/guava/31.1-jre/guava-31.1-jre.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.google.guava:guava:31.1-jre.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/google/guava/guava/31.1-jre/guava-31.1-jre.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/guava/guava/31.1-jre/guava-31.1-jre.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve javax.inject:javax.inject:1.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdk-common:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:bundletool:1.14.0
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:builder:8.1.4
+      > Could not resolve javax.inject:javax.inject:1.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/javax/inject/javax.inject/1/javax.inject-1.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/javax/inject/javax.inject/1/javax.inject-1.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve javax.inject:javax.inject:1.
+         > Could not get resource 'https://plugins.gradle.org/m2/javax/inject/javax.inject/1/javax.inject-1.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/javax/inject/javax.inject/1/javax.inject-1.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve net.sf.kxml:kxml2:2.3.0.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdk-common:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.ddms:ddmlib:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.lint:lint-model:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.layoutlib:layoutlib-api:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:builder:8.1.4 > com.android.tools.build:manifest-merger:31.1.4
+      > Could not resolve net.sf.kxml:kxml2:2.3.0.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/net/sf/kxml/kxml2/2.3.0/kxml2-2.3.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/net/sf/kxml/kxml2/2.3.0/kxml2-2.3.0.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve net.sf.kxml:kxml2:2.3.0.
+         > Could not get resource 'https://plugins.gradle.org/m2/net/sf/kxml/kxml2/2.3.0/kxml2-2.3.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/net/sf/kxml/kxml2/2.3.0/kxml2-2.3.0.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.bouncycastle:bcprov-jdk15on:1.67.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdk-common:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:builder:8.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:builder:8.1.4 > com.android.tools.build:apkzlib:8.1.4
+      > Could not resolve org.bouncycastle:bcprov-jdk15on:1.67.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/bouncycastle/bcprov-jdk15on/1.67/bcprov-jdk15on-1.67.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/bouncycastle/bcprov-jdk15on/1.67/bcprov-jdk15on-1.67.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.bouncycastle:bcprov-jdk15on:1.67.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/bouncycastle/bcprov-jdk15on/1.67/bcprov-jdk15on-1.67.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/bouncycastle/bcprov-jdk15on/1.67/bcprov-jdk15on-1.67.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.jetbrains.intellij.deps:trove4j:1.0.20200330.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdk-common:31.1.4
+      > Could not resolve org.jetbrains.intellij.deps:trove4j:1.0.20200330.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/jetbrains/intellij/deps/trove4j/1.0.20200330/trove4j-1.0.20200330.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/intellij/deps/trove4j/1.0.20200330/trove4j-1.0.20200330.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.jetbrains.intellij.deps:trove4j:1.0.20200330.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/jetbrains/intellij/deps/trove4j/1.0.20200330/trove4j-1.0.20200330.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/intellij/deps/trove4j/1.0.20200330/trove4j-1.0.20200330.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.jetbrains.kotlin:kotlin-reflect:1.8.20-RC2.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdk-common:31.1.4
+      > Could not resolve org.jetbrains.kotlin:kotlin-reflect:1.8.20-RC2.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-reflect/1.8.20-RC2/kotlin-reflect-1.8.20-RC2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-reflect/1.8.20-RC2/kotlin-reflect-1.8.20-RC2.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.jetbrains.kotlin:kotlin-reflect:1.8.20-RC2.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-reflect/1.8.20-RC2/kotlin-reflect-1.8.20-RC2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-reflect/1.8.20-RC2/kotlin-reflect-1.8.20-RC2.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve xerces:xercesImpl:2.12.0.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdk-common:31.1.4
+      > Could not resolve xerces:xercesImpl:2.12.0.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/xerces/xercesImpl/2.12.0/xercesImpl-2.12.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/xerces/xercesImpl/2.12.0/xercesImpl-2.12.0.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve xerces:xercesImpl:2.12.0.
+         > Could not get resource 'https://plugins.gradle.org/m2/xerces/xercesImpl/2.12.0/xercesImpl-2.12.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/xerces/xercesImpl/2.12.0/xercesImpl-2.12.0.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.apache.commons:commons-compress:1.21.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdklib:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:repository:31.1.4
+      > Could not resolve org.apache.commons:commons-compress:1.21.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/apache/commons/commons-compress/1.21/commons-compress-1.21.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/apache/commons/commons-compress/1.21/commons-compress-1.21.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.apache.commons:commons-compress:1.21.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/apache/commons/commons-compress/1.21/commons-compress-1.21.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/apache/commons/commons-compress/1.21/commons-compress-1.21.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.apache.httpcomponents:httpcore:4.4.15.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdklib:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.analytics-library:crash:31.1.4
+      > Could not resolve org.apache.httpcomponents:httpcore:4.4.15.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/apache/httpcomponents/httpcore/4.4.15/httpcore-4.4.15.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/apache/httpcomponents/httpcore/4.4.15/httpcore-4.4.15.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.apache.httpcomponents:httpcore:4.4.15.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/apache/httpcomponents/httpcore/4.4.15/httpcore-4.4.15.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/apache/httpcomponents/httpcore/4.4.15/httpcore-4.4.15.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.google.jimfs:jimfs:1.1.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:repository:31.1.4
+      > Could not resolve com.google.jimfs:jimfs:1.1.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/google/jimfs/jimfs/1.1/jimfs-1.1.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/jimfs/jimfs/1.1/jimfs-1.1.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.google.jimfs:jimfs:1.1.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/google/jimfs/jimfs/1.1/jimfs-1.1.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/jimfs/jimfs/1.1/jimfs-1.1.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.sun.activation:javax.activation:1.2.0.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:repository:31.1.4
+      > Could not resolve com.sun.activation:javax.activation:1.2.0.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/sun/activation/javax.activation/1.2.0/javax.activation-1.2.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/sun/activation/javax.activation/1.2.0/javax.activation-1.2.0.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.sun.activation:javax.activation:1.2.0.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/sun/activation/javax.activation/1.2.0/javax.activation-1.2.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/sun/activation/javax.activation/1.2.0/javax.activation-1.2.0.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.jetbrains:annotations:13.0.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.ddms:ddmlib:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.layoutlib:layoutlib-api:31.1.4
+      > Could not resolve org.jetbrains:annotations:13.0.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/jetbrains/annotations/13.0/annotations-13.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/annotations/13.0/annotations-13.0.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.jetbrains:annotations:13.0.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/jetbrains/annotations/13.0/annotations-13.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/annotations/13.0/annotations-13.0.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.apache.httpcomponents:httpclient:4.5.13.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.analytics-library:crash:31.1.4
+      > Could not resolve org.apache.httpcomponents:httpclient:4.5.13.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/apache/httpcomponents/httpclient/4.5.13/httpclient-4.5.13.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/apache/httpcomponents/httpclient/4.5.13/httpclient-4.5.13.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.apache.httpcomponents:httpclient:4.5.13.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/apache/httpcomponents/httpclient/4.5.13/httpclient-4.5.13.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/apache/httpcomponents/httpclient/4.5.13/httpclient-4.5.13.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve net.java.dev.jna:jna-platform:5.6.0.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.analytics-library:shared:31.1.4
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools:sdk-common:31.1.4 > com.android.tools:common:31.1.4
+      > Could not resolve net.java.dev.jna:jna-platform:5.6.0.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/net/java/dev/jna/jna-platform/5.6.0/jna-platform-5.6.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/net/java/dev/jna/jna-platform/5.6.0/jna-platform-5.6.0.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve net.java.dev.jna:jna-platform:5.6.0.
+         > Could not get resource 'https://plugins.gradle.org/m2/net/java/dev/jna/jna-platform/5.6.0/jna-platform-5.6.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/net/java/dev/jna/jna-platform/5.6.0/jna-platform-5.6.0.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.googlecode.juniversalchardet:juniversalchardet:1.0.3.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > androidx.databinding:databinding-compiler-common:8.1.4
+      > Could not resolve com.googlecode.juniversalchardet:juniversalchardet:1.0.3.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/googlecode/juniversalchardet/juniversalchardet/1.0.3/juniversalchardet-1.0.3.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/googlecode/juniversalchardet/juniversalchardet/1.0.3/juniversalchardet-1.0.3.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.googlecode.juniversalchardet:juniversalchardet:1.0.3.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/googlecode/juniversalchardet/juniversalchardet/1.0.3/juniversalchardet-1.0.3.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/googlecode/juniversalchardet/juniversalchardet/1.0.3/juniversalchardet-1.0.3.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve javax.annotation:javax.annotation-api:1.3.2.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.utp:android-test-plugin-result-listener-gradle-proto:31.1.4
+      > Could not resolve javax.annotation:javax.annotation-api:1.3.2.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/javax/annotation/javax.annotation-api/1.3.2/javax.annotation-api-1.3.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/javax/annotation/javax.annotation-api/1.3.2/javax.annotation-api-1.3.2.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve javax.annotation:javax.annotation-api:1.3.2.
+         > Could not get resource 'https://plugins.gradle.org/m2/javax/annotation/javax.annotation-api/1.3.2/javax.annotation-api-1.3.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/javax/annotation/javax.annotation-api/1.3.2/javax.annotation-api-1.3.2.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.google.auto.value:auto-value-annotations:1.6.2.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:bundletool:1.14.0
+      > Could not resolve com.google.auto.value:auto-value-annotations:1.6.2.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/google/auto/value/auto-value-annotations/1.6.2/auto-value-annotations-1.6.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/auto/value/auto-value-annotations/1.6.2/auto-value-annotations-1.6.2.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.google.auto.value:auto-value-annotations:1.6.2.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/google/auto/value/auto-value-annotations/1.6.2/auto-value-annotations-1.6.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/auto/value/auto-value-annotations/1.6.2/auto-value-annotations-1.6.2.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.google.errorprone:error_prone_annotations:2.3.1.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:bundletool:1.14.0
+      > Could not resolve com.google.errorprone:error_prone_annotations:2.3.1.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/google/errorprone/error_prone_annotations/2.3.1/error_prone_annotations-2.3.1.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/errorprone/error_prone_annotations/2.3.1/error_prone_annotations-2.3.1.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.google.errorprone:error_prone_annotations:2.3.1.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/google/errorprone/error_prone_annotations/2.3.1/error_prone_annotations-2.3.1.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/errorprone/error_prone_annotations/2.3.1/error_prone_annotations-2.3.1.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.google.guava:guava:31.1-jre.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:bundletool:1.14.0
+      > Could not resolve com.google.guava:guava:31.1-jre.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/google/guava/guava/31.1-jre/guava-31.1-jre.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/guava/guava/31.1-jre/guava-31.1-jre.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.google.guava:guava:31.1-jre.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/google/guava/guava/31.1-jre/guava-31.1-jre.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/guava/guava/31.1-jre/guava-31.1-jre.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.google.protobuf:protobuf-java:3.19.3.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:bundletool:1.14.0
+      > Could not resolve com.google.protobuf:protobuf-java:3.19.3.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/google/protobuf/protobuf-java/3.19.3/protobuf-java-3.19.3.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/protobuf/protobuf-java/3.19.3/protobuf-java-3.19.3.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.google.protobuf:protobuf-java:3.19.3.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/google/protobuf/protobuf-java/3.19.3/protobuf-java-3.19.3.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/protobuf/protobuf-java/3.19.3/protobuf-java-3.19.3.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.google.protobuf:protobuf-java-util:3.19.3.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:bundletool:1.14.0
+      > Could not resolve com.google.protobuf:protobuf-java-util:3.19.3.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/google/protobuf/protobuf-java-util/3.19.3/protobuf-java-util-3.19.3.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/protobuf/protobuf-java-util/3.19.3/protobuf-java-util-3.19.3.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.google.protobuf:protobuf-java-util:3.19.3.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/google/protobuf/protobuf-java-util/3.19.3/protobuf-java-util-3.19.3.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/protobuf/protobuf-java-util/3.19.3/protobuf-java-util-3.19.3.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.google.dagger:dagger:2.28.3.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:bundletool:1.14.0
+      > Could not resolve com.google.dagger:dagger:2.28.3.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/google/dagger/dagger/2.28.3/dagger-2.28.3.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/dagger/dagger/2.28.3/dagger-2.28.3.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.google.dagger:dagger:2.28.3.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/google/dagger/dagger/2.28.3/dagger-2.28.3.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/dagger/dagger/2.28.3/dagger-2.28.3.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.bitbucket.b_c:jose4j:0.7.0.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:bundletool:1.14.0
+      > Could not resolve org.bitbucket.b_c:jose4j:0.7.0.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/bitbucket/b_c/jose4j/0.7.0/jose4j-0.7.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/bitbucket/b_c/jose4j/0.7.0/jose4j-0.7.0.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.bitbucket.b_c:jose4j:0.7.0.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/bitbucket/b_c/jose4j/0.7.0/jose4j-0.7.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/bitbucket/b_c/jose4j/0.7.0/jose4j-0.7.0.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.slf4j:slf4j-api:1.7.30.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:bundletool:1.14.0
+      > Could not resolve org.slf4j:slf4j-api:1.7.30.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/1.7.30/slf4j-api-1.7.30.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/1.7.30/slf4j-api-1.7.30.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.slf4j:slf4j-api:1.7.30.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/slf4j/slf4j-api/1.7.30/slf4j-api-1.7.30.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/1.7.30/slf4j-api-1.7.30.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.google.code.gson:gson:2.8.9.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build.jetifier:jetifier-core:1.0.0-beta10
+      > Could not resolve com.google.code.gson:gson:2.8.9.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/google/code/gson/gson/2.8.9/gson-2.8.9.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/code/gson/gson/2.8.9/gson-2.8.9.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.google.code.gson:gson:2.8.9.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/google/code/gson/gson/2.8.9/gson-2.8.9.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/code/gson/gson/2.8.9/gson-2.8.9.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.jetbrains.kotlin:kotlin-stdlib:1.3.71.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build.jetifier:jetifier-core:1.0.0-beta10
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build.jetifier:jetifier-processor:1.0.0-beta10
+      > Could not resolve org.jetbrains.kotlin:kotlin-stdlib:1.3.71.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/1.3.71/kotlin-stdlib-1.3.71.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/1.3.71/kotlin-stdlib-1.3.71.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.jetbrains.kotlin:kotlin-stdlib:1.3.71.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-stdlib/1.3.71/kotlin-stdlib-1.3.71.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/1.3.71/kotlin-stdlib-1.3.71.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.ow2.asm:asm:9.2.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build.jetifier:jetifier-processor:1.0.0-beta10
+      > Could not resolve org.ow2.asm:asm:9.2.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm/9.2/asm-9.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm/9.2/asm-9.2.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.ow2.asm:asm:9.2.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/ow2/asm/asm/9.2/asm-9.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm/9.2/asm-9.2.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.ow2.asm:asm-util:9.2.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build.jetifier:jetifier-processor:1.0.0-beta10
+      > Could not resolve org.ow2.asm:asm-util:9.2.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm-util/9.2/asm-util-9.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm-util/9.2/asm-util-9.2.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.ow2.asm:asm-util:9.2.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/ow2/asm/asm-util/9.2/asm-util-9.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm-util/9.2/asm-util-9.2.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.ow2.asm:asm-commons:9.2.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build.jetifier:jetifier-processor:1.0.0-beta10
+      > Could not resolve org.ow2.asm:asm-commons:9.2.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm-commons/9.2/asm-commons-9.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm-commons/9.2/asm-commons-9.2.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.ow2.asm:asm-commons:9.2.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/ow2/asm/asm-commons/9.2/asm-commons-9.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/ow2/asm/asm-commons/9.2/asm-commons-9.2.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve org.jdom:jdom2:2.0.6.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build.jetifier:jetifier-processor:1.0.0-beta10
+      > Could not resolve org.jdom:jdom2:2.0.6.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/org/jdom/jdom2/2.0.6/jdom2-2.0.6.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/jdom/jdom2/2.0.6/jdom2-2.0.6.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve org.jdom:jdom2:2.0.6.
+         > Could not get resource 'https://plugins.gradle.org/m2/org/jdom/jdom2/2.0.6/jdom2-2.0.6.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/org/jdom/jdom2/2.0.6/jdom2-2.0.6.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve commons-codec:commons-codec:1.10.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:builder:8.1.4
+      > Could not resolve commons-codec:commons-codec:1.10.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/commons-codec/commons-codec/1.10/commons-codec-1.10.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/commons-codec/commons-codec/1.10/commons-codec-1.10.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve commons-codec:commons-codec:1.10.
+         > Could not get resource 'https://plugins.gradle.org/m2/commons-codec/commons-codec/1.10/commons-codec-1.10.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/commons-codec/commons-codec/1.10/commons-codec-1.10.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.squareup:javawriter:2.5.0.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:builder:8.1.4
+      > Could not resolve com.squareup:javawriter:2.5.0.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/squareup/javawriter/2.5.0/javawriter-2.5.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/squareup/javawriter/2.5.0/javawriter-2.5.0.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.squareup:javawriter:2.5.0.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/squareup/javawriter/2.5.0/javawriter-2.5.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/squareup/javawriter/2.5.0/javawriter-2.5.0.pom'. Received status code 429 from server: Too Many Requests
+   > Could not resolve com.google.code.findbugs:jsr305:3.0.2.
+     Required by:
+         project : > com.android.application:com.android.application.gradle.plugin:8.1.4 > com.android.tools.build:gradle:8.1.4 > com.android.tools.build:builder:8.1.4 > com.android.tools.build:apkzlib:8.1.4
+      > Could not resolve com.google.code.findbugs:jsr305:3.0.2.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.pom'. Received status code 429 from server: Too Many Requests
+      > Could not resolve com.google.code.findbugs:jsr305:3.0.2.
+         > Could not get resource 'https://plugins.gradle.org/m2/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.pom'. Received status code 429 from server: Too Many Requests
 
-> Task :app:compileReleaseJavaWithJavac
-Note: Some input files use or override a deprecated API.
-Note: Recompile with -Xlint:deprecation for details.
-Note: Some input files use unchecked or unsafe operations.
-Note: Recompile with -Xlint:unchecked for details.
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
 
-> Task :app:lintVitalAnalyzeRelease
-> Task :app:dexBuilderRelease
-> Task :app:mergeReleaseGlobalSynthetics
-> Task :app:processReleaseJavaRes
-> Task :app:mergeReleaseJavaResource
-> Task :app:mergeDexRelease
-> Task :app:compileReleaseArtProfile
-> Task :app:packageRelease
-> Task :app:createReleaseApkListingFileRedirect
-> Task :app:lintVitalReportRelease
-> Task :app:lintVitalRelease
-> Task :app:assembleRelease
-
-BUILD SUCCESSFUL in 6m 7s
-46 actionable tasks: 46 executed
-To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
-Daemon will be stopped at the end of the build 
-> Task :app:preBuild UP-TO-DATE
-> Task :app:preDebugBuild UP-TO-DATE
-> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
-> Task :app:checkKotlinGradlePluginConfigurationErrors
-> Task :app:generateDebugResValues
-> Task :app:checkDebugAarMetadata
-> Task :app:mapDebugSourceSetPaths
-> Task :app:generateDebugResources
-> Task :app:packageDebugResources
-> Task :app:createDebugCompatibleScreenManifests
-> Task :app:extractDeepLinksDebug
-> Task :app:mergeDebugResources
-> Task :app:parseDebugLocalResources
-> Task :app:processDebugMainManifest
-> Task :app:processDebugManifest
-> Task :app:javaPreCompileDebug
-> Task :app:mergeDebugShaders
-> Task :app:compileDebugShaders NO-SOURCE
-> Task :app:generateDebugAssets UP-TO-DATE
-> Task :app:mergeDebugAssets
-> Task :app:desugarDebugFileDependencies
-> Task :app:compressDebugAssets
-> Task :app:mergeDebugJniLibFolders
-> Task :app:processDebugManifestForPackage
-> Task :app:checkDebugDuplicateClasses
-> Task :app:processDebugResources
-> Task :app:mergeExtDexDebug
-> Task :app:mergeLibDexDebug
-> Task :app:mergeDebugNativeLibs
-> Task :app:validateSigningDebug
-> Task :app:writeDebugAppMetadata
-> Task :app:writeDebugSigningConfigVersions
-
-> Task :app:stripDebugDebugSymbols
-Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
-
-> Task :app:compileDebugKotlin
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:73:13 Variable 'p' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:85:41 Parameter 'source' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/App.kt:189:13 Type mismatch: inferred type is Boolean? but Boolean was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/App.kt:198:21 Variable 'line' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:148:18 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:236:16 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:295:50 Parameter 'loader' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/BackendApi.kt:437:45 Parameter 'loader' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1179:32 'constructor ProgressDialog(Context!)' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1179:32 'ProgressDialog' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1180:13 'setMessage(CharSequence!): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1276:32 'constructor ProgressDialog(Context!)' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1276:32 'ProgressDialog' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1277:13 'setMessage(CharSequence!): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1349:32 'constructor ProgressDialog(Context!)' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1349:32 'ProgressDialog' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1350:13 'setMessage(CharSequence!): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ChunkMapActivity.kt:1562:13 Variable 'chunkMode' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CloudDriveActivity.kt:403:23 'startActivityForResult(Intent, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CrashHandler.kt:66:58 'versionCode: Int' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CrashShare.kt:31:60 'versionCode: Int' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/CrossLoader.kt:87:9 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DatapackActivity.kt:195:27 Parameter 'g' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DelayedDownload.kt:158:52 Unnecessary non-null assertion (!!) on a non-null receiver of type Runnable
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DelayedDownload.kt:160:28 Unnecessary safe call on a non-null receiver of type Runnable?
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DevLabActivity.kt:370:45 Parameter 'ctx' is never used, could be renamed to _
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DevLabActivity.kt:416:36 Parameter 'ctx' is never used, could be renamed to _
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DevTeam.kt:26:31 Parameter 'name' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DownloadService.kt:251:17 'stopForeground(Boolean): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/EditorActivity.kt:170:19 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Egg.kt:79:35 'constructor AudioTrack(Int, Int, Int, Int, Int, Int)' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Fs.kt:41:17 Condition 'arr == null' is always 'false'
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/HardLink.kt:65:59 Type mismatch: inferred type is File? but File was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/InstanceCreator.kt:44:18 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/InstanceScanner.kt:617:17 Variable 'n' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/InstanceScanner.kt:691:17 Variable 'n' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LangPack.kt:77:9 'constructor Resources(AssetManager!, DisplayMetrics!, Configuration!)' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LauncherBrand.kt:122:14 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoaderForgeActivity.kt:323:9 'startActivityForResult(Intent, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoadingOverlay.kt:74:14 Parameter 'act' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LogCenter.kt:121:13 Type mismatch: inferred type is Boolean? but Boolean was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:57:25 Variable 'cfgDetail' initializer is redundant
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:69:25 Variable 'urlDetail' initializer is redundant
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:110:28 Variable 'cookieDetail' initializer is redundant
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:129:24 Variable 'meDetail' initializer is redundant
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MainActivity.kt:557:15 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:174:53 Unnecessary non-null assertion (!!) on a non-null receiver of type LinearLayout
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:749:23 There is more than one label with such a name in this scope
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:425:49 'getValue(): Int!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:426:70 'getValue(): Int!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTileStore.kt:80:22 Variable 'ok' initializer is redundant
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTiles.kt:399:30 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaWorld.kt:160:13 Variable 'c' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocForm.kt:106:49 Type mismatch: inferred type is Nothing? but String was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocForm.kt:132:53 Type mismatch: inferred type is Nothing? but String was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocForm.kt:142:45 Type mismatch: inferred type is Nothing? but String was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocForm.kt:217:9 Parameter 'ver' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocForm.kt:218:9 Parameter 'depth' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocForm.kt:219:9 Parameter 'seen' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocForm.kt:220:9 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocForm.kt:245:63 Type mismatch: inferred type is Nothing? but String was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocForm.kt:253:42 Type mismatch: inferred type is Nothing? but String was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McdocSchema.kt:135:37 Type mismatch: inferred type is Nothing? but String was expected
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:521:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:566:9 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:662:29 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:1620:18 Name shadowed: p
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MisodeActivity.kt:420:9 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModManagerFragment.kt:152:69 Parameter 'doing' is never used, could be renamed to _
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModManagerFragment.kt:447:13 Variable 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModMeta.kt:362:50 Unnecessary safe call on a non-null receiver of type Result<TomlArray?>
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModPageActivity.kt:226:19 'onReceivedError(WebView!, Int, String!, String!): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModPageActivity.kt:306:54 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModpackFragment.kt:460:57 There is more than one label with such a name in this scope
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModrinthApi.kt:80:39 Parameter 'side' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MrpackInstall.kt:510:24 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/NbtViewerActivity.kt:393:13 Variable 'df' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/OfflineTranslate.kt:194:19 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:27:30 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:36:30 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:43:23 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:45:38 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:85:22 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:181:25 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:195:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:581:51 Parameter 'i' is never used, could be renamed to _
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:689:13 Variable 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:783:61 Parameter 'side' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerPanelApi.kt:161:15 Parameter 'base' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerPanelApi.kt:161:29 Parameter 'user' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerPanelApi.kt:161:43 Parameter 'pass' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsAboutFragment.kt:244:53 There is more than one label with such a name in this scope
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsHostActivity.kt:199:15 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsMainFragment.kt:66:13 Variable 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsMainFragment.kt:479:13 Variable 'dlg' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsNavFragment.kt:96:15 Variable 'i' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsStorageFragment.kt:145:27 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsStorageFragment.kt:294:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SyncManager.kt:231:25 Name shadowed: f
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/TaskCenter.kt:74:49 Parameter 'done' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ToolsFragment.kt:230:15 Unnecessary safe call on a non-null receiver of type File!
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ToolsFragment.kt:438:23 Elvis operator (?:) always returns the left operand of non-nullable type Result<Long?>
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Translator.kt:80:9 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Translator.kt:283:21 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/TrashFragment.kt:138:49 Parameter 'total' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/UpdateInstaller.kt:90:29 Condition 'pid != null' is always 'true'
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebActivity.kt:508:20 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebTranslate.kt:163:21 Unnecessary safe call on a non-null receiver of type WebViewClient
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebTranslate.kt:179:30 Unnecessary safe call on a non-null receiver of type WebViewClient
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebTranslate.kt:179:72 Elvis operator (?:) always returns the left operand of non-nullable type Boolean
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/io/misode/mobile/MisodeDataCache.kt:130:7 Variable 'r' is never used
-
-> Task :app:compileDebugJavaWithJavac
-Note: Some input files use or override a deprecated API.
-Note: Recompile with -Xlint:deprecation for details.
-Note: Some input files use unchecked or unsafe operations.
-Note: Recompile with -Xlint:unchecked for details.
-
-> Task :app:dexBuilderDebug
-> Task :app:mergeDebugGlobalSynthetics
-> Task :app:processDebugJavaRes
-> Task :app:mergeProjectDexDebug
-> Task :app:mergeDebugJavaResource
-> Task :app:packageDebug
-> Task :app:createDebugApkListingFileRedirect
-> Task :app:assembleDebug
-
-BUILD SUCCESSFUL in 1m 36s
-36 actionable tasks: 36 executed
+BUILD FAILED in 2m 53s
