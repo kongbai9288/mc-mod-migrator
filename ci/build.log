@@ -36,13 +36,13 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:extractProguardFiles
 > Task :app:mergeReleaseJniLibFolders
 > Task :app:mergeReleaseNativeLibs
-> Task :app:desugarReleaseFileDependencies
 > Task :app:processReleaseManifestForPackage
 > Task :app:checkReleaseDuplicateClasses
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
 
+> Task :app:desugarReleaseFileDependencies
 > Task :app:extractReleaseNativeSymbolTables
 > Task :app:processReleaseResources
 > Task :app:mergeExtDexRelease
@@ -106,8 +106,8 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:110:28 Variable 'cookieDetail' initializer is redundant
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:129:24 Variable 'meDetail' initializer is redundant
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MainActivity.kt:557:15 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:174:53 Unnecessary non-null assertion (!!) on a non-null receiver of type LinearLayout
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:749:23 There is more than one label with such a name in this scope
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:175:53 Unnecessary non-null assertion (!!) on a non-null receiver of type LinearLayout
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:750:23 There is more than one label with such a name in this scope
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:425:49 'getValue(): Int!' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:426:70 'getValue(): Int!' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTileStore.kt:80:22 Variable 'ok' initializer is redundant
@@ -126,7 +126,7 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:521:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:566:9 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:662:29 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:1620:18 Name shadowed: p
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:1621:18 Name shadowed: p
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MisodeActivity.kt:420:9 'onBackPressed(): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModManagerFragment.kt:152:69 Parameter 'doing' is never used, could be renamed to _
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModManagerFragment.kt:447:13 Variable 'ctx' is never used
@@ -143,11 +143,11 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:43:23 Parameter 'ctx' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:45:38 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:85:22 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:181:25 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:195:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:581:51 Parameter 'i' is never used, could be renamed to _
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:689:13 Variable 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:783:61 Parameter 'side' is never used
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:188:25 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:202:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:588:51 Parameter 'i' is never used, could be renamed to _
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:696:13 Variable 'ctx' is never used
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:790:61 Parameter 'side' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerPanelApi.kt:161:15 Parameter 'base' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerPanelApi.kt:161:29 Parameter 'user' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerPanelApi.kt:161:43 Parameter 'pass' is never used
@@ -191,7 +191,7 @@ Note: Recompile with -Xlint:unchecked for details.
 > Task :app:lintVitalRelease
 > Task :app:assembleRelease
 
-BUILD SUCCESSFUL in 3m 22s
+BUILD SUCCESSFUL in 3m 11s
 46 actionable tasks: 46 executed
 To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
 Daemon will be stopped at the end of the build 
@@ -207,8 +207,8 @@ Daemon will be stopped at the end of the build
 > Task :app:createDebugCompatibleScreenManifests
 > Task :app:extractDeepLinksDebug
 > Task :app:parseDebugLocalResources
-> Task :app:mergeDebugResources
 > Task :app:processDebugMainManifest
+> Task :app:mergeDebugResources
 > Task :app:processDebugManifest
 > Task :app:javaPreCompileDebug
 > Task :app:mergeDebugShaders
@@ -218,19 +218,19 @@ Daemon will be stopped at the end of the build
 > Task :app:desugarDebugFileDependencies
 > Task :app:compressDebugAssets
 > Task :app:mergeDebugJniLibFolders
-> Task :app:checkDebugDuplicateClasses
-> Task :app:mergeDebugNativeLibs
 > Task :app:processDebugManifestForPackage
+> Task :app:checkDebugDuplicateClasses
+> Task :app:processDebugResources
 > Task :app:mergeExtDexDebug
 > Task :app:mergeLibDexDebug
+> Task :app:mergeDebugNativeLibs
+> Task :app:validateSigningDebug
+> Task :app:writeDebugAppMetadata
+> Task :app:writeDebugSigningConfigVersions
 
 > Task :app:stripDebugDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
 
-> Task :app:processDebugResources
-> Task :app:validateSigningDebug
-> Task :app:writeDebugAppMetadata
-> Task :app:writeDebugSigningConfigVersions
 > Task :app:compileDebugKotlin
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:73:13 Variable 'p' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:85:41 Parameter 'source' is never used
@@ -278,8 +278,8 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:110:28 Variable 'cookieDetail' initializer is redundant
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LoginDiag.kt:129:24 Variable 'meDetail' initializer is redundant
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MainActivity.kt:557:15 'onBackPressed(): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:174:53 Unnecessary non-null assertion (!!) on a non-null receiver of type LinearLayout
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:749:23 There is more than one label with such a name in this scope
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:175:53 Unnecessary non-null assertion (!!) on a non-null receiver of type LinearLayout
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MarketFragment.kt:750:23 There is more than one label with such a name in this scope
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:425:49 'getValue(): Int!' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaEdit.kt:426:70 'getValue(): Int!' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/McaTileStore.kt:80:22 Variable 'ok' initializer is redundant
@@ -298,7 +298,7 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:521:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:566:9 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:662:29 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:1620:18 Name shadowed: p
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MigrationFragment.kt:1621:18 Name shadowed: p
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/MisodeActivity.kt:420:9 'onBackPressed(): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModManagerFragment.kt:152:69 Parameter 'doing' is never used, could be renamed to _
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ModManagerFragment.kt:447:13 Variable 'ctx' is never used
@@ -315,11 +315,11 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:43:23 Parameter 'ctx' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:45:38 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/QuickTransfer.kt:85:22 Parameter 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:181:25 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:195:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:581:51 Parameter 'i' is never used, could be renamed to _
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:689:13 Variable 'ctx' is never used
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:783:61 Parameter 'side' is never used
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:188:25 'startActivityForResult(Intent!, Int): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:202:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:588:51 Parameter 'i' is never used, could be renamed to _
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:696:13 Variable 'ctx' is never used
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerFragment.kt:790:61 Parameter 'side' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerPanelApi.kt:161:15 Parameter 'base' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerPanelApi.kt:161:29 Parameter 'user' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ServerPanelApi.kt:161:43 Parameter 'pass' is never used
@@ -359,5 +359,5 @@ Note: Recompile with -Xlint:unchecked for details.
 > Task :app:createDebugApkListingFileRedirect
 > Task :app:assembleDebug
 
-BUILD SUCCESSFUL in 1m 45s
+BUILD SUCCESSFUL in 1m 35s
 36 actionable tasks: 36 executed
