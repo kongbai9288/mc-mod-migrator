@@ -21,10 +21,10 @@ import java.util.concurrent.Executors
 class MarketFragment : Fragment() {
 
     private lateinit var etQuery: EditText
-    private lateinit var etVersion: EditText
-    private lateinit var spLoader: Spinner
+    private var etVersion: EditText? = null
+    private var spLoader: Spinner? = null
     private lateinit var rvMods: RecyclerView
-    private lateinit var rvLinks: RecyclerView
+    private var rvLinks: RecyclerView? = null
 
     /**
      * 筛选区的折叠开关。
@@ -34,9 +34,9 @@ class MarketFragment : Fragment() {
      *
      * 现在：搜到结果后自动收起，整屏给列表；要改条件点一下再展开。
      */
-    private var scrollCfg: androidx.core.widget.NestedScrollView? = null
-    private var btnToggleCfg: android.widget.TextView? = null
-    private var cfgState: Int = CfgToggle.SPLIT
+    // 筛选抽屉。条件控件只在抽屉弹出时存在，
+    // 取值一律走 MarketState，不依赖 View 是否还在。
+    private var filterSheet: com.google.android.material.bottomsheet.BottomSheetDialog? = null
 
     // 搜索/推荐的结果存在 MarketState 单例里：
     // 底部导航是 replace()，切页签时本 Fragment 会被销毁重建，
@@ -103,12 +103,8 @@ class MarketFragment : Fragment() {
     ): View {
         val v = inflater.inflate(R.layout.fragment_market, container, false)
         etQuery = v.findViewById(R.id.etQuery)
-        etVersion = v.findViewById(R.id.etVersion)
-        spLoader = v.findViewById(R.id.spLoader)
-        // 带加载器图标的下拉
-        LoaderSpinner.attachByPref(spLoader)
+        v.findViewById<android.widget.TextView>(R.id.btnFilter).safeClickUnit { showFilterSheet() }
         rvMods = v.findViewById(R.id.rvMods)
-        rvLinks = v.findViewById(R.id.rvLinks)
 
         resAdapter = MarketAdapter(
             results,
@@ -134,9 +130,6 @@ class MarketFragment : Fragment() {
 
         rvMods.layoutManager = LinearLayoutManager(requireContext())
         rvMods.adapter = resAdapter
-        rvLinks.layoutManager = LinearLayoutManager(requireContext())
-        rvLinks.adapter = linkAdapter
-        rvLinks.isNestedScrollingEnabled = false
 
         tvListTitle = v.findViewById(R.id.tvListTitle)
         // 筛选行插在标题下面：没有分类时整行隐藏，不留空白
@@ -169,12 +162,12 @@ class MarketFragment : Fragment() {
                 )
             )
         }
-        val titleRow = tvListTitle.parent as? android.widget.LinearLayout
-        val outer = titleRow?.parent as? android.widget.LinearLayout
-        (outer ?: titleRow)?.let { host ->
-            val anchor = if (outer != null) titleRow!! else tvListTitle
-            val idx = host.indexOfChild(anchor)
-            host.addView(
+        val host = (tvListTitle.parent as? android.widget.LinearLayout)?.parent
+            as? android.widget.LinearLayout
+        host?.let { root ->
+            val anchor = root.findViewById<View>(R.id.rowSearch)
+            val idx = root.indexOfChild(anchor)
+            root.addView(
                 rowFilter, idx + 1,
                 android.widget.LinearLayout.LayoutParams(
                     android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
@@ -196,17 +189,10 @@ class MarketFragment : Fragment() {
                 if (last >= total - 3) loadMore()
             }
         })
-        scrollCfg = v.findViewById(R.id.scrollCfg)
-        btnToggleCfg = v.findViewById(R.id.btnToggleCfg)
-        btnToggleCfg?.safeClickUnit { toggleCfg() }
-        // 已经有结果（比如切页签回来）就直接收起，别让用户再看一遍空筛选区
-        if (MarketState.hasContent()) setCfgCollapsed(true)
-
         v.findViewById<Button>(R.id.btnSearch).safeClickUnit { search() }
-        v.findViewById<Button>(R.id.btnRecommend)?.safeClickUnit { recommend() }
-        v.findViewById<Button>(R.id.btnAddLink).safeClickUnit { addLinkDialog() }
-        v.findViewById<Button>(R.id.btnOpenPage).safeClickUnit { openPageDialog() }
-        v.findViewById<Button>(R.id.btnShare)?.safeClickUnit { shareWithPosition() }
+        etQuery.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) { search(); true } else false
+        }
 
         // 收藏按钮 = 页签切换：在收藏夹和搜索结果之间来回切，
         // 两边各自保留，不会互相覆盖
@@ -225,7 +211,7 @@ class MarketFragment : Fragment() {
         }
 
         val p = Prefs.get(requireContext())
-        etVersion.setText(p.getString(K.DEF_VERSION, "") ?: "")
+        if (lastMc.isBlank()) lastMc = p.getString(K.DEF_VERSION, "") ?: ""
         // ⚠️ 切页签回来时 Fragment 是**新建**的，
         // 之前什么都不做 → 列表空 → 用户看到"搜索结果（0）"，
         // 以为刚才白搜了。这里把单例里存的结果灌回去。
@@ -291,11 +277,15 @@ class MarketFragment : Fragment() {
     private fun ctx0(): android.content.Context? = try { context } catch (t: Throwable) { null }
 
     private fun mcVersion(): String {
-        val s = etVersion.text.toString().trim()
-        return s.ifBlank { Prefs.get(requireContext()).getString(K.DEF_VERSION, "") ?: "" }
+        val s = etVersion?.text?.toString()?.trim().orEmpty()
+        val cur = s.ifBlank { lastMc }
+        return cur.ifBlank { Prefs.get(requireContext()).getString(K.DEF_VERSION, "") ?: "" }
     }
 
-    private fun loader(): String = spLoader.selectedItem?.toString() ?: "auto"
+    private fun loader(): String {
+        val v = spLoader?.let { LoaderSpinner.value(it) }.orEmpty()
+        return v.ifBlank { lastLoader.ifBlank { "auto" } }
+    }
 
     private fun search() {
         val raw = etQuery.text.toString().trim()
@@ -572,9 +562,6 @@ class MarketFragment : Fragment() {
      * @param structural 排序或筛选条件变了，必须整表重排
      */
     private fun refreshList(appended: Int = 0, structural: Boolean = false) {
-        // 有东西可看了就把筛选区收起来：这时候用户要看的是结果，
-        // 而不是顶上那块搜索框。要改条件点「展开筛选」即可。
-        if (searchResults.isNotEmpty()) setCfgCollapsed(true)
         val src = if (currentTab == "search") searchResults else favResults
         val filtered = if (activeCats.isEmpty()) src else src.filter { m ->
             val cs = m.categories.map { it.lowercase() }
@@ -1028,19 +1015,58 @@ class MarketFragment : Fragment() {
             .show()
     }
     /** 展开/收起筛选区 */
-    private fun toggleCfg() {
-        cfgState = CfgToggle.next(cfgState)
-        renderCfg()
+    /**
+     * 筛选抽屉。
+     *
+     * 条件控件不再常驻页面 —— 常驻就得和列表分屏，两边谁都不够用。
+     * 这里按需 inflate，改完写回 MarketState，取值的地方不依赖抽屉是否还开着。
+     */
+    private fun showFilterSheet() {
+        val ctx = context ?: return
+        val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(ctx)
+        val sv = layoutInflater.inflate(R.layout.sheet_market_filter, null)
+        val sp = sv.findViewById<Spinner>(R.id.spLoader)
+        val et = sv.findViewById<EditText>(R.id.etVersion)
+        val rvL = sv.findViewById<RecyclerView>(R.id.rvLinks)
+        spLoader = sp
+        etVersion = et
+        rvLinks = rvL
+
+        LoaderSpinner.attachByPref(sp)
+        LoaderSpinner.select(sp, loader())
+        et.setText(mcVersion())
+        // 改了条件立刻生效：抽屉还开着就重搜，省得关掉再点一次搜索
+        var suppress = true
+        sp.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(a: android.widget.AdapterView<*>?, b: View?, pos: Int, id: Long) {
+                lastLoader = LoaderSpinner.value(sp)
+                if (!suppress) reSearchIfAny()
+            }
+            override fun onNothingSelected(a: android.widget.AdapterView<*>?) {}
+        }
+        et.setOnFocusChangeListener { _, has -> if (!has && !suppress) { lastMc = et.text.toString().trim(); reSearchIfAny() } }
+        suppress = false
+
+        rvL.layoutManager = LinearLayoutManager(ctx)
+        rvL.adapter = linkAdapter
+        rvL.isNestedScrollingEnabled = false
+        reloadLinks()
+
+        sv.findViewById<Button>(R.id.btnRecommend).safeClickUnit { recommend(); sheet.dismiss() }
+        sv.findViewById<Button>(R.id.btnAddLink).safeClickUnit { addLinkDialog() }
+        sv.findViewById<Button>(R.id.btnOpenPage).safeClickUnit { openPageDialog() }
+        sv.findViewById<Button>(R.id.btnShare).safeClickUnit { shareWithPosition() }
+
+        sheet.setContentView(sv)
+        sheet.setOnDismissListener { spLoader = null; etVersion = null; rvLinks = null }
+        sheet.show()
+        filterSheet = sheet
     }
 
-    private fun renderCfg() {
-        CfgToggle.render(scrollCfg, rvMods, btnToggleCfg, cfgState, "筛选")
-    }
-
-    /** 有结果就收起筛选区，整屏给列表；没结果就展开，别一进来先看空白 */
-    private fun setCfgCollapsed(collapsed: Boolean) {
-        cfgState = if (collapsed) CfgToggle.COLLAPSED else CfgToggle.SPLIT
-        renderCfg()
+    /** 已经有结果时，条件变了直接重搜一遍 */
+    private fun reSearchIfAny() {
+        if (currentTab == "search" && etQuery.text.toString().trim().isNotBlank()) search()
+        else resAdapter.notifyDataSetChanged()
     }
 
     override fun onDestroyView() {

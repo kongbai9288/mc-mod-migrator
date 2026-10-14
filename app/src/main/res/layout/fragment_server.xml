@@ -16,16 +16,76 @@
   改成 MaterialCardView 只影响观感，不影响任何代码逻辑。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="12dp">
 
+    <!-- 连接配置。默认状态由"连没连上"决定，不是让用户手动切：
+         没连 → 展开，因为连不上后面什么都做不了；
+         已连 → 收起成一行摘要，整屏留给更新列表。
+         想改参数点标题那一行即可（整行可点，带展开箭头）。 -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/rowConnHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="连接"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvConnSummary"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="12sp" />
+
+                <ImageView
+                    android:id="@+id/ivConnArrow"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:contentDescription="展开或收起"
+                    android:src="@drawable/ti_arrow_down"
+                    app:tint="?attr/colorOnSurface" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/boxConn"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="12dp">
+
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scrollCfg"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="wrap_content"
         android:fillViewport="false"
         android:overScrollMode="never">
 
@@ -380,39 +440,22 @@
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
-    <LinearLayout
-        android:layout_width="match_parent"
+    <TextView
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="更新列表"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/btnToggleCfg"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true"
-            android:paddingStart="6dp"
-            android:paddingEnd="2dp"
-            android:text="@string/collapse_cfg"
-            android:textColor="?attr/colorPrimary"
-            android:textSize="12sp" />
-    </LinearLayout>
+        android:paddingBottom="4dp"
+        android:text="更新列表"
+        android:textStyle="bold" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvUpdates"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="2" />
+        android:layout_weight="1" />
 
     <TextView
         android:id="@+id/tvLog"

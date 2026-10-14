@@ -19,6 +19,11 @@ import java.util.concurrent.Executors
 
 class ServerFragment : Fragment() {
 
+    companion object {
+        /** 与 fragment_server.xml 里 tvServer 的初始值一致，用来判断连没连 */
+        private const val NOT_CONNECTED = "未选择服务器"
+    }
+
     private lateinit var etBase: EditText
 
     private lateinit var etKey: EditText
@@ -33,9 +38,10 @@ class ServerFragment : Fragment() {
     private lateinit var tvServer: TextView
     private lateinit var tvLog: TextView
     private lateinit var rv: RecyclerView
-    private var scrollCfg: View? = null
-    private var btnToggleCfg: android.widget.TextView? = null
-    private var cfgState: Int = CfgToggle.SPLIT
+    private var boxConn: View? = null
+    private var tvConnSummary: TextView? = null
+    private var ivConnArrow: android.widget.ImageView? = null
+    private var connExpanded: Boolean = true
     private lateinit var cbSrcModrinth: android.widget.CheckBox
     private lateinit var cbSrcCurseforge: android.widget.CheckBox
     private lateinit var cbSrcBackend: android.widget.CheckBox
@@ -76,11 +82,17 @@ class ServerFragment : Fragment() {
         spSide = v.findViewById(R.id.spSide)
         tvServer = v.findViewById(R.id.tvServer)
         tvLog = v.findViewById(R.id.tvLog)
-        scrollCfg = v.findViewById(R.id.scrollCfg)
-        btnToggleCfg = v.findViewById(R.id.btnToggleCfg)
-        btnToggleCfg?.safeClickUnit { toggleCfg() }
+        boxConn = v.findViewById(R.id.boxConn)
+        tvConnSummary = v.findViewById(R.id.tvConnSummary)
+        ivConnArrow = v.findViewById(R.id.ivConnArrow)
+        v.findViewById<View>(R.id.rowConnHeader).safeClick {
+            connExpanded = !connExpanded
+            applyConnExpand()
+        }
         rv = v.findViewById(R.id.rvUpdates)
-        renderCfg()
+        // 没连上就展开（连不上后面一步都做不了），连上了收起，整屏给列表
+        connExpanded = tvServer.text.toString() == NOT_CONNECTED
+        applyConnExpand()
         cbSrcModrinth = v.findViewById(R.id.cbSrcModrinth)
         cbSrcCurseforge = v.findViewById(R.id.cbSrcCurseforge)
         cbSrcBackend = v.findViewById(R.id.cbSrcBackend)
@@ -580,6 +592,7 @@ class ServerFragment : Fragment() {
                 servers.clear()
                 if (found.isEmpty()) {
                     tvServer.text = "已连接，但没找到有 jar 的目录"
+                    collapseConn()
                     toast("没找到 mods/plugins 目录，可以在下面手动填路径再扫描")
                     return@safePost
                 }
@@ -674,6 +687,7 @@ class ServerFragment : Fragment() {
             etDir.setText(s.uuid)
         }
         tvServer.text = "服务器：${s.name} · ${s.id}"
+        collapseConn()
         Prefs.get(requireContext()).edit().putString(K.PANEL_SERVER_ID, s.id).apply()
         // 选完立刻找目录，省得用户自己去猜路径
         probeDirs()
@@ -907,19 +921,18 @@ class ServerFragment : Fragment() {
         }
     }
 
-    private fun toggleCfg() {
-        cfgState = CfgToggle.next(cfgState)
-        renderCfg()
+    private fun applyConnExpand() {
+        boxConn?.visibility = if (connExpanded) View.VISIBLE else View.GONE
+        ivConnArrow?.rotation = if (connExpanded) 180f else 0f
+        tvConnSummary?.text =
+            if (connExpanded) "填写连接参数" else tvServer.text.toString()
     }
 
-    /**
-     * 连接参数有三张卡片，塞进三分之一屏根本看不全 —— 要点哪个都得
-     * 先在小框里滚半天。三态切换让「配置占满」成为可能，
-     * 填参数时用它，查结果时切回来。
-     */
-    private fun renderCfg() {
-        CfgToggle.render(scrollCfg, rv, btnToggleCfg, cfgState, "连接参数")
-        tvLog.visibility = if (cfgState == CfgToggle.FULL) View.GONE else View.VISIBLE
+    /** 连上之后自动收起配置，不用手动收 */
+    private fun collapseConn() {
+        if (!connExpanded) return
+        connExpanded = false
+        applyConnExpand()
     }
 
     private fun downloadAll() {
