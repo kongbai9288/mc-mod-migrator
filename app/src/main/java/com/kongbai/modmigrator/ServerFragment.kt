@@ -33,6 +33,9 @@ class ServerFragment : Fragment() {
     private lateinit var tvServer: TextView
     private lateinit var tvLog: TextView
     private lateinit var rv: RecyclerView
+    private var scrollCfg: View? = null
+    private var btnToggleCfg: android.widget.TextView? = null
+    private var cfgState: Int = CfgToggle.SPLIT
     private lateinit var cbSrcModrinth: android.widget.CheckBox
     private lateinit var cbSrcCurseforge: android.widget.CheckBox
     private lateinit var cbSrcBackend: android.widget.CheckBox
@@ -73,7 +76,11 @@ class ServerFragment : Fragment() {
         spSide = v.findViewById(R.id.spSide)
         tvServer = v.findViewById(R.id.tvServer)
         tvLog = v.findViewById(R.id.tvLog)
+        scrollCfg = v.findViewById(R.id.scrollCfg)
+        btnToggleCfg = v.findViewById(R.id.btnToggleCfg)
+        btnToggleCfg?.safeClickUnit { toggleCfg() }
         rv = v.findViewById(R.id.rvUpdates)
+        renderCfg()
         cbSrcModrinth = v.findViewById(R.id.cbSrcModrinth)
         cbSrcCurseforge = v.findViewById(R.id.cbSrcCurseforge)
         cbSrcBackend = v.findViewById(R.id.cbSrcBackend)
@@ -898,6 +905,21 @@ class ServerFragment : Fragment() {
             Notifier.show(ctx, "服务器模组", f.name)
             log(if (out == null) "下载失败：${f.name}" else "已下载：${f.latestName}（请手动上传）")
         }
+    }
+
+    private fun toggleCfg() {
+        cfgState = CfgToggle.next(cfgState)
+        renderCfg()
+    }
+
+    /**
+     * 连接参数有三张卡片，塞进三分之一屏根本看不全 —— 要点哪个都得
+     * 先在小框里滚半天。三态切换让「配置占满」成为可能，
+     * 填参数时用它，查结果时切回来。
+     */
+    private fun renderCfg() {
+        CfgToggle.render(scrollCfg, rv, btnToggleCfg, cfgState, "连接参数")
+        tvLog.visibility = if (cfgState == CfgToggle.FULL) View.GONE else View.VISIBLE
     }
 
     private fun downloadAll() {

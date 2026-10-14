@@ -1069,30 +1069,31 @@ class MigrationFragment : Fragment() {
                 if (nf > 0 || nUnread > 0) {
                     if (nf > 0) log("⚠ $nf 个因网络问题没能识别，其余已正常处理")
                     if (nUnread > 0) log("⚠ $nUnread 个文件读不出来（权限或损坏），与网络无关")
-                    MaterialAlertDialogBuilder(ctx)
-                        .setTitle("有 ${nf + nUnread} 个模组没识别成功")
-                        .setMessage(
-                            buildString {
-                                if (nf > 0) {
-                                    append("因**网络问题**没查到（可重试）：\n\n")
-                                    nfNames.take(10).forEach { append("  · $it\n") }
-                                    if (nf > 10) append("  …等 $nf 个\n")
-                                    append("\n")
-                                }
-                                if (nUnread > 0) {
-                                    append("**读不出内容**（权限或文件损坏，重试没用）：\n\n")
-                                    unreadNames.take(10).forEach { append("  · $it\n") }
-                                    if (nUnread > 10) append("  …等 $nUnread 个\n")
-                                    append("\n")
-                                }
-                                append("另外有 $nfound 个是 Modrinth 确实没收录，")
-                                append("这类重试也没用，需手动标记链接。\n\n")
-                                append("建议：换个网络或稍后再「重试失败项」。")
+                    SheetDialog.show(
+                        ctx,
+                        "有 ${nf + nUnread} 个模组没识别成功",
+                        buildString {
+                            if (nf > 0) {
+                                append("因网络问题没查到（可重试）：\n\n")
+                                nfNames.take(10).forEach { append("  · $it\n") }
+                                if (nf > 10) append("  …等 $nf 个\n")
+                                append("\n")
                             }
+                            if (nUnread > 0) {
+                                append("读不出内容（权限或文件损坏，重试没用）：\n\n")
+                                unreadNames.take(10).forEach { append("  · $it\n") }
+                                if (nUnread > 10) append("  …等 $nUnread 个\n")
+                                append("\n")
+                            }
+                            append("另外有 $nfound 个是 Modrinth 确实没收录，")
+                            append("这类重试也没用，需手动标记链接。\n\n")
+                            append("建议：换个网络或稍后再「重试失败项」。")
+                        },
+                        listOf(
+                            "重试失败项" to { retryFailed() },
+                            getString(R.string.ok) to null
                         )
-                        .setPositiveButton("重试失败项") { _, _ -> retryFailed() }
-                        .setNegativeButton(R.string.ok, null)
-                        .show()
+                    )
                 }
             }
         }

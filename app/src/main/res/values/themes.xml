@@ -17,6 +17,23 @@
              描边和文字是灰的，换主题色完全不跟着变 ——
              同一个界面里实心按钮是主色、描边按钮是灰的，看起来像两套设计。 -->
         <item name="materialButtonOutlinedStyle">@style/AppButtonOutlined</item>
+        <!-- 弹窗默认全屏宽。
+             组件库默认只给对话框一小块宽度（窄屏约 80%），
+             说明、结果、报错这类长文本在里面一行行截断，
+             末尾还看不到按钮。这里统一拉到接近满屏，
+             高度仍由内容决定，特别长的走 SheetDialog 铺满整屏。 -->
+        <item name="materialAlertDialogTheme">@style/AppAlertDialog</item>
+        <item name="alertDialogTheme">@style/AppAlertDialog</item>
+    </style>
+
+    <!-- 接近满屏的对话框。
+         只改最小宽度：高度保持 wrap_content + 内容自滚，
+         短对话框不会因此被拉成一整屏空板。 -->
+    <style name="AppAlertDialog" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
+        <item name="windowMinWidthMajor">96%</item>
+        <item name="windowMinWidthMinor">96%</item>
+        <item name="android:windowMinWidthMajor">96%</item>
+        <item name="android:windowMinWidthMinor">96%</item>
     </style>
 
     <style name="Theme.ModMigrator.Green" parent="Theme.ModMigrator" />

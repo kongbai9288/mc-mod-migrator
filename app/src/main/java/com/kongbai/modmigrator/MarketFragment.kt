@@ -36,6 +36,7 @@ class MarketFragment : Fragment() {
      */
     private var scrollCfg: androidx.core.widget.NestedScrollView? = null
     private var btnToggleCfg: android.widget.TextView? = null
+    private var cfgState: Int = CfgToggle.SPLIT
 
     // 搜索/推荐的结果存在 MarketState 单例里：
     // 底部导航是 replace()，切页签时本 Fragment 会被销毁重建，
@@ -1028,17 +1029,18 @@ class MarketFragment : Fragment() {
     }
     /** 展开/收起筛选区 */
     private fun toggleCfg() {
-        setCfgCollapsed(scrollCfg?.visibility != android.view.View.GONE)
+        cfgState = CfgToggle.next(cfgState)
+        renderCfg()
     }
 
-    /**
-     * @param collapsed true 收起。收起时配置区 GONE，
-     *   列表那 2 的权重就吃满整屏，不再被压成两行。
-     */
+    private fun renderCfg() {
+        CfgToggle.render(scrollCfg, rvMods, btnToggleCfg, cfgState, "筛选")
+    }
+
+    /** 有结果就收起筛选区，整屏给列表；没结果就展开，别一进来先看空白 */
     private fun setCfgCollapsed(collapsed: Boolean) {
-        val sc = scrollCfg ?: return
-        sc.visibility = if (collapsed) android.view.View.GONE else android.view.View.VISIBLE
-        btnToggleCfg?.text = getString(if (collapsed) R.string.expand_cfg else R.string.collapse_cfg)
+        cfgState = if (collapsed) CfgToggle.COLLAPSED else CfgToggle.SPLIT
+        renderCfg()
     }
 
     override fun onDestroyView() {

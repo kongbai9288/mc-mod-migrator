@@ -211,10 +211,12 @@
             android:textSize="12sp" />
     </LinearLayout>
 
-    <!-- 结果列表：固定拿 2/3 屏，不再被上面的内容顶掉 -->
+    <!-- 结果列表：高度由 CfgToggle 控制 —— 写死 1:2 之后
+         配置区永远只给三分之一屏，参数多了在那点地方滚不动，
+         看着就像"显示不全"。现在三档可调，默认见 MarketFragment。 -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvMods"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="2" />
+        android:layout_weight="1" />
 </LinearLayout>

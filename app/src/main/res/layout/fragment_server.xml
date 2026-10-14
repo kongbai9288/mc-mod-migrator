@@ -22,6 +22,7 @@
     android:padding="12dp">
 
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/scrollCfg"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
@@ -380,11 +381,32 @@
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <TextView
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="更新列表"
-        android:textStyle="bold" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="更新列表"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btnToggleCfg"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:paddingStart="6dp"
+            android:paddingEnd="2dp"
+            android:text="@string/collapse_cfg"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="12sp" />
+    </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvUpdates"
