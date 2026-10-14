@@ -38,6 +38,10 @@
     <string name="copy_packs">复制资源包/光影包</string>
     <string name="copy_saves">复制存档（可能很大）</string>
     <string name="log_title">运行日志</string>
+    <string name="more">更多</string>
+    <string name="mig_tools">迁移相关工具</string>
+    <string name="mig_tools_entry">打开完整工具箱</string>
+    <string name="mig_result_title">识别结果</string>
     <string name="no_source">请先选择「迁移前」的版本目录</string>
     <string name="no_target">请先选择「迁移后」的版本目录</string>
     <string name="done">完成</string>

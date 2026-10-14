@@ -33,6 +33,9 @@ private const val MAX_ERR_LINES = 20
 
 class MigrationFragment : Fragment() {
 
+    private var srcMore: View? = null
+    private var moreOps: View? = null
+
     private lateinit var tvSource: TextView
     private lateinit var tvDirState: android.widget.TextView
     private lateinit var cardSource: android.view.View
@@ -299,6 +302,11 @@ class MigrationFragment : Fragment() {
         super.onPause()
     }
 
+    private fun toggleBox(box: View?) {
+        val b = box ?: return
+        b.visibility = if (b.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -331,7 +339,26 @@ class MigrationFragment : Fragment() {
         tvLogSummary.safeClickUnit { showAllLogs() }
         rvMods.layoutManager = LinearLayoutManager(requireContext())
         rvMods.adapter = adapter
+        // 固定高度 + 交给自己滚：之前是 wrap_content 全展开，
+        // 几十条结果把整页撑得很长，滑列表等于滑整页。
+        // 在 NestedScrollView 里要关掉嵌套滚动，否则手势会被父容器抢走。
         rvMods.isNestedScrollingEnabled = false
+
+        // 主次分层：卡片里只留主按钮，次要入口收进「更多」。
+        // 之前十来个按钮一路平铺，主操作被埋在中间。
+        srcMore = v.findViewById(R.id.boxSrcMore)
+        v.findViewById<View>(R.id.btnSrcMore).safeClickUnit { toggleBox(srcMore) }
+        moreOps = v.findViewById(R.id.boxMoreOps)
+        v.findViewById<View>(R.id.btnMoreOps).safeClickUnit { toggleBox(moreOps) }
+        v.findViewById<View>(R.id.btnServerTip).safeClickUnit {
+            v.findViewById<View>(R.id.tvModeTip)?.let {
+                it.visibility = if (it.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            }
+        }
+        val boxLog = v.findViewById<View>(R.id.tvLog)
+        v.findViewById<View>(R.id.btnToggleLog).safeClickUnit {
+            boxLog.visibility = if (boxLog.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        }
 
         v.findViewById<Button>(R.id.btnScanLocal)?.safeClickUnit { scanLocal() }
         v.findViewById<Button>(R.id.btnPickLauncher)?.safeClickUnit { pickLauncher() }

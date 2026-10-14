@@ -1,4 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  迁移页。
+
+  这一版把「12 个按钮垂直平铺」改成主次分层。
+  之前每加一个功能就往页面上摞一个按钮，摞到十几个，
+  主操作「开始迁移」被埋在中间，跟任何一个正常应用都不一样。
+
+  现在的分工：
+    · 每张卡片只留它的主按钮，次要入口收进「更多」折叠区
+    · 说明文字不再常驻，需要时点标题右边的「?」才展开
+    · 结果列表给固定高度，自己滚，不再整页跟着一起滚
+
+  ⚠️ 所有原有 id 都保留 —— MigrationFragment.kt 里的 findViewById
+     依赖它们，删掉任何一个都会空指针。只是换了所在容器和默认可见性。
+-->
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -28,6 +43,7 @@
             android:textColor="@color/textSecondary"
             android:textSize="12sp" />
 
+        <!-- 服务端模式时才出现。客户端模式下整块不占位。 -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardServer"
             android:layout_width="match_parent"
@@ -41,11 +57,31 @@
                 android:orientation="vertical"
                 android:padding="12dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/server_card_title"
-                    android:textStyle="bold" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/server_card_title"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/btnServerTip"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:text="?"
+                        android:textColor="?attr/colorPrimary" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/tvServerState"
@@ -64,12 +100,14 @@
                     android:text="@string/btn_open_server" />
 
                 <TextView
+                    android:id="@+id/tvModeTip"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
                     android:text="@string/mode_tip"
                     android:textColor="@color/textSecondary"
-                    android:textSize="12sp" />
+                    android:textSize="12sp"
+                    android:visibility="gone" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -85,11 +123,34 @@
                 android:orientation="vertical"
                 android:padding="12dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/sec_source"
-                    android:textStyle="bold" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/sec_source"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/btnSrcMore"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:drawablePadding="2dp"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="4dp"
+                        android:text="@string/more"
+                        android:textColor="?attr/colorPrimary"
+                        android:textSize="12sp" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/tvSource"
@@ -109,34 +170,46 @@
                     android:textSize="12sp" />
 
                 <Button
-                    android:id="@+id/btnScanLocal"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/btn_scan_local" />
-
-                <Button
-                    android:id="@+id/btnPickLauncher"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/cfg_pick_launcher" />
-
-                <TextView
-                    android:id="@+id/tvScanHint"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/scan_launcher_dir_hint"
-                    android:textColor="@color/textSecondary"
-                    android:textSize="12sp" />
-
-                <Button
                     android:id="@+id/btnPickSource"
                     style="@style/AppButtonOutlined"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:text="@string/pick_source" />
+
+                <!-- 次要入口：按启动器找目录、扫本机已装实例。
+                     默认收起，绝大多数人选一次目录就够了。 -->
+                <LinearLayout
+                    android:id="@+id/boxSrcMore"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <Button
+                        android:id="@+id/btnScanLocal"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/btn_scan_local" />
+
+                    <Button
+                        android:id="@+id/btnPickLauncher"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/cfg_pick_launcher" />
+
+                    <TextView
+                        android:id="@+id/tvScanHint"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:text="@string/scan_launcher_dir_hint"
+                        android:textColor="@color/textSecondary"
+                        android:textSize="11sp" />
+                </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -224,7 +297,7 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- 扫描用描边，执行用填充 -->
+        <!-- 主操作区：扫描（描边）+ 开始迁移（填充，这一页的目的） -->
         <Button
             android:id="@+id/btnScan"
             style="@style/AppButtonOutlined"
@@ -232,36 +305,6 @@
             android:layout_height="wrap_content"
             android:text="@string/btn_scan" />
 
-        <Button
-            android:id="@+id/btnDownloadAll"
-            style="@style/AppButtonOutlined"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/btn_download_all" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <Button
-                android:id="@+id/btnDoctor"
-                style="@style/AppButtonOutlined"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/tool_doctor" />
-
-            <Button
-                android:id="@+id/btnDiff"
-                style="@style/AppButtonOutlined"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/tool_diff" />
-        </LinearLayout>
-
-        <!-- 执行迁移是这一页的主操作：用填充样式，一眼能看到 -->
         <Button
             android:id="@+id/btnRun"
             style="@style/AppButton"
@@ -271,8 +314,7 @@
             android:layout_marginBottom="4dp"
             android:text="@string/btn_run" />
 
-        <!-- 任务运行中的暂停 / 继续 / 中止。默认 GONE。
-             rowPause / btnPause / btnCancelTask / btnMigTools 由 MigrationFragment 引用 -->
+        <!-- 任务运行中的暂停 / 中止。默认 GONE，任务结束会复位。 -->
         <LinearLayout
             android:id="@+id/rowPause"
             android:layout_width="match_parent"
@@ -299,15 +341,6 @@
                 android:text="中止" />
         </LinearLayout>
 
-        <!-- 迁移相关工具：把散在工具箱里的迁移类功能从这一页直接够到 -->
-        <Button
-            android:id="@+id/btnMigTools"
-            style="@style/AppButtonOutlined"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="迁移相关工具" />
-
         <ProgressBar
             android:id="@+id/pb"
             style="?android:attr/progressBarStyleHorizontal"
@@ -317,25 +350,96 @@
             android:indeterminate="true"
             android:visibility="gone" />
 
+        <!-- 迁移相关工具：默认收起，不是每次迁移都要用。 -->
+        <TextView
+            android:id="@+id/btnMoreOps"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:text="@string/mig_tools"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:id="@+id/boxMoreOps"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/btnDownloadAll"
+                style="@style/AppButtonOutlined"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/btn_download_all" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnDoctor"
+                    style="@style/AppButtonOutlined"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/tool_doctor" />
+
+                <Button
+                    android:id="@+id/btnDiff"
+                    style="@style/AppButtonOutlined"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:text="@string/tool_diff" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btnMigTools"
+                style="@style/AppButtonOutlined"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/mig_tools_entry" />
+        </LinearLayout>
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="@string/tab_migration"
+            android:text="@string/mig_result_title"
             android:textStyle="bold" />
 
+        <!-- 固定高度、自己滚：之前是 wrap_content 全展开，
+             几十条结果会把整页撑得很长，滑列表等于滑整页。 -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvMods"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:nestedScrollingEnabled="false"
+            android:layout_height="240dp"
             android:overScrollMode="never" />
 
         <TextView
+            android:id="@+id/btnToggleLog"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
             android:text="@string/log_title"
+            android:textColor="?attr/colorPrimary"
             android:textStyle="bold" />
 
         <TextView
