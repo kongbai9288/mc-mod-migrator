@@ -57,6 +57,10 @@ object WebTranslate {
      * 它闭包捕获了 WebView，而 WebView 拿着 Activity 的 Context，
      * 所以 stop() 时必须从 Handler 队列里摘掉，不能只是置个标志位。
      */
+    /** 刷新两遍期间置位，避免页面加载完再次自动触发注入 */
+    @Volatile
+    var suppressAuto = false
+
     @Volatile
     private var pendingPoll: Runnable? = null
 
@@ -128,6 +132,53 @@ object WebTranslate {
                 postPoll(POLL_MS, ctx, web)
             }
         }
+    }
+
+    /**
+     * 切进页面时的固定做法：刷新两遍再注入。
+     *
+     * 页面刚加载完时 DOM 还在变，脚本常常注入不进去；
+     * 刷两遍之后结构稳定，注入才生效。
+     * 期间会临时接管 WebViewClient，结束后原样还回去，
+     * 免得登录轮询这类依赖原 client 的逻辑失效。
+     */
+    fun startAfterReload(
+        ctx: android.content.Context,
+        web: WebView,
+        rounds: Int = 2,
+        onProgress: ((Int, Int) -> Unit)? = null,
+        onDone: ((Int) -> Unit)? = null
+    ) {
+        if (running) {
+            start(ctx, web, onProgress, onDone)
+            return
+        }
+        var left = rounds.coerceAtLeast(1)
+        val base = web.webViewClient
+        suppressAuto = true
+        web.webViewClient = object : android.webkit.WebViewClient() {
+            override fun onPageStarted(
+                view: WebView?, u: String?, favicon: android.graphics.Bitmap?
+            ) {
+                base?.onPageStarted(view, u, favicon)
+            }
+
+            override fun onPageFinished(view: WebView?, u: String?) {
+                if (left > 0) {
+                    left--
+                    view?.reload()
+                    return
+                }
+                web.webViewClient = base
+                suppressAuto = false
+                start(ctx, web, onProgress, onDone)
+            }
+
+            override fun shouldOverrideUrlLoading(
+                view: WebView?, request: android.webkit.WebResourceRequest?
+            ): Boolean = base?.shouldOverrideUrlLoading(view, request) ?: false
+        }
+        web.reload()
     }
 
     /** 一键还原原文（从 WeakMap 里取回） */

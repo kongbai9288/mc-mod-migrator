@@ -55,7 +55,7 @@ class SettingsAboutFragment : Fragment() {
             Tips.short(requireContext(), "开发者模式")
             true
         }
-        v.findViewById<Button>(R.id.btnCrash).setOnClickListener { showCrash() }
+        v.findViewById<Button>(R.id.btnCrash).safeClickUnit { showCrash() }
         v.findViewById<Button>(R.id.btnClear).setOnClickListener {
             // ⚠️ 两个问题：
             //  ① `Store.clear` + 遍历删除 cacheDir 都是**磁盘 IO**，
@@ -86,11 +86,11 @@ class SettingsAboutFragment : Fragment() {
         if (tvVersion != null) {
             tvVersion.text = versionSummary()
         }
-        v.findViewById<Button>(R.id.btnCheckUpdate)?.setOnClickListener { checkUpdate() }
-        v.findViewById<Button>(R.id.btnChangelog)?.setOnClickListener { showChangelog() }
+        v.findViewById<Button>(R.id.btnCheckUpdate)?.safeClickUnit { checkUpdate() }
+        v.findViewById<Button>(R.id.btnChangelog)?.safeClickUnit { showChangelog() }
 
         // 授权状态
-        v.findViewById<Button>(R.id.btnPerms)?.setOnClickListener { showPerms() }
+        v.findViewById<Button>(R.id.btnPerms)?.safeClickUnit { showPerms() }
 
         fillAbout(v)
         return v

@@ -201,15 +201,15 @@ class MarketFragment : Fragment() {
         // 已经有结果（比如切页签回来）就直接收起，别让用户再看一遍空筛选区
         if (MarketState.hasContent()) setCfgCollapsed(true)
 
-        v.findViewById<Button>(R.id.btnSearch).setOnClickListener { search() }
-        v.findViewById<Button>(R.id.btnRecommend)?.setOnClickListener { recommend() }
-        v.findViewById<Button>(R.id.btnAddLink).setOnClickListener { addLinkDialog() }
-        v.findViewById<Button>(R.id.btnOpenPage).setOnClickListener { openPageDialog() }
-        v.findViewById<Button>(R.id.btnShare)?.setOnClickListener { shareWithPosition() }
+        v.findViewById<Button>(R.id.btnSearch).safeClickUnit { search() }
+        v.findViewById<Button>(R.id.btnRecommend)?.safeClickUnit { recommend() }
+        v.findViewById<Button>(R.id.btnAddLink).safeClickUnit { addLinkDialog() }
+        v.findViewById<Button>(R.id.btnOpenPage).safeClickUnit { openPageDialog() }
+        v.findViewById<Button>(R.id.btnShare)?.safeClickUnit { shareWithPosition() }
 
         // 收藏按钮 = 页签切换：在收藏夹和搜索结果之间来回切，
         // 两边各自保留，不会互相覆盖
-        btnFav.setOnClickListener { toggleTab() }
+        btnFav.safeClickUnit { toggleTab() }
 
         // 排序
         spSort.setSelection(0, false)

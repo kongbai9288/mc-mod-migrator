@@ -28,13 +28,13 @@ class SettingsLogFragment : Fragment() {
         val v = inflater.inflate(R.layout.fragment_settings_log, container, false)
         tv = v.findViewById(R.id.tvLog)
         tvInfo = v.findViewById(R.id.tvLogInfo)
-        v.findViewById<Button>(R.id.btnRefresh).setOnClickListener { refresh() }
+        v.findViewById<Button>(R.id.btnRefresh).safeClickUnit { refresh() }
         v.findViewById<Button>(R.id.btnClear).setOnClickListener {
             val ctx = context ?: return@setOnClickListener
             LogCenter.clearFile(ctx)
             refresh()
         }
-        v.findViewById<Button>(R.id.btnErrors).setOnClickListener { showErrors() }
+        v.findViewById<Button>(R.id.btnErrors).safeClickUnit { showErrors() }
         refresh()
         return v
     }

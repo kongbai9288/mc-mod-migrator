@@ -184,7 +184,7 @@ object LauncherSplash {
             if (t >= 0.999f) finish()
         }
 
-        layer.setOnClickListener { finish() }
+        layer.safeClickUnit { finish() }
 
         anim.start()
 

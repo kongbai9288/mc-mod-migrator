@@ -118,17 +118,17 @@ class ServerFragment : Fragment() {
         etDir.setText(p.getString(K.PANEL_DIR, "/mods") ?: "/mods")
         etVersion.setText(p.getString(K.DEF_VERSION, "") ?: "")
 
-        v.findViewById<Button>(R.id.btnConnect).setOnClickListener { connect() }
-        v.findViewById<Button>(R.id.btnScanFiles).setOnClickListener { scanFiles() }
-        v.findViewById<Button>(R.id.btnProbeDir)?.setOnClickListener { probeDirs() }
-        v.findViewById<Button>(R.id.btnCheckUpdates).setOnClickListener { checkUpdates() }
-        v.findViewById<Button>(R.id.btnDownloadAll).setOnClickListener { downloadAll() }
+        v.findViewById<Button>(R.id.btnConnect).safeClickUnit { connect() }
+        v.findViewById<Button>(R.id.btnScanFiles).safeClickUnit { scanFiles() }
+        v.findViewById<Button>(R.id.btnProbeDir)?.safeClickUnit { probeDirs() }
+        v.findViewById<Button>(R.id.btnCheckUpdates).safeClickUnit { checkUpdates() }
+        v.findViewById<Button>(R.id.btnDownloadAll).safeClickUnit { downloadAll() }
         // 目录浏览器：连上之后逐级进入目录，边逛边看这个目录里有哪些 jar
         v.findViewById<Button>(R.id.btnBrowseDir)?.setOnClickListener {
             browseDir(etDir.text.toString().trim().ifBlank { "/" })
         }
         // 选择"更新下来的文件放哪"（不上传回服务器）
-        v.findViewById<Button>(R.id.btnPickOutDir)?.setOnClickListener { pickOutDir() }
+        v.findViewById<Button>(R.id.btnPickOutDir)?.safeClickUnit { pickOutDir() }
         refreshOutDirLabel()
         return v
     }

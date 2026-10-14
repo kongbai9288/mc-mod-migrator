@@ -340,8 +340,8 @@ class WebActivity : AppCompatActivity() {
                     startLoginPolling()
                 }
                 // 自动翻译：页面加载完就翻
-                if (autoTrans && view != null) {
-                    WebTranslate.start(this@WebActivity, view) { n ->
+                if (autoTrans && view != null && !WebTranslate.suppressAuto) {
+                    WebTranslate.startAfterReload(this@WebActivity, view) { n ->
                         if (n > 0) {
                             Tips.short(this@WebActivity, getString(R.string.translated_segments, n))
                         }
@@ -480,7 +480,7 @@ class WebActivity : AppCompatActivity() {
                 cm?.setPrimaryClip(android.content.ClipData.newPlainText("url", web.url))
                 Tips.short(this, getString(R.string.copied))
             }
-            4 -> WebTranslate.start(this, web) { n ->
+            4 -> WebTranslate.startAfterReload(this, web) { n ->
                 Tips.short(this, if (n > 0) getString(R.string.translated_segments, n)
                     else getString(R.string.nothing_to_translate))
             }

@@ -58,8 +58,8 @@ class SyncFragment : Fragment() {
             toast(if (checked) "已开启自动同步" else "已关闭自动同步")
         }
 
-        v.findViewById<Button>(R.id.btnUpload).setOnClickListener { upload() }
-        v.findViewById<Button>(R.id.btnRefresh).setOnClickListener { refresh() }
+        v.findViewById<Button>(R.id.btnUpload).safeClickUnit { upload() }
+        v.findViewById<Button>(R.id.btnRefresh).safeClickUnit { refresh() }
         return v
     }
 

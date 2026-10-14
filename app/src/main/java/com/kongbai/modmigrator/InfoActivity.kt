@@ -24,6 +24,6 @@ class InfoActivity : AppCompatActivity() {
             "（内容缺失：$file）"
         }
         findViewById<TextView>(R.id.tvInfo).text = text
-        findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
+        findViewById<ImageButton>(R.id.btnBack).safeClickUnit { finish() }
     }
 }

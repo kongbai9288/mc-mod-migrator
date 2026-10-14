@@ -62,9 +62,9 @@ class SettingsBackendFragment : Fragment() {
         watch(etBase)
         watch(etBackup)
 
-        btnProbe.setOnClickListener { probe() }
-        v.findViewById<Button>(R.id.btnCopyCb)?.setOnClickListener { copyCallback() }
-        v.findViewById<Button>(R.id.btnGhOauth)?.setOnClickListener { openGhSettings() }
+        btnProbe.safeClickUnit { probe() }
+        v.findViewById<Button>(R.id.btnCopyCb)?.safeClickUnit { copyCallback() }
+        v.findViewById<Button>(R.id.btnGhOauth)?.safeClickUnit { openGhSettings() }
         probe()
         showCallback()
         return v

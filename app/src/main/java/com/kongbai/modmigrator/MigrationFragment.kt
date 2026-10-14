@@ -328,28 +328,28 @@ class MigrationFragment : Fragment() {
         tvProgress = v.findViewById(R.id.tvProgress)
         adapter = ModAdapter(mods, { m -> downloadOne(m) }, { m -> openModDetail(m) })
         // 顶部摘要可点开看完整日志
-        tvLogSummary.setOnClickListener { showAllLogs() }
+        tvLogSummary.safeClickUnit { showAllLogs() }
         rvMods.layoutManager = LinearLayoutManager(requireContext())
         rvMods.adapter = adapter
         rvMods.isNestedScrollingEnabled = false
 
-        v.findViewById<Button>(R.id.btnScanLocal)?.setOnClickListener { scanLocal() }
-        v.findViewById<Button>(R.id.btnPickLauncher)?.setOnClickListener { pickLauncher() }
+        v.findViewById<Button>(R.id.btnScanLocal)?.safeClickUnit { scanLocal() }
+        v.findViewById<Button>(R.id.btnPickLauncher)?.safeClickUnit { pickLauncher() }
         v.findViewById<Button>(R.id.btnPickSource).setOnClickListener { pickDir(11) }
         v.findViewById<Button>(R.id.btnPickTarget).setOnClickListener { pickDir(12) }
-        v.findViewById<Button>(R.id.btnScan).setOnClickListener { scan() }
+        v.findViewById<Button>(R.id.btnScan).safeClickUnit { scan() }
         // 原来这里重复写了两遍（复制粘贴残留），第二遍覆盖第一遍。
         // 保留一行。
-        v.findViewById<Button>(R.id.btnDownloadAll)?.setOnClickListener { downloadAll() }
-        v.findViewById<Button>(R.id.btnRun).setOnClickListener { runMigration() }
+        v.findViewById<Button>(R.id.btnDownloadAll)?.safeClickUnit { downloadAll() }
+        v.findViewById<Button>(R.id.btnRun).safeClickUnit { runMigration() }
         rowPause = v.findViewById(R.id.rowPause)
         btnPause = v.findViewById(R.id.btnPause)
         btnCancelTask = v.findViewById(R.id.btnCancelTask)
-        v.findViewById<Button>(R.id.btnMigTools)?.setOnClickListener { openMigrationTools() }
-        btnPause?.setOnClickListener { togglePause() }
-        btnCancelTask?.setOnClickListener { cancelTask() }
-        v.findViewById<Button>(R.id.btnDoctor).setOnClickListener { runDoctor() }
-        v.findViewById<Button>(R.id.btnDiff).setOnClickListener { runDiff() }
+        v.findViewById<Button>(R.id.btnMigTools)?.safeClickUnit { openMigrationTools() }
+        btnPause?.safeClickUnit { togglePause() }
+        btnCancelTask?.safeClickUnit { cancelTask() }
+        v.findViewById<Button>(R.id.btnDoctor).safeClickUnit { runDoctor() }
+        v.findViewById<Button>(R.id.btnDiff).safeClickUnit { runDiff() }
 
         val p = Prefs.get(requireContext())
         etVersion.setText(p.getString(K.DEF_VERSION, "") ?: "")

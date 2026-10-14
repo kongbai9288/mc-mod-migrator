@@ -67,7 +67,7 @@ class TrashFragment : Fragment() {
         }
         fun opBtn(text: String, filled: Boolean, act: () -> Unit): View {
             val b = if (filled) UiCards.button(ctx, text) else UiCards.outlinedButton(ctx, text)
-            b.setOnClickListener { act() }
+            b.safeClickUnit { act() }
             val lp = LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
             )

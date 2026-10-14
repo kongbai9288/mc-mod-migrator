@@ -128,7 +128,7 @@ class SettingsLangFragment : Fragment() {
         val ctx = requireContext()
         val b = com.google.android.material.button.MaterialButton(ctx)
         b.text = text
-        b.setOnClickListener { onClick() }
+        b.safeClickUnit { onClick() }
         return b
     }
 

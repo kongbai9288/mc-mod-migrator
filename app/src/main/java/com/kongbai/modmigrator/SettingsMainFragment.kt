@@ -175,7 +175,7 @@ class SettingsMainFragment : Fragment() {
         v.findViewById<Button>(R.id.btnGoStorage).safeClickUnit { go("storage") }
         v.findViewById<Button>(R.id.btnGoAbout).safeClickUnit { go("about") }
         v.findViewById<Button>(R.id.btnGoLab)?.setOnClickListener { go("lab") }
-        v.findViewById<Button>(R.id.btnGoPatch)?.setOnClickListener { goPatch() }
+        v.findViewById<Button>(R.id.btnGoPatch)?.safeClickUnit { goPatch() }
 
         refreshAccount()
         loading = false
@@ -326,7 +326,7 @@ class SettingsMainFragment : Fragment() {
                 if (u != null) {
                     tvAccount.text = "${u.name.ifBlank { u.login }}（已登录）"
                     btnAccount.text = "退出登录"
-                    btnAccount.setOnClickListener { doLogout() }
+                    btnAccount.safeClickUnit { doLogout() }
                     if (u.avatarUrl.isNotBlank()) {
                         try {
                             ivAvatar.load(u.avatarUrl) { crossfade(true) }
@@ -339,7 +339,7 @@ class SettingsMainFragment : Fragment() {
                 } else {
                     tvAccount.text = getString(R.string.account_not_login)
                     btnAccount.text = getString(R.string.account_login)
-                    btnAccount.setOnClickListener { deviceLogin() }
+                    btnAccount.safeClickUnit { deviceLogin() }
                     tvConnState.text = getString(R.string.account_hint_logged_out)
 
                     // 登不上时给两条后路：先看诊断，再不行就手动填 token。
@@ -349,7 +349,7 @@ class SettingsMainFragment : Fragment() {
                     // 整行账号区域也可点：之前只有按钮能点，
                     // 用户点昵称/头像那一大片没反应，会以为点不动。
                     runCatching {
-                        rowAccount.setOnClickListener { pkceLogin() }
+                        rowAccount.safeClickUnit { pkceLogin() }
                         rowAccount.setOnLongClickListener {
                             showLoginMenu()
                             true

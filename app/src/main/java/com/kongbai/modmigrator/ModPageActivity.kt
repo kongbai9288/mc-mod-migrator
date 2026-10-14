@@ -45,13 +45,13 @@ class ModPageActivity : AppCompatActivity() {
         web.webViewClient = PageClient()
         if (url.isNotBlank()) web.loadUrl(url)
 
-        findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
+        findViewById<ImageButton>(R.id.btnBack).safeClickUnit { finish() }
 
         web.setOnLongClickListener { onLongPress() }
 
-        findViewById<View>(R.id.btnMarkPage).setOnClickListener { markPage() }
-        findViewById<View>(R.id.btnTrans).setOnClickListener { translateDialog() }
-        findViewById<View>(R.id.btnDownloadMarked).setOnClickListener { downloadMarked() }
+        findViewById<View>(R.id.btnMarkPage).safeClickUnit { markPage() }
+        findViewById<View>(R.id.btnTrans).safeClickUnit { translateDialog() }
+        findViewById<View>(R.id.btnDownloadMarked).safeClickUnit { downloadMarked() }
         updateMarked()
     }
 
@@ -164,7 +164,7 @@ class ModPageActivity : AppCompatActivity() {
                 super.onPageFinished(view, u)
                 if (view == null) return
                 // 页面已正常显示，翻不翻出来都不会白屏
-                WebTranslate.start(
+                WebTranslate.startAfterReload(
                     this@ModPageActivity,
                     view,
                     onProgress = { done, _ ->
