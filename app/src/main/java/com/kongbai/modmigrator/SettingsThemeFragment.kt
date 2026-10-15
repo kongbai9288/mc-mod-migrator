@@ -1,30 +1,53 @@
 package com.kongbai.modmigrator
 
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.TextView
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.fragment.app.Fragment
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 /**
  * 设置 → 主题色。
  *
- * 两处改动都是冲着"切主题色有 bug、没图标没字"去的：
+ * 11 套配色 + 深色模式三选一。
  *
- * 1. **每个配色前面加了色块**（之前只有一行纯文字）。
- *    11 个中文名摆在一起只能逐条读，"森绿""青碧""碧蓝"根本分不清谁是谁。
+ * 配色用三列网格：竖排一列时后半截要滚动才能看到，
+ * 看着像"只有这几个配色"。
  *
- * 2. **所有文字显式取主题色**。
- *    这里整页都是代码 new 出来的控件，`TextView(ctx)` 不会套用
- *    主题的 textColorPrimary，深色下就是黑底黑字——看着像"字没了"。
+ * 每个配色前面带色块：11 个中文名摆在一起只能逐条读，
+ * "森绿""青碧""碧蓝"根本分不清谁是谁。
  *
- * 3. 选中项用色块描边表示，不再靠往名字前面加个 "✓" ——
- *    那个 ✓ 是纯文本符号，某些字体下显示成方框或干脆不显示。
+ * 选中项用描边表示，不再往名字前加 "✓" ——
+ * 那个符号是纯文本，某些字体下显示成方框或干脆不显示。
  */
 class SettingsThemeFragment : Fragment() {
 
@@ -34,82 +57,127 @@ class SettingsThemeFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         val ctx = requireContext()
-        val scroll = ScrollView(ctx)
-        val box = LinearLayout(ctx)
-        box.orientation = LinearLayout.VERTICAL
-        val pad = (16 * resources.displayMetrics.density).toInt()
-        box.setPadding(pad, pad, pad, pad)
-        scroll.addView(box)
-
-        val cur = ThemePrefs.index(ctx)
-        val d = resources.displayMetrics.density
-
-        for ((i, t) in ThemePrefs.themes().withIndex()) {
-            val row = LinearLayout(ctx).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = android.view.Gravity.CENTER_VERTICAL
-                setPadding(0, (d * 8).toInt(), 0, (d * 8).toInt())
-                // 整行可点，不用非得戳那个小按钮
-                safeClickUnit { apply(ctx, i, t.name) }
-            }
-
-            // 色块预览：选中项加一圈描边
-            val swatch = View(ctx).apply {
-                val s = (d * 28).toInt()
-                layoutParams = LinearLayout.LayoutParams(s, s).apply {
-                    marginEnd = (d * 12).toInt()
-                }
-                background = GradientDrawable().apply {
-                    setColor(t.seedColor)
-                    shape = GradientDrawable.OVAL
-                    if (i == cur) setStroke((d * 2.5).toInt(), textColorPrimary(ctx))
-                }
-            }
-            row.addView(swatch)
-
-            val tv = TextView(ctx).apply {
-                text = t.name
-                textSize = 15f
-                setTextColor(textColorPrimary(ctx))
-                layoutParams = LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-                )
-            }
-            row.addView(tv)
-
-            if (i == cur) {
-                row.addView(TextView(ctx).apply {
-                    text = getString(R.string.theme_current)
-                    textSize = 12f
-                    setTextColor(textColorSecondary(ctx))
-                })
-            }
-            box.addView(row)
+        return ComposeView(ctx).apply {
+            setViewCompositionStrategy(
+                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
+            )
+            setContent { McTheme(ctx) { ThemeScreen(ctx) } }
         }
-        return scroll
+    }
+}
+
+@Composable
+private fun ThemeScreen(ctx: android.content.Context) {
+    var cur by remember { mutableIntStateOf(ThemePrefs.index(ctx)) }
+    var night by remember { mutableIntStateOf(ThemePrefs.nightMode(ctx)) }
+    var pending by remember { mutableStateOf<Int?>(null) }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        McSectionTitle("深色模式")
+        McChipRow(listOf("跟随系统", "浅色", "深色"), night) {
+            if (it == night) return@McChipRow
+            night = it
+            ThemePrefs.setNightMode(ctx, it)
+        }
+
+        McSectionTitle("配色")
+        val items = ThemePrefs.themes()
+        for (row in items.chunked(3)) {
+            Row(Modifier.fillMaxWidth()) {
+                for (t in row) {
+                    val i = items.indexOf(t)
+                    SwatchCell(
+                        name = t.name,
+                        color = Color(t.seedColor),
+                        picked = i == cur,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        if (i == cur) {
+                            Tips.short(ctx, "已经是「${t.name}」了")
+                            return@SwatchCell
+                        }
+                        pending = i
+                    }
+                }
+                // 末尾不满一行时补空位，否则最后一格会被拉宽
+                repeat(3 - row.size) { Box(Modifier.weight(1f)) }
+            }
+        }
+        McNote("切换配色会重建界面，改动立即生效。")
     }
 
-    /**
-     * 应用配色。
-     *
-     * 之前先弹一个"已应用"对话框、点确定才 recreate ——
-     * 多一次点击不说，对话框本身在重建过程中还容易被系统直接丢弃，
-     * 结果就是"点了没反应"。现在直接重建，重建后用户当场看到新配色。
-     */
-    private fun apply(ctx: android.content.Context, i: Int, name: String) {
-        val prev = ThemePrefs.index(ctx)
-        // commit 而不是 apply：重建会立刻读这个值，
-        // apply 是异步落盘的，极端情况下新 Activity 读到的还是旧配色
-        ThemePrefs.save(ctx, i)
-        if (prev == i) {
-            Tips.short(ctx, "已经是「$name」了")
-            return
+    val p = pending
+    if (p != null) {
+        val name = ThemePrefs.themes()[p].name
+        McActionDialog(
+            name,
+            { pending = null },
+            listOf(
+                ctx.getString(R.string.ok) to {
+                    // commit 而不是 apply：重建会立刻读这个值，
+                    // apply 是异步落盘的，新 Activity 可能读到旧配色
+                    val prev = cur
+                    ThemePrefs.save(ctx, p)
+                    cur = p
+                    pending = null
+                    (ctx as? android.app.Activity)?.recreateSafely()
+                        ?: run { ThemePrefs.save(ctx, prev); cur = prev }
+                }
+            )
+        ) {
+            Text(
+                ctx.getString(R.string.theme_apply),
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle(name)
-            .setMessage(R.string.theme_apply)
-            .setPositiveButton(R.string.ok) { _, _ -> activity?.recreateSafely() }
-            .setNegativeButton(R.string.cancel) { _, _ -> ThemePrefs.save(ctx, prev) }
-            .show()
+    }
+}
+
+@Composable
+private fun SwatchCell(
+    name: String,
+    color: Color,
+    picked: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val stroke = if (picked) MaterialTheme.colorScheme.primary else Color.Transparent
+    Column(
+        modifier
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(color)
+                .border(
+                    width = if (picked) 2.5.dp else 0.dp,
+                    color = stroke,
+                    shape = CircleShape
+                )
+        )
+        Text(
+            name,
+            fontSize = 12.sp,
+            color = if (picked) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(top = 6.dp)
+        )
+        if (picked) {
+            Text(
+                "当前",
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
