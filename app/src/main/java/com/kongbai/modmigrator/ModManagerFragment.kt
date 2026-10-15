@@ -1,303 +1,91 @@
 package com.kongbai.modmigrator
 
+import android.graphics.Bitmap
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.LinearLayout
-import android.widget.TextView
-import android.widget.Toast
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.Fragment
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import java.util.concurrent.Executors
 
 /**
  * 模组管理。
  *
- * 像 Mod Menu 那样看每个模组的详情（名称/版本/加载器/作者/描述），
- * 可以删除——但**不直接删**，先挪进回收站：
- *   - 刚删完可以「撤销」
- *   - 回收站里能还原或彻底删除
- *   - 超过设定天数自动清掉
+ * 渲染改成 Compose，业务逻辑（ModMeta / ModToggle / Trash / BatchModOps）原样保留。
  *
- * 图标优先从本地 jar 提取（ModIcons），离线可用。
+ * 删除**不直接删**：先挪进回收站，可撤销、可还原、超期自动清。
+ * 图标优先从本地 jar 提取（ModIcons），取不到退到加载器图标。
  */
 class ModManagerFragment : Fragment() {
 
-    private val exec = Bg.io
-    private val handler = Bg.ui
-    private lateinit var box: LinearLayout
-    private lateinit var tvState: TextView
-    private lateinit var cbAll: android.widget.CheckBox
-    private lateinit var btnBatchDel: View
-    private lateinit var btnBatchOff: View
-    private lateinit var btnBatchOn: View
-    private lateinit var btnBatchUp: View
-    /** 当前列表里的全部文件，供批量操作取用 */
-    private val allFiles = ArrayList<androidx.documentfile.provider.DocumentFile>()
-    /** 已勾选的文件名 */
-    private val picked = HashSet<String>()
-    /** 当前这一屏的行，渲染完统一做入场动画 */
-    private val modLines = ArrayList<View>()
+    private var resumeCb: (() -> Unit)? = null
+
+    override fun onResume() {
+        super.onResume()
+        resumeCb?.invoke()
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         val ctx = requireContext()
-        val scroll = android.widget.ScrollView(ctx)
-        val root = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            val pad = (16 * resources.displayMetrics.density).toInt()
-            setPadding(pad, pad, pad, pad)
-        }
-        scroll.addView(root)
-
-        root.addView(
-            UiCards.collapsingHint(
-                ctx,
-                "点击卡片看详情，长按删除（先进回收站，可撤销）。\n" +
-                    "当前目录：${WorkDir.describe(ctx)}"
+        return ComposeView(ctx).apply {
+            setViewCompositionStrategy(
+                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
             )
-        )
-
-        tvState = TextView(ctx).apply {
-            textSize = 12f
-            setTextColor(resources.getColor(R.color.textSecondary, null))
-            setPadding(0, 4, 0, 8)
-        }
-        root.addView(tvState)
-
-        // ---- 批量操作栏 ----
-        // 之前只能一个个点，装几十个模组时非常折磨。
-        // 现在：勾选 → 批量删除 / 批量禁用 / 批量启用 / 批量升级。
-        val bar = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER_VERTICAL
-            setPadding(0, (6 * resources.displayMetrics.density).toInt(), 0, 0)
-        }
-        cbAll = android.widget.CheckBox(ctx).apply {
-            text = "全选"
-            textSize = 13f
-        }
-        bar.addView(cbAll)
-        bar.addView(android.widget.Space(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-            )
-        })
-
-        fun barBtn(t: String, act: () -> Unit): View =
-            UiCards.outlinedButton(ctx, t).apply {
-                safeClickUnit { act() }
-                val lp = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                lp.marginStart = (4 * resources.displayMetrics.density).toInt()
-                layoutParams = lp
-            }
-
-        btnBatchDel = barBtn("删除") { batchDelete() }
-        btnBatchOff = barBtn("禁用") { batchToggle(true) }
-        btnBatchOn = barBtn("启用") { batchToggle(false) }
-        btnBatchUp = barBtn("升级") { batchUpgrade() }
-        bar.addView(btnBatchDel)
-        bar.addView(btnBatchOff)
-        bar.addView(btnBatchOn)
-        bar.addView(btnBatchUp)
-        root.addView(bar)
-
-        box = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
-        root.addView(box)
-        return scroll
-    }
-
-    // ---------------- 批量操作 ----------------
-
-    private fun pickedFiles(): List<androidx.documentfile.provider.DocumentFile> =
-        allFiles.filter { picked.contains(it.name ?: "") }
-
-    private fun updateBatchBar(count: Int) {
-        if (!::btnBatchDel.isInitialized) return
-        val has = count > 0
-        for (b in listOf(btnBatchDel, btnBatchOff, btnBatchOn, btnBatchUp)) {
-            b.isEnabled = has
-            b.alpha = if (has) 1f else 0.4f
-        }
-        cbAll.setOnCheckedChangeListener(null)
-        cbAll.isChecked = has && count == allFiles.size && allFiles.isNotEmpty()
-        cbAll.setOnCheckedChangeListener { _, on ->
-            picked.clear()
-            if (on) picked.addAll(allFiles.map { it.name ?: "" })
-            render(allFiles)
-        }
-        tvState.text = buildString {
-            val mb = allFiles.sumOf { it.length() } / 1048576.0
-            append("共 ${allFiles.size} 个 · ").append(String.format("%.1f MB", mb))
-            if (has) append(" · 已选 $count 个")
+            setContent { McTheme(ctx) { ModManagerScreen(ctx) { resumeCb = it } } }
         }
     }
+}
 
-    private fun batchDelete() {
-        val ctx = context ?: return
-        val list = pickedFiles()
-        if (list.isEmpty()) return
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("批量删除")
-            .setMessage("${list.size} 个模组会放进回收站，可以随时还原。")
-            .setPositiveButton("删除") { _, _ ->
-                val dlg = ProgressDialog.show(ctx, "删除 ${list.size} 个模组")
-                exec.execute {
-                    val res = BatchModOps.delete(ctx, list) { i, n, doing ->
-                        safePost(handler) { dlg.update(i.toLong(), n.toLong()) }
-                    }
-                    safePost(handler) {
-                        dlg.dismiss()
-                        MaterialAlertDialogBuilder(ctx)
-                            .setTitle("完成")
-                            .setMessage(BatchModOps.summary(res, "删除"))
-                            .setPositiveButton(R.string.ok, null)
-                            .show()
-                        picked.clear()
-                        load()
-                    }
-                }
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
+@Composable
+private fun ModManagerScreen(ctx: android.content.Context, register: (() -> Unit) -> Unit) {
+    var files by remember { mutableStateOf(listOf<DocumentFile>()) }
+    var loading by remember { mutableStateOf(true) }
+    var picked by remember { mutableStateOf(setOf<String>()) }
+    var stateText by remember { mutableStateOf("扫描中…") }
+    var query by remember { mutableStateOf("") }
+    var detail by remember { mutableStateOf<DocumentFile?>(null) }
+    var askDelete by remember { mutableStateOf<DocumentFile?>(null) }
 
-    private fun batchToggle(disabled: Boolean) {
-        val ctx = context ?: return
-        val list = pickedFiles()
-        if (list.isEmpty()) return
-        exec.execute {
-            val res = BatchModOps.toggle(list, disabled)
-            safePost(handler) {
-                Tips.long(ctx, BatchModOps.summary(res, if (disabled) "禁用" else "启用"))
-                picked.clear()
-                load()
-            }
-        }
-    }
-
-    /** 批量升级：对选中的模组查最新版并下载 */
-    private fun batchUpgrade() {
-        val ctx = context ?: return
-        val list = pickedFiles()
-        if (list.isEmpty()) return
-        val mc = Prefs.get(ctx).getString(K.MC_VERSION, "") ?: ""
-        val loader = Prefs.get(ctx).getString(K.LOADER, "") ?: "auto"
-        if (mc.isBlank()) {
-            val et = android.widget.EditText(ctx).apply {
-                hint = "目标 MC 版本，例如 1.20.1"
-                setSingleLine(true)
-            }
-            MaterialAlertDialogBuilder(ctx)
-                .setTitle("需要 MC 版本")
-                .setView(et)
-                .setPositiveButton("继续") { _, _ ->
-                    val v = et.text.toString().trim()
-                    if (v.isBlank()) {
-                        toast("请填写版本")
-                        return@setPositiveButton
-                    }
-                    Prefs.get(ctx).edit().putString(K.MC_VERSION, v).apply()
-                    doBatchUpgrade(list, v, loader)
-                }
-                .setNegativeButton(R.string.cancel, null)
-                .show()
-            return
-        }
-        doBatchUpgrade(list, mc, loader)
-    }
-
-    private fun doBatchUpgrade(
-        list: List<androidx.documentfile.provider.DocumentFile>, mc: String, loader: String
-    ) {
-        val ctx = context ?: return
-        val dlg = ProgressDialog.show(ctx, "检查 ${list.size} 个模组的更新")
-        exec.execute {
-            val tasks = ArrayList<Pair<String, String>>() // url to name
-            var i = 0
-            for (f in list) {
-                i++
-                val n = f.name ?: continue
-                safePost(handler) { dlg.update(i.toLong(), list.size.toLong()) }
-                val clean = CrossLoader.cleanName(n)
-                val hits = try {
-                    ModrinthApi.search(clean, mc, loader, 3)
-                } catch (t: Throwable) {
-                    emptyList<MarketMod>()
-                }
-                // 和跨加载器迁移同一个坑：搜索是模糊匹配，
-                // `hits.firstOrNull()` 会把"sodium"匹配到"Sodium Extra"，
-                // 然后下载一个**别的模组**的新版本进来。
-                // 复用 CrossLoader 的名称核对，对不上就跳过（不下载）。
-                val proj = CrossLoader.pickProject(hits, clean) ?: continue
-                val vers = try {
-                    ModrinthApi.versions(proj.id, mc, loader)
-                } catch (t: Throwable) {
-                    emptyList<ModFile>()
-                }
-                val pick = vers.firstOrNull() ?: continue
-                if (pick.url.isNotBlank()) {
-                    tasks.add(Pair(pick.url, pick.fileName.ifBlank { pick.name }))
-                }
-            }
-            safePost(handler) { dlg.dismiss() }
-            if (tasks.isEmpty()) {
-                safePost(handler) { toast("没找到可用的更新") }
-                return@execute
-            }
-            safePost(handler) {
-                MaterialAlertDialogBuilder(ctx)
-                    .setTitle("发现 ${tasks.size} 个更新")
-                    .setMessage("下载到工作目录的 mods 里，不会自动替换原文件。")
-                    .setPositiveButton("下载") { _, _ ->
-                        val dir = Targets.dstModsDir(ctx) ?: WorkDir.modsDir(ctx)
-                        if (dir == null) {
-                            toast("目标目录不可用")
-                            return@setPositiveButton
-                        }
-                        val d2 = ProgressDialog.show(ctx, "下载 ${tasks.size} 个更新")
-                        exec.execute {
-                            val res = BatchModOps.download(ctx, dir, tasks) { a, b, _ ->
-                                safePost(handler) { d2.update(a.toLong(), b.toLong()) }
-                            }
-                            safePost(handler) {
-                                d2.dismiss()
-                                MaterialAlertDialogBuilder(ctx)
-                                    .setTitle("完成")
-                                    .setMessage(BatchModOps.summary(res, "下载"))
-                                    .setPositiveButton(R.string.ok, null)
-                                    .show()
-                                load()
-                            }
-                        }
-                    }
-                    .setNegativeButton(R.string.cancel, null)
-                    .show()
-            }
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        load()
-    }
-
-    private fun load() {
-        val ctx = context ?: return
-        tvState.text = "扫描中…"
-        box.removeAllViews()
-        exec.execute {
+    fun load() {
+        loading = true
+        Bg.io.execute {
             val dir = try {
                 // 用户选定的游戏 mods 目录优先；没选才退回工作目录。
-                // 顺序反了的话，列出来的就不是游戏里那份。
+                // 顺序反了的话，列出来的就不是游戏里那份
                 Targets.dstModsDir(ctx) ?: WorkDir.modsDir(ctx)
             } catch (t: Throwable) {
                 null
@@ -306,326 +94,471 @@ class ModManagerFragment : Fragment() {
             else try {
                 Fs.children(dir).filter {
                     // ── 必须把"已禁用"的也列出来 ──────────────────
-                    // 禁用的做法是把 x.jar 改名成 x.jar.disabled（见 ModToggle）。
-                    // 之前只认 .jar / .zip，于是禁用后的文件
-                    // **从列表里彻底消失** —— 用户再也看不到它、
-                    // 也就没法点「启用」把它变回来。
-                    // 表现为：禁用成功 → 模组不见了 → 只能自己去文件管理器改后缀。
-                    // 现在两种后缀都收进来，界面上用"已禁用"标记区分。
+                    // 禁用是把 x.jar 改名成 x.jar.disabled。之前只认 .jar/.zip，
+                    // 于是禁用后的文件从列表里彻底消失，用户再也没法点「启用」。
                     if (!it.isFile) return@filter false
                     val n = it.name ?: return@filter false
                     n.endsWith(".jar", true) || n.endsWith(".zip", true) ||
-                        n.endsWith("${ModToggle.SUFFIX}", true) ||
+                        n.endsWith(ModToggle.SUFFIX, true) ||
                         n.endsWith(".zip.disabled", true)
                 }
             } catch (t: Throwable) {
                 emptyList()
             }
-            // 顺手把占用统计出来。
-            // 「存储用量看不见」——之前列表只有每个模组的 KB，
-            // 想知道整个目录多大得自己一个个加起来。
             var total = 0L
             for (f in list) total += runCatching { f.length() }.getOrDefault(0L)
             val n = list.size
             val dn = list.count { ModToggle.isDisabled(it) }
-            safePost(handler) {
-                render(list)
-                tvState.text = if (n == 0) "这个目录里没有模组"
-                else buildString {
-                    append("共 $n 个模组")
-                    if (dn > 0) append("（$dn 个已禁用）")
-                    append(" · 占用 ${humanSize(total)}")
-                }
+            val txt = if (n == 0) "这个目录里没有模组"
+            else buildString {
+                append("共 $n 个模组")
+                if (dn > 0) append("（$dn 个已禁用）")
+                append(" · 占用 ${humanSize(total)}")
+            }
+            Bg.ui.post {
+                files = list
+                stateText = txt
+                loading = false
+                picked = picked.intersect(list.map { it.name ?: "" }.toSet())
             }
         }
     }
 
-    private fun humanSize(b: Long): String {
-        if (b < 1024) return "$b B"
-        val kb = b / 1024.0
-        if (kb < 1024) return "%.1f KB".format(kb)
-        val mb = kb / 1024.0
-        if (mb < 1024) return "%.1f MB".format(mb)
-        return "%.2f GB".format(mb / 1024.0)
+    var loaded by remember { mutableStateOf(false) }
+    if (!loaded) {
+        loaded = true
+        load()
+    }
+    ResumeEffect(register) { load() }
+
+    val q = query.trim()
+    val shown = remember(files, q) {
+        if (q.isBlank()) files else files.filter { (it.name ?: "").contains(q, true) }
     }
 
-    private fun toast(s: String) {
-        handler.post {
-            if (isAdded) Tips.short(context, s)
+    fun pickedFiles(): List<DocumentFile> =
+        files.filter { picked.contains(it.name ?: "") }
+
+    fun afterBatch(msg: String) {
+        Tips.short(ctx, msg)
+        picked = emptySet()
+        load()
+    }
+
+    Column(Modifier.fillMaxSize().padding(16.dp)) {
+        McNote("当前目录：${WorkDir.describe(ctx)}")
+        McSearchField(query, { query = it }, "搜模组文件名")
+
+        if (loading) {
+            Text(stateText, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
+            repeat(3) { McSkeleton(3) }
+            return@Column
         }
-    }
-
-    private fun render(list: List<DocumentFile>) {
-        val ctx = context ?: return
-        box.removeAllViews()
-        modLines.clear()
-        if (list.isEmpty()) {
-            box.addView(
-                UiCards.emptyCard(
-                    ctx, "没有找到模组",
-                    "到「设置 → 存储」授权你的 mods 目录，或先把模组下载进来。"
-                )
+        if (files.isEmpty()) {
+            McEmpty(
+                "没有找到模组",
+                "到「设置 → 存储」授权你的 mods 目录，或先把模组下载进来。"
             )
-            return
+            return@Column
         }
-        allFiles.clear()
-        allFiles.addAll(list)
-        picked.retainAll(list.map { it.name ?: "" }.toSet())
 
-        for (f in list) {
-            val name = f.name ?: continue
-            val size = f.length()
-            val disabled = ModToggle.isDisabled(f)
-            val card = UiCards.infoCard(
-                ctx, if (disabled) R.drawable.ti_x else R.drawable.ti_puzzle,
-                ModToggle.displayName(f).substringBeforeLast("."),
-                buildString {
-                    append("${size / 1024} KB")
-                    if (disabled) append(" · 已禁用")
-                    append(" · 点击查看信息，长按删除")
-                },
-                // 已禁用的卡片上直接给"启用"，不用先去勾选再点批量按钮
-                if (disabled) "启用" else "详情"
-            ) {
-                if (disabled) toggleOne(f, false) else showInfo(f)
-            }
-            card.setOnLongClickListener { confirmDelete(f) }
+        Text(
+            buildString {
+                append(stateText)
+                if (picked.isNotEmpty()) append(" · 已选 ${picked.size} 个")
+            },
+            fontSize = 12.sp,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
 
-            // 勾选框 + 卡片，支持批量
-            val line = LinearLayout(ctx).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = android.view.Gravity.CENTER_VERTICAL
-            }
-            line.addView(android.widget.CheckBox(ctx).apply {
-                isChecked = picked.contains(name)
-                setOnCheckedChangeListener { _, on ->
-                    if (on) picked.add(name) else picked.remove(name)
-                    updateBatchBar(picked.size)
+        // 批量操作栏：装几十个模组时一个个点非常折磨
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = picked.isNotEmpty() && picked.size == files.size,
+                onCheckedChange = { on ->
+                    picked = if (on) files.map { it.name ?: "" }.toSet() else emptySet()
                 }
-            })
-            line.addView(card)
-            box.addView(line)
-            modLines.add(line)
+            )
+            Text("全选", fontSize = 13.sp)
+        }
+        Row(Modifier.fillMaxWidth()) {
+            McBatchBtn("删除", picked.isNotEmpty()) {
+                val list = pickedFiles()
+                if (list.isEmpty()) return@McBatchBtn
+                val dlg = ProgressDialog.show(ctx, "删除 ${list.size} 个模组")
+                Bg.io.execute {
+                    val res = BatchModOps.delete(ctx, list) { i, n, _ ->
+                        Bg.ui.post { dlg.update(i.toLong(), n.toLong()) }
+                    }
+                    Bg.ui.post {
+                        dlg.dismiss()
+                        afterBatch(BatchModOps.summary(res, "删除"))
+                    }
+                }
+            }
+            McBatchBtn("禁用", picked.isNotEmpty()) {
+                Bg.io.execute {
+                    val res = BatchModOps.toggle(pickedFiles(), true)
+                    Bg.ui.post { afterBatch(BatchModOps.summary(res, "禁用")) }
+                }
+            }
+            McBatchBtn("启用", picked.isNotEmpty()) {
+                Bg.io.execute {
+                    val res = BatchModOps.toggle(pickedFiles(), false)
+                    Bg.ui.post { afterBatch(BatchModOps.summary(res, "启用")) }
+                }
+            }
+            McBatchBtn("升级", picked.isNotEmpty()) {
+                val list = pickedFiles()
+                if (list.isEmpty()) return@McBatchBtn
+                val mc = Prefs.get(ctx).getString(K.MC_VERSION, "") ?: ""
+                val loader = Prefs.get(ctx).getString(K.LOADER, "") ?: "auto"
+                if (mc.isBlank()) {
+                    Tips.short(ctx, "先在设置里填目标 MC 版本")
+                    return@McBatchBtn
+                }
+                doBatchUpgrade(ctx, mc, loader, list) { afterBatch(it) }
+            }
+        }
 
-            // 图标异步加载。
-            // 之前取不到 jar 内图标时，图标位就一直是通用的灰方块，
-            // 而**加载器图标（Fabric/Forge/NeoForge/Quilt/OptiFine）全都没用上**
-            // ——资源画好了却一处都没接线，等于白画。
-            // 现在：取不到模组自带图标时，退到加载器图标，
-            // 列表里一眼能看出这是 Fabric 还是 Forge 模组。
-            val iv = (card as? ViewGroup)?.getChildAt(0) as? android.widget.ImageView
-            if (iv != null) {
-                exec.submit {
-                    val bmp = try {
-                        ModIcons.of(ctx, f)
-                    } catch (t: Throwable) {
-                        null
+        if (shown.isEmpty()) {
+            McEmpty("没有匹配的模组", "换个名字再试试")
+            return@Column
+        }
+
+        LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)) {
+            items(shown, key = { it.uri.toString() }) { f ->
+                McCheckRow(
+                    checked = picked.contains(f.name ?: ""),
+                    onChecked = { on ->
+                        val n = f.name ?: ""
+                        picked = if (on) picked + n else picked - n
                     }
-                    val loader = try {
-                        if (bmp == null) ModMeta.read(ctx, f.uri).loader else ""
-                    } catch (t: Throwable) {
-                        ""
+                ) {
+                    ModCard(ctx, f) {
+                        if (ModToggle.isDisabled(f)) toggleOne(ctx, f, false) { load() }
+                        else detail = f
                     }
-                    handler.post {
-                        if (bmp != null) {
-                            iv.setImageBitmap(bmp)
-                        } else if (loader.isNotBlank()) {
-                            // ⚠️ `UiCards.infoCard` 给图标位加了一层
-                            // `setColorFilter(primary(ctx))`（统一染成主题色）。
-                            // 这对普通线稿图标没问题，但加载器图标是**彩色品牌图**，
-                            // 被整片染成主题色之后 Fabric / Forge / Quilt 长得一模一样，
-                            // 看起来就跟没换过图一样 —— 这正是"还是没看到加载器图标"。
-                            // 设之前先把染色清掉，让它显示原本的颜色。
-                            iv.clearColorFilter()
-                            iv.setImageResource(LoaderIcons.res(loader))
+                }
+            }
+        }
+    }
+
+    detail?.let { f ->
+        var text by remember { mutableStateOf<String?>(null) }
+        if (text == null) {
+            Bg.io.execute {
+                val info = readJarInfo(ctx, f)
+                val meta = runCatching { ModMeta.read(ctx, f.uri) }.getOrNull()
+                // OptiFine 不是标准模组，元数据里查不到，靠特征类识别
+                val optifine = if (meta?.isKnown == false) {
+                    runCatching { LoaderIcons.detectOptiFine(ctx, f.uri) }.getOrDefault(false)
+                } else false
+                Bg.ui.post {
+                    text = if (optifine) "$info\n\n识别出这是 OptiFine。" else info
+                }
+            }
+        }
+        val iconRes = remember(text) {
+            runCatching {
+                val meta = ModMeta.read(ctx, f.uri)
+                LoaderIcons.res(meta.loader)
+            }.getOrDefault(LoaderIcons.res(""))
+        }
+        McActionDialog(
+            title = (f.name ?: "").substringBeforeLast("."),
+            onDismiss = { detail = null },
+            actions = listOf(
+                "删除" to { detail = null; askDelete = f },
+                "编辑" to {
+                    detail = null
+                    runCatching { EditorActivity.open(ctx, f.uri, f.name ?: "") }
+                }
+            )
+        ) {
+            Image(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                modifier = Modifier.size(32.dp)
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(text ?: "读取中…", fontSize = 12.sp)
+        }
+    }
+
+    askDelete?.let { f ->
+        val days = Trash.days(ctx)
+        McConfirm(
+            title = "删除模组",
+            body = "「${f.name}」会先放进回收站（保留 $days 天），期间可以还原。",
+            confirmText = "删除",
+            onConfirm = {
+                askDelete = null
+                Bg.io.execute {
+                    val ok = Trash.moveToTrash(ctx, f)
+                    val name = f.name ?: ""
+                    Bg.ui.post {
+                        if (ok) {
+                            Tips.short(ctx, "已放进回收站")
+                            showUndo(ctx, name) { load() }
+                        } else {
+                            Tips.short(ctx, "删除失败")
+                        }
+                        load()
+                    }
+                }
+            },
+            onDismiss = { askDelete = null }
+        )
+    }
+}
+
+@Composable
+private fun McBatchBtn(text: String, enabled: Boolean, onClick: () -> Unit) {
+    TextButton(onClick = onClick, enabled = enabled, modifier = Modifier.padding(end = 4.dp)) {
+        Text(text, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun ModCard(ctx: android.content.Context, f: DocumentFile, onClick: () -> Unit) {
+    var bmp by remember(f.uri) { mutableStateOf<Bitmap?>(null) }
+    var loaderIcon by remember(f.uri) { mutableStateOf(0) }
+    if (bmp == null && loaderIcon == 0) {
+        Bg.io.execute {
+            val got = runCatching { ModIcons.of(ctx, f) }.getOrNull()
+            // 取不到 jar 内图标时退到加载器图标，列表里一眼看出是哪种加载器
+            val ld = if (got == null) {
+                runCatching {
+                    val l = ModMeta.read(ctx, f.uri).loader
+                    if (l.isBlank()) 0 else LoaderIcons.res(l)
+                }.getOrDefault(0)
+            } else 0
+            Bg.ui.post {
+                bmp = got
+                loaderIcon = ld
+            }
+        }
+    }
+
+    val disabled = ModToggle.isDisabled(f)
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (bmp != null) {
+                // 模组自带图标原样显示，不染色
+                Image(
+                    bitmap = bmp!!.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp)
+                )
+            } else if (loaderIcon != 0) {
+                // 加载器图标是彩色品牌图，不能像线稿那样染成主题色，
+                // 否则 Fabric / Forge / Quilt 会长得一模一样
+                Image(
+                    painter = painterResource(loaderIcon),
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp)
+                )
+            } else {
+                Image(
+                    painter = painterResource(
+                        if (disabled) R.drawable.ti_x else R.drawable.ti_puzzle
+                    ),
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Text(
+                    ModToggle.displayName(f).substringBeforeLast("."),
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 2
+                )
+                Text(
+                    buildString {
+                        append("${f.length() / 1024} KB")
+                        if (disabled) append(" · 已禁用")
+                    },
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            TextButton(onClick = onClick) { Text(if (disabled) "启用" else "详情") }
+        }
+    }
+}
+
+private fun toggleOne(ctx: android.content.Context, f: DocumentFile, disable: Boolean, done: () -> Unit) {
+    Bg.io.execute {
+        val r = if (disable) ModToggle.disable(f) else ModToggle.enable(f)
+        Bg.ui.post {
+            Tips.short(ctx, if (r == null) "操作失败" else if (disable) "已禁用" else "已启用")
+            if (r != null) done()
+        }
+    }
+}
+
+private fun doBatchUpgrade(
+    ctx: android.content.Context, mc: String, loader: String,
+    list: List<DocumentFile>, done: (String) -> Unit
+) {
+    val dlg = ProgressDialog.show(ctx, "检查 ${list.size} 个模组的更新")
+    Bg.io.execute {
+        val tasks = ArrayList<Pair<String, String>>()
+        list.forEachIndexed { i, f ->
+            val n = f.name ?: return@forEachIndexed
+            Bg.ui.post { dlg.update(i.toLong() + 1, list.size.toLong()) }
+            val clean = CrossLoader.cleanName(n)
+            val hits = try {
+                ModrinthApi.search(clean, mc, loader, 3)
+            } catch (t: Throwable) {
+                emptyList<MarketMod>()
+            }
+            // 搜索是模糊匹配，hits.firstOrNull() 会把 sodium 匹配到 Sodium Extra，
+            // 然后下载一个别的模组的新版本进来 —— 复用名称核对，对不上就跳过
+            val proj = CrossLoader.pickProject(hits, clean) ?: return@forEachIndexed
+            val vers = try {
+                ModrinthApi.versions(proj.id, mc, loader)
+            } catch (t: Throwable) {
+                emptyList<ModFile>()
+            }
+            val pick = vers.firstOrNull() ?: return@forEachIndexed
+            if (pick.url.isNotBlank()) {
+                tasks.add(Pair(pick.url, pick.fileName.ifBlank { pick.name }))
+            }
+        }
+        Bg.ui.post {
+            dlg.dismiss()
+            if (tasks.isEmpty()) {
+                Tips.short(ctx, "没找到可用的更新")
+                return@post
+            }
+            val dir = Targets.dstModsDir(ctx) ?: WorkDir.modsDir(ctx)
+            if (dir == null) {
+                Tips.short(ctx, "目标目录不可用")
+                return@post
+            }
+            val d2 = ProgressDialog.show(ctx, "下载 ${tasks.size} 个更新")
+            Bg.io.execute {
+                val res = BatchModOps.download(ctx, dir, tasks) { a, b, _ ->
+                    Bg.ui.post { d2.update(a.toLong(), b.toLong()) }
+                }
+                Bg.ui.post {
+                    d2.dismiss()
+                    done(BatchModOps.summary(res, "下载"))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 撤销提示。
+ *
+ * 之前用 `it.name == name` 找刚删的那条 —— 但回收站里的 name
+ * 在同名时是带序号的（sodium(1).jar），跟原始文件名对不上，
+ * firstOrNull 返回 null 直接 return，撤销入口根本不出现。
+ * 现在按 restoreName（原始文件名）匹配。
+ */
+private fun showUndo(ctx: android.content.Context, name: String, done: () -> Unit) {
+    val item = runCatching {
+        Trash.items(ctx).firstOrNull { it.restoreName == name }
+    }.getOrNull() ?: return
+    Bg.ui.postDelayed({
+        runCatching {
+            android.app.AlertDialog.Builder(ctx)
+                .setTitle("已删除「$name」")
+                .setMessage("要撤销吗？")
+                .setPositiveButton("撤销") { _, _ ->
+                    Bg.io.execute {
+                        val ok = Trash.restore(ctx, item)
+                        Bg.ui.post {
+                            Tips.short(ctx, if (ok) "已还原" else "还原失败")
+                            done()
                         }
                     }
                 }
-            }
+                .setNegativeButton("不用", null)
+                .show()
         }
-        AnimPrefs.stagger(requireContext(), modLines)
-        syncBatchBar()
-    }
+    }, 300)
+}
 
-    /** 单个模组启用 / 禁用 */
-    private fun toggleOne(f: DocumentFile, disable: Boolean) {
-        val ctx = context ?: return
-        exec.execute {
-            val r = if (disable) ModToggle.disable(f) else ModToggle.enable(f)
-            safePost(handler) {
-                toast(if (r == null) "操作失败" else if (disable) "已禁用" else "已启用")
-                if (r != null) load()
-            }
-        }
-    }
+private fun humanSize(b: Long): String {
+    if (b < 1024) return "$b B"
+    val kb = b / 1024.0
+    if (kb < 1024) return "%.1f KB".format(kb)
+    val mb = kb / 1024.0
+    if (mb < 1024) return "%.1f MB".format(mb)
+    return "%.2f GB".format(mb / 1024.0)
+}
 
-    /** 详情：读 jar 里的清单文件 */
-    private fun syncBatchBar() {
-        updateBatchBar(picked.size)
-    }
+/**
+ * 读 jar 元数据。
+ *
+ * 之前用正则 grep JSON/TOML，遇到嵌套、数组、多行值就解析不出来，
+ * 详情页经常只显示"文件/大小"两行。现在统一走 ModMeta
+ * （Gson 解 JSON、tomlj 解 TOML）。
+ */
+private fun readJarInfo(ctx: android.content.Context, f: DocumentFile): String {
+    val meta = ModMeta.read(ctx, f.uri)
+    val sb = StringBuilder()
+    sb.appendLine("文件：${f.name}")
+    sb.appendLine("大小：${f.length() / 1024} KB")
+    sb.appendLine()
 
-    private fun showInfo(f: DocumentFile) {
-        val ctx = context ?: return
-        val name = f.name ?: return
-        Thread {
-            val meta = try {
-                ModMeta.read(ctx, f.uri)
-            } catch (t: Throwable) {
-                null
-            }
-            val info = readJarInfo(ctx, f)
-            // OptiFine 不是标准模组，元数据里查不到，只能靠特征类识别。
-            // 之前这段检测写好了没接上，用户在详情里看不出装的是不是 OptiFine。
-            val optifine = if (meta?.isKnown == false) {
-                runCatching { LoaderIcons.detectOptiFine(ctx, f.uri) }.getOrDefault(false)
-            } else false
-            handler.post {
-                MaterialAlertDialogBuilder(ctx)
-                    .setTitle(name.substringBeforeLast("."))
-                    // 加载器图标接上：详情里能直接看到是哪种加载器
-                    .setIcon(
-                        LoaderIcons.res(
-                            if (optifine) "optifine" else (meta?.loader ?: "")
-                        )
-                    )
-                    .setMessage(
-                        if (optifine) "$info\n\n识别出这是 OptiFine。" else info
-                    )
-                    .setPositiveButton("删除") { _, _ -> confirmDelete(f) }
-                    // 之前编辑器写好了但没有任何入口，等于空页面。
-                    // 这里补上：从模组详情直接进编辑器改这个 jar 内的配置。
-                    .setNeutralButton("编辑") { _, _ ->
-                        runCatching { EditorActivity.open(ctx, f.uri, name) }
-                    }
-                    .setNegativeButton(R.string.cancel, null)
-                    .show()
-            }
-        }.start()
-    }
-
-    /**
-     * 读 jar 元数据。
-     *
-     * 之前用正则去 grep JSON/TOML，遇到嵌套结构、数组、多行值就解析不出来，
-     * 详情页经常只显示"文件/大小"两行。
-     * 现在统一走 ModMeta（Gson 解 JSON、tomlj 解 TOML），按 sentinel 文件判定加载器。
-     */
-    private fun readJarInfo(ctx: android.content.Context, f: DocumentFile): String {
-        val meta = ModMeta.read(ctx, f.uri)
-        val sb = StringBuilder()
-        sb.appendLine("文件：${f.name}")
-        sb.appendLine("大小：${f.length() / 1024} KB")
+    if (!meta.isKnown) {
+        sb.appendLine("没识别到加载器元数据：")
+        sb.appendLine("包里没有 fabric.mod.json / mods.toml / mcmod.info。")
         sb.appendLine()
-
-        if (!meta.isKnown) {
-            sb.appendLine("没识别到加载器元数据：")
-            sb.appendLine("包里没有 fabric.mod.json / mods.toml / mcmod.info。")
-            sb.appendLine()
-            sb.appendLine("可能不是模组（比如资源包或光影），或者是损坏的 jar。")
-            if (meta.warnings.isNotEmpty()) {
-                sb.appendLine()
-                meta.warnings.forEach { sb.appendLine("· $it") }
-            }
-            return sb.toString()
-        }
-
-        sb.appendLine("加载器：${ModMeta.loaderLabel(meta.loader)}")
-        if (meta.name.isNotBlank()) sb.appendLine("名称：${meta.name}")
-        if (meta.id.isNotBlank()) sb.appendLine("Mod ID：${meta.id}")
-        if (meta.version.isNotBlank()) sb.appendLine("版本：${meta.version}")
-        if (meta.mcRange.isNotBlank()) sb.appendLine("MC 版本：${meta.mcRange}")
-        if (meta.authors.isNotEmpty()) sb.appendLine("作者：${meta.authors.joinToString("、")}")
-        if (meta.license.isNotBlank()) sb.appendLine("许可：${meta.license}")
-        if (meta.description.isNotBlank()) {
-            sb.appendLine()
-            sb.appendLine("简介：${meta.description}")
-        }
-        if (meta.depends.isNotEmpty()) {
-            sb.appendLine()
-            sb.appendLine("必需依赖：")
-            meta.depends.forEach { (k, v) ->
-                sb.appendLine("  · $k${if (v.isNotBlank()) " ($v)" else ""}")
-            }
-        }
-        if (meta.breaks.isNotEmpty()) {
-            sb.appendLine()
-            sb.appendLine("会冲突（同时装会崩）：")
-            meta.breaks.forEach { (k, _) -> sb.appendLine("  · $k") }
-        }
-        if (meta.provides.isNotEmpty()) {
-            sb.appendLine()
-            sb.appendLine("提供的 ID：${meta.provides.joinToString("、")}")
-        }
+        sb.appendLine("可能不是模组（比如资源包或光影），或者是损坏的 jar。")
         if (meta.warnings.isNotEmpty()) {
             sb.appendLine()
-            sb.appendLine("解析提示：")
-            meta.warnings.forEach { sb.appendLine("  · $it") }
+            meta.warnings.forEach { sb.appendLine("· $it") }
         }
         return sb.toString()
     }
 
-    private fun confirmDelete(f: DocumentFile): Boolean {
-        val ctx = context ?: return false
-        val name = f.name ?: return false
-        val days = Trash.days(ctx)
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("删除模组")
-            .setMessage("「$name」会先放进回收站（保留 $days 天），期间可以还原。")
-            .setPositiveButton("删除") { _, _ ->
-                Thread {
-                    val ok = Trash.moveToTrash(ctx, f)
-                    handler.post {
-                        if (ok) {
-                            Tips.short(ctx, "已放进回收站")
-                            // 撤销入口
-                            showUndo(ctx, name)
-                            load()
-                        } else {
-                            Tips.short(ctx, "删除失败")
-                        }
-                    }
-                }.start()
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-        return true
+    sb.appendLine("加载器：${ModMeta.loaderLabel(meta.loader)}")
+    if (meta.name.isNotBlank()) sb.appendLine("名称：${meta.name}")
+    if (meta.id.isNotBlank()) sb.appendLine("Mod ID：${meta.id}")
+    if (meta.version.isNotBlank()) sb.appendLine("版本：${meta.version}")
+    if (meta.mcRange.isNotBlank()) sb.appendLine("MC 版本：${meta.mcRange}")
+    if (meta.authors.isNotEmpty()) sb.appendLine("作者：${meta.authors.joinToString("、")}")
+    if (meta.license.isNotBlank()) sb.appendLine("许可：${meta.license}")
+    if (meta.description.isNotBlank()) {
+        sb.appendLine()
+        sb.appendLine("简介：${meta.description}")
     }
-
-    /**
-     * 撤销提示。
-     *
-     * 之前用 `it.name == name` 找刚删的那条 —— 但回收站里的 `name`
-     * 在同名时是**带序号**的（`sodium(1).jar`），跟原始文件名对不上，
-     * 于是 `firstOrNull` 返回 null 直接 return，**撤销入口根本不出现**。
-     * 现在按 `restoreName`（原始文件名）匹配。
-     */
-    private fun showUndo(ctx: android.content.Context, name: String) {
-        val item = Trash.items(ctx).firstOrNull { it.restoreName == name } ?: return
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            // 用对话框给撤销机会
-            try {
-                MaterialAlertDialogBuilder(ctx)
-                    .setTitle("已删除「$name」")
-                    .setMessage("要撤销吗？")
-                    .setPositiveButton("撤销") { _, _ ->
-                        Thread {
-                            val ok = Trash.restore(ctx, item)
-                            handler.post {
-                                Tips.short(ctx, if (ok) "已还原" else "还原失败")
-                                load()
-                            }
-                        }.start()
-                    }
-                    .setNegativeButton("不用", null)
-                    .show()
-            } catch (t: Throwable) { Err.ignore(t, ".show()") }
-        }, 300)
+    if (meta.depends.isNotEmpty()) {
+        sb.appendLine()
+        sb.appendLine("必需依赖：")
+        meta.depends.forEach { (k, v) ->
+            sb.appendLine("  · $k${if (v.isNotBlank()) " ($v)" else ""}")
+        }
     }
-    override fun onDestroyView() {
-        super.onDestroyView()
-        // 清理 Handler：页面销毁后若还有未执行的 post，
-        // 回调里访问已销毁的 View 会直接崩。
-        runCatching { handler.removeCallbacksAndMessages(null) }
+    if (meta.breaks.isNotEmpty()) {
+        sb.appendLine()
+        sb.appendLine("会冲突（同时装会崩）：")
+        meta.breaks.forEach { (k, _) -> sb.appendLine("  · $k") }
     }
-
+    if (meta.provides.isNotEmpty()) {
+        sb.appendLine()
+        sb.appendLine("提供的 ID：${meta.provides.joinToString("、")}")
+    }
+    if (meta.warnings.isNotEmpty()) {
+        sb.appendLine()
+        sb.appendLine("解析提示：")
+        meta.warnings.forEach { sb.appendLine("  · $it") }
+    }
+    return sb.toString()
 }
