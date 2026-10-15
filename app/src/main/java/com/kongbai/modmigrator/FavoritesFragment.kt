@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.fragment.app.Fragment
 
 /**
@@ -34,6 +35,14 @@ import androidx.fragment.app.Fragment
  */
 class FavoritesFragment : Fragment() {
 
+    /** 由 Compose 侧登记，回到前台时刷新列表 */
+    private var resumeCb: (() -> Unit)? = null
+
+    override fun onResume() {
+        super.onResume()
+        resumeCb?.invoke()
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
@@ -42,17 +51,17 @@ class FavoritesFragment : Fragment() {
             setViewCompositionStrategy(
                 ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
             )
-            setContent { McTheme(ctx) { FavoritesScreen(ctx) } }
+            setContent { McTheme(ctx) { FavoritesScreen(ctx) { resumeCb = it } } }
         }
     }
 }
 
 @Composable
-private fun FavoritesScreen(ctx: android.content.Context) {
+private fun FavoritesScreen(ctx: android.content.Context, register: (() -> Unit) -> Unit) {
     var list by remember { mutableStateOf(Favorites.list(ctx)) }
     var pendingRemove by remember { mutableStateOf<MarketMod?>(null) }
 
-    ObserveResume { list = Favorites.list(ctx) }
+    ResumeEffect(register) { list = Favorites.list(ctx) }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         McNote("长按卡片可以移除收藏。点「安装」会装到目标 mods 目录。")

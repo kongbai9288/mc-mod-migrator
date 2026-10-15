@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.LifecycleOwner
 import coil.compose.AsyncImage
 
 /**
@@ -124,14 +124,28 @@ private fun Modifier.combinedLongClick(fn: () -> Unit): Modifier =
     combinedClickable(onLongClick = fn, onClick = {})
 
 /**
- * Fragment 里的 onResume 在 Compose 中没有直接对应物。
- * 这里挂一次观察者，页面回到前台时回调 —— 收藏、回收站这类
- * 会被别的页面改动的数据，靠它回来就刷新。
+ * 页面回到前台时回调。
+ *
+ * Fragment 的 onResume 在 Composable 里没有直接对应物，
+ * 所以由 Fragment 把「注册回调」的口子传进来：register(cb) 登记，
+ * 页面销毁时自动注销。收藏、回收站这类会被别的页面改动的数据，
+ * 靠它回来就刷新。
+ *
+ * @param register 由 Fragment 提供，登记后在其 onResume 里调用
  */
 @Composable
-fun ObserveResume(onResume: () -> Unit) {
+fun ResumeEffect(register: (() -> Unit) -> Unit, onResume: () -> Unit) {
     val cb by rememberUpdatedState(onResume)
-    val owner = LocalLifecycleOwner.current
+    DisposableEffect(Unit) {
+        register { cb() }
+        onDispose { register({}) }
+    }
+}
+
+/** 生命周期观察者版，给能直接拿到 owner 的场景用 */
+@Composable
+fun ObserveResume(owner: LifecycleOwner, onResume: () -> Unit) {
+    val cb by rememberUpdatedState(onResume)
     DisposableEffect(owner) {
         val ob = LifecycleEventObserver { _, e ->
             if (e == Lifecycle.Event.ON_RESUME) cb()
