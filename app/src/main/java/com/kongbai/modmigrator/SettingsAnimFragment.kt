@@ -4,25 +4,41 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.LinearLayout
-import android.widget.RadioButton
-import android.widget.RadioGroup
-import android.widget.TextView
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.fragment.app.Fragment
-import com.google.android.material.button.MaterialButton
+import androidx.compose.runtime.LaunchedEffect
 
 /**
- * 界面动画设置：开关 + 速率。
+ * 界面动画设置：开关 + 速率 + 开场动画。
  *
- * ⚠️ 速率档位之前只放在「设置 → 实验室」里，界面动画这一页**根本没有**。
+ * 速率档位之前只放在「设置 → 实验室」里，本页根本没有。
  * 用户想调快慢得先摸到实验室，而实验室那一项只显示"动画速率：正常"，
- * 点开能改、但改完看不到任何说明 —— 反馈原话是"应用动画速率也有问题"。
- * 现在速率直接放在本页，改完当场有示例动画能看到差别。
+ * 点开能改、但改完看不到任何说明。现在速率直接放在本页，
+ * 改完下面的示例能当场看出差别。
  *
- * 另外：本页的控件全是代码 new 出来的。
- * 代码创建的 TextView **不会**自动套用主题的正文色，
- * 深色模式下就是黑底黑字（等于"没有字"），
- * 所以下面每个 TextView 都显式取主题色。
+ * 开场动画单独放一节：它和界面动画是两回事——
+ * 上面管列表/切换的动效，这一项管开场那 3 秒。
  */
 class SettingsAnimFragment : Fragment() {
 
@@ -30,174 +46,108 @@ class SettingsAnimFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         val ctx = requireContext()
-        val root = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            val pad = (16 * resources.displayMetrics.density).toInt()
-            setPadding(pad, pad, pad, pad)
+        return ComposeView(ctx).apply {
+            setViewCompositionStrategy(
+                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
+            )
+            setContent { McTheme(ctx) { AnimScreen(ctx) } }
         }
+    }
+}
 
-        val tvState = TextView(ctx).apply {
-            textSize = 13f
-            setTextColor(textColorPrimary(ctx))
-            setPadding(0, 0, 0, 12)
-        }
-        root.addView(tvState)
+@Composable
+private fun AnimScreen(ctx: android.content.Context) {
+    var mode by remember { mutableIntStateOf(AnimPrefs.mode(ctx)) }
+    var speed by remember { mutableIntStateOf(AnimPrefs.speed(ctx)) }
+    var splash by remember { mutableStateOf(Prefs.get(ctx).getBoolean(K.SPLASH_ANIM, true)) }
+    var demoKey by remember { mutableIntStateOf(0) }
 
-        // ── 动画开关 ──────────────────────────────────────────
-        val rg = RadioGroup(ctx)
-        val opts = listOf(
-            AnimPrefs.FOLLOW to getString(R.string.anim_follow),
-            AnimPrefs.ON to getString(R.string.anim_on),
-            AnimPrefs.OFF to getString(R.string.anim_off)
-        )
-        for ((m, label) in opts) {
-            rg.addView(RadioButton(ctx).apply {
-                text = label
-                id = View.generateViewId()
-                tag = m
-                setPadding(0, 8, 0, 8)
-            })
+    val splashDesc = remember {
+        val h = runCatching { LauncherBrand.handoff(ctx as? android.app.Activity) }.getOrNull()
+        buildString {
+            append("固定 3 秒，播放时点任意位置可跳过。\n")
+            append("当前这次：").append(LauncherBrand.describe(h))
+            if (h == null) append("\n（直接打开本应用时不会播放）")
         }
-        val cur = AnimPrefs.mode(ctx)
-        for (i in 0 until rg.childCount) {
-            val rb = rg.getChildAt(i) as RadioButton
-            if (rb.tag == cur) rg.check(rb.id)
-        }
-        root.addView(rg)
+    }
 
-        // ── 速率：慢 / 正常 / 快 ──────────────────────────────
-        root.addView(TextView(ctx).apply {
-            text = "动画速率"
-            textSize = 14f
-            setTextColor(textColorPrimary(ctx))
-            setPadding(0, 20, 0, 4)
-        })
-        val rgSpeed = RadioGroup(ctx).apply {
-            orientation = RadioGroup.HORIZONTAL
-        }
-        val speeds = listOf(0 to "慢", 1 to "正常", 2 to "快")
-        for ((s, label) in speeds) {
-            rgSpeed.addView(RadioButton(ctx).apply {
-                text = label
-                id = View.generateViewId()
-                tag = s
-                setPadding(0, 8, 24, 8)
-            })
-        }
-        val curSpeed = AnimPrefs.speed(ctx)
-        for (i in 0 until rgSpeed.childCount) {
-            val rb = rgSpeed.getChildAt(i) as RadioButton
-            if (rb.tag == curSpeed) rgSpeed.check(rb.id)
-        }
-        root.addView(rgSpeed)
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        McNote(AnimPrefs.describe(ctx))
 
-        val demo = TextView(ctx).apply {
-            text = "示例：点下面的按钮看动画效果"
-            textSize = 13f
-            setTextColor(textColorPrimary(ctx))
-            setPadding(0, 20, 0, 8)
-        }
-        root.addView(demo)
-
-        val box = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(0, 8, 0, 8)
-        }
-        root.addView(box)
-
-        root.addView(MaterialButton(ctx).apply {
-            text = "播放一次示例动画"
-            safeClickUnit { playDemo(ctx, box) }
-        })
-
-        // ── 开场动画（从启动器进来时播放） ────────────────────
-        // 单独放一节：它和上面的界面动画是两回事——
-        // 上面管的是列表/切换的动效，这一项管的是开场那 3 秒。
-        // 有人嫌开场慢，所以默认开、但随时能关。
-        root.addView(TextView(ctx).apply {
-            text = "开场动画"
-            textSize = 14f
-            setTextColor(textColorPrimary(ctx))
-            setPadding(0, 24, 0, 4)
-        })
-        val tvSplashDesc = TextView(ctx).apply {
-            textSize = 12f
-            setTextColor(textColorPrimary(ctx))
-            setPadding(0, 0, 0, 8)
-        }
-        root.addView(tvSplashDesc)
-
-        val swSplash = com.google.android.material.materialswitch.MaterialSwitch(ctx).apply {
-            text = "从启动器进来时播放"
-            isChecked = Prefs.get(ctx).getBoolean(K.SPLASH_ANIM, true)
-        }
-        root.addView(swSplash)
-
-        root.addView(MaterialButton(ctx).apply {
-            text = "预览开场动画"
-            safeClick {
-                val h = LauncherBrand.Handoff(
-                    LauncherBrand.byKey("zalith2"), "Zalith Launcher 2", "2.0.7"
-                )
-                LauncherSplash.play(requireActivity(), h)
-            }
-        })
-
-        fun refreshSplash() {
-            val h = runCatching { LauncherBrand.handoff(requireActivity()) }.getOrNull()
-            tvSplashDesc.text = buildString {
-                append("固定 3 秒，播放时点任意位置可跳过。\n")
-                append("当前这次：")
-                append(LauncherBrand.describe(h))
-                if (h == null) append("\n（直接打开本应用时不会播放）")
-            }
-        }
-        refreshSplash()
-
-        swSplash.setOnCheckedChangeListener { _, on ->
-            Prefs.get(ctx).edit().putBoolean(K.SPLASH_ANIM, on).apply()
-            Tips.short(ctx, if (on) "开场动画已开启" else "开场动画已关闭，之后直接进主界面")
-        }
-
-        fun refresh() {
-            tvState.text = AnimPrefs.describe(ctx)
-        }
-        refresh()
-
-        rg.setOnCheckedChangeListener { _, id ->
-            val rb = rg.findViewById<RadioButton>(id) ?: return@setOnCheckedChangeListener
-            val m = rb.tag as? Int ?: return@setOnCheckedChangeListener
-            AnimPrefs.setMode(ctx, m)
-            refresh()
+        McSectionTitle("界面动画")
+        McChipRow(
+            listOf(ctx.getString(R.string.anim_follow), ctx.getString(R.string.anim_on), ctx.getString(R.string.anim_off)),
+            mode
+        ) {
+            if (it == mode) return@McChipRow
+            mode = it
+            AnimPrefs.setMode(ctx, it)
             Tips.short(ctx, if (AnimPrefs.enabled(ctx)) "动画已开启" else "动画已关闭")
         }
 
-        rgSpeed.setOnCheckedChangeListener { _, id ->
-            val rb = rgSpeed.findViewById<RadioButton>(id) ?: return@setOnCheckedChangeListener
-            val s = rb.tag as? Int ?: return@setOnCheckedChangeListener
-            AnimPrefs.setSpeed(ctx, s)
-            refresh()
+        McSectionTitle("动画速率")
+        McChipRow(listOf("慢", "正常", "快"), speed) {
+            if (it == speed) return@McChipRow
+            speed = it
+            AnimPrefs.setSpeed(ctx, it)
             // 动画关闭时改速率是没效果的，必须当场说清楚，
-            // 否则用户改完看不到变化，只会以为又坏了
-            Tips.short(ctx, if (AnimPrefs.enabled(ctx)) "速率：${AnimPrefs.speedLabel(ctx)}"
-                else "速率已设为「${AnimPrefs.speedLabel(ctx)}」，但当前动画是关闭的，看不到效果")
+            // 否则改完看不到变化，只会以为又坏了
+            Tips.short(
+                ctx,
+                if (AnimPrefs.enabled(ctx)) "速率：${AnimPrefs.speedLabel(ctx)}"
+                else "速率已设为「${AnimPrefs.speedLabel(ctx)}」，但当前动画是关闭的，看不到效果"
+            )
         }
 
-        return root
+        McSectionTitle("示例")
+        DemoRows(ctx, demoKey)
+        McFilledButton("播放一次示例动画") { demoKey++ }
+
+        McSectionTitle("开场动画")
+        McNote(splashDesc)
+        McCheckRow(splash, {
+            splash = it
+            Prefs.get(ctx).edit().putBoolean(K.SPLASH_ANIM, it).apply()
+            Tips.short(ctx, if (it) "开场动画已开启" else "开场动画已关闭，之后直接进主界面")
+        }) {
+            Text("从启动器进来时播放", fontSize = 13.sp)
+        }
+        McFilledButton("预览开场动画") {
+            val a = ctx as? android.app.Activity ?: return@McFilledButton
+            val h = LauncherBrand.Handoff(
+                LauncherBrand.byKey("zalith2"), "Zalith Launcher 2", "2.0.7"
+            )
+            LauncherSplash.play(a, h)
+        }
     }
+}
 
-    private fun playDemo(ctx: android.content.Context, box: LinearLayout) {
-        box.removeAllViews()
-        val cards = List(4) { i ->
-            TextView(ctx).apply {
-                text = "第 ${i + 1} 行"
-                textSize = 14f
-                setTextColor(textColorPrimary(ctx))
-                setPadding(0, 10, 0, 10)
+/** 四行依次淡入；动画关闭时直接全部显示 */
+@Composable
+private fun DemoRows(ctx: android.content.Context, key: Int) {
+    val on = AnimPrefs.enabled(ctx)
+    val step = AnimPrefs.dur(ctx, 120L)
+    Column(Modifier.fillMaxWidth()) {
+        for (i in 0 until 4) {
+            val a = remember(key) { Animatable(if (on) 0f else 1f) }
+            LaunchedEffect(key) {
+                if (!on) { a.snapTo(1f); return@LaunchedEffect }
+                a.snapTo(0f)
+                a.animateTo(1f, tween(durationMillis = step.toInt(), delayMillis = (i * step).toInt()))
             }
+            Text(
+                "第 ${i + 1} 行",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .padding(vertical = 6.dp)
+                    .graphicsLayer { alpha = a.value }
+            )
         }
-        cards.forEach { box.addView(it) }
-        // 依次淡入，关闭动画时会直接全部显示
-        AnimPrefs.stagger(ctx, cards)
     }
 }
