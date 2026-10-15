@@ -100,6 +100,9 @@ dependencies {
     implementation 'androidx.compose.material3:material3'
     implementation 'androidx.compose.foundation:foundation'
     implementation 'androidx.activity:activity-compose:1.8.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.7.0'
+    // Compose 里加载远程图片（模组图标）
+    implementation 'io.coil-kt:coil-compose:2.5.0'
     debugImplementation 'androidx.compose.ui:ui-tooling'
     // Chrome Custom Tabs：OAuth 必须在**外部浏览器进程**里跑（RFC 8252），
     // 内置 WebView 不支持 passkey，会把 GitHub 登录页卡死
