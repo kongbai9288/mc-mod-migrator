@@ -275,6 +275,7 @@ fun McSearchField(value: String, onValueChange: (String) -> Unit, hint: String) 
 }
 
 /** 一排互斥的选项：排序方式这类 */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun McChipRow(options: List<String>, selected: Int, onPick: (Int) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
