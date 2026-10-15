@@ -63,7 +63,7 @@ private fun AnimScreen(ctx: android.content.Context) {
     var demoKey by remember { mutableIntStateOf(0) }
 
     val splashDesc = remember {
-        val h = runCatching { LauncherBrand.handoff(ctx as? android.app.Activity) }.getOrNull()
+        val h = runCatching { (ctx as? android.app.Activity)?.let { LauncherBrand.handoff(it) } }.getOrNull()
         buildString {
             append("固定 3 秒，播放时点任意位置可跳过。\n")
             append("当前这次：").append(LauncherBrand.describe(h))
