@@ -1,17 +1,15 @@
 # 最近一次构建失败摘录
-run: 38685573201
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:262:5 Unresolved reference: OutlinedTextField
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:267:25 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:268:58 Unresolved reference: KeyboardOptions
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:279:13 Unresolved reference: FilterChip
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:282:27 @Composable invocations can only happen from the context of a @Composable function
+run: 38685997843
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:282:13 This material API is experimental and is likely to change or to be removed in the future.
 > Task :app:compileReleaseKotlin FAILED
-BUILD FAILED in 2m 10s
+BUILD FAILED in 2m 53s
 
 ## Tips 定义所在文件
 app/src/main/java/com/kongbai/modmigrator/Tips.kt:13:object Tips {
 
 ## 末尾 80 行
+Here are the highlights of this release:
+ - Kotlin DSL: new reference documentation, assignment syntax by default
  - Kotlin DSL is now the default with Gradle init
  - Improved suggestions to resolve errors in console output
 
@@ -44,19 +42,20 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:javaPreCompileRelease
 > Task :app:extractProguardFiles
 > Task :app:mergeReleaseJniLibFolders
-> Task :app:mergeReleaseNativeLibs
 > Task :app:processReleaseManifestForPackage
-> Task :app:checkReleaseDuplicateClasses
+> Task :app:mergeReleaseNativeLibs
+> Task :app:desugarReleaseFileDependencies
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
 
-> Task :app:desugarReleaseFileDependencies
-> Task :app:extractReleaseNativeSymbolTables
+> Task :app:checkReleaseDuplicateClasses
 > Task :app:processReleaseResources
-> Task :app:mergeExtDexRelease
-> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:mergeReleaseArtProfile
+> Task :app:extractReleaseNativeSymbolTables
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :app:compileReleaseKotlin
+> Task :app:mergeExtDexRelease
 > Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
@@ -68,12 +67,9 @@ Unable to strip the following libraries, packaging them as they are: libconscryp
 > Task :app:writeReleaseAppMetadata
 > Task :app:writeReleaseSigningConfigVersions
 > Task :app:optimizeReleaseResources
+
 > Task :app:compileReleaseKotlin
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:262:5 Unresolved reference: OutlinedTextField
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:267:25 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:268:58 Unresolved reference: KeyboardOptions
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:279:13 Unresolved reference: FilterChip
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:282:27 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:282:13 This material API is experimental and is likely to change or to be removed in the future.
 
 > Task :app:compileReleaseKotlin FAILED
 
@@ -90,5 +86,5 @@ Execution failed for task ':app:compileReleaseKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 2m 10s
+BUILD FAILED in 2m 53s
 34 actionable tasks: 34 executed
