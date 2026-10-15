@@ -166,7 +166,9 @@ class WorldsFragment : Fragment() {
         }
         tvState.text = if (q.isBlank()) "共 ${list.size} 个存档"
         else "匹配 ${list.size} / ${worlds.size} 个"
-        for (w in list) box.addView(worldCard(ctx, w))
+        val cards = list.map { worldCard(ctx, it) }
+        cards.forEach { box.addView(it) }
+        AnimPrefs.stagger(ctx, cards)
     }
 
     private fun showSkeleton(ctx: android.content.Context) {

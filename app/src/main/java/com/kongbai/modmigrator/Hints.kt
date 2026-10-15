@@ -37,7 +37,7 @@ object Hints {
             hints.forEach { it.visibility = View.GONE }
             btn.safeClickUnit {
                 val show = hints[0].visibility != View.VISIBLE
-                hints.forEach { it.visibility = if (show) View.VISIBLE else View.GONE }
+                hints.forEach { Motion.expand(it, show) }
             }
         }
         for (i in 0 until g.childCount) {

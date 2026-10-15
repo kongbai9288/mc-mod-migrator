@@ -54,8 +54,18 @@ object UiCards {
     /** 主题色解析失败时的兜底值（不会再触发任何解析，避免递归） */
     private const val FALLBACK_PRIMARY = 0xFF4CAF50.toInt()
 
-    /** 圆角白底卡片背景 */
-    private fun cardBg(ctx: Context, radiusDp: Int = 12): GradientDrawable =
+    /**
+     * 卡片投影。
+     *
+     * 只在有形状背景的视图上设 elevation 才有阴影，
+     * 所以必须跟着 cardBg 一起用，不能单独调。
+     */
+    private fun elevate(v: View) {
+        if (android.os.Build.VERSION.SDK_INT >= 21) v.elevation = 4f
+    }
+
+    /** 圆角卡片背景 */
+    private fun cardBg(ctx: Context, radiusDp: Int = 16): GradientDrawable =
         GradientDrawable().apply {
             setColor(
                 try {
@@ -214,6 +224,7 @@ object UiCards {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             background = cardBg(ctx)
+            elevate(this)
             setPadding(dp(ctx, 14), dp(ctx, 12), dp(ctx, 14), dp(ctx, 12))
             val lp = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -333,6 +344,7 @@ object UiCards {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             background = cardBg(ctx)
+            elevate(this)
             setPadding(dp(ctx, 14), dp(ctx, 14), dp(ctx, 14), dp(ctx, 14))
             val lp = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -417,6 +429,8 @@ object UiCards {
             setPadding(dp(ctx, 10), dp(ctx, 12), dp(ctx, 10), dp(ctx, 12))
             safeClickUnit { onClick() }
             isClickable = true
+            Motion.press(this)
+            elevate(this)
         }
         card.addView(ImageView(ctx).apply {
             setImageResource(icon)
@@ -489,6 +503,8 @@ object UiCards {
             box.addView(row)
             i += cols
         }
+        // 整块一起入场，不再是"啪"地全出现
+        AnimPrefs.stagger(ctx, tiles)
         return box
     }
 
@@ -515,6 +531,7 @@ object UiCards {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
             background = cardBg(ctx)
+            elevate(this)
             setPadding(dp(ctx, 14), dp(ctx, 14), dp(ctx, 14), dp(ctx, 14))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -582,6 +599,7 @@ object UiCards {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             background = cardBg(ctx)
+            elevate(this)
             setPadding(dp(ctx, 20), dp(ctx, 32), dp(ctx, 20), dp(ctx, 32))
             val lp = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -685,7 +703,7 @@ object UiCards {
         }
         toggle.safeClickUnit {
             val show = body.visibility != View.VISIBLE
-            body.visibility = if (show) View.VISIBLE else View.GONE
+            Motion.expand(body, show)
             toggle.text = if (show) "收起说明" else "说明"
         }
         box.addView(toggle)
@@ -714,7 +732,7 @@ object UiCards {
         }
         toggle.safeClickUnit {
             val show = body.visibility != View.VISIBLE
-            body.visibility = if (show) View.VISIBLE else View.GONE
+            Motion.expand(body, show)
             toggle.text = if (show) "收起" else label
         }
         outer.addView(toggle)

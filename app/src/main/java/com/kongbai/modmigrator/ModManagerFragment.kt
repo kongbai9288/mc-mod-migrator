@@ -40,6 +40,8 @@ class ModManagerFragment : Fragment() {
     private val allFiles = ArrayList<androidx.documentfile.provider.DocumentFile>()
     /** 已勾选的文件名 */
     private val picked = HashSet<String>()
+    /** 当前这一屏的行，渲染完统一做入场动画 */
+    private val modLines = ArrayList<View>()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -356,6 +358,7 @@ class ModManagerFragment : Fragment() {
     private fun render(list: List<DocumentFile>) {
         val ctx = context ?: return
         box.removeAllViews()
+        modLines.clear()
         if (list.isEmpty()) {
             box.addView(
                 UiCards.emptyCard(
@@ -402,6 +405,7 @@ class ModManagerFragment : Fragment() {
             })
             line.addView(card)
             box.addView(line)
+            modLines.add(line)
 
             // 图标异步加载。
             // 之前取不到 jar 内图标时，图标位就一直是通用的灰方块，
@@ -439,6 +443,7 @@ class ModManagerFragment : Fragment() {
                 }
             }
         }
+        AnimPrefs.stagger(requireContext(), modLines)
         syncBatchBar()
     }
 

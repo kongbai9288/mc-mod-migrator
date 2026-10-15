@@ -149,6 +149,7 @@ class TrashFragment : Fragment() {
         tvState.text = "共 ${items.size} 个 · ${String.format("%.1f MB", mb)}"
         val fmt = SimpleDateFormat("MM-dd HH:mm", Locale.CHINA)
         picked.retainAll(items.map { it.name }.toSet())
+        val lines = ArrayList<View>()
         for (item in items) {
             // 每条做成"勾选框 + 卡片"，既能单选还原，也能批量操作
             val line = LinearLayout(ctx).apply {
@@ -179,7 +180,9 @@ class TrashFragment : Fragment() {
                 }
             )
             box.addView(line)
+            lines.add(line)
         }
+        AnimPrefs.stagger(ctx, lines)
 
         cbAll.setOnCheckedChangeListener(null)
         cbAll.isChecked = picked.size == items.size && items.isNotEmpty()
