@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -230,7 +231,7 @@ private fun checkUpdate(ctx: android.content.Context, out: (AboutDlg) -> Unit) {
                     }
                 }
             }
-            dialog(
+            out(
                 AboutDlg.Update(if (newer) "发现新版本 ${rel.tag}" else "检查更新", sb.toString(), acts)
             )
         }
