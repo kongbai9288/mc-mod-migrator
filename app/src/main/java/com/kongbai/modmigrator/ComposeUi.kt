@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -40,6 +42,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import coil.compose.AsyncImage
+import androidx.compose.ui.text.input.ImeAction
 
 /**
  * Compose 页面共用的几个小组件。
@@ -251,4 +254,82 @@ fun McCheckRow(
         Checkbox(checked = checked, onCheckedChange = onChecked)
         Box(Modifier.weight(1f)) { content() }
     }
+}
+
+/** 搜索框：列表页顶部常驻，输入即过滤 */
+@Composable
+fun McSearchField(value: String, onValueChange: (String) -> Unit, hint: String) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        placeholder = { Text(hint, fontSize = 14.sp) },
+        keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(
+            imeAction = ImeAction.Search
+        )
+    )
+}
+
+/** 一排互斥的选项：排序方式这类 */
+@Composable
+fun McChipRow(options: List<String>, selected: Int, onPick: (Int) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        options.forEachIndexed { i, o ->
+            FilterChip(
+                selected = i == selected,
+                onClick = { onPick(i) },
+                label = { Text(o, fontSize = 12.sp) },
+                modifier = Modifier.padding(end = 8.dp)
+            )
+        }
+    }
+}
+
+/** 骨架占位：数据没到之前占住卡片的位置，别让整页空白 */
+@Composable
+fun McSkeleton(lines: Int) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            repeat(lines) { i ->
+                Box(
+                    Modifier
+                        .fillMaxWidth(if (i == 0) 0.7f else 1f)
+                        .height(if (i == 0) 16.dp else 12.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                )
+                Spacer(Modifier.height(6.dp))
+            }
+        }
+    }
+}
+
+/** 多按钮弹窗：详情类场景，操作多于两个时用它 */
+@Composable
+fun McActionDialog(
+    title: String,
+    onDismiss: () -> Unit,
+    actions: List<Pair<String, () -> Unit>>,
+    content: @Composable () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column {
+                content()
+                actions.forEach { (label, act) ->
+                    TextButton(onClick = act) { Text(label) }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } }
+    )
 }
