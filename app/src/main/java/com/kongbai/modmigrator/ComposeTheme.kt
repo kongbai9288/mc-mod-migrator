@@ -1,7 +1,7 @@
 package com.kongbai.modmigrator
 
 import android.content.Context
-import androidx.compose.foundation.isSystemInDarkTheme
+import android.content.res.Configuration
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -24,11 +24,17 @@ object ComposeTheme {
         return Color(list[i].seedColor)
     }
 
-    /** 0 跟随系统 / 1 浅色 / 2 深色，与 ThemePrefs 的取值一致 */
+    /**
+     * 0 跟随系统 / 1 浅色 / 2 深色，与 ThemePrefs 的取值一致。
+     *
+     * ⚠️ 跟随时不能用 Compose 的 isSystemInDarkTheme()——它是 @Composable，
+     * 普通函数里调它编译不过。这里按系统的 uiMode 判，结果等价。
+     */
     fun dark(ctx: Context): Boolean = when (ThemePrefs.nightMode(ctx)) {
         1 -> false
         2 -> true
-        else -> isSystemInDarkTheme()
+        else -> (ctx.resources.configuration.uiMode and
+            Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
     }
 }
 
