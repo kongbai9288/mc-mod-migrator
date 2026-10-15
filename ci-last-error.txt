@@ -1,17 +1,17 @@
 # 最近一次构建失败摘录
-run: 38682508297
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:34:35 Unresolved reference: LocalLifecycleOwner
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:134:17 Unresolved reference: LocalLifecycleOwner
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/FavoritesFragment.kt:66:85 Unresolved reference: sp
+run: 38685573201
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:262:5 Unresolved reference: OutlinedTextField
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:267:25 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:268:58 Unresolved reference: KeyboardOptions
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:279:13 Unresolved reference: FilterChip
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:282:27 @Composable invocations can only happen from the context of a @Composable function
 > Task :app:compileReleaseKotlin FAILED
-BUILD FAILED in 3m 1s
+BUILD FAILED in 2m 10s
 
 ## Tips 定义所在文件
 app/src/main/java/com/kongbai/modmigrator/Tips.kt:13:object Tips {
 
 ## 末尾 80 行
-Here are the highlights of this release:
- - Kotlin DSL: new reference documentation, assignment syntax by default
  - Kotlin DSL is now the default with Gradle init
  - Improved suggestions to resolve errors in console output
 
@@ -35,9 +35,9 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mapReleaseSourceSetPaths
 > Task :app:generateReleaseResources
 > Task :app:packageReleaseResources
+> Task :app:mergeReleaseResources
 > Task :app:createReleaseCompatibleScreenManifests
 > Task :app:extractDeepLinksRelease
-> Task :app:mergeReleaseResources
 > Task :app:parseReleaseLocalResources
 > Task :app:processReleaseMainManifest
 > Task :app:processReleaseManifest
@@ -47,31 +47,33 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mergeReleaseNativeLibs
 > Task :app:processReleaseManifestForPackage
 > Task :app:checkReleaseDuplicateClasses
-> Task :app:desugarReleaseFileDependencies
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
 
+> Task :app:desugarReleaseFileDependencies
+> Task :app:extractReleaseNativeSymbolTables
 > Task :app:processReleaseResources
 > Task :app:mergeExtDexRelease
-> Task :app:extractReleaseNativeSymbolTables
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
-> Task :app:mergeReleaseShaders
 > Task :app:mergeReleaseArtProfile
+> Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
 > Task :app:mergeReleaseAssets
-> Task :app:collectReleaseDependencies
 > Task :app:compressReleaseAssets
+> Task :app:collectReleaseDependencies
 > Task :app:sdkReleaseDependencyData
 > Task :app:validateSigningRelease
 > Task :app:writeReleaseAppMetadata
 > Task :app:writeReleaseSigningConfigVersions
 > Task :app:optimizeReleaseResources
 > Task :app:compileReleaseKotlin
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:34:35 Unresolved reference: LocalLifecycleOwner
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:134:17 Unresolved reference: LocalLifecycleOwner
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/FavoritesFragment.kt:66:85 Unresolved reference: sp
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:262:5 Unresolved reference: OutlinedTextField
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:267:25 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:268:58 Unresolved reference: KeyboardOptions
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:279:13 Unresolved reference: FilterChip
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ComposeUi.kt:282:27 @Composable invocations can only happen from the context of a @Composable function
 
 > Task :app:compileReleaseKotlin FAILED
 
@@ -88,5 +90,5 @@ Execution failed for task ':app:compileReleaseKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 3m 1s
+BUILD FAILED in 2m 10s
 34 actionable tasks: 34 executed
