@@ -4,168 +4,121 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.LinearLayout
-import android.widget.TextView
-import android.widget.Toast
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.fragment.app.Fragment
-import com.google.android.material.button.MaterialButton
 
 /**
- * 底部导航栏自定义。
+ * 设置 → 底部导航栏自定义。
  *
- * 可以：
- *   - 把「更多」里的功能移到底部栏（正向移动）
- *   - 把底部栏的功能移回「更多」（反向移动）
- *   - 在底部栏内上下调序
+ * 可以：把「更多」里的功能移到底部栏、移回「更多」、在底部栏内上下调序。
  *
- * Material 的 BottomNavigationView 硬限制 5 项，这里始终保证不超过。
+ * Material 的 BottomNavigationView 硬限制 5 项，
+ * 其中主界面还会固定加一个「更多」，所以自定义项实际是 NavConfig.MAX_CUSTOM。
+ * 提示文案直接取常量，不再写死数字——写死过一次写成了 5，
+ * 用户放 4 个就被拒，提示却说还能再加。
  */
 class SettingsNavFragment : Fragment() {
-
-    private val handler = Bg.ui
-
-    private lateinit var boxBottom: LinearLayout
-    private lateinit var boxMore: LinearLayout
-    private lateinit var tvTip: TextView
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         val ctx = requireContext()
-        val scroll = android.widget.ScrollView(ctx)
-        val root = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            val pad = (16 * resources.displayMetrics.density).toInt()
-            setPadding(pad, pad, pad, pad)
-        }
-        scroll.addView(root)
-
-        tvTip = TextView(ctx).apply {
-            textSize = 12f
-            setTextColor(resources.getColor(R.color.textSecondary, null))
-        }
-        root.addView(tvTip)
-
-        root.addView(TextView(ctx).apply {
-            text = "底部导航栏（长按可上下调序）"
-            textSize = 14f
-            setPadding(0, 12, 0, 6)
-        })
-        boxBottom = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
-        root.addView(boxBottom)
-
-        root.addView(TextView(ctx).apply {
-            text = "更多（不在底部栏的）"
-            textSize = 14f
-            setPadding(0, 16, 0, 6)
-        })
-        boxMore = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
-        root.addView(boxMore)
-
-        refresh()
-        return scroll
-    }
-
-    private fun toast(s: String) {
-        handler.post {
-            if (!isAdded) return@post
-            try {
-                context?.let { Tips.short(it, s) }
-            } catch (t: Throwable) {
-                // 界面已销毁，不弹
-                     Err.ignore(t, "界面已销毁，不弹")
-                 }
+        return ComposeView(ctx).apply {
+            setViewCompositionStrategy(
+                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
+            )
+            setContent { McTheme(ctx) { NavScreen(ctx) } }
         }
     }
+}
 
-    private fun refresh() {
-        val ctx = context ?: return
-        val bottom = NavConfig.bottom(ctx)
-        val more = NavConfig.more(ctx)
-        // ⚠️ 之前这里写死"底部最多 5 项"，而 `NavConfig.MAX_CUSTOM` 实际是 **4**
-        // （因为主界面还会固定加一个「更多」，加起来才是 Material 的 5 项上限）。
-        // 两处数字对不上：用户看到底部只放了 4 个就被拒绝，
-        // 提示却说"最多 5 个"，会以为还能再加一个，反复点都是失败。
-        // 改成直接取常量，不再写死。
-        tvTip.text =
+@Composable
+private fun NavScreen(ctx: android.content.Context) {
+    // 增删都改这个计数，列表跟着重算
+    var gen by remember { mutableIntStateOf(0) }
+    val bottom = remember(gen) { NavConfig.bottom(ctx) }
+    val more = remember(gen) { NavConfig.more(ctx) }
+
+    fun say(s: String) = runCatching { Tips.short(ctx, s) }
+    fun bump() { gen++ }
+    fun rebuild() = runCatching { (ctx as? MainActivity)?.rebuildNav() }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        McNote(
             "底部最多 ${NavConfig.MAX_CUSTOM} 个自定义项（另有一个固定的「更多」，"
                 .plus("合计不超过 Material 的 5 项上限）。")
                 .plus("\n当前底部 ${bottom.size} 个、更多 ${more.size} 个。")
+        )
 
-        boxBottom.removeAllViews()
-        for ((i, key) in bottom.withIndex()) {
+        McSectionTitle("底部导航栏")
+        for (key in bottom) {
             val nav = NavConfig.item(key) ?: continue
-            val row = LinearLayout(ctx).apply {
-                orientation = LinearLayout.HORIZONTAL
-                setPadding(0, 4, 0, 4)
-            }
-            val label = TextView(ctx).apply {
-                text = getString(nav.title)
-                textSize = 14f
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            }
-            row.addView(label)
-            val up = MaterialButton(ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
-            up.text = "↑"
-            up.safeClick {
-                if (!NavConfig.moveInBottom(ctx, key, true)) toast("已经在最上面")
-                refresh()
-            }
-            row.addView(up)
-            val down = MaterialButton(ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
-            down.text = "↓"
-            down.safeClick {
-                if (!NavConfig.moveInBottom(ctx, key, false)) toast("已经在最下面")
-                refresh()
-            }
-            row.addView(down)
-            val out = MaterialButton(ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
-            out.text = "移出"
-            out.safeClick {
-                if (!NavConfig.moveToMore(ctx, key)) toast("底部至少保留 1 项")
-                else {
-                    toast("已移到「更多」")
-                    (activity as? MainActivity)?.rebuildNav()
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                val icon = runCatching { painterResource(nav.icon) }.getOrNull()
+                if (icon != null) {
+                    Icon(icon, null, Modifier.padding(end = 8.dp),
+                        tint = MaterialTheme.colorScheme.primary)
                 }
-                refresh()
+                Text(ctx.getString(nav.title), fontSize = 14.sp, modifier = Modifier.weight(1f))
+                IconButton(onClick = {
+                    if (!NavConfig.moveInBottom(ctx, key, true)) say("已经在最上面")
+                    bump()
+                }) { Text("↑", fontSize = 14.sp) }
+                IconButton(onClick = {
+                    if (!NavConfig.moveInBottom(ctx, key, false)) say("已经在最下面")
+                    bump()
+                }) { Text("↓", fontSize = 14.sp) }
+                IconButton(onClick = {
+                    if (!NavConfig.moveToMore(ctx, key)) say("底部至少保留 1 项")
+                    else { say("已移到「更多」"); rebuild() }
+                    bump()
+                }) { Text("移出", fontSize = 12.sp) }
             }
-            row.addView(out)
-            boxBottom.addView(row)
         }
 
-        boxMore.removeAllViews()
-        // 变量名不能用 it：setOnClickListener 的 lambda 隐式参数也叫 it，会遮蔽外层
+        McSectionTitle("更多（不在底部栏的）")
         for (page in more) {
-            val row = LinearLayout(ctx).apply {
-                orientation = LinearLayout.HORIZONTAL
-                setPadding(0, 4, 0, 4)
-            }
-            val label = TextView(ctx).apply {
-                text = getString(page.title)
-                textSize = 14f
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            }
-            row.addView(label)
-            val add = MaterialButton(ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
-            add.text = "移到底部"
-            add.safeClick {
-                if (!NavConfig.moveToBottom(ctx, page.key)) {
-                    toast("底部自定义项已满（${NavConfig.MAX_CUSTOM} 个），先从上面移一个出来")
-                } else {
-                    toast("已移到底部导航栏")
-                    (activity as? MainActivity)?.rebuildNav()
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                val icon = runCatching { painterResource(page.icon) }.getOrNull()
+                if (icon != null) {
+                    Icon(icon, null, Modifier.padding(end = 8.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                refresh()
+                Text(ctx.getString(page.title), fontSize = 14.sp, modifier = Modifier.weight(1f))
+                IconButton(onClick = {
+                    if (!NavConfig.moveToBottom(ctx, page.key)) {
+                        say("底部自定义项已满（${NavConfig.MAX_CUSTOM} 个），先从上面移一个出来")
+                    } else { say("已移到底部导航栏"); rebuild() }
+                    bump()
+                }) { Text("移到底部", fontSize = 12.sp) }
             }
-            row.addView(add)
-            boxMore.addView(row)
         }
     }
-    override fun onDestroyView() {
-        super.onDestroyView()
-        // 清理 Handler：页面销毁后若还有未执行的 post，
-        // 回调里访问已销毁的 View 会直接崩。
-        runCatching { handler.removeCallbacksAndMessages(null) }
-    }
-
 }
