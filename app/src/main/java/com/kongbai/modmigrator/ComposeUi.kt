@@ -12,7 +12,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -152,5 +159,96 @@ fun ObserveResume(owner: LifecycleOwner, onResume: () -> Unit) {
         }
         owner.lifecycle.addObserver(ob)
         onDispose { owner.lifecycle.removeObserver(ob) }
+    }
+}
+
+/** 分组标题，列表里分隔几类内容用 */
+@Composable
+fun McSectionTitle(text: String) {
+    Text(
+        text,
+        modifier = Modifier.padding(vertical = 8.dp),
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary
+    )
+}
+
+/** 一行里的两个等宽按钮 */
+@Composable
+fun McButtonRow(
+    left: String, onLeft: () -> Unit,
+    right: String, onRight: () -> Unit
+) {
+    Row(Modifier.fillMaxWidth()) {
+        OutlinedButton(onClick = onLeft, modifier = Modifier.weight(1f)) { Text(left) }
+        androidx.compose.foundation.layout.Spacer(Modifier.size(8.dp))
+        OutlinedButton(onClick = onRight, modifier = Modifier.weight(1f)) { Text(right) }
+    }
+}
+
+@Composable
+fun McFilledButton(text: String, enabled: Boolean = true, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        colors = ButtonDefaults.buttonColors(
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) { Text(text) }
+}
+
+/** 确认框：危险操作前问一次，避免误触 */
+@Composable
+fun McConfirm(
+    title: String, body: String, confirmText: String,
+    onConfirm: () -> Unit, onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(body) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(confirmText) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+    )
+}
+
+/** 单选框：保留天数这类「几选一、选完立即生效」的场景 */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun McPickOne(
+    title: String, options: List<String>, selected: Int,
+    onPick: (Int) -> Unit, onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column {
+                options.forEachIndexed { i, o ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .combinedClickable(onClick = { onPick(i) })
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(selected = i == selected, onClick = { onPick(i) })
+                        Text(o, Modifier.padding(start = 8.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } }
+    )
+}
+
+/** 带勾选框的卡片行：批量操作用 */
+@Composable
+fun McCheckRow(
+    checked: Boolean, onChecked: (Boolean) -> Unit, content: @Composable () -> Unit
+) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(checked = checked, onCheckedChange = onChecked)
+        Box(Modifier.weight(1f)) { content() }
     }
 }
