@@ -42,6 +42,16 @@ android {
         jvmTarget = '17'
     }
 
+    buildFeatures {
+        compose true
+    }
+
+    // Compose 编译器版本与 Kotlin 版本是绑定的：
+    // Kotlin 1.9.22 对应 1.5.8，用错会直接编译不过。
+    composeOptions {
+        kotlinCompilerExtensionVersion '1.5.8'
+    }
+
     // ML Kit 的翻译模型不能被压缩，否则加载失败
     aaptOptions {
         noCompress "tflite", "lite"
@@ -79,6 +89,18 @@ dependencies {
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'
     implementation 'androidx.work:work-runtime-ktx:2.9.0'
     implementation 'androidx.preference:preference-ktx:1.2.1'
+
+    // ── Jetpack Compose ──────────────────────────────────────
+    // BOM 2023.10.01 对应 runtime/ui 1.5.4，与上面的编译器 1.5.8 匹配。
+    // 不用更高版本是因为它们要求 Kotlin 2.0，那会牵动整条工具链升级。
+    def composeBom = platform('androidx.compose:compose-bom:2023.10.01')
+    implementation composeBom
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.foundation:foundation'
+    implementation 'androidx.activity:activity-compose:1.8.0'
+    debugImplementation 'androidx.compose.ui:ui-tooling'
     // Chrome Custom Tabs：OAuth 必须在**外部浏览器进程**里跑（RFC 8252），
     // 内置 WebView 不支持 passkey，会把 GitHub 登录页卡死
     implementation 'androidx.browser:browser:1.8.0'

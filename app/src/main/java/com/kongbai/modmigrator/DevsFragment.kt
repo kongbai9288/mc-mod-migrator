@@ -1,158 +1,148 @@
 package com.kongbai.modmigrator
 
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.LinearLayout
-import android.widget.TextView
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.fragment.app.Fragment
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import java.util.concurrent.Executors
 
 /**
  * 开发者名单 + 致谢。
  *
- * 之前的版本在加载失败时 catch 里什么都不做，
- * 结果列表一片空白、连提示文字都停在「正在读取名单…」。
- * 现在无论读写成功与否都会渲染：远端拿不到就用内置名单，
- * 真出错了也显示错误卡片 + 重试入口，绝不留白。
+ * 这是全项目第一个 Compose 页面，用来验证工具链能跑通。
+ * 数据层（DevTeam）原样复用，只把渲染换成 Compose。
+ *
+ * 无论名单读不读得出来都会渲染：远端拿不到就用内置名单，
+ * 真出错了也显示提示而不是留白。
  */
 class DevsFragment : Fragment() {
-
-    private val exec = Bg.io
-    private val handler = Bg.ui
-
-    private var eggClicks = 0
-    private lateinit var box: LinearLayout
-    private lateinit var tvState: TextView
-
-    /**
-     * 彩蛋：播放一小段属于本应用的旋律，放完自动换主题色。
-     * 用 AudioTrack 按真实频率合成，不依赖任何音频文件——
-     * 之前那种依赖资源的做法在资源缺失时就会"点了没反应"。
-     */
-    /** 彩蛋：长按或连点触发，播旋律后弹调色板 */
-    private fun showEgg() {
-        val ctx = context ?: return
-        Egg.show(ctx)
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         val ctx = requireContext()
-        val scroll = android.widget.ScrollView(ctx)
-        val root = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            val pad = (16 * resources.displayMetrics.density).toInt()
-            setPadding(pad, pad, pad, pad)
-        }
-        scroll.addView(root)
-
-        root.addView(UiCards.collapsingHint(ctx, "感谢这些项目与个人。点击卡片可打开主页。\n（长按这里或连点 5 次有彩蛋）"))
-
-        tvState = TextView(ctx).apply {
-            text = "正在读取名单…"
-            textSize = 12f
-            gravity = Gravity.CENTER
-            setTextColor(resources.getColor(R.color.textSecondary, null))
-            setPadding(0, 8, 0, 8)
-        }
-        root.addView(tvState)
-
-        box = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
-        root.addView(box)
-
-        // 彩蛋：长按状态行或连点 5 次
-        tvState.setOnLongClickListener { showEgg(); true }
-        eggClicks = 0
-        tvState.safeClick {
-            eggClicks++
-            if (eggClicks >= 5) {
-                eggClicks = 0
-                showEgg()
+        return ComposeView(ctx).apply {
+            setViewCompositionStrategy(
+                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
+            )
+            setContent {
+                McTheme(ctx) { DevsScreen(ctx) }
             }
         }
-
-        load()
-        return scroll
     }
+}
 
-    private fun load() {
-        val ctx = context ?: return
-        tvState.text = "正在读取名单…"
-        exec.execute {
-            // load 内部已保证不抛异常，这里再兜一层
-            val list = try {
+@Composable
+private fun DevsScreen(ctx: android.content.Context) {
+    var list by remember { mutableStateOf<List<DevTeam.Dev>>(emptyList()) }
+    var stateText by remember { mutableStateOf("正在读取名单…") }
+    var loaded by remember { mutableStateOf(false) }
+
+    if (!loaded) {
+        loaded = true
+        Bg.io.execute {
+            val got = try {
                 DevTeam.load(ctx)
             } catch (t: Throwable) {
                 emptyList()
             }
-            val err = list.isEmpty()
-            safePost(handler) {
-                box.removeAllViews()
-                if (err) {
-                    // 兜底：直接用内置名单，绝不留白
-                    val fallback = DevTeam.builtin()
-                    if (fallback.isNotEmpty()) {
-                        render(fallback, "使用内置名单（${fallback.size} 项）")
-                    } else {
-                        box.addView(
-                            UiCards.emptyCard(
-                                ctx, "名单暂时读不出来",
-                                "不影响使用，稍后重试即可。"
-                            )
-                        )
-                        tvState.text = ""
-                    }
-                } else {
-                    render(list, "共 ${list.size} 位 · 点击卡片打开主页")
-                }
+            val fallback = if (got.isEmpty()) DevTeam.builtin() else got
+            Bg.ui.post {
+                list = fallback
+                stateText = if (got.isEmpty()) "使用内置名单（${fallback.size} 项）"
+                else "共 ${fallback.size} 位 · 点击卡片打开主页"
             }
         }
     }
 
-    private fun render(list: List<DevTeam.Dev>, stateText: String) {
-        val ctx = context ?: return
-        box.removeAllViews()
-        // 人（有主页链接的）和数据源分开显示
-        val people = list.filter { it.url.contains("github.com") }
-        val others = list.filter { !it.url.contains("github.com") }
+    val people = list.filter { it.url.contains("github.com") }
+    val others = list.filter { !it.url.contains("github.com") }
 
-        if (people.isNotEmpty()) {
-            box.addView(UiCards.sectionTitle(ctx, "开发", R.drawable.ti_user))
-            for (d in people) box.addView(devRow(ctx, d))
+    Column(Modifier.fillMaxSize().padding(16.dp)) {
+        Text(
+            "感谢这些项目与个人。点击卡片可打开主页。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (list.isNotEmpty()) {
+            Text(
+                stateText,
+                modifier = Modifier.padding(top = 8.dp),
+                fontSize = 12.sp
+            )
+        } else {
+            Text(stateText, modifier = Modifier.padding(top = 8.dp), fontSize = 12.sp)
         }
-        if (others.isNotEmpty()) {
-            box.addView(UiCards.sectionTitle(ctx, "数据来源与协议", R.drawable.ti_link))
-            for (d in others) box.addView(devRow(ctx, d))
-        }
-        if (people.isEmpty() && others.isEmpty()) {
-            for (d in list) box.addView(devRow(ctx, d))
-        }
-        tvState.text = stateText
-    }
-
-    private fun devRow(ctx: android.content.Context, d: DevTeam.Dev): View {
-        // 头像：名单里写了就用写的，没写就按地址推导（GitHub 用户头像 / 站点 favicon）
-        val av = d.avatar.ifBlank { DevTeam.avatarOf(d.url, d.name) }
-        return UiCards.devCard(ctx, d.name, d.role, d.url, av) {
-            if (d.url.isNotBlank()) {
-                WebActivity.open(ctx, d.url, d.name)
+        LazyColumn(contentPadding = PaddingValues(top = 12.dp)) {
+            if (people.isNotEmpty()) {
+                item { SectionTitle("开发") }
+                items(people) { d -> DevRow(ctx, d) }
+            }
+            if (others.isNotEmpty()) {
+                item { SectionTitle("数据来源与协议") }
+                items(others) { d -> DevRow(ctx, d) }
+            }
+            if (people.isEmpty() && others.isEmpty() && list.isNotEmpty()) {
+                items(list) { d -> DevRow(ctx, d) }
             }
         }
     }
-    override fun onDestroyView() {
-        super.onDestroyView()
-        // 清理 Handler：页面销毁后若还有未执行的 post，
-        // 回调里访问已销毁的 View 会直接崩。
-        runCatching { handler.removeCallbacksAndMessages(null) }
-    }
+}
 
+@Composable
+private fun SectionTitle(text: String) {
+    Text(
+        text,
+        modifier = Modifier.padding(vertical = 8.dp),
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary
+    )
+}
+
+@Composable
+private fun DevRow(ctx: android.content.Context, d: DevTeam.Dev) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp)
+            .clickable {
+                if (d.url.isNotBlank()) WebActivity.open(ctx, d.url, d.name)
+            },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(Modifier.padding(14.dp)) {
+            Text(d.name, fontWeight = FontWeight.Bold)
+            if (d.role.isNotBlank()) {
+                Text(
+                    d.role, fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
 }
