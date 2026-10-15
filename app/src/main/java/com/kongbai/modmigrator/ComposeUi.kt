@@ -20,6 +20,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.CardDefaults
@@ -42,6 +44,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import coil.compose.AsyncImage
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
 
 /**
@@ -265,7 +268,7 @@ fun McSearchField(value: String, onValueChange: (String) -> Unit, hint: String) 
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
         placeholder = { Text(hint, fontSize = 14.sp) },
-        keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(
+        keyboardOptions = KeyboardOptions(
             imeAction = ImeAction.Search
         )
     )
