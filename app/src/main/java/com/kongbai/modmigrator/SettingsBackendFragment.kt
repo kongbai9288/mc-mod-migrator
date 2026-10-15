@@ -1,148 +1,144 @@
 package com.kongbai.modmigrator
 
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.text.Editable
-import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.EditText
-import android.widget.TextView
-import android.widget.Toast
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.unit.dp
 import androidx.fragment.app.Fragment
-import java.util.concurrent.Executors
+import kotlinx.coroutines.delay
 
+/**
+ * 设置 → 后端。
+ *
+ * 两个地址 + 连通检测 + 回调地址登记。
+ *
+ * 回调地址那块收进折叠区：它是"出问题时才需要看"的排查信息，
+ * 常驻会占掉大半屏，把真正要填的地址挤到下面。
+ */
 class SettingsBackendFragment : Fragment() {
-
-    private lateinit var etBase: EditText
-    private lateinit var etBackup: EditText
-    private lateinit var btnProbe: Button
-    private lateinit var tv: TextView
-    private lateinit var tvCb: TextView
-    private val exec = Bg.io
-    private val handler = Bg.ui
-
-    private val saveRunnable = Runnable {
-        runCatching {
-            if (!isAdded) return@runCatching
-            Prefs.get(requireContext()).edit()
-                .putString(K.BACKEND_BASE, etBase.text.toString().trim())
-                .putString(K.BACKEND_BACKUP, etBackup.text.toString().trim())
-                .apply()
-        }
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
-        val v = inflater.inflate(R.layout.fragment_settings_backend, container, false)
-        etBase = v.findViewById(R.id.etBase)
-        etBackup = v.findViewById(R.id.etBackup)
-        btnProbe = v.findViewById(R.id.btnProbe)
-        tv = v.findViewById(R.id.tvState)
-        tvCb = v.findViewById(R.id.tvCb)
-
-        val p = Prefs.get(requireContext())
-        etBase.setText(p.getString(K.BACKEND_BASE, "") ?: "")
-        etBackup.setText(p.getString(K.BACKEND_BACKUP, "") ?: "")
-
-        // 400ms 防抖：之前每敲一个字符就写一次 SharedPreferences，
-        // 粘贴一长串地址时会连续写入几十次。
-        fun watch(et: EditText) = et.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-            override fun afterTextChanged(s: Editable?) {
-                handler.removeCallbacks(saveRunnable)
-                handler.postDelayed(saveRunnable, 400)
-            }
-        })
-        watch(etBase)
-        watch(etBackup)
-
-        btnProbe.safeClickUnit { probe() }
-        v.findViewById<Button>(R.id.btnCopyCb)?.safeClickUnit { copyCallback() }
-        v.findViewById<Button>(R.id.btnGhOauth)?.safeClickUnit { openGhSettings() }
-        probe()
-        showCallback()
-        return v
-    }
-
-    /**
-     * 显示「后端入口 → 回调地址」的对应关系。
-     * 后端按访问域名动态拼 redirect_uri，所以走哪个域名就得在 GitHub 登记哪条。
-     * 报 redirect_uri 不匹配时，八成是走的域名没登记。
-     */
-    private fun showCallback() {
         val ctx = requireContext()
-        exec.execute {
-            val cb = BackendApi.callbackUrl(ctx)
-            val all = BackendApi.allCallbackUrls()
-            handler.post {
-                val sb = StringBuilder()
-                sb.append("当前连通的后端：").append(BackendApi.base(ctx)).append('\n')
-                sb.append("实际回调地址：").append(cb).append("\n\n")
-                sb.append("后端每个入口对应一条回调地址，都要登记：\n")
-                for (u in all) sb.append("  · ").append(u).append('\n')
-                sb.append("\nGitHub 白名单里缺当前这条，就会报 redirect_uri 不匹配。")
-                tvCb.text = sb.toString()
-            }
-        }
-    }
-
-    private fun copyCallback() {
-        val ctx = requireContext()
-        exec.execute {
-            val cb = BackendApi.callbackUrl(ctx)
-            handler.post {
-                val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                cm.setPrimaryClip(android.content.ClipData.newPlainText("callback", cb))
-                Tips.short(ctx, "已复制回调地址")
-            }
-        }
-    }
-
-    private fun openGhSettings() {
-        try {
-            startActivity(
-                android.content.Intent(
-                    android.content.Intent.ACTION_VIEW,
-                    android.net.Uri.parse("https://github.com/settings/developers")
-                )
+        return ComposeView(ctx).apply {
+            setViewCompositionStrategy(
+                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
             )
-        } catch (t: Throwable) { Err.ignore(t, "保存后端设置") }
+            setContent { McTheme(ctx) { BackendScreen(ctx) } }
+        }
+    }
+}
+
+@Composable
+private fun BackendScreen(ctx: android.content.Context) {
+    val prefs = remember { Prefs.get(ctx) }
+    var base by remember { mutableStateOf(prefs.getString(K.BACKEND_BASE, "") ?: "") }
+    var backup by remember { mutableStateOf(prefs.getString(K.BACKEND_BACKUP, "") ?: "") }
+    var state by remember { mutableStateOf("") }
+    var cb by remember { mutableStateOf("") }
+    var cbOpen by remember { mutableStateOf(false) }
+
+    fun save() {
+        runCatching {
+            prefs.edit()
+                .putString(K.BACKEND_BASE, base.trim())
+                .putString(K.BACKEND_BACKUP, backup.trim())
+                .apply()
+        }
     }
 
-    private fun probe() {
-        tv.text = "正在检测…"
-        val ctx = requireContext()
-        exec.execute {
-            try {
-                val r = BackendApi.probe(ctx)
-                safePost(handler) {
-                    tv.text = r.second
-                    Tips.short(ctx, if (r.first) "后端可用" else "后端不可用")
-                }
+    // 400ms 防抖：每敲一个字符就写一次 SharedPreferences 的话，
+    // 粘贴一长串地址会连续写入几十次
+    LaunchedEffect(base, backup) {
+        if (base.isEmpty() && backup.isEmpty()) return@LaunchedEffect
+        delay(400)
+        save()
+    }
+    // 退出时补落一次：否则敲完最后一个字符立刻退出会丢
+    DisposableEffect(Unit) { onDispose { save() } }
 
-            } catch (t: Throwable) {
-                // ⚠️ 之前这里只是记日志，tv 一直停在"正在检测…"，
-                // 用户永远等不到结果，看着像功能死了。异常也要给个说法。
-                Err.ignore(t, "后端探测异常")
-                safePost(handler) {
-                    tv.text = "检测出错：${t.message ?: "未知错误"}"
+    LaunchedEffect(Unit) {
+        val c = runCatching { BackendApi.callbackUrl(ctx) }.getOrNull() ?: ""
+        val all = runCatching { BackendApi.allCallbackUrls() }.getOrNull().orEmpty()
+        cb = buildString {
+            append("当前连通的后端：").append(runCatching { BackendApi.base(ctx) }.getOrNull()).append('\n')
+            append("实际回调地址：").append(c).append("\n\n")
+            append("后端每个入口对应一条回调地址，都要登记：\n")
+            for (u in all) append("  · ").append(u).append('\n')
+            append("\nGitHub 白名单里缺当前这条，就会报 redirect_uri 不匹配。")
+        }
+    }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        McField(base, { base = it }, ctx.getString(R.string.cfg_backend_base))
+        McField(backup, { backup = it }, ctx.getString(R.string.cfg_backend_backup))
+        McNote(ctx.getString(R.string.cfg_backend_hint))
+
+        McFilledButton(ctx.getString(R.string.btn_test_conn)) {
+            state = "正在检测…"
+            Bg.io.execute {
+                val r = runCatching { BackendApi.probe(ctx) }
+                Bg.ui.post {
+                    // 之前异常只记日志，状态一直停在"正在检测…"，
+                    // 用户永远等不到结果，看着像功能死了
+                    val (ok, msg) = r.getOrElse { false to "检测出错：${it.message ?: "未知错误"}" }
+                    state = msg
+                    Tips.short(ctx, if (ok) "后端可用" else "后端不可用")
                 }
             }
         }
-    }
-    override fun onDestroyView() {
-        // 防抖的先落一次盘：否则敲完最后一个字符立刻退出会丢
-        runCatching { if (isAdded) saveRunnable.run() }
-        super.onDestroyView()
-        // 清理 Handler：页面销毁后若还有未执行的 post，
-        // 回调里访问已销毁的 View 会直接崩。
-        runCatching { handler.removeCallbacksAndMessages(null) }
-    }
+        if (state.isNotEmpty()) McNote(state)
 
+        McExpand("回调地址登记", cbOpen, { cbOpen = !cbOpen }) {
+            if (cb.isEmpty()) McNote("正在读取…") else McNote(cb)
+            McButtonRow(
+                ctx.getString(R.string.cfg_copy_callback),
+                {
+                    Bg.io.execute {
+                        val c = runCatching { BackendApi.callbackUrl(ctx) }.getOrNull() ?: ""
+                        Bg.ui.post {
+                            val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                                as android.content.ClipboardManager
+                            cm.setPrimaryClip(android.content.ClipData.newPlainText("callback", c))
+                            Tips.short(ctx, "已复制回调地址")
+                        }
+                    }
+                },
+                ctx.getString(R.string.cfg_gh_oauth),
+                {
+                    runCatching {
+                        ctx.startActivity(
+                            android.content.Intent(
+                                android.content.Intent.ACTION_VIEW,
+                                android.net.Uri.parse("https://github.com/settings/developers")
+                            )
+                        )
+                    }
+                }
+            )
+            McNote(ctx.getString(R.string.cfg_callback_hint))
+        }
+    }
 }

@@ -21,6 +21,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.TextButton
@@ -260,6 +261,40 @@ fun McCheckRow(
 }
 
 /** 搜索框：列表页顶部常驻，输入即过滤 */
+/** 单行输入框：hint 就是标签，不再另外配一行说明 */
+@Composable
+fun McField(value: String, onValueChange: (String) -> Unit, hint: String) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = { Text(hint, fontSize = 13.sp) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
+    )
+}
+
+/** 可展开区：默认收起，点标题整行切换。用来装次要内容和长说明 */
+@Composable
+fun McExpand(title: String, expanded: Boolean, onToggle: () -> Unit, content: @Composable () -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onToggle)
+                .padding(vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(title, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f))
+            Text(if (expanded) "收起" else "展开", fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (expanded) content()
+    }
+}
+
 @Composable
 fun McSearchField(value: String, onValueChange: (String) -> Unit, hint: String) {
     OutlinedTextField(
