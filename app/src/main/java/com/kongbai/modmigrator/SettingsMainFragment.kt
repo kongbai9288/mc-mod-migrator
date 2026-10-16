@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
@@ -856,6 +858,7 @@ class SettingsMainFragment : Fragment() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MainScreen(
     accountText: String,
@@ -895,8 +898,9 @@ private fun MainScreen(
 
         // ---------- 账号 ----------
         OutlinedCard(
-            Modifier.fillMaxWidth(),
-            onClick = onAccount
+            Modifier
+                .fillMaxWidth()
+                .clickable { onAccount() }
         ) {
             Row(
                 Modifier.padding(12.dp),
@@ -1028,6 +1032,7 @@ private fun PartSwitch(
 }
 
 /** 两列入口网格 */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EntryGrid(entries: List<Pair<Int, String>>, onGo: (String) -> Unit) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
@@ -1035,10 +1040,10 @@ private fun EntryGrid(entries: List<Pair<Int, String>>, onGo: (String) -> Unit) 
         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
             row.forEach { (res, page) ->
                 OutlinedCard(
-                    onClick = { onGo(page) },
                     modifier = Modifier
                         .weight(1f)
                         .padding(end = 4.dp)
+                        .clickable { onGo(page) }
                 ) {
                     Text(
                         ctx.getString(res),
