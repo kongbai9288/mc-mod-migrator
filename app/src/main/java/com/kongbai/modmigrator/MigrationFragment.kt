@@ -113,25 +113,25 @@ class MigrationFragment : Fragment() {
 }
 
 /** 弹窗状态。用数据类承载，页面末尾统一渲染。 */
-private sealed class Dlg {
-    object None : Dlg()
+private sealed class MigDlg {
+    object None : MigDlg()
     /** 长文本 + 若干操作 */
     data class Text(
         val title: String, val body: String,
         val actions: List<Pair<String, () -> Unit>>
-    ) : Dlg()
+    ) : MigDlg()
 
     data class Confirm(
         val title: String, val body: String,
         val ok: String, val act: () -> Unit
-    ) : Dlg()
+    ) : MigDlg()
 
     data class Pick(
         val title: String, val body: String,
         val options: List<String>, val act: (Int) -> Unit
-    ) : Dlg()
+    ) : MigDlg()
 
-    data class Logs(val title: String, val shown: String, val full: String) : Dlg()
+    data class Logs(val title: String, val shown: String, val full: String) : MigDlg()
 }
 
 private fun pathText(ctx: Context, key: String): String =
@@ -195,7 +195,7 @@ private fun MigrationScreen(
     var rev by remember { mutableStateOf(0) }
     var logText by remember { mutableStateOf("") }
     var logSummary by remember { mutableStateOf(logSummaryOf()) }
-    var dlg by remember { mutableStateOf<Dlg>(Dlg.None) }
+    var dlg by remember { mutableStateOf<MigDlg>(MigDlg.None) }
     var srcMore by remember { mutableStateOf(false) }
     var moreOps by remember { mutableStateOf(false) }
     var logOpen by remember { mutableStateOf(false) }
@@ -283,7 +283,7 @@ private fun MigrationScreen(
         } else {
             all.joinToString("\n") { it.toString() }
         }
-        dlg = Dlg.Logs(
+        dlg = MigDlg.Logs(
             "运行日志（共 ${LogCenter.count()} 条）",
             shown.ifBlank { "暂无日志" },
             full
@@ -453,14 +453,14 @@ private fun MigrationScreen(
             val src = if (it.source.isBlank()) "" else " · ${it.source}"
             "${it.name} · MC ${it.mcVersion.ifBlank { "?" }} · ${it.modCount} 模组$src"
         }
-        dlg = Dlg.Pick(ctx.getString(R.string.pick_instance), "", labels) { w ->
+        dlg = MigDlg.Pick(ctx.getString(R.string.pick_instance), "", labels) { w ->
             val inst = instances[w]
-            dlg = Dlg.None
-            dlg = Dlg.Text(
+            dlg = MigDlg.None
+            dlg = MigDlg.Text(
                 "把 ${inst.name} 设为？", "",
                 listOf(
-                    "迁移前的版本" to { dlg = Dlg.None; setAs(inst, true) },
-                    "迁移后的版本" to { dlg = Dlg.None; setAs(inst, false) }
+                    "迁移前的版本" to { dlg = MigDlg.None; setAs(inst, true) },
+                    "迁移后的版本" to { dlg = MigDlg.None; setAs(inst, false) }
                 )
             )
         }
@@ -526,12 +526,12 @@ private fun MigrationScreen(
             if (finalList.isEmpty() && !InstanceScanner.hasAllFilesAccess()) {
                 post {
                     log("提示：启动器实例通常在 Android/data 下，需要「所有文件访问」权限才能读到")
-                    dlg = Dlg.Text(
+                    dlg = MigDlg.Text(
                         "扫不到实例",
                         "启动器数据多在 Android/data 目录，Android 11 起必须授予「所有文件访问」权限才能读取。要现在去授权吗？",
                         listOf(
-                            "去授权" to { dlg = Dlg.None; askAllFiles() },
-                            "改用手动选目录" to { dlg = Dlg.None; pickDir(13, DirGuide.Purpose.SCAN_ROOT) }
+                            "去授权" to { dlg = MigDlg.None; askAllFiles() },
+                            "改用手动选目录" to { dlg = MigDlg.None; pickDir(13, DirGuide.Purpose.SCAN_ROOT) }
                         )
                     )
                 }
@@ -615,12 +615,12 @@ private fun MigrationScreen(
             toast("「迁移后」的目录不可用")
             return
         }
-        dlg = Dlg.Confirm(
+        dlg = MigDlg.Confirm(
             "一键下载",
             ctx.getString(R.string.download_all_confirm, list.size),
             "开始"
         ) {
-            dlg = Dlg.None
+            dlg = MigDlg.None
             for (m in list) {
                 DownloadService.start(
                     ctx, m.targetUrl,
@@ -680,7 +680,7 @@ private fun MigrationScreen(
                 toast("重试完成：成功 $ok / ${todo.size}")
                 log("下载重试：成功 $ok / ${todo.size}")
                 if (still.isNotEmpty()) {
-                    dlg = Dlg.Text(
+                    dlg = MigDlg.Text(
                         "仍有 ${still.size} 个失败",
                         still.take(10).joinToString("\n") { "  · $it" },
                         emptyList()
@@ -899,7 +899,7 @@ private fun MigrationScreen(
                 if (nf > 0 || nUnread > 0) {
                     if (nf > 0) log("⚠ $nf 个因网络问题没能识别，其余已正常处理")
                     if (nUnread > 0) log("⚠ $nUnread 个文件读不出来（权限或损坏），与网络无关")
-                    dlg = Dlg.Text(
+                    dlg = MigDlg.Text(
                         "有 ${nf + nUnread} 个模组没识别成功",
                         buildString {
                             if (nf > 0) {
@@ -918,7 +918,7 @@ private fun MigrationScreen(
                             append("这类重试也没用，需手动标记链接。\n\n")
                             append("建议：换个网络或稍后再「重试失败项」。")
                         },
-                        listOf("重试失败项" to { dlg = Dlg.None; retryFailed() })
+                        listOf("重试失败项" to { dlg = MigDlg.None; retryFailed() })
                     )
                 }
             }
@@ -1079,7 +1079,7 @@ private fun MigrationScreen(
             post {
                 busy = false
                 if (bad.isNotEmpty()) {
-                    dlg = Dlg.Text(
+                    dlg = MigDlg.Text(
                         "有 ${bad.size} 个没下成",
                         buildString {
                             append("成功 $ok / $total。失败的：\n\n")
@@ -1088,7 +1088,7 @@ private fun MigrationScreen(
                             append("\n这些通常是网络问题或源站临时不可用，")
                             append("可以点「重试」只重下失败的，其余不受影响。")
                         },
-                        listOf("重试失败的" to { dlg = Dlg.None; retryDownloads() })
+                        listOf("重试失败的" to { dlg = MigDlg.None; retryDownloads() })
                     )
                 }
             }
@@ -1116,7 +1116,7 @@ private fun MigrationScreen(
             return
         }
         if (srcUri == dstUri) {
-            dlg = Dlg.Confirm(
+            dlg = MigDlg.Confirm(
                 "这是同一个实例",
                 "迁移前和迁移后选的是同一个目录：${Fs.tree(ctx, srcUri)?.name ?: srcUri}\n\n" +
                     "把配置迁到自己身上没有任何效果，" +
@@ -1124,7 +1124,7 @@ private fun MigrationScreen(
                     "请到下面重新选一个「迁移后的版本」。",
                 "仍然继续"
             ) {
-                dlg = Dlg.None
+                dlg = MigDlg.None
                 doMigrate(srcUri, dstUri)
             }
             return
@@ -1147,7 +1147,7 @@ private fun MigrationScreen(
         toast("体检中…")
         bg {
             val rep = ModTools.doctor(ctx, src)
-            post { dlg = Dlg.Text(rep.title, rep.text, listOf("复制结果" to { copyLogs(rep.text) })) }
+            post { dlg = MigDlg.Text(rep.title, rep.text, listOf("复制结果" to { copyLogs(rep.text) })) }
         }
     }
 
@@ -1162,7 +1162,7 @@ private fun MigrationScreen(
         toast("对比中…")
         bg {
             val rep = ModTools.diffConfig(ctx, src, dst)
-            post { dlg = Dlg.Text(rep.title, rep.text, listOf("复制结果" to { copyLogs(rep.text) })) }
+            post { dlg = MigDlg.Text(rep.title, rep.text, listOf("复制结果" to { copyLogs(rep.text) })) }
         }
     }
 
@@ -1192,7 +1192,7 @@ private fun MigrationScreen(
                 if (f != null) ok++ else failed.add(p0.modName)
             }
             post {
-                dlg = Dlg.Text(
+                dlg = MigDlg.Text(
                     "替换完成",
                     buildString {
                         append("已下载 $ok / ${todo.size} 个 ${Loaders.label(targetLoader)} 版本。\n\n")
@@ -1225,10 +1225,10 @@ private fun MigrationScreen(
             }
             val plans = CrossLoader.plan(ctx, names, from, to, mc)
             post {
-                dlg = Dlg.Text(
+                dlg = MigDlg.Text(
                     "${Loaders.label(from)} → ${Loaders.label(to)}（MC $mc）",
                     CrossLoader.report(plans),
-                    listOf("下载可替换的" to { dlg = Dlg.None; doCrossDownload(plans) })
+                    listOf("下载可替换的" to { dlg = MigDlg.None; doCrossDownload(plans) })
                 )
             }
         }
@@ -1248,7 +1248,7 @@ private fun MigrationScreen(
         val ordered = if (targetLoader == "auto") pairs
         else pairs.sortedByDescending { it.second == targetLoader }
         val labels = ordered.map { "${Loaders.label(it.first)} → ${Loaders.label(it.second)}" }
-        dlg = Dlg.Pick(
+        dlg = MigDlg.Pick(
             "跨加载器转换（MC $mc）",
             "把 mods 目录里的模组换成另一个加载器的版本。\n\n" +
                 "只在同一个 MC 版本内替换；跨 MC 版本不做，" +
@@ -1256,20 +1256,20 @@ private fun MigrationScreen(
             labels
         ) { w ->
             val (from, to) = ordered[w]
-            dlg = Dlg.None
+            dlg = MigDlg.None
             runCrossLoader(from, to, mc)
         }
     }
 
     fun codeMigrate() {
         val pairs = CodeMigrator.supportedPairs()
-        dlg = Dlg.Pick(
+        dlg = MigDlg.Pick(
             "代码级迁移",
             "按官方改名表改源码里的包名/类名。",
             pairs.map { "${it.first} → ${it.second}" }
         ) { w ->
             val (from, to) = pairs[w]
-            dlg = Dlg.None
+            dlg = MigDlg.None
             val root = WorkDir.root(ctx)
             val dir = java.io.File(ctx.getExternalFilesDir(null), "code")
             val target = if (root != null && root.uri.scheme == "file") {
@@ -1279,11 +1279,11 @@ private fun MigrationScreen(
             bg {
                 val hits = CodeMigrator.scan(target, from, to)
                 post {
-                    dlg = Dlg.Text(
+                    dlg = MigDlg.Text(
                         "$from → $to",
                         CodeMigrator.report(hits),
                         listOf("全部应用" to {
-                            dlg = Dlg.None
+                            dlg = MigDlg.None
                             bg {
                                 val (ok, bad) = CodeMigrator.apply(target, hits)
                                 toast("已改 $ok 个文件${if (bad > 0) "，$bad 个失败" else ""}")
@@ -1309,14 +1309,14 @@ private fun MigrationScreen(
 
     fun openMigrationTools() {
         val items: List<Pair<String, () -> Unit>> = listOf(
-            "模组体检" to { dlg = Dlg.None; runDoctor() },
-            "配置对比" to { dlg = Dlg.None; runDiff() },
-            "跨加载器转换" to { dlg = Dlg.None; crossLoader() },
-            "代码级迁移" to { dlg = Dlg.None; codeMigrate() },
-            "打开完整工具箱" to { dlg = Dlg.None; openAllTools() }
+            "模组体检" to { dlg = MigDlg.None; runDoctor() },
+            "配置对比" to { dlg = MigDlg.None; runDiff() },
+            "跨加载器转换" to { dlg = MigDlg.None; crossLoader() },
+            "代码级迁移" to { dlg = MigDlg.None; codeMigrate() },
+            "打开完整工具箱" to { dlg = MigDlg.None; openAllTools() }
         )
-        dlg = Dlg.Pick("迁移相关工具", "", items.map { it.first }) { w ->
-            dlg = Dlg.None
+        dlg = MigDlg.Pick("迁移相关工具", "", items.map { it.first }) { w ->
+            dlg = MigDlg.None
             items[w].second.invoke()
         }
     }
@@ -1713,17 +1713,17 @@ private fun MigrationScreen(
     // ── 弹窗统一渲染 ────────────────────────────────────────
 
     when (val d = dlg) {
-        is Dlg.Text -> ScrollTextDialog(d.title, d.body, d.actions) { dlg = Dlg.None }
-        is Dlg.Confirm -> McConfirm(d.title, d.body, d.ok, d.act) { dlg = Dlg.None }
-        is Dlg.Pick -> PickDialog(d.title, d.body, d.options, d.act) { dlg = Dlg.None }
-        is Dlg.Logs -> ScrollTextDialog(
+        is MigDlg.Text -> ScrollTextDialog(d.title, d.body, d.actions) { dlg = MigDlg.None }
+        is MigDlg.Confirm -> McConfirm(d.title, d.body, d.ok, d.act) { dlg = MigDlg.None }
+        is MigDlg.Pick -> PickDialog(d.title, d.body, d.options, d.act) { dlg = MigDlg.None }
+        is MigDlg.Logs -> ScrollTextDialog(
             d.title, d.shown,
             listOf(
                 "复制" to { copyLogs(d.full) },
                 "清空" to { LogCenter.clear(); logSummary = logSummaryOf() }
             )
-        ) { dlg = Dlg.None }
-        Dlg.None -> {}
+        ) { dlg = MigDlg.None }
+        MigDlg.None -> {}
     }
 
     if (errShow) {
