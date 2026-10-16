@@ -58,6 +58,8 @@ import coil.compose.AsyncImage
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.text.input.ImeAction
 
 /**
@@ -528,5 +530,45 @@ fun McLongTextDialog(
                 TextButton(onClick = action.second) { Text(action.first) }
             }
         }
+    )
+}
+
+/**
+ * 多选列表弹窗：导出整包选内容、模组开关这类「勾几个再继续」的场景。
+ *
+ * 用 LazyColumn 而不是 Column：mods 目录动辄上百个文件，
+ * 全部一次性组合会明显掉帧，滚动时更明显。
+ */
+@Composable
+fun McMultiPick(
+    title: String,
+    items: List<String>,
+    checked: List<Boolean>,
+    onToggle: (Int, Boolean) -> Unit,
+    onDismiss: () -> Unit,
+    confirmText: String = "确定",
+    onConfirm: () -> Unit = onDismiss
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            LazyColumn {
+                items(items.size) { i ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { onToggle(i, !checked[i]) }
+                            .padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(checked = checked[i], onCheckedChange = { onToggle(i, it) })
+                        Text(items[i], Modifier.padding(start = 4.dp), fontSize = 14.sp)
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(confirmText) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
     )
 }
