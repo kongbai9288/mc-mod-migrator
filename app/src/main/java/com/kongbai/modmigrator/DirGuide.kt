@@ -84,6 +84,45 @@ object DirGuide {
             .show()
     }
 
+    /**
+     * 由 Fragment 发起授权。
+     *
+     * 与 [pick] 的差别只在结果送到哪里：走 Fragment 才会回到它的
+     * onActivityResult，页面才能接着处理（存 URI、校验层级、开始识别版本）。
+     */
+    fun pick(fragment: androidx.fragment.app.Fragment, code: Int, purpose: Purpose) {
+        val ctx = fragment.requireContext()
+        android.app.AlertDialog.Builder(ctx)
+            .setTitle(if (purpose == Purpose.FREE) "选择目录" else "该选到哪一层")
+            .setMessage(body(purpose))
+            .setPositiveButton("去选择") { _, _ -> launch(fragment, code, purpose) }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun body(purpose: Purpose): String = buildString {
+        append(what(purpose)).append("\n\n")
+        if (purpose != Purpose.FREE) {
+            append("常见位置（照着点进去即可）：\n")
+            for ((name, path) in SAMPLES) append("• $name：$path\n")
+            append("\n不用一层层翻：多数机型会直接停在你上次打开的位置，")
+            append("顺着上面的路径点进去就行。")
+        }
+    }
+
+    private fun launch(fragment: androidx.fragment.app.Fragment, code: Int, purpose: Purpose) {
+        val i = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+        initialUri(fragment.requireContext(), purpose)?.let {
+            i.putExtra(DocumentsContract.EXTRA_INITIAL_URI, it)
+        }
+        try {
+            fragment.startActivityForResult(i, code)
+        } catch (t: Throwable) {
+            Err.fail(t, "打不开系统文件选择器")
+            Tips.long(fragment.requireContext(), "找不到文件管理器，无法选择目录")
+        }
+    }
+
     private fun launch(act: Activity, code: Int, purpose: Purpose) {
         val i = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
         //
