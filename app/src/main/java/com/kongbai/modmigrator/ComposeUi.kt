@@ -21,6 +21,14 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.RadioButton
@@ -261,6 +269,74 @@ fun McCheckRow(
 }
 
 /** 搜索框：列表页顶部常驻，输入即过滤 */
+/** 开关行：标题 + 可选副标题，整行可点 */
+@Composable
+fun McSwitchRow(
+    checked: Boolean,
+    onChecked: (Boolean) -> Unit,
+    title: String,
+    sub: String? = null
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable { onChecked(!checked) }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+            if (!sub.isNullOrEmpty()) {
+                Text(sub, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Switch(checked = checked, onCheckedChange = onChecked)
+    }
+}
+
+/**
+ * 下拉选择。
+ *
+ * Compose 的 ExposedDropdownMenu 没有"设置监听器就自动回调一次"的问题，
+ * 不像 View 的 Spinner —— 那边必须加 loading 守卫，否则一进页面就
+ * 把第 0 项写进配置。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun McSpinner(options: List<String>, selected: Int, onPick: (Int) -> Unit, label: String) {
+    var open by remember { mutableStateOf(false) }
+    val text = options.getOrNull(selected) ?: ""
+    Column(Modifier.fillMaxWidth()) {
+        Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Box(Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = text,
+                onValueChange = {},
+                readOnly = true,
+                modifier = Modifier.fillMaxWidth(),
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp),
+                trailingIcon = {
+                    IconButton(onClick = { open = true }) { Text("▾", fontSize = 14.sp) }
+                }
+            )
+            // 覆盖一层透明点击区：readOnly 的输入框点击不一定触发
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .clickable { open = true }
+            )
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                options.forEachIndexed { i, o ->
+                    DropdownMenuItem(
+                        text = { Text(o, fontSize = 14.sp) },
+                        onClick = { open = false; onPick(i) }
+                    )
+                }
+            }
+        }
+    }
+}
+
 /** 单行输入框：hint 就是标签，不再另外配一行说明 */
 @Composable
 fun McField(value: String, onValueChange: (String) -> Unit, hint: String) {

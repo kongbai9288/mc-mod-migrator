@@ -4,92 +4,105 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.EditText
-import android.widget.Spinner
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.unit.dp
 import androidx.fragment.app.Fragment
-import com.google.android.material.switchmaterial.SwitchMaterial
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.LaunchedEffect
 
+/**
+ * 设置 → 搜索源。
+ *
+ * 「走后端」和「直连 CurseForge」互斥：开一个自动关另一个。
+ * 老版本用一个 loading 标志位挡住联动触发的回调，
+ * Compose 里开关状态由 remember 持有，互不触发，不需要守卫。
+ */
 class SettingsSearchFragment : Fragment() {
-
-    private lateinit var spSource: Spinner
-    private lateinit var swBackend: SwitchMaterial
-    private lateinit var swOfficialCf: SwitchMaterial
-    private lateinit var etCfKey: EditText
-    private lateinit var swAgg: SwitchMaterial
-    private lateinit var swRec: SwitchMaterial
-    private lateinit var swAutoTrans: SwitchMaterial
-    private lateinit var swMirror: SwitchMaterial
-    private var loading = true
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
-        val v = inflater.inflate(R.layout.fragment_settings_search, container, false)
-        spSource = v.findViewById(R.id.spSource)
-        swBackend = v.findViewById(R.id.swBackend)
-        swOfficialCf = v.findViewById(R.id.swOfficialCf)
-        etCfKey = v.findViewById(R.id.etCfKey)
-        swAgg = v.findViewById(R.id.swAgg)
-        swRec = v.findViewById(R.id.swRec)
-        swAutoTrans = v.findViewById(R.id.swAutoTrans)
-        swMirror = v.findViewById(R.id.swMirror)
-
-        val p = Prefs.get(requireContext())
-        val arr = resources.getStringArray(R.array.sources2)
-        val cur = p.getString(K.SOURCE, "聚合") ?: "聚合"
-        val i = arr.indexOf(cur)
-        if (i >= 0) spSource.setSelection(i)
-
-        swBackend.isChecked = p.getBoolean(K.USE_BACKEND, true)
-        swOfficialCf.isChecked = p.getBoolean(K.USE_OFFICIAL_CF, false)
-        etCfKey.setText(p.getString(K.CF_KEY, "") ?: "")
-        etCfKey.addTextWatcherSafe {
-            Prefs.get(requireContext()).edit().putString(K.CF_KEY, etCfKey.text.toString().trim()).apply()
+        val ctx = requireContext()
+        return ComposeView(ctx).apply {
+            setViewCompositionStrategy(
+                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
+            )
+            setContent { McTheme(ctx) { SearchScreen(ctx) } }
         }
-        // 互斥：开一个自动关另一个
-        swBackend.setOnCheckedChangeListener { _, c ->
-            if (loading) return@setOnCheckedChangeListener
-            Prefs.get(requireContext()).edit().putBoolean(K.USE_BACKEND, c).apply()
-            if (c && swOfficialCf.isChecked) {
-                loading = true
-                swOfficialCf.isChecked = false
-                loading = false
-                Prefs.get(requireContext()).edit().putBoolean(K.USE_OFFICIAL_CF, false).apply()
-            }
-        }
-        swOfficialCf.setOnCheckedChangeListener { _, c ->
-            if (loading) return@setOnCheckedChangeListener
-            Prefs.get(requireContext()).edit().putBoolean(K.USE_OFFICIAL_CF, c).apply()
-            if (c && swBackend.isChecked) {
-                loading = true
-                swBackend.isChecked = false
-                loading = false
-                Prefs.get(requireContext()).edit().putBoolean(K.USE_BACKEND, false).apply()
-            }
-        }
-        swAgg.isChecked = p.getBoolean(K.AGG_SEARCH, true)
-        swRec.isChecked = p.getBoolean(K.RECOMMEND, true)
-        swAutoTrans.isChecked = p.getBoolean(K.AUTO_TRANS, true)
-        swMirror.isChecked = p.getBoolean(K.USE_MIRROR, true)
+    }
+}
 
-        // Spinner 的 onItemSelected 在**设置监听器时就会自动触发一次**
-        // （布局完成即回调，用户根本没操作）。
-        // 不加 loading 守卫的话，一进这个页面就立刻执行一次 save()，
-        // 把还没初始化完的状态写进配置 —— 同页面其他开关都有 `if (!loading)` 守卫，
-        // 唯独这里漏了。
-        spSource.setOnItemSelectedListenerSafe { if (!loading) save() }
-        swAgg.setOnCheckedChangeListener { _, c -> if (!loading) { Prefs.get(requireContext()).edit().putBoolean(K.AGG_SEARCH, c).apply() } }
-        swRec.setOnCheckedChangeListener { _, c -> if (!loading) { Prefs.get(requireContext()).edit().putBoolean(K.RECOMMEND, c).apply() } }
-        swAutoTrans.setOnCheckedChangeListener { _, c -> if (!loading) { Prefs.get(requireContext()).edit().putBoolean(K.AUTO_TRANS, c).apply() } }
-        swMirror.setOnCheckedChangeListener { _, c -> if (!loading) { Prefs.get(requireContext()).edit().putBoolean(K.USE_MIRROR, c).apply() } }
+@Composable
+private fun SearchScreen(ctx: android.content.Context) {
+    val prefs = remember { Prefs.get(ctx) }
+    val sources = remember { ctx.resources.getStringArray(R.array.sources2).toList() }
+    var src by remember {
+        mutableIntStateOf(sources.indexOf(prefs.getString(K.SOURCE, "聚合") ?: "聚合").coerceAtLeast(0))
+    }
+    var backend by remember { mutableStateOf(prefs.getBoolean(K.USE_BACKEND, true)) }
+    var officialCf by remember { mutableStateOf(prefs.getBoolean(K.USE_OFFICIAL_CF, false)) }
+    var cfKey by remember { mutableStateOf(prefs.getString(K.CF_KEY, "") ?: "") }
+    var agg by remember { mutableStateOf(prefs.getBoolean(K.AGG_SEARCH, true)) }
+    var rec by remember { mutableStateOf(prefs.getBoolean(K.RECOMMEND, true)) }
+    var autoTrans by remember { mutableStateOf(prefs.getBoolean(K.AUTO_TRANS, true)) }
+    var mirror by remember { mutableStateOf(prefs.getBoolean(K.USE_MIRROR, true)) }
 
-        loading = false
-        return v
+    fun put(block: android.content.SharedPreferences.Editor.() -> Unit) {
+        runCatching { prefs.edit().apply(block).apply() }
     }
 
-    private fun save() {
-        Prefs.get(requireContext()).edit()
-            .putString(K.SOURCE, spSource.selectedItem?.toString() ?: "聚合")
-            .apply()
+    LaunchedEffect(src) { put { putString(K.SOURCE, sources.getOrNull(src) ?: "聚合") } }
+    LaunchedEffect(agg) { put { putBoolean(K.AGG_SEARCH, agg) } }
+    LaunchedEffect(rec) { put { putBoolean(K.RECOMMEND, rec) } }
+    LaunchedEffect(autoTrans) { put { putBoolean(K.AUTO_TRANS, autoTrans) } }
+    LaunchedEffect(mirror) { put { putBoolean(K.USE_MIRROR, mirror) } }
+    // 400ms 防抖：每敲一个字符就写一次，粘贴一长串 key 会连续写入几十次
+    LaunchedEffect(cfKey) { delay(400); put { putString(K.CF_KEY, cfKey.trim()) } }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        McSpinner(sources, src, { src = it }, "默认搜索源")
+
+        McSectionTitle("CurseForge")
+        McSwitchRow(backend, {
+            backend = it
+            if (it && officialCf) officialCf = false
+            put {
+                putBoolean(K.USE_BACKEND, it)
+                if (it && prefs.getBoolean(K.USE_OFFICIAL_CF, false)) putBoolean(K.USE_OFFICIAL_CF, false)
+            }
+        }, "走自建后端", "不用自己申请 Key，但有配额限制")
+        McSwitchRow(officialCf, {
+            officialCf = it
+            if (it && backend) backend = false
+            put {
+                putBoolean(K.USE_OFFICIAL_CF, it)
+                if (it) putBoolean(K.USE_BACKEND, false)
+            }
+        }, "直连官方", "需要自己填 Key，配额高")
+        McField(cfKey, { cfKey = it }, "CurseForge API Key")
+
+        McSectionTitle("其它")
+        McSwitchRow(agg, { agg = it }, "聚合搜索", "同时查多个平台再合并")
+        McSwitchRow(rec, { rec = it }, "市场推荐")
+        McSwitchRow(autoTrans, { autoTrans = it }, "自动翻译")
+        McSwitchRow(mirror, { mirror = it }, "优先镜像", "国内直连不通时走镜像")
     }
 }

@@ -1,97 +1,106 @@
 package com.kongbai.modmigrator
 
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.EditText
-import android.widget.Spinner
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.unit.dp
 import androidx.fragment.app.Fragment
-import com.google.android.material.switchmaterial.SwitchMaterial
+import kotlinx.coroutines.delay
 
+/**
+ * 设置 → 迁移默认值。
+ *
+ * 并发数下拉：View 的 Spinner 在**设置监听器时就会自动触发一次**回调，
+ * 老版本必须加 spLoading 守卫，否则一进页面就把第 0 项（"1"）写进配置，
+ * 你设的 4 会被悄悄改成 1。Compose 的下拉没有这个问题。
+ */
 class SettingsMigrateFragment : Fragment() {
-
-    private lateinit var etDefVersion: EditText
-    private lateinit var spDefLoader: Spinner
-    private lateinit var swAutoInstall: SwitchMaterial
-    private lateinit var swAutoLaunch: SwitchMaterial
-    private lateinit var swAutoSync: SwitchMaterial
-    private var loading = true
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
-        val v = inflater.inflate(R.layout.fragment_settings_migrate, container, false)
-        etDefVersion = v.findViewById(R.id.etDefVersion)
-        spDefLoader = v.findViewById(R.id.spDefLoader)
-        LoaderSpinner.attachByPref(spDefLoader)
-        swAutoInstall = v.findViewById(R.id.swAutoInstall)
-        swAutoLaunch = v.findViewById(R.id.swAutoLaunch)
-        swAutoSync = v.findViewById(R.id.swAutoSync)
-
-        val p = Prefs.get(requireContext())
-        etDefVersion.setText(p.getString(K.DEF_VERSION, "") ?: "")
-        LoaderSpinner.select(spDefLoader, p.getString(K.DEF_LOADER, "auto") ?: "auto")
-        swAutoInstall.isChecked = p.getBoolean(K.AUTO_INSTALL, true)
-        swAutoLaunch.isChecked = p.getBoolean(K.AUTO_LAUNCH, false)
-        swAutoSync.isChecked = p.getBoolean(K.AUTO_SYNC, false)
-
-        etDefVersion.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-            override fun afterTextChanged(s: Editable?) {
-                if (!loading) Prefs.get(requireContext()).edit()
-                    .putString(K.DEF_VERSION, etDefVersion.text.toString().trim()).apply()
-            }
-        })
-        spDefLoader.setOnItemSelectedListenerSafe {
-            if (!loading) Prefs.get(requireContext()).edit()
-                .putString(K.DEF_LOADER, spDefLoader.selectedItem?.toString() ?: "auto").apply()
-        }
-        swAutoInstall.setOnCheckedChangeListener { _, c ->
-            if (!loading) Prefs.get(requireContext()).edit().putBoolean(K.AUTO_INSTALL, c).apply()
-        }
-        swAutoLaunch.setOnCheckedChangeListener { _, c ->
-            if (!loading) Prefs.get(requireContext()).edit().putBoolean(K.AUTO_LAUNCH, c).apply()
-        }
-        swAutoSync.setOnCheckedChangeListener { _, c ->
-            if (!loading) {
-                Prefs.get(requireContext()).edit().putBoolean(K.AUTO_SYNC, c).apply()
-                SyncManager.schedule(requireContext())
-            }
-        }
-        loading = false
-        // 并发下载数
-        val sp = v.findViewById<android.widget.Spinner>(R.id.spParallel)
-        if (sp != null) {
-            val labels = resources.getStringArray(R.array.parallel_labels)
-            sp.adapter = android.widget.ArrayAdapter(
-                requireContext(), R.layout.item_spinner, labels
+        val ctx = requireContext()
+        return ComposeView(ctx).apply {
+            setViewCompositionStrategy(
+                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
             )
-            val cur = Prefs.get(requireContext()).getInt(K.DOWNLOAD_PARALLEL, 3)
-            val vals = resources.getStringArray(R.array.parallel_values)
-            val idx = vals.indexOf(cur.toString())
-            // Spinner 的 onItemSelected **在设置监听器时就会自动触发一次**，
-            // 用户根本没操作。不设守卫的话，一进这个页面就会把并发数
-            // 按当前选中项**重新写一遍**——而 setSelection 之前
-            // 选中项是第 0 项（"1"），于是你设置里的 4 会被悄悄改成 1。
-            var spLoading = true
-            sp.setSelection(if (idx >= 0) idx else 2)
-            sp.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(
-                    parent: android.widget.AdapterView<*>?, view2: android.view.View?,
-                    pos: Int, id: Long
-                ) {
-                    if (spLoading) { spLoading = false; return }
-                    val n = vals.getOrNull(pos)?.toIntOrNull() ?: 3
-                    Prefs.get(requireContext()).edit().putInt(K.DOWNLOAD_PARALLEL, n).apply()
-                }
-                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
-            }
+            setContent { McTheme(ctx) { MigrateScreen(ctx) } }
         }
+    }
+}
 
-        return v
+@Composable
+private fun MigrateScreen(ctx: android.content.Context) {
+    val prefs = remember { Prefs.get(ctx) }
+    var defVer by remember { mutableStateOf(prefs.getString(K.DEF_VERSION, "") ?: "") }
+
+    val loaders = remember {
+        Loaders.visible(prefs.getBoolean(K.SHOW_EXTRA_LOADERS, false))
+    }
+    var loader by remember {
+        val cur = Loaders.normalize(prefs.getString(K.DEF_LOADER, "auto") ?: "auto")
+        mutableIntStateOf(loaders.indexOf(cur).let { if (it >= 0) it else 0 })
+    }
+    var autoInstall by remember { mutableStateOf(prefs.getBoolean(K.AUTO_INSTALL, true)) }
+    var autoLaunch by remember { mutableStateOf(prefs.getBoolean(K.AUTO_LAUNCH, false)) }
+    var autoSync by remember { mutableStateOf(prefs.getBoolean(K.AUTO_SYNC, false)) }
+
+    val parLabels = remember { ctx.resources.getStringArray(R.array.parallel_labels).toList() }
+    val parValues = remember { ctx.resources.getStringArray(R.array.parallel_values).toList() }
+    var par by remember {
+        val cur = prefs.getInt(K.DOWNLOAD_PARALLEL, 3)
+        mutableIntStateOf(parValues.indexOf(cur.toString()).let { if (it >= 0) it else 2 })
+    }
+
+    fun put(block: android.content.SharedPreferences.Editor.() -> Unit) {
+        runCatching { prefs.edit().apply(block).apply() }
+    }
+
+    LaunchedEffect(defVer) { delay(400); put { putString(K.DEF_VERSION, defVer.trim()) } }
+    LaunchedEffect(loader) { put { putString(K.DEF_LOADER, loaders.getOrNull(loader) ?: "auto") } }
+    LaunchedEffect(autoInstall) { put { putBoolean(K.AUTO_INSTALL, autoInstall) } }
+    LaunchedEffect(autoLaunch) { put { putBoolean(K.AUTO_LAUNCH, autoLaunch) } }
+    LaunchedEffect(par) {
+        put { putInt(K.DOWNLOAD_PARALLEL, parValues.getOrNull(par)?.toIntOrNull() ?: 3) }
+    }
+    LaunchedEffect(autoSync) {
+        put { putBoolean(K.AUTO_SYNC, autoSync) }
+        // 改完要立刻重排定时任务，不然下次同步还是按旧开关走
+        runCatching { SyncManager.schedule(ctx) }
+    }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        McSectionTitle("默认值")
+        McField(defVer, { defVer = it }, "默认 MC 版本（留空跟随最新）")
+        McSpinner(loaders.map { Loaders.label(it) }, loader, { loader = it }, "默认加载器")
+
+        McSectionTitle("自动化")
+        McSwitchRow(autoInstall, { autoInstall = it }, "下载后自动安装")
+        McSwitchRow(autoLaunch, { autoLaunch = it }, "安装后自动拉起游戏")
+        McSwitchRow(autoSync, { autoSync = it }, "自动同步")
+
+        McSectionTitle("下载")
+        McSpinner(parLabels, par, { par = it }, "并发下载数")
     }
 }
