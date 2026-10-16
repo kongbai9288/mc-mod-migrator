@@ -56,6 +56,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import coil.compose.AsyncImage
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.text.input.ImeAction
 
 /**
@@ -467,5 +469,64 @@ fun McActionDialog(
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } }
+    )
+}
+
+/**
+ * 设置页的选择行：左边标签、右边当前值，整行可点。
+ *
+ * 实验室里那些「深色模式：跟随系统」原本是竖排一排按钮，
+ * 一屏只能看到前几项，后半截要滚 —— 看着像只有这几个设置。
+ * 收成一行后同类项能并排看全。
+ */
+@Composable
+fun McPickRow(title: String, value: String, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(title, fontSize = 14.sp, modifier = Modifier.weight(1f))
+        Text(value, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.size(6.dp))
+        Text(
+            "›",
+            fontSize = 15.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * 长文本弹窗：正文可滚动，另可挂几个操作按钮。
+ *
+ * 崩溃日志、流量统计这类内容有几十行，普通对话框的正文区
+ * 高度有限且默认不滚动，超出部分直接被裁掉 ——
+ * 用户看到的是半句话，会以为是日志坏了。
+ */
+@Composable
+fun McLongTextDialog(
+    title: String,
+    body: String,
+    onDismiss: () -> Unit,
+    action: Pair<String, () -> Unit>? = null,
+    dismissText: String = "关闭"
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                McMono(body)
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(dismissText) } },
+        dismissButton = {
+            if (action != null) {
+                TextButton(onClick = action.second) { Text(action.first) }
+            }
+        }
     )
 }
