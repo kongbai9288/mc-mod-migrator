@@ -1,111 +1,129 @@
 package com.kongbai.modmigrator
 
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.TextView
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.fragment.app.Fragment
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * 设置 → 运行日志。
  *
- * 页面顶部只显示条数与最新几条，完整日志写在这里查看。
- * 日志文件落在用户授权的工作目录（WorkDir/logs/app.log）。
+ * 只显示末尾 400 行：超长文本一次性塞进文本框会卡界面。
+ *
+ * 读磁盘走后台：LogCenter.readAll 通过 ContentResolver 读文件，
+ * 日志大了在主线程调用会 ANR。而且它是**有条件**读的——
+ * 内存里有内容就不去读磁盘，老版本是无条件读一遍，纯属浪费。
  */
 class SettingsLogFragment : Fragment() {
-
-    private lateinit var tv: TextView
-    private lateinit var tvInfo: TextView
-    private val handler = Bg.ui
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
-        val v = inflater.inflate(R.layout.fragment_settings_log, container, false)
-        tv = v.findViewById(R.id.tvLog)
-        tvInfo = v.findViewById(R.id.tvLogInfo)
-        v.findViewById<Button>(R.id.btnRefresh).safeClickUnit { refresh() }
-        v.findViewById<Button>(R.id.btnClear).safeClick {
-            val ctx = context ?: return@safeClick
-            LogCenter.clearFile(ctx)
-            refresh()
+        val ctx = requireContext()
+        return ComposeView(ctx).apply {
+            setViewCompositionStrategy(
+                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
+            )
+            setContent { McTheme(ctx) { LogScreen(ctx) } }
         }
-        v.findViewById<Button>(R.id.btnErrors).safeClickUnit { showErrors() }
-        refresh()
-        return v
     }
+}
 
-    private fun refresh() {
-        val ctx = context ?: return
-        // ⚠️ 两个问题：
-        //  ① `LogCenter.readAll(ctx)` 是通过 ContentResolver **读文件**，
-        //     属于磁盘 IO，却直接在**主线程**调用 → 日志文件大了会卡顿甚至 ANR。
-        //  ② 它是**无条件**读的：`disk` 只有在 mem 为空时才用到，
-        //     但不管 mem 有没有内容都会读一遍磁盘，纯属浪费。
-        // 现在：先把内存里的部分显示出来（立刻有反馈），
-        // 只有内存为空时才去后台读磁盘。
+@Composable
+private fun LogScreen(ctx: android.content.Context) {
+    var body by remember { mutableStateOf("") }
+    var info by remember { mutableStateOf("") }
+    var errorsOnly by remember { mutableStateOf(false) }
+    // 刷新靠这个计数重跑
+    var gen by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(gen, errorsOnly) {
+        val errs = errorsOnly
         val mem = LogCenter.all()
-        tvInfo.text = "共 ${LogCenter.count()} 条（内存中）"
-        if (mem.isNotEmpty()) {
-            tv.text = tail(mem.joinToString("\n") { it.toString() })
-            return
+        if (errs) {
+            val e = mem.filter { it.isError }
+            if (e.isNotEmpty()) {
+                body = e.joinToString("\n") { it.toString() }
+                info = "错误 ${e.size} 条"
+                return@LaunchedEffect
+            }
+        } else if (mem.isNotEmpty()) {
+            body = tail(mem.joinToString("\n") { it.toString() })
+            info = "共 ${LogCenter.count()} 条（内存中）"
+            return@LaunchedEffect
         }
-        tv.text = "正在读取磁盘日志…"
-        readDisk(ctx) { disk ->
-            tv.text = tail(disk.ifBlank { "暂无日志" })
-            tvInfo.text = "共 ${LogCenter.count()} 条（内存中）· 日志目录：${
+        body = "正在读取磁盘日志…"
+        val disk = withContext(Dispatchers.IO) {
+            runCatching { LogCenter.readAll(ctx) }.getOrDefault("")
+        }
+        if (errs) {
+            val lines = disk.split("\n").filter { it.contains("错误") }
+            body = lines.joinToString("\n").ifBlank { "没有错误记录" }
+            info = "内存中无错误"
+        } else {
+            body = tail(disk.ifBlank { "暂无日志" })
+            info = "共 ${LogCenter.count()} 条（内存中）· 日志目录：${
                 WorkDir.logs(ctx)?.name ?: "未设置工作目录"
             }"
         }
     }
 
-    /** 只看错误，方便定位问题 */
-    private fun showErrors() {
-        val ctx = context ?: return
-        val errs = LogCenter.all().filter { it.isError }
-        if (errs.isNotEmpty()) {
-            tv.text = errs.joinToString("\n") { it.toString() }
-            tvInfo.text = "错误 ${errs.size} 条"
-            return
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        Row(Modifier.padding(bottom = 8.dp)) {
+            McChipRow(listOf("全部", "只看错误"),
+                if (errorsOnly) 1 else 0, { errorsOnly = it == 1 })
         }
-        tv.text = "正在读取磁盘日志…"
-        readDisk(ctx) { disk ->
-            val lines = disk.split("\n").filter { it.contains("错误") }
-            tv.text = lines.joinToString("\n").ifBlank { "没有错误记录" }
-            tvInfo.text = "内存中无错误"
-        }
-    }
-
-    /** 后台读磁盘日志，读完切回主线程 */
-    private fun readDisk(ctx: android.content.Context, onDone: (String) -> Unit) {
-        exec.execute {
-            val disk = LogCenter.readAll(ctx)
-            handler.post {
-                if (!isAdded) return@post
-                onDone(disk)
+        McButtonRow(
+            "刷新",
+            { gen++ },
+            "清空",
+            {
+                LogCenter.clearFile(ctx)
+                body = ""
+                info = "已清空"
             }
+        )
+        if (info.isNotEmpty()) {
+            Text(
+                info, fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 6.dp)
+            )
         }
+        McMono(body, Modifier.horizontalScroll(rememberScrollState()))
     }
+}
 
-    private val exec = java.util.concurrent.Executors.newSingleThreadExecutor()
-
-    /** 只显示末尾若干行，避免超长文本卡界面 */
-    private fun tail(s: String): String {
-        val lines = s.split("\n")
-        return if (lines.size > 400) lines.takeLast(400).joinToString("\n") else s
-    }
-    override fun onDestroyView() {
-        super.onDestroyView()
-        // 清理 Handler：页面销毁后若还有未执行的 post，
-        // 回调里访问已销毁的 View 会直接崩。
-        runCatching { handler.removeCallbacksAndMessages(null) }
-        // 线程池同样要关：只清 Handler 的话线程还挂着，
-        // 它排队的 Runnable 持有 Fragment，页面照样回收不掉。
-        runCatching { exec.shutdownNow() }
-    }
-
+private fun tail(s: String): String {
+    val lines = s.split("\n")
+    return if (lines.size > 400) lines.takeLast(400).joinToString("\n") else s
 }

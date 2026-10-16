@@ -21,6 +21,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -270,6 +271,25 @@ fun McCheckRow(
 }
 
 /** 搜索框：列表页顶部常驻，输入即过滤 */
+/** 等宽小字块：日志、原始输出这类需要原文照搬的内容 */
+@Composable
+fun McMono(text: String, modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Text(
+            text,
+            fontSize = 11.sp,
+            lineHeight = 15.sp,
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(10.dp)
+        )
+    }
+}
+
 /** 开关行：标题 + 可选副标题，整行可点 */
 @Composable
 fun McSwitchRow(
