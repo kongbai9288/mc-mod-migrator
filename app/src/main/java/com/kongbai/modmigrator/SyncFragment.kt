@@ -1,185 +1,253 @@
 package com.kongbai.modmigrator
 
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.TextView
-import android.widget.Toast
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.fragment.app.Fragment
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.switchmaterial.SwitchMaterial
-import java.util.concurrent.Executors
 
+/**
+ * 同步页。
+ *
+ * 同步要往 GitHub 仓库读写，没登录时按钮点了只会默默失败 ——
+ * 所以账号状态写在最上面，并且给一个直接去登录的入口。
+ */
 class SyncFragment : Fragment() {
-
-    private lateinit var tvLogin: TextView
-    private lateinit var btnLogin: Button
-    private lateinit var tvDeviceId: TextView
-    private lateinit var tvLog: TextView
-    private lateinit var swAutoSync: SwitchMaterial
-    private lateinit var rvDevices: RecyclerView
-
-    private val devices = mutableListOf<RemoteDevice>()
-    private lateinit var adapter: DeviceAdapter
-    private val exec = Bg.io
-    private val handler = Bg.ui
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        val v = inflater.inflate(R.layout.fragment_sync, container, false)
-        tvLogin = v.findViewById(R.id.tvLogin)
-        btnLogin = v.findViewById(R.id.btnLogin)
-        tvDeviceId = v.findViewById(R.id.tvDeviceId)
-        tvLog = v.findViewById(R.id.tvLog)
-        swAutoSync = v.findViewById(R.id.swAutoSync)
-        rvDevices = v.findViewById(R.id.rvDevices)
-
-        adapter = DeviceAdapter(devices) { d -> restore(d) }
-        rvDevices.layoutManager = LinearLayoutManager(requireContext())
-        rvDevices.adapter = adapter
-
         val ctx = requireContext()
-        val p = Prefs.get(ctx)
-        btnLogin.safeClickUnit { gotoLogin(ctx) }
-        refreshLogin(ctx)
-        tvDeviceId.text = "ID ${Store.deviceId(ctx)} · ${Store.deviceLabel(ctx)} · ${p.getString(K.OWNER, "kongbai9288")}/${p.getString(K.REPO, "")}"
-        swAutoSync.isChecked = p.getBoolean(K.AUTO_SYNC, false)
-        swAutoSync.setOnCheckedChangeListener { _, checked ->
-            p.edit().putBoolean(K.AUTO_SYNC, checked).apply()
-            SyncManager.schedule(ctx)
-            toast(if (checked) "已开启自动同步" else "已关闭自动同步")
+        return ComposeView(ctx).apply {
+            setViewCompositionStrategy(
+                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
+            )
+            setContent {
+                McTheme(ctx) {
+                    SyncScreen(ctx, register = { cb -> onResumeCb = cb })
+                }
+            }
         }
-
-        v.findViewById<Button>(R.id.btnUpload).safeClickUnit { upload() }
-        v.findViewById<Button>(R.id.btnRefresh).safeClickUnit { refresh() }
-        return v
     }
 
-    /** 同步要往 GitHub 仓库读写，没登录时按钮点了只会默默失败，先把状态说清楚 */
-    private fun refreshLogin(ctx: android.content.Context) {
+    private var onResumeCb: (() -> Unit)? = null
+
+    override fun onResume() {
+        super.onResume()
+        onResumeCb?.invoke()
+    }
+}
+
+@Composable
+private fun SyncScreen(ctx: android.content.Context, register: (() -> Unit) -> Unit) {
+    var gen by remember { mutableStateOf(0) }
+    var loginText by remember { mutableStateOf("") }
+    var loggedIn by remember { mutableStateOf(false) }
+    var deviceLine by remember { mutableStateOf("") }
+    var autoSync by remember { mutableStateOf(Prefs.get(ctx).getBoolean(K.AUTO_SYNC, false)) }
+    var devices by remember { mutableStateOf<List<RemoteDevice>>(emptyList()) }
+    var busy by remember { mutableStateOf(false) }
+    var logText by remember { mutableStateOf("") }
+
+    fun log(s: String) { logText = if (logText.isEmpty()) s else "$logText\n$s" }
+    fun setState() {
         val p = Prefs.get(ctx)
         val token = p.getString(K.TOKEN, "").orEmpty()
         val login = p.getString(K.GH_LOGIN, "").orEmpty()
-        if (token.isBlank()) {
-            tvLogin.text = "未登录：同步需要 GitHub 账号，否则上传和读取设备列表都会失败"
-            btnLogin.visibility = View.VISIBLE
-        } else {
-            tvLogin.text = if (login.isBlank()) "已登录，可以同步"
-            else "已登录：$login"
-            btnLogin.visibility = View.GONE
+        loggedIn = token.isNotBlank()
+        loginText = when {
+            token.isBlank() -> "未登录：同步需要 GitHub 账号，否则上传和读取设备列表都会失败"
+            login.isBlank() -> "已登录，可以同步"
+            else -> "已登录：$login"
         }
+        deviceLine = "ID ${Store.deviceId(ctx)} · ${Store.deviceLabel(ctx)} · " +
+            "${p.getString(K.OWNER, "kongbai9288")}/${p.getString(K.REPO, "")}"
     }
 
-    private fun gotoLogin(ctx: android.content.Context) {
-        val main = activity as? MainActivity
-        if (main != null) {
-            main.openSettingsPage("main")
-            return
-        }
-        runCatching {
-            val i = android.content.Intent(ctx, SettingsHostActivity::class.java)
-            i.putExtra("page", "main")
-            startActivity(i)
-        }.onFailure { toast("打不开设置页") }
-    }
-
-    private fun log(s: String) {
-        safePost(handler) { tvLog.append("$s\n") }
-    }
-
-    private fun toast(s: String) {
-        handler.post {
-            if (!isAdded) return@post
-            try {
-                context?.let { Tips.short(it, s) }
-            } catch (t: Throwable) {
-                // 界面已销毁，不弹
-                     Err.ignore(t, "界面已销毁，不弹")
-                 }
-        }
-    }
-
-    private fun bg(block: () -> Unit) {
-        exec.execute {
+    fun bg(block: () -> Unit) {
+        busy = true
+        Bg.io.execute {
             try {
                 block()
             } catch (t: Throwable) {
-                log("错误：${t.message}")
+                Bg.ui.post { log("错误：${t.message}") }
             } finally {
-                // 同 MigrationFragment：Progress 是全局单例，
-                // 异常/提前 return 时不复位会永久卡在"运行中"，
-                // 下次开 App 出现幽灵进度条。
+                // Progress 是全局单例，异常/提前 return 时不复位会永久卡在"运行中"
                 try { Progress.done() } catch (_: Throwable) {}
+                Bg.ui.post { busy = false }
             }
         }
     }
 
-    private fun upload() {
-        val ctx = requireContext()
-        if (Prefs.get(ctx).getString(K.TOKEN, "").isNullOrBlank()) {
-            refreshLogin(ctx)
-            toast("请先登录 GitHub")
-            return
-        }
-        log("开始上传…")
-        bg {
-            val msg = SyncManager.upload(ctx) { log(it) }
-            log(msg)
-            toast(msg)
-        }
+    DisposableEffect(Unit) {
+        register { gen++ }
+        onDispose { register({}) }
+    }
+    // 从设置页登录完回来要能看到新状态
+    DisposableEffect(gen) {
+        setState()
+        onDispose {}
     }
 
-    private fun refresh() {
-        val ctx = requireContext()
-        if (Prefs.get(ctx).getString(K.TOKEN, "").isNullOrBlank()) {
-            refreshLogin(ctx)
-            toast("请先登录 GitHub")
-            return
-        }
-        toast("正在读取仓库…")
-        bg {
-            val list = SyncManager.devices(ctx)
-            safePost(handler) {
-                devices.clear()
-                devices.addAll(list)
-                adapter.notifyDataSetChanged()
-                toast("远程设备 ${list.size} 个")
+    LazyColumn(Modifier.fillMaxSize().padding(14.dp)) {
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Column(Modifier.padding(12.dp)) {
+                    Text(loginText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        deviceLine,
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(top = 4.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (!loggedIn) {
+                        Button(
+                            onClick = { gotoLogin(ctx) },
+                            modifier = Modifier.padding(top = 8.dp)
+                        ) { Text("去设置里登录") }
+                    }
+                }
             }
         }
-    }
-
-    private fun restore(d: RemoteDevice) {
-        val ctx = requireContext()
-        log("开始从 ${d.label} 恢复…")
-        bg {
-            try {
-                SyncManager.restore(ctx, d, true) { log(it) }
-                log("恢复完成")
-                toast("恢复完成")
-            } catch (t: Throwable) {
-                log("恢复失败：${t.message}")
+        item {
+            McSwitchRow(
+                checked = autoSync,
+                onChecked = { c ->
+                    autoSync = c
+                    Prefs.get(ctx).edit().putBoolean(K.AUTO_SYNC, c).apply()
+                    SyncManager.schedule(ctx)
+                    Tips.short(ctx, if (c) "已开启自动同步" else "已关闭自动同步")
+                },
+                title = "自动同步",
+                sub = "按固定间隔把本机清单推到仓库"
+            )
+        }
+        item {
+            Row(Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = {
+                        if (Prefs.get(ctx).getString(K.TOKEN, "").isNullOrBlank()) {
+                            setState()
+                            Tips.short(ctx, "请先登录 GitHub")
+                            return@OutlinedButton
+                        }
+                        log("开始上传…")
+                        bg {
+                            val msg = SyncManager.upload(ctx) { s -> Bg.ui.post { log(s) } }
+                            Bg.ui.post { log(msg); Tips.short(ctx, msg) }
+                        }
+                    },
+                    enabled = !busy,
+                    modifier = Modifier.weight(1f)
+                ) { Text("上传") }
+                Spacer(Modifier.size(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        if (Prefs.get(ctx).getString(K.TOKEN, "").isNullOrBlank()) {
+                            setState()
+                            Tips.short(ctx, "请先登录 GitHub")
+                            return@OutlinedButton
+                        }
+                        Tips.short(ctx, "正在读取仓库…")
+                        bg {
+                            val list = SyncManager.devices(ctx)
+                            Bg.ui.post {
+                                devices = list
+                                Tips.short(ctx, "远程设备 ${list.size} 个")
+                            }
+                        }
+                    },
+                    enabled = !busy,
+                    modifier = Modifier.weight(1f)
+                ) { Text("读取设备") }
             }
         }
+        if (busy) item { McSkeleton(2) }
+        if (devices.isNotEmpty()) {
+            item { McSectionTitle("远程设备") }
+            items(devices) { d ->
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                ) {
+                    Row(
+                        Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(d.label, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                        TextButton(onClick = {
+                            log("开始从 ${d.label} 恢复…")
+                            bg {
+                                try {
+                                    SyncManager.restore(ctx, d, true) { s ->
+                                        Bg.ui.post { log(s) }
+                                    }
+                                    Bg.ui.post { log("恢复完成"); Tips.short(ctx, "恢复完成") }
+                                } catch (t: Throwable) {
+                                    Bg.ui.post { log("恢复失败：${t.message}") }
+                                }
+                            }
+                        }) { Text("恢复") }
+                    }
+                }
+            }
+        }
+        if (logText.isNotBlank()) {
+            item { McSectionTitle("日志") }
+            item { McMono(logText) }
+        }
     }
-    override fun onResume() {
-        super.onResume()
-        val ctx = context ?: return
-        if (::tvLogin.isInitialized) refreshLogin(ctx)
-    }
+}
 
-    override fun onDestroyView() {
-        super.onDestroyView()
-        // 清理 Handler：页面销毁后若还有未执行的 post，
-        // 回调里访问已销毁的 View 会直接崩。
-        runCatching { handler.removeCallbacksAndMessages(null) }
+private fun gotoLogin(ctx: android.content.Context) {
+    val main = ctx as? MainActivity
+    if (main != null) {
+        main.openSettingsPage("main")
+        return
     }
-
+    runCatching {
+        val i = android.content.Intent(ctx, SettingsHostActivity::class.java)
+        i.putExtra("page", "main")
+        ctx.startActivity(i)
+    }.onFailure { Tips.short(ctx, "打不开设置页") }
 }
