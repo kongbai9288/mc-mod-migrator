@@ -477,80 +477,6 @@ private fun ToolsScreen(ctx: Context, openFragment: (Fragment) -> Unit) {
 
     // ---------------- 导出整合包 ----------------
 
-    fun askFormat(srcUri: String) {
-        val fs = ModpackFormat.values()
-        // 只出 .mrpack 的话，用 CurseForge 启动器、Prism / MultiMC 的人就装不了
-        dlg = ToolDlg.Pick("导出成哪种整合包", fs.map { it.label + "\n" + it.note }) { w ->
-            askParts(srcUri, fs[w])
-        }
-    }
-
-    var partsChecked by remember { mutableStateOf<List<Boolean>>(emptyList()) }
-
-    /**
-     * 选打包哪些内容。
-     *
-     * 个人数据（存档、按键设置、服务器列表）默认不选：
-     * 分享整合包时把别人的存档和服务器列表带出去是没道理的。
-     */
-    fun askParts(srcUri: String, fmt: ModpackFormat) {
-        val saved = Prefs.get(ctx).getString(McParts.PREF_EXPORT, "") ?: ""
-        val on = McParts.resolve(saved, true)
-        val items = McParts.ALL.map {
-            if (it.personal) it.label + "（个人数据）" else it.label
-        }
-        partsChecked = McParts.ALL.map { on.contains(it) }
-        dlg = ToolDlg.Multi(
-            title = "打包哪些内容",
-            items = items,
-            checked = { partsChecked },
-            onToggle = { i, v ->
-                partsChecked = partsChecked.toMutableList().also { it[i] = v }
-            },
-            onConfirm = {
-                val picked = McParts.ALL.filterIndexed { idx, _ -> partsChecked[idx] }
-                if (picked.isEmpty()) {
-                    toast("至少选一类")
-                } else {
-                    Prefs.get(ctx).edit()
-                        .putString(McParts.PREF_EXPORT, McParts.toPref(picked)).apply()
-                    askEmbed(srcUri, fmt, picked)
-                }
-            },
-            confirmText = "下一步"
-        )
-    }
-
-    fun askEmbed(srcUri: String, fmt: ModpackFormat, parts: List<McParts.Part>) {
-        val msg = if (fmt == ModpackFormat.MULTIMC || fmt == ModpackFormat.PLAIN) {
-            "这个格式没有远程下载，文件会全部随包带走。"
-        } else {
-            "按规范导出（推荐）：\n" +
-                "清单里只写下载地址与哈希，包只有几十 KB，" +
-                "装的时候由启动器下载并校验。\n" +
-                "查不到的模组会自动随包带走，不会丢。\n\n" +
-                "全部随包带走：\n" +
-                "包会很大，但没网也能装。"
-        }
-        dlg = ToolDlg.Confirm(
-            title = "模组本体怎么带",
-            body = msg,
-            confirmText = "按规范导出",
-            onConfirm = { doExport(srcUri, fmt, parts, embedAll = false) },
-            dismissText = "全部随包",
-            onDismiss = { doExport(srcUri, fmt, parts, embedAll = true) }
-        )
-    }
-
-    fun exportMrpack() {
-        val srcUri = Prefs.get(ctx).getString(K.SRC_URI, "") ?: ""
-        if (srcUri.isBlank()) {
-            toast("请先在迁移页设置「迁移前」的目录")
-            return
-        }
-        askFormat(srcUri)
-    }
-
     fun doExport(
         srcUri: String, fmt: ModpackFormat, parts: List<McParts.Part>, embedAll: Boolean
     ) {
@@ -597,6 +523,80 @@ private fun ToolsScreen(ctx: Context, openFragment: (Fragment) -> Unit) {
                 )
             }
         }
+    }
+
+    fun askEmbed(srcUri: String, fmt: ModpackFormat, parts: List<McParts.Part>) {
+        val msg = if (fmt == ModpackFormat.MULTIMC || fmt == ModpackFormat.PLAIN) {
+            "这个格式没有远程下载，文件会全部随包带走。"
+        } else {
+            "按规范导出（推荐）：\n" +
+                "清单里只写下载地址与哈希，包只有几十 KB，" +
+                "装的时候由启动器下载并校验。\n" +
+                "查不到的模组会自动随包带走，不会丢。\n\n" +
+                "全部随包带走：\n" +
+                "包会很大，但没网也能装。"
+        }
+        dlg = ToolDlg.Confirm(
+            title = "模组本体怎么带",
+            body = msg,
+            confirmText = "按规范导出",
+            onConfirm = { doExport(srcUri, fmt, parts, embedAll = false) },
+            dismissText = "全部随包",
+            onDismiss = { doExport(srcUri, fmt, parts, embedAll = true) }
+        )
+    }
+
+    var partsChecked by remember { mutableStateOf<List<Boolean>>(emptyList()) }
+
+    /**
+     * 选打包哪些内容。
+     *
+     * 个人数据（存档、按键设置、服务器列表）默认不选：
+     * 分享整合包时把别人的存档和服务器列表带出去是没道理的。
+     */
+    fun askParts(srcUri: String, fmt: ModpackFormat) {
+        val saved = Prefs.get(ctx).getString(McParts.PREF_EXPORT, "") ?: ""
+        val on = McParts.resolve(saved, true)
+        val items = McParts.ALL.map {
+            if (it.personal) it.label + "（个人数据）" else it.label
+        }
+        partsChecked = McParts.ALL.map { on.contains(it) }
+        dlg = ToolDlg.Multi(
+            title = "打包哪些内容",
+            items = items,
+            checked = { partsChecked },
+            onToggle = { i, v ->
+                partsChecked = partsChecked.toMutableList().also { it[i] = v }
+            },
+            onConfirm = {
+                val picked = McParts.ALL.filterIndexed { idx, _ -> partsChecked[idx] }
+                if (picked.isEmpty()) {
+                    toast("至少选一类")
+                } else {
+                    Prefs.get(ctx).edit()
+                        .putString(McParts.PREF_EXPORT, McParts.toPref(picked)).apply()
+                    askEmbed(srcUri, fmt, picked)
+                }
+            },
+            confirmText = "下一步"
+        )
+    }
+
+    fun askFormat(srcUri: String) {
+        val fs = ModpackFormat.values()
+        // 只出 .mrpack 的话，用 CurseForge 启动器、Prism / MultiMC 的人就装不了
+        dlg = ToolDlg.Pick("导出成哪种整合包", fs.map { it.label + "\n" + it.note }) { w ->
+            askParts(srcUri, fs[w])
+        }
+    }
+
+    fun exportMrpack() {
+        val srcUri = Prefs.get(ctx).getString(K.SRC_URI, "") ?: ""
+        if (srcUri.isBlank()) {
+            toast("请先在迁移页设置「迁移前」的目录")
+            return
+        }
+        askFormat(srcUri)
     }
 
     // ---------------- 代码级迁移 ----------------
