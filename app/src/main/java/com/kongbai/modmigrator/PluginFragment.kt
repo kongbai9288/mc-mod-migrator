@@ -222,7 +222,7 @@ private fun PluginScreen(
         }, onDismiss = { menuFor = null })
     }
     detailText?.let { (t, b) ->
-        McLongTextDialog(t, b) { detailText = null }
+        McLongTextDialog(t, b, onDismiss = { detailText = null })
     }
     uninstallFor?.let { p ->
         UninstallDialog(
@@ -241,7 +241,7 @@ private fun PluginScreen(
         )
     }
     resultText?.let { out ->
-        McLongTextDialog("执行结果", out) { resultText = null }
+        McLongTextDialog("执行结果", out, onDismiss = { resultText = null })
     }
 }
 
