@@ -6,337 +6,286 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.TextView
-import android.widget.Toast
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.fragment.app.Fragment
+import kotlinx.coroutines.delay
 
+/**
+ * 设置 → 存储。
+ *
+ * 四块：工作目录、游戏目录、多个启动器各自的目录、云盘备份。
+ *
+ * 目录授权走 SAF，结果回到 Fragment 的 onActivityResult；
+ * 界面用一个自增计数驱动重绘，不直接持有 View。
+ */
 class SettingsStorageFragment : Fragment() {
 
-    private lateinit var tvWork: TextView
-    private lateinit var btnPick: Button
-    private lateinit var btnClear: Button
+    private var gen by mutableIntStateOf(0)
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
-        val v = inflater.inflate(R.layout.fragment_settings_storage, container, false)
-        tvWork = v.findViewById(R.id.tvWork)
-        btnPick = v.findViewById(R.id.btnPickWork)
-        btnClear = v.findViewById(R.id.btnClearWork)
-
-        refresh()
-        setupBackup(v)
-        setupGameDir(v)
-        setupMultiGameDir(v)
-        btnPick.safeClick {
-            DirGuide.pick(requireActivity(), 21, DirGuide.Purpose.FREE)
-        }
-        btnClear.safeClick {
-            Prefs.get(requireContext()).edit().putString(K.WORKDIR_URI, "").apply()
-            WorkDir.invalidate()
-            refresh()
-            Tips.short(requireContext(), "已清除工作目录")
-        }
-        return v
-    }
-
-    private fun refresh() {
-        val u = WorkDir.uri(requireContext())
-        tvWork.text = if (u.isBlank()) "未设置：所有导出与缓存会放在应用私有目录" else "工作目录：${DirGuide.human(u)}"
-    }
-
-    /**
-     * 游戏目录（.minecraft）选择。
-     *
-     * ⚠️ 之前模组默认装到 App 私有目录，启动器读不到 —— 下了等于白下。
-     * 这里改成让用户指定真正的 .minecraft，并**永久保存**（存进 Prefs，
-     * 重启/重装设置都在）。
-     *
-     * ⚠️ SAF 从 Android 11 起**无法授权 Android/data**（官方限制），
-     * 所以清单里只列公共目录下的路径；落在 Android/data 的只能靠
-     * 「所有文件访问权限」走 File API，这里会在提示里说清楚。
-     */
-    private fun setupGameDir(v: View) {
         val ctx = requireContext()
-        val sp = v.findViewById<android.widget.Spinner>(R.id.spGameDir) ?: return
-        val tv = v.findViewById<TextView>(R.id.tvGameDir) ?: return
-        val btn = v.findViewById<Button>(R.id.btnPickGame) ?: return
-
-        val found = LauncherDirs.detect(ctx)
-        val savedPath = Prefs.get(ctx).getString(K.GAME_DIR, "") ?: ""
-
-        // 下拉项：已保存的排最前（即使这一轮没探测到），后面是探测到的
-        val items = ArrayList<Pair<String, String>>()   // (显示名, 绝对路径)
-        items.add("（不指定，用默认位置）" to "")
-        if (savedPath.isNotBlank()) {
-            val n = found.firstOrNull { it.second.absolutePath == savedPath }?.first?.name
-                ?: "已保存的目录"
-            items.add("$n（当前）" to savedPath)
-        }
-        for ((e, f) in found) {
-            if (f.absolutePath == savedPath) continue
-            val ok = LauncherDirs.looksLikeMinecraft(f)
-            items.add(
-                "${e.name}${if (ok) "" else "（空目录）"}${if (e.note.isNotBlank()) " · ${e.note}" else ""}"
-                    to f.absolutePath
+        return ComposeView(ctx).apply {
+            setViewCompositionStrategy(
+                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
             )
-        }
-
-        sp.adapter = android.widget.ArrayAdapter(
-            ctx, R.layout.item_spinner, items.map { it.first }
-        )
-        val curIdx = items.indexOfFirst { it.second == savedPath }
-        sp.setSelection(if (curIdx >= 0) curIdx else 0)
-
-        fun describe() {
-            if (savedPath.isBlank()) {
-                tv.text = getString(R.string.cfg_gamedir_none)
-            } else {
-                val f = java.io.File(savedPath)
-                tv.text = "已保存：$savedPath${if (f.isDirectory) "" else "\n⚠️ 该目录现在不存在，可能被删或启动器改了路径"}"
-            }
-        }
-        describe()
-
-        // Spinner 的 onItemSelected 在设置监听器时就会自动触发一次。
-        // 不加守卫的话，一进页面就把选中项写进配置 —— 用户什么都没做，
-        // 已保存的目录却被改掉了。
-        var loading = true
-        sp.onItemSelectedListener =
-            object : android.widget.AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(
-                    p: android.widget.AdapterView<*>?, vv: View?, pos: Int, id: Long
-                ) {
-                    if (loading) { loading = false; return }
-                    val path = items.getOrNull(pos)?.second ?: return
-                    Prefs.get(ctx).edit().putString(K.GAME_DIR, path).apply()
-                    Tips.short(ctx, if (path.isBlank()) "已清除游戏目录" else "已保存：\n$path")
+            setContent {
+                McTheme(ctx) {
+                    StorageScreen(ctx, gen) { code -> launchPick(code) }
                 }
-                override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
             }
-
-        btn.safeClick {
-            // 自己指定：走 SAF 选目录。
-            // 注意 Android 11+ 选不到 Android/data，提示里说清楚该选哪一层。
-            DirGuide.pick(requireActivity(), 22, DirGuide.Purpose.FREE)
         }
     }
 
-    /**
-     * 多个启动器各自的目录。
-     *
-     * 手机上装两三个启动器很常见，每个的 .minecraft 各自独立 ——
-     * 模组装进 A 的目录，B 里一个都加载不到。
-     * 之前设置页只能存一个，授权第二个就把第一个覆盖掉、
-     * 权限也再也拿不回来，于是扫描只认最后那个目录，
-     * 别的启动器下的实例"凭空消失"。
-     *
-     * 这里改成列表：添加是**追加**不是覆盖，每个目录各自保留授权。
-     */
-    private fun setupMultiGameDir(v: View) {
-        val ctx = requireContext()
-        val box = v.findViewById<LinearLayout>(R.id.llGameDirs) ?: return
-        val btn = v.findViewById<Button>(R.id.btnAddGameDir) ?: return
-        btn.safeClick {
-            val i = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-            runCatching { startActivityForResult(i, 23) }
-                .onFailure { Tips.short(ctx, "打不开目录选择器") }
-        }
-        renderGameDirs(box)
-    }
-
-    private fun renderGameDirs(box: LinearLayout) {
-        val ctx = requireContext()
-        box.removeAllViews()
-        val items = GameDirs.list(ctx)
-        if (items.isEmpty()) {
-            val tv = TextView(ctx)
-            tv.text = getString(R.string.cfg_gamedir_empty)
-            tv.textSize = 12f
-            tv.setTextColor(tvWork.currentTextColor)
-            box.addView(tv)
-            return
-        }
-        val cur = GameDirs.current(ctx)
-        for (e in items) {
-            val row = LinearLayout(ctx)
-            row.orientation = LinearLayout.HORIZONTAL
-            row.setPadding(0, 4, 0, 4)
-
-            val tv = TextView(ctx)
-            val isCur = cur != null && cur.uri == e.uri
-            tv.text = if (isCur) "${e.label()}（${getString(R.string.cfg_gamedir_cur)}）" else e.label()
-            tv.textSize = 13f
-            tv.layoutParams = LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-            )
-            row.addView(tv)
-
-            if (!isCur) {
-                val bUse = Button(ctx)
-                bUse.text = getString(R.string.cfg_gamedir_use)
-                bUse.safeClick {
-                    GameDirs.setCurrent(ctx, e.uri)
-                    Tips.short(ctx, "已切换到 ${e.label()}")
-                    renderGameDirs(box)
-                }
-                row.addView(bUse)
-            }
-
-            val bDel = Button(ctx)
-            bDel.text = getString(R.string.cfg_gamedir_del)
-            bDel.safeClick {
-                GameDirs.remove(ctx, e.uri)
-                Tips.short(ctx, "已移除 ${e.label()}")
-                renderGameDirs(box)
-            }
-            row.addView(bDel)
-
-            box.addView(row)
-        }
-    }
-
-    /** 云盘备份：上传地址 + 自动备份间隔 */
-    private fun setupBackup(v: View) {
-        val ctx = requireContext()
-        val etUrl = v.findViewById<android.widget.EditText>(R.id.etCloudUrl)
-        val sp = v.findViewById<android.widget.Spinner>(R.id.spBackup)
-        val tv = v.findViewById<TextView>(R.id.tvBackup)
-        val swIcon = v.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.swLocalIcon)
-
-        etUrl?.setText(CloudBackup.uploadUrl(ctx))
-        etUrl?.setOnFocusChangeListener { _, has ->
-            if (!has) CloudBackup.setUploadUrl(ctx, etUrl.text.toString())
-        }
-
-        swIcon?.isChecked = Prefs.get(ctx).getBoolean(K.LOCAL_ICON, true)
-        swIcon?.setOnCheckedChangeListener { _, c ->
-            Prefs.get(ctx).edit().putBoolean(K.LOCAL_ICON, c).apply()
-        }
-
-        if (sp != null) {
-            val labels = CloudBackup.INTERVALS.map { it.second }
-            sp.adapter = android.widget.ArrayAdapter(
-                ctx, R.layout.item_spinner, labels
-            )
-            val cur = CloudBackup.intervalHours(ctx)
-            val idx = CloudBackup.INTERVALS.indexOfFirst { it.first == cur }
-            // Spinner 的 onItemSelected **在设置监听器时就会自动触发一次**，
-            // 用户根本没操作。不设守卫的话，每次进这个页面都会执行一次
-            // setIntervalHours → schedule（注册周期任务）。
-            // 本页就是"一进设置就白跑一次"，这里按其他设置页同样加守卫。
-            var spinLoading = true
-            sp.setSelection(if (idx >= 0) idx else 3)
-            sp.onItemSelectedListener =
-                object : android.widget.AdapterView.OnItemSelectedListener {
-                    override fun onItemSelected(
-                        p: android.widget.AdapterView<*>?, vv: View?, pos: Int, id: Long
-                    ) {
-                        if (spinLoading) { spinLoading = false; return }
-                        val h = CloudBackup.INTERVALS.getOrNull(pos)?.first ?: 24
-                        CloudBackup.setIntervalHours(ctx, h)
-                        if (tv != null) tv.text = CloudBackup.describe(ctx)
-                    }
-                    override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
-                }
-        }
-
-        v.findViewById<Button>(R.id.btnOpenCloud)?.safeClick {
-            val u = CloudBackup.uploadUrl(ctx)
-            if (u.isBlank()) {
-                Tips.short(ctx, "先填上传地址，或直接用内置浏览器打开你的云盘")
-            } else {
-                WebActivity.open(ctx, u, "云盘")
+    private fun launchPick(code: Int) {
+        val act = requireActivity()
+        when (code) {
+            21 -> DirGuide.pick(act, 21, DirGuide.Purpose.FREE)
+            22 -> DirGuide.pick(act, 22, DirGuide.Purpose.FREE)
+            23 -> {
+                val i = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+                i.addFlags(
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+                runCatching { startActivityForResult(i, 23) }
+                    .onFailure { Tips.short(requireContext(), "打不开目录选择器") }
             }
         }
-
-        v.findViewById<Button>(R.id.btnBackupNow)?.safeClick {
-            // ⚠️ 之前直接读 `CloudBackup.uploadUrl(ctx)`（已存的配置）。
-            // 但地址框只在**失去焦点**时才保存——用户填完地址直接点「立即备份」，
-            // 焦点可能还没丢，配置里仍是空的 → 弹"请先填写地址"，
-            // 用户明明刚填完，看着像功能坏了。
-            // 这里先把输入框的内容落盘再读，避免依赖焦点时序。
-            val typed = etUrl?.text?.toString()?.trim() ?: ""
-            CloudBackup.setUploadUrl(ctx, typed)
-            val u = CloudBackup.uploadUrl(ctx)
-            if (u.isBlank()) {
-                Tips.short(ctx, "请先填写云盘上传地址")
-                return@safeClick
-            }
-            Thread {
-                try {
-                    // 和 CloudBackupWorker 同一个毛病：不看成败就更新时间戳，
-                    // 失败也说"备份完成"。这里改成如实反馈。
-                    val msg = SyncManager.upload(ctx) { }
-                    val done = CloudBackup.ok(msg)
-                    if (done) CloudBackup.markBackedUp(ctx)
-                    main {
-                        tv?.text = CloudBackup.describe(ctx)
-                        Tips.long(ctx, if (done) "备份完成：$msg" else "备份失败：$msg")
-                    }
-                } catch (t: Throwable) {
-                    main { Tips.long(ctx, "备份失败：${t.message}") }
-                }
-            }.start()
-        }
-
-        if (tv != null) tv.text = CloudBackup.describe(ctx)
-    }
-
-    private fun main(b: () -> Unit) {
-        android.os.Handler(android.os.Looper.getMainLooper()).post { b() }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 23 && resultCode == Activity.RESULT_OK) {
-            val uri = data?.data ?: return
-            val added = GameDirs.add(requireContext(), uri)
-            view?.findViewById<LinearLayout>(R.id.llGameDirs)?.let { renderGameDirs(it) }
+        if (resultCode != Activity.RESULT_OK) return
+        val uri = data?.data ?: return
+        val ctx = requireContext()
+
+        if (requestCode == 23) {
+            val added = GameDirs.add(ctx, uri)
+            gen++
             Tips.short(
-                requireContext(),
-                if (added) getString(R.string.cfg_gamedir_added, GameDirs.size(requireContext()))
+                ctx,
+                if (added) getString(R.string.cfg_gamedir_added, GameDirs.size(ctx))
                 else getString(R.string.cfg_gamedir_exists)
             )
             return
         }
-        if (requestCode == 22 && resultCode == Activity.RESULT_OK) {
-            // 自己指定的游戏目录。SAF 给的是 tree URI，
-            // 这里连同持久化授权一起保存，保证重启后仍然可用。
-            val uri = data?.data ?: return
+
+        if (requestCode == 22) {
+            // SAF 给的是 tree URI，连同持久化授权一起保存，保证重启后仍可用
             val flags = data.flags and
-                (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-            try {
-                requireContext().contentResolver.takePersistableUriPermission(uri, flags)
-            } catch (t: Throwable) {
-                Err.ignore(t, "持久化游戏目录授权")
-            }
+                (Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            runCatching { ctx.contentResolver.takePersistableUriPermission(uri, flags) }
             val path = DirGuide.human(uri.toString())
-            Prefs.get(requireContext()).edit()
+            Prefs.get(ctx).edit()
                 .putString(K.GAME_DIR, uri.toString())
                 .putString(K.GAME_DIR_NAME, path)
                 .apply()
-            Tips.long(requireContext(), "已保存游戏目录：$path")
+            gen++
+            Tips.long(ctx, "已保存游戏目录：$path")
             return
         }
-        if (requestCode == 21 && resultCode == Activity.RESULT_OK) {
-            val uri = data?.data ?: return
-            try {
-                // persist() 返回的是**是否真的拿到了持久化授权**。
-                // 之前这里忽略返回值、一律弹"工作目录已设置"——
-                // 而 take() 失败（配额触顶、ROM 限制等）时 URI 照样被存了，
-                // 于是界面显示"已授权外部目录"，实际重启后读不了，
-                // 导出/下载全落空。用户完全不知道是授权没成功。
-                val ok = WorkDir.persist(requireContext(), uri)
-                refresh()
-                Tips.long(requireContext(), if (ok) "工作目录已设置"
-                    else "目录已选中，但持久化授权未成功（重启后可能失效）")
-            } catch (t: Throwable) {
-                Tips.short(requireContext(), "授权失败：${t.message}")
+
+        if (requestCode == 21) {
+            // persist() 返回的是"是否真的拿到持久化授权"。
+            // 忽略返回值一律弹"已设置"的话，take() 失败时 URI 照样存了，
+            // 界面显示已授权、重启后却读不了，导出下载全落空。
+            val ok = WorkDir.persist(ctx, uri)
+            gen++
+            Tips.long(
+                ctx,
+                if (ok) "工作目录已设置"
+                else "目录已选中，但持久化授权未成功（重启后可能失效）"
+            )
+        }
+    }
+}
+
+@Composable
+private fun StorageScreen(ctx: android.content.Context, gen: Int, pick: (Int) -> Unit) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+
+        // ---------- 工作目录 ----------
+        McSectionTitle("工作目录")
+        val workUri = remember(gen) { WorkDir.uri(ctx) }
+        McNote(
+            if (workUri.isBlank()) "未设置：所有导出与缓存会放在应用私有目录"
+            else "工作目录：${DirGuide.human(workUri)}"
+        )
+        McButtonRow(
+            "选择工作目录",
+            { pick(21) },
+            "清除",
+            {
+                Prefs.get(ctx).edit().putString(K.WORKDIR_URI, "").apply()
+                WorkDir.invalidate()
+                Tips.short(ctx, "已清除工作目录")
+            }
+        )
+
+        // ---------- 游戏目录 ----------
+        McSectionTitle(ctx.getString(R.string.cfg_gamedir_title))
+        McNote(ctx.getString(R.string.cfg_gamedir_hint))
+        val found = remember(gen) { LauncherDirs.detect(ctx) }
+        val savedPath = remember(gen) { Prefs.get(ctx).getString(K.GAME_DIR, "") ?: "" }
+
+        val labels = ArrayList<String>()
+        val paths = ArrayList<String>()
+        labels.add("（不指定，用默认位置）")
+        paths.add("")
+        if (savedPath.isNotBlank()) {
+            val n = found.firstOrNull { it.second.absolutePath == savedPath }?.first?.name
+                ?: "已保存的目录"
+            labels.add("$n（当前）")
+            paths.add(savedPath)
+        }
+        for ((e, f) in found) {
+            if (f.absolutePath == savedPath) continue
+            val ok = LauncherDirs.looksLikeMinecraft(f)
+            labels.add(
+                "${e.name}${if (ok) "" else "（空目录）"}" +
+                    "${if (e.note.isNotBlank()) " · ${e.note}" else ""}"
+            )
+            paths.add(f.absolutePath)
+        }
+        val curIdx = paths.indexOf(savedPath)
+        McSpinner(labels, if (curIdx >= 0) curIdx else 0, { i ->
+            val p = paths.getOrNull(i) ?: return@McSpinner
+            Prefs.get(ctx).edit().putString(K.GAME_DIR, p).apply()
+            Tips.short(ctx, if (p.isBlank()) "已清除游戏目录" else "已保存：\n$p")
+        }, "选一个已找到的目录")
+
+        if (savedPath.isBlank()) {
+            McNote(ctx.getString(R.string.cfg_gamedir_none))
+        } else {
+            val f = java.io.File(savedPath)
+            McNote(
+                "已保存：$savedPath" +
+                    if (f.isDirectory) ""
+                    else "\n⚠️ 该目录现在不存在，可能被删或启动器改了路径"
+            )
+        }
+        McFilledButton(ctx.getString(R.string.cfg_gamedir_pick)) { pick(22) }
+
+        // ---------- 多个启动器各自的目录 ----------
+        McSectionTitle(ctx.getString(R.string.cfg_gamedir_multi_title))
+        McNote(ctx.getString(R.string.cfg_gamedir_multi_hint))
+        val items = remember(gen) { GameDirs.list(ctx) }
+        val cur = remember(gen) { GameDirs.current(ctx) }
+        if (items.isEmpty()) {
+            McNote(ctx.getString(R.string.cfg_gamedir_empty))
+        } else {
+            for (e in items) {
+                val isCur = cur != null && cur.uri == e.uri
+                Row(
+                    Modifier.padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        if (isCur) "${e.label()}（${ctx.getString(R.string.cfg_gamedir_cur)}）"
+                        else e.label(),
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (!isCur) {
+                        TextButton(onClick = {
+                            GameDirs.setCurrent(ctx, e.uri)
+                            Tips.short(ctx, "已切换到 ${e.label()}")
+                        }) { Text(ctx.getString(R.string.cfg_gamedir_use), fontSize = 12.sp) }
+                    }
+                    TextButton(onClick = {
+                        GameDirs.remove(ctx, e.uri)
+                        Tips.short(ctx, "已移除 ${e.label()}")
+                    }) { Text(ctx.getString(R.string.cfg_gamedir_del), fontSize = 12.sp) }
+                }
             }
         }
+        McFilledButton(ctx.getString(R.string.cfg_gamedir_add)) { pick(23) }
+
+        // ---------- 云盘备份 ----------
+        McSectionTitle("云盘备份")
+        var url by remember(gen) { mutableStateOf(CloudBackup.uploadUrl(ctx)) }
+        LaunchedEffect(url) { delay(400); CloudBackup.setUploadUrl(ctx, url) }
+
+        McField(url, { url = it }, ctx.getString(R.string.cfg_cloud_url_hint))
+
+        val intervalLabels = CloudBackup.INTERVALS.map { it.second }
+        val ih = remember(gen) { CloudBackup.intervalHours(ctx) }
+        val iIdx = CloudBackup.INTERVALS.indexOfFirst { it.first == ih }
+        McSpinner(intervalLabels, if (iIdx >= 0) iIdx else 3, { i ->
+            val h = CloudBackup.INTERVALS.getOrNull(i)?.first ?: 24
+            CloudBackup.setIntervalHours(ctx, h)
+        }, "自动备份间隔")
+
+        var icon by remember(gen) { mutableStateOf(Prefs.get(ctx).getBoolean(K.LOCAL_ICON, true)) }
+        McSwitchRow(
+            icon,
+            {
+                icon = it
+                Prefs.get(ctx).edit().putBoolean(K.LOCAL_ICON, it).apply()
+            },
+            ctx.getString(R.string.cfg_local_icon),
+            ctx.getString(R.string.cfg_local_icon_hint)
+        )
+
+        McButtonRow(
+            "打开云盘",
+            {
+                val u = CloudBackup.uploadUrl(ctx)
+                if (u.isBlank()) Tips.short(ctx, "先填上传地址，或直接用内置浏览器打开你的云盘")
+                else WebActivity.open(ctx, u, "云盘")
+            },
+            ctx.getString(R.string.cfg_backup_now),
+            {
+                // 先把输入框内容落盘再读：地址框原本只在失去焦点时保存，
+                // 填完直接点「立即备份」焦点可能还没丢，配置里仍是空的，
+                // 用户明明刚填完却弹"请先填写地址"。
+                CloudBackup.setUploadUrl(ctx, url.trim())
+                val u = CloudBackup.uploadUrl(ctx)
+                if (u.isBlank()) {
+                    Tips.short(ctx, "请先填写云盘上传地址")
+                } else {
+                    Tips.short(ctx, "正在备份…")
+                    Bg.io.execute {
+                        val msg = runCatching { SyncManager.upload(ctx) { } }
+                            .getOrNull() ?: "备份出错"
+                        val done = CloudBackup.ok(msg)
+                        if (done) CloudBackup.markBackedUp(ctx)
+                        Bg.ui.post {
+                            Tips.long(ctx, if (done) "备份完成：$msg" else "备份失败：$msg")
+                        }
+                    }
+                }
+            }
+        )
     }
 }
