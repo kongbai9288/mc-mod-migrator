@@ -1,166 +1,149 @@
 package com.kongbai.modmigrator
 
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.TextView
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.fragment.app.Fragment
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * MC 资讯：官方最新版本 / 最新模组 / 最新投影 / 红石。
+ * MC 资讯：官方最新版本 / 最新模组 / 最新整合包 / 最新光影。
  *
  * 四个分区各自独立抓取，任何一个挂了只影响它自己那一块，
  * 其余照常显示——不会出现"一个接口挂了整页空白"。
  */
 class McFeedFragment : Fragment() {
 
-    private val exec = Bg.io
-    private val handler = Bg.ui
-    private lateinit var box: LinearLayout
-    private lateinit var refresh: SwipeRefreshLayout
+    private var onReload: (() -> Unit)? = null
+    private var refresh: androidx.swiperefreshlayout.widget.SwipeRefreshLayout? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         val ctx = requireContext()
-
-        refresh = SwipeRefreshLayout(ctx).apply {
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
+        val compose = ComposeView(ctx).apply {
+            setViewCompositionStrategy(
+                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
             )
-        }
-
-        val scroll = ScrollView(ctx)
-        box = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            val pad = dp(14)
-            setPadding(pad, pad, pad, pad)
-        }
-        scroll.addView(box)
-        refresh.addView(scroll)
-
-        refresh.setOnRefreshListener {
-            McFeed.clearCache()
-            load()
-        }
-        refresh.isRefreshing = true
-        load()
-        return refresh
-    }
-
-    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
-
-    private fun load() {
-        val ctx = context ?: return
-        val zones = McFeed.labels()
-        // 一次加载的序号：下拉刷新会重新 load()，
-        // 旧一轮的回调必须能被识别出来丢掉，否则会把上一轮的结果
-        // 插进新一轮的骨架里（下拉刷新几次后列表会串）。
-        val gen = ++generation
-        // 四个分区**并发**跑，这里数一下完成了几个：
-        // 之前的 `handler.post { isRefreshing = false }` 是**立刻**执行的，
-        // 而真正的抓取在后台线程还没开始/没回来 →
-        // 下拉刷新的转圈一闪就没了，内容却要过几秒才出来，
-        // 用户以为刷新无效。改成等全部完成再停。
-        val done = java.util.concurrent.atomic.AtomicInteger(0)
-        // 先画骨架，逐块填充，用户能看着一块块出来
-        val slots = HashMap<String, LinearLayout>()
-        handler.post {
-            box.removeAllViews()
-            for (z in zones) {
-                box.addView(UiCards.sectionTitle(ctx, z.label))
-                val slot = LinearLayout(ctx).apply {
-                    orientation = LinearLayout.VERTICAL
+            setContent {
+                McTheme(ctx) {
+                    FeedScreen(
+                        ctx,
+                        register = { onReload = it },
+                        onSettled = { refresh?.setRefreshing(false) }
+                    )
                 }
-                box.addView(slot)
-                slots[z.key] = slot
-                slot.addView(UiCards.hint(ctx, "正在从 ${z.site} 获取…"))
             }
         }
+        // 下拉刷新手势目前没有 Compose 版的官方实现（material3 1.1 还没提供），
+        // 这里沿用 View 的 SwipeRefreshLayout 包一层，手势和原来一致。
+        return androidx.swiperefreshlayout.widget.SwipeRefreshLayout(ctx).apply {
+            addView(
+                compose,
+                ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            )
+            setOnRefreshListener { onReload?.invoke() }
+            setRefreshing(true)
+            refresh = this
+        }
+    }
+}
 
+@Composable
+private fun FeedScreen(
+    ctx: android.content.Context,
+    register: (() -> Unit) -> Unit,
+    onSettled: () -> Unit
+) {
+    val zones = remember { McFeed.labels() }
+    var gen by remember { mutableStateOf(0) }
+    // null = 这一块还在跑；空列表 = 跑完了但没抓到
+    var results by remember { mutableStateOf<Map<String, List<McFeed.Item>?>>(emptyMap()) }
+
+    DisposableEffect(Unit) {
+        register { gen++ }
+        onDispose { register({}) }
+    }
+
+    LaunchedEffect(gen) {
+        // 只有手动下拉才清缓存；首次进入直接用 10 分钟内的缓存，省一次网络
+        if (gen > 0) McFeed.clearCache()
+        val done = AtomicInteger(0)
         for (z in zones) {
-            exec.execute {
+            Bg.io.execute {
                 val list = try {
                     McFeed.fetch(ctx, z.key)
                 } catch (t: Throwable) {
                     emptyList()
                 }
-                handler.post {
-                    // 不是本轮的结果就丢掉
-                    if (gen != generation) return@post
-                    val slot = slots[z.key] ?: return@post
-                    if (!isAdded) return@post
-                    slot.removeAllViews()
-                    if (list.isEmpty()) {
-                        // 降级：抓取失败也给用户一个去原站的入口
-                        slot.addView(
-                            UiCards.emptyCard(
-                                ctx, "暂时没抓到内容",
-                                "可能是网络不通，或站点改版导致解析失效。可以直接打开原站查看。"
-                            )
-                        )
-                        slot.addView(
-                            UiCards.outlinedButton(ctx, "打开 ${z.site}") {
-                                WebActivity.open(ctx, z.url, z.label)
-                            }
-                        )
-                    } else {
-                        for (it in list) {
-                            slot.addView(
-                                UiCards.infoCard(
-                                    ctx, R.drawable.ti_external_link,
-                                    it.title,
-                                    "来源：${it.source}${if (it.extra.isNotBlank()) " · ${it.extra}" else ""}",
-                                    "查看"
-                                ) { WebActivity.open(ctx, it.url, it.title) }
-                            )
-                        }
-                    }
-                    if (done.incrementAndGet() >= zones.size) {
-                        addFooter(ctx)
-                        refresh.isRefreshing = false
-                    }
+                Bg.ui.post {
+                    results = results + (z.key to list)
+                    // 要等四块都回来才停转圈：只 post 一次的话转圈一闪就没了，
+                    // 内容却要过几秒才出来，看着像刷新无效
+                    if (done.incrementAndGet() >= zones.size) onSettled()
                 }
             }
         }
     }
 
-    /**
-     * 补版权声明。
-     *
-     * 之前靠 `key == REDSTONE` 判断"最后一块"——但四个分区是**并发**的，
-     * REDSTONE 未必最后完成；而且每下拉刷新一次就又 addView 一次，
-     * 刷几次底部就摞着好几条一样的声明。
-     * 改成：先移除已有的，再追加在末尾。
-     */
-    private fun addFooter(ctx: android.content.Context) {
-        if (footer != null) box.removeView(footer)
-        footer = TextView(ctx).apply {
-            text = "以上内容分别来自各站点，版权归原作者所有，本应用仅作索引与跳转。"
-            textSize = 11f
-            gravity = Gravity.START
-            setPadding(0, dp(10), 0, dp(4))
+    LazyColumn(Modifier.fillMaxSize().padding(14.dp)) {
+        for (z in zones) {
+            item { McSectionTitle(z.label) }
+            val list = results[z.key]
+            if (list == null) {
+                item { McSkeleton(2) }
+                item { McNote("正在从 ${z.site} 获取…") }
+            } else if (list.isEmpty()) {
+                item {
+                    Text(
+                        "暂时没抓到内容",
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                }
+                item {
+                    McNote("可能是网络不通，或站点改版导致解析失效。可以直接打开原站查看。")
+                }
+                item {
+                    McFilledButton("打开 ${z.site}") { WebActivity.open(ctx, z.url, z.label) }
+                }
+            } else {
+                items(list) { e ->
+                    McModCard(
+                        iconUrl = "",
+                        title = e.title,
+                        summary = "来源：${e.source}${
+                            if (e.extra.isNotBlank()) " · ${e.extra}" else ""
+                        }",
+                        action = "查看",
+                        onAction = { WebActivity.open(ctx, e.url, e.title) }
+                    )
+                }
+            }
         }
-        box.addView(footer)
+        item {
+            McNote("以上内容分别来自各站点，版权归原作者所有，本应用仅作索引与跳转。")
+        }
     }
-
-    /** 加载轮次，用于丢弃过期回调 */
-    private var generation = 0
-    private var footer: TextView? = null
-    override fun onDestroyView() {
-        super.onDestroyView()
-        // 清理 Handler：页面销毁后若还有未执行的 post，
-        // 回调里访问已销毁的 View 会直接崩。
-        runCatching { handler.removeCallbacksAndMessages(null) }
-    }
-
 }
