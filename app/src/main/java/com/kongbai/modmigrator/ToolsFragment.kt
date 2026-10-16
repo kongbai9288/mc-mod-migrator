@@ -1,18 +1,53 @@
 package com.kongbai.modmigrator
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.LinearLayout
-import android.widget.TextView
-import android.widget.Toast
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.Fragment
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import java.util.concurrent.Executors
+import java.io.File
+import java.util.Locale
 
 /**
  * 工具箱：零散但常用的小工具入口。
@@ -21,122 +56,128 @@ import java.util.concurrent.Executors
  */
 class ToolsFragment : Fragment() {
 
-    private val exec = Bg.io
-    private val handler = Bg.ui
-
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         val ctx = requireContext()
-        val scroll = android.widget.ScrollView(ctx)
-        val root = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            val pad = (16 * resources.displayMetrics.density).toInt()
-            setPadding(pad, pad, pad, pad)
+        return ComposeView(ctx).apply {
+            setViewCompositionStrategy(
+                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
+            )
+            setContent {
+                McTheme(ctx) {
+                    ToolsScreen(ctx, openFragment = { f -> openPage(f) })
+                }
+            }
         }
-        scroll.addView(root)
-        // 一屏尽量多放几个入口：竖排大卡片二十几个要滚很久。
-        // 改成方格网格；每组都带标题，不留没有标题的孤行。
-        // ── 属于迁移流程的两组放最前面 ──────────────────────────
-        // 这些本来就是迁移过程中的步骤（体检 / 对比 / 开关 / 跨加载器 /
-        // 代码级迁移），之前混在世界、存储那一堆里，看不出跟迁移的关系。
-        // 标题直接写明「迁移」，并且在迁移页底部也有直达入口。
-        root.addView(UiCards.sectionTitle(ctx, "迁移 · 检查"))
-        root.addView(UiCards.grid(ctx, 3, listOf(
-            UiCards.tile(ctx, R.drawable.ti_circle_check, "模组体检") { doctor() },
-            UiCards.tile(ctx, R.drawable.ti_puzzle, "依赖体检") { depCheck() },
-            UiCards.tile(ctx, R.drawable.ti_copy, "配置对比") { diff() },
-            UiCards.tile(ctx, R.drawable.ti_info_circle, "崩溃日志") { showCrashLog() }
-        )))
-
-        // ── 跨加载器已挪到迁移页 ──────────────────────────────
-        // 它要用到迁移页已经填好的目标 MC 版本和目标加载器。
-        // 放在这里就得让用户再填一遍，两处填的不一致时
-        // 会出现"换了加载器但版本对不上"。入口见迁移页「迁移相关工具」。
-        root.addView(UiCards.sectionTitle(ctx, "迁移 · 模组处理"))
-        root.addView(UiCards.grid(ctx, 3, listOf(
-            UiCards.tile(ctx, R.drawable.ti_alert_triangle, "模组开关") { modToggle() },
-            UiCards.tile(ctx, R.drawable.ti_bolt, "代码级迁移") { codeMigrate() }
-        )))
-
-        root.addView(UiCards.sectionTitle(ctx, "世界与数据"))
-        root.addView(UiCards.grid(ctx, 3, listOf(
-            UiCards.tile(ctx, R.drawable.ti_folder, "世界存档") { openWorlds() },
-            UiCards.tile(ctx, R.drawable.ti_packages, "区块编辑器") { openMca() },
-            UiCards.tile(ctx, R.drawable.ti_pencil, "NBT 编辑器") { openNbt() },
-            UiCards.tile(ctx, R.drawable.ti_code, "数据包") { openDatapack() }
-        )))
-
-        root.addView(UiCards.sectionTitle(ctx, "实例与整合包"))
-        root.addView(UiCards.grid(ctx, 3, listOf(
-            UiCards.tile(ctx, R.drawable.ti_rocket, "补齐实例") { createInstance() },
-            UiCards.tile(ctx, R.drawable.ti_devices, "加载器支持器") {
-                startActivity(android.content.Intent(ctx, LoaderForgeActivity::class.java))
-            },
-            UiCards.tile(ctx, R.drawable.ti_cloud_up, "导出整合包") { exportMrpack() }
-        )))
-
-        root.addView(UiCards.sectionTitle(ctx, "存储与传输"))
-        root.addView(UiCards.grid(ctx, 3, listOf(
-            UiCards.tile(ctx, R.drawable.ti_refresh_dot, "存储用量") { usage() },
-            UiCards.tile(ctx, R.drawable.ti_trash, "清理缓存") { clearCache() },
-            UiCards.tile(ctx, R.drawable.ti_building_store, "云盘") { CloudDriveActivity.open(ctx) },
-            UiCards.tile(ctx, R.drawable.ti_external_link, "打包发送") { shareMods() }
-        )))
-
-        return scroll
     }
 
-    // ---------------- 存档与数据包 ----------------
-
-    private fun openWorlds() {
-        val ctx = context ?: return
-        // 世界存档是独立页面，直接压进当前容器的返回栈
+    private fun openPage(f: Fragment) {
         try {
             parentFragmentManager.beginTransaction()
-                .replace(R.id.fragment_container, WorldsFragment())
-                .addToBackStack("worlds")
+                .replace(R.id.fragment_container, f)
+                .addToBackStack(null)
                 .commit()
         } catch (t: Throwable) {
             // 容器 id 变了（页面结构调整）时不能静默失败，给个明确提示
-            Err.fail(t, "打开世界存档页")
-            Tips.short(ctx, "打不开世界存档页，请从「更多 → 工具箱」进入")
+            Err.fail(t, "打开子页面")
+            Tips.short(requireContext(), "打不开这个页面，请从「更多 → 工具箱」进入")
         }
+    }
+}
+
+private data class ToolItem(val icon: Int, val label: String, val act: () -> Unit)
+
+private sealed class ToolDlg {
+    object None : ToolDlg()
+    data class Text(val title: String, val body: String) : ToolDlg()
+    data class Action(
+        val title: String, val body: String, val actions: List<Pair<String, () -> Unit>>
+    ) : ToolDlg()
+
+    data class Pick(
+        val title: String, val items: List<String>, val onPick: (Int) -> Unit
+    ) : ToolDlg()
+
+    data class Multi(
+        val title: String, val items: List<String>,
+        val checked: () -> List<Boolean>,
+        val onToggle: (Int, Boolean) -> Unit, val onConfirm: () -> Unit,
+        val confirmText: String = "确定"
+    ) : ToolDlg()
+
+    data class Confirm(
+        val title: String, val body: String,
+        val confirmText: String, val onConfirm: () -> Unit,
+        val dismissText: String = "取消", val onDismiss: (() -> Unit)? = null
+    ) : ToolDlg()
+
+    data class Input(
+        val title: String, val body: String, val hint: String, val onOk: (String) -> Unit
+    ) : ToolDlg()
+
+    data class Busy(val text: String) : ToolDlg()
+}
+
+@Composable
+private fun ToolsScreen(ctx: Context, openFragment: (Fragment) -> Unit) {
+
+    var dlg by remember { mutableStateOf<ToolDlg>(ToolDlg.None) }
+
+    fun toast(s: String) {
+        Bg.ui.post { Tips.short(ctx, s) }
+    }
+
+    fun bg(block: () -> Unit) {
+        Bg.io.execute {
+            try {
+                block()
+            } catch (t: Throwable) {
+                toast("出错了：${t.message}")
+            } finally {
+                // Progress 是全局单例，异常/提前 return 时不复位会永久卡在"运行中"，
+                // 下次开 App 出现幽灵进度条。
+                try { Progress.done() } catch (_: Throwable) {}
+            }
+        }
+    }
+
+    fun show(title: String, text: String) {
+        dlg = ToolDlg.Text(title, text)
+    }
+
+    // ---------------- 世界与数据 ----------------
+
+    fun openWorlds() {
+        openFragment(WorldsFragment())
     }
 
     /**
      * NBT 编辑器入口。
      *
      * ⚠️ 之前只从「游戏目录」里用 File 扫 .dat/.nbt。
-     * 而现在游戏目录几乎都是 **SAF 授权 URI**（Android 11+ 下 File API
-     * 进不去 Android/data，启动器的 .minecraft 基本都在那儿），
-     * 于是候选永远是空的，只能退化成"手填完整路径"——
+     * 而现在游戏目录几乎都是 SAF 授权 URI（Android 11+ 下 File API
+     * 进不去 Android/data），于是候选永远是空的，只能退化成"手填完整路径"——
      * 用户根本不知道路径，功能等于不可用。
      *
-     * 现在两条路都扫：
-     *   1. 有「所有文件访问」权限 → File 扫真实路径（能进 Android/data）
-     *   2. SAF 授权目录 → 用 DocumentFile 递归找（限制深度与数量）
-     * 找到就列出来点选，再不济才手填路径。
+     * 现在两条路都扫：真实路径 + SAF 授权目录。
      */
-    private fun openNbt() {
-        val ctx = context ?: return
-        exec.execute {
+    fun openNbt() {
+        toast("正在查找…")
+        bg {
             val found = ArrayList<Pair<String, Any>>()
-            // 路 1：真实路径
             val game = Prefs.get(ctx).getString(K.GAME_DIR, "") ?: ""
             if (game.isNotBlank() && !game.startsWith("content://")) {
                 runCatching {
-                    java.io.File(game).walkTopDown()
+                    File(game).walkTopDown()
                         .filter { it.isFile && (it.name.endsWith(".dat") || it.name.endsWith(".nbt")) }
                         .take(40)
                         .forEach { found.add(labelOf(it.name, it) to it) }
                 }
             }
-            // 路 2：SAF 授权目录
             if (game.startsWith("content://")) {
                 runCatching { collectSafNbt(ctx, game, found) }
             }
-            // 路 3：已知启动器目录（需要「所有文件访问」）
             if (found.isEmpty() && Perms.allFiles()) {
                 for ((_, dir) in LauncherDirs.detect(ctx)) {
                     runCatching {
@@ -147,155 +188,59 @@ class ToolsFragment : Fragment() {
                     }
                 }
             }
-            safePost(handler) {
-                if (!isAdded) return@safePost
+            Bg.ui.post {
                 if (found.isEmpty()) {
-                    askNbtPath(ctx)
+                    dlg = ToolDlg.Input(
+                        "NBT 文件路径",
+                        "没在游戏目录里找到 .dat。\n" +
+                            "先在「设置 → 存储」把游戏目录指到 .minecraft，\n" +
+                            "或在这里直接填完整路径。",
+                        "完整路径"
+                    ) { p ->
+                        if (p.isNotBlank()) NbtViewerActivity.open(ctx, File(p.trim()))
+                    }
                 } else {
-                    val names = found.map { it.first }.toTypedArray()
-                    com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-                        .setTitle("打开哪个文件（共 ${found.size} 个）")
-                        .setItems(names) { _, w ->
-                            val v = found[w].second
-                            if (v is java.io.File) NbtViewerActivity.open(ctx, v)
-                            else NbtViewerActivity.openUri(ctx, v as android.net.Uri)
-                        }
-                        .setNeutralButton("手填路径") { _, _ -> askNbtPath(ctx) }
-                        .setNegativeButton(R.string.cancel, null)
-                        .show()
+                    dlg = ToolDlg.Pick("打开哪个文件（共 ${found.size} 个）", found.map { it.first }) { w ->
+                        val v = found[w].second
+                        if (v is File) NbtViewerActivity.open(ctx, v)
+                        else NbtViewerActivity.openUri(ctx, v as Uri)
+                    }
                 }
             }
         }
     }
 
-    /**
-     * 在 SAF 树里递归找指定后缀的文件。
-     *
-     * @param exts 后缀集合，如 listOf(".dat", ".nbt")
-     * @param maxDepth 目录层级上限。默认 4 对 .dat 够用，
-     *   但 .mca 藏在 saves/<世界>/region/ 下，需要放宽到 6。
-     */
-    private fun collectSafNbt(
-        ctx: android.content.Context, uriStr: String, out: ArrayList<Pair<String, Any>>,
-        exts: List<String> = listOf(".dat", ".nbt"), maxDepth: Int = 4
-    ) {
-        val tree = Fs.tree(ctx, uriStr) ?: return
-        fun walk(d: androidx.documentfile.provider.DocumentFile, depth: Int) {
-            if (out.size >= 40 || depth > maxDepth) return
-            for (c in d.listFiles()) {
-                if (out.size >= 40) return
-                if (c.isDirectory) walk(c, depth + 1)
-                else {
-                    val n = c.name ?: continue
-                    if (!exts.any { n.endsWith(it) }) continue
-                    // 找 .mca 时排除 poi/ 与 entities/：它们不存方块，
-                    // 点开只能看到「没有方块数据」
-                    val pn = c.parentFile?.name
-                    // 旧存档用 .mcr，同样要排除 poi/ entities/
-                    val wantRegion = exts.any { it == ".mca" || it == ".mcr" }
-                    if (wantRegion && (pn == "poi" || pn == "entities")) continue
-                    out.add(labelOf(n, c) to c.uri)
-                }
-            }
-        }
-        walk(tree, 0)
-    }
-
-    /**
-     * 只有 `region/` 下的 .mca 才存方块。
-     *
-     * `poi/` 存兴趣点、`entities/` 存实体，两者里面**没有 sections**，
-     * 打开必然是「没有方块数据」。而一个世界里这三类是同样数量
-     * （这份 26.2 存档就是 region / poi / entities 各 4 个），
-     * 全都列出来的话，随手一点有三分之二是空的 ——
-     * 这正是反馈里「点进去全提示无数据」的一个直接来源。
-     */
-    private fun isTerrain(f: java.io.File): Boolean {
-        val p = f.parentFile?.name
-        return p != "poi" && p != "entities"
-    }
-
-    /**
-     * 列表里怎么称呼一个文件。
-     *
-     * ⚠️ 之前直接显示文件名：level.dat / r.0.0.mca 在每个世界里都叫这个，
-     * 一排同名摆在一起根本分不清是哪个世界的。
-     * 现在带上所属世界名，形如「新的世界 / level.dat」。
-     */
-    private fun labelOf(fileName: String, f: java.io.File): String {
-        val p0 = f.parentFile
-        val p0n = p0?.name
-        // region/ / poi/ / entities/ 这层没有信息量，再往上一层才是世界名
-        val wn = if (p0n == "region" || p0n == "poi" || p0n == "entities")
-            p0?.parentFile?.name else p0n
-        return if (wn.isNullOrBlank()) fileName else "$wn / $fileName"
-    }
-
-    private fun labelOf(fileName: String, d: androidx.documentfile.provider.DocumentFile): String {
-        val parent = d.parentFile?.name
-        val wn = if (parent == "region" || parent == "poi" || parent == "entities")
-            d.parentFile?.parentFile?.name else parent
-        return if (wn.isNullOrBlank()) fileName else "$wn / $fileName"
-    }
-
-    /**
-     * 从一个区域文件反推它所属的世界目录：往上找到带 level.dat 的那一层。
-     *
-     * 目录层级前后变过（`<世界>/region/` 与 `<世界>/dimensions/ns/dim/region/`），
-     * 逐层上溯比按固定层数算稳妥。
-     */
-    private fun worldDirOf(f: java.io.File): java.io.File? {
-        var p = f.parentFile ?: return null
-        repeat(6) {
-            if (p.isDirectory && java.io.File(p, "level.dat").isFile) return p
-            p = p.parentFile ?: return null
-        }
-        return null
-    }
-
-    /**
-     * 区块编辑器入口。
-     *
-     * .mca 在 `<世界>/region/`，所以扫描深度要比 .dat 更深一层，
-     * 否则永远找不到（表现为"没找到区域文件"）。
-     * 和 NBT 一样两条路都走：真实路径 + SAF 授权目录。
-     */
     /**
      * 区块编辑器入口。
      *
      * ⚠️ 之前是「先扫 .mca 文件、再反推世界」，而且最多只取 40 个文件。
      * 于是世界一多，前 40 个文件可能全来自第一个世界 ——
      * 列表里只剩一个世界，看着像「世界数量不对」。
-     * 另外 SAF 收集的是 Uri 而不是 File，反推那一步直接跳过，
-     * 于是 SAF 下退化成单文件列表，压根没有世界级视图。
      *
      * 现在改为直接发现世界目录，不截断数量，SAF 也走世界级。
      */
-    private fun openMca() {
-        val ctx = context ?: return
-        exec.execute {
+    fun openMca() {
+        toast("正在查找存档…")
+        bg {
             val game = Prefs.get(ctx).getString(K.GAME_DIR, "") ?: ""
 
-            // 1) 真实路径：saves 目录下所有带 level.dat 的子目录就是一个世界
-            val worldFiles = LinkedHashMap<String, java.io.File>()
-            fun collect(saves: java.io.File) {
+            val worldFiles = LinkedHashMap<String, File>()
+            fun collect(saves: File) {
                 saves.listFiles()?.forEach { d ->
-                    if (d.isDirectory && java.io.File(d, "level.dat").isFile) {
+                    if (d.isDirectory && File(d, "level.dat").isFile) {
                         worldFiles.putIfAbsent(d.name, d)
                     }
                 }
             }
             if (game.isNotBlank() && !game.startsWith("content://")) {
-                for (s in savesDirsOf(java.io.File(game))) collect(s)
+                for (s in savesDirsOf(File(game))) collect(s)
             }
-            // 2) 有「所有文件访问」时补上已知启动器目录
             if (Perms.allFiles()) {
                 for ((_, dir) in LauncherDirs.detect(ctx)) {
                     for (s in savesDirsOf(dir)) collect(s)
                 }
             }
-            // 3) SAF 授权目录
-            val safWorlds = ArrayList<Pair<String, androidx.documentfile.provider.DocumentFile>>()
+            val safWorlds = ArrayList<Pair<String, DocumentFile>>()
             if (game.startsWith("content://")) {
                 runCatching {
                     val tree = Fs.tree(ctx, game) ?: return@runCatching
@@ -308,44 +253,35 @@ class ToolsFragment : Fragment() {
                 }
             }
 
-            safePost(handler) {
-                if (!isAdded) return@safePost
+            Bg.ui.post {
                 val names = ArrayList<String>()
                 names.addAll(worldFiles.keys)
                 names.addAll(safWorlds.map { it.first + "（授权目录）" })
                 if (names.isNotEmpty()) {
-                    com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-                        .setTitle("打开哪个世界（共 ${names.size} 个）")
-                        .setItems(names.toTypedArray()) { _, w ->
-                            if (w < worldFiles.size) {
-                                ChunkMapActivity.open(ctx, worldFiles.values.elementAt(w))
-                            } else {
-                                val doc = safWorlds[w - worldFiles.size].second
-                                val prog = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-                                    .setTitle("正在读取存档…")
-                                    .setMessage("复制区域文件到本机，稍后可保存回去")
-                                    .setCancelable(false)
-                                    .show()
-                                exec.execute {
-                                    val dir = mirrorSafWorld(ctx, doc)
-                                    safePost(handler) {
-                                        prog.dismiss()
-                                        if (dir == null) toast("这个存档里没有区域文件")
-                                        else ChunkMapActivity.open(ctx, dir)
-                                    }
+                    dlg = ToolDlg.Pick("打开哪个世界（共 ${names.size} 个）", names) { w ->
+                        if (w < worldFiles.size) {
+                            ChunkMapActivity.open(ctx, worldFiles.values.elementAt(w))
+                        } else {
+                            val doc = safWorlds[w - worldFiles.size].second
+                            dlg = ToolDlg.Busy("正在读取存档…\n复制区域文件到本机，稍后可保存回去")
+                            bg {
+                                val dir = mirrorSafWorld(ctx, doc)
+                                Bg.ui.post {
+                                    if (dir == null) toast("这个存档里没有区域文件")
+                                    else ChunkMapActivity.open(ctx, dir)
+                                    dlg = ToolDlg.None
                                 }
                             }
                         }
-                        .setNegativeButton(R.string.cancel, null)
-                        .show()
-                    return@safePost
+                    }
+                    return@post
                 }
 
                 // 找不到 level.dat（多半授权到了世界内部），退回按文件列
                 val found = ArrayList<Pair<String, Any>>()
                 if (game.isNotBlank() && !game.startsWith("content://")) {
                     runCatching {
-                        java.io.File(game).walkTopDown()
+                        File(game).walkTopDown()
                             .filter {
                                 it.isFile && isTerrain(it) &&
                                     (it.name.endsWith(".mca") || it.name.endsWith(".mcr"))
@@ -358,123 +294,34 @@ class ToolsFragment : Fragment() {
                     runCatching { collectSafNbt(ctx, game, found, listOf(".mca", ".mcr"), 6) }
                 }
                 if (found.isEmpty()) {
-                    com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-                        .setTitle("没找到存档")
-                        .setMessage(
-                            "没找到带 level.dat 的世界目录，也没找到存地形的 .mca。\n\n" +
-                                "存档在「游戏目录/saves/世界名/」下，区域文件在其 " +
-                                "region/ 目录里。\n\n" +
-                                "请在「设置 → 存储」把游戏目录指到 .minecraft" +
-                                "（或直接指到 saves 那一层）。"
-                        )
-                        .setPositiveButton(android.R.string.ok, null)
-                        .show()
+                    show(
+                        "没找到存档",
+                        "没找到带 level.dat 的世界目录，也没找到存地形的 .mca。\n\n" +
+                            "存档在「游戏目录/saves/世界名/」下，区域文件在其 region/ 目录里。\n\n" +
+                            "请在「设置 → 存储」把游戏目录指到 .minecraft（或直接指到 saves 那一层）。"
+                    )
                 } else {
-                    val fn = found.map { it.first }.toTypedArray()
-                    com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-                        .setTitle("打开哪个区域文件（共 ${found.size} 个）")
-                        .setItems(fn) { _, w ->
-                            val v = found[w].second
-                            if (v is java.io.File) ChunkMapActivity.openFile(ctx, v)
-                            else ChunkMapActivity.openUri(ctx, v as android.net.Uri)
-                        }
-                        .setNegativeButton(R.string.cancel, null)
-                        .show()
+                    dlg = ToolDlg.Pick(
+                        "打开哪个区域文件（共 ${found.size} 个）", found.map { it.first }
+                    ) { w ->
+                        val v = found[w].second
+                        if (v is File) ChunkMapActivity.openFile(ctx, v)
+                        else ChunkMapActivity.openUri(ctx, v as Uri)
+                    }
                 }
             }
         }
     }
 
-    /** 一个游戏目录（.minecraft）里可能的存档根目录，按可能性排序 */
-    private fun savesDirsOf(base: java.io.File): List<java.io.File> {
-        val out = LinkedHashSet<java.io.File>()
-        for (c in listOf(
-            java.io.File(base, McDirs.SAVES), base,
-            java.io.File(base, ".minecraft/saves")
-        )) {
-            if (c.isDirectory) out.add(c)
-        }
-        // 版本隔离：saves 也可能在 versions/<版本>/ 下
-        java.io.File(base, McDirs.VERSIONS).listFiles()?.forEach { v ->
-            val vs = java.io.File(v, McDirs.SAVES)
-            if (vs.isDirectory) out.add(vs)
-        }
-        return out.toList()
-    }
-
-    /**
-     * SAF 世界 → 本地镜像目录。
-     *
-     * 区块地图整块逻辑基于 File，而 content:// 拿不到真实路径，
-     * 所以先把 region 下的 .mca 复制过来，
-     * 并在 [McaWorld.Mirror] 里记下每个文件的原始 Uri，保存时写回。
-     * poi/ 与 entities/ 不复制 —— 它们不存方块，白占空间。
-     */
-    private fun mirrorSafWorld(
-        ctx: android.content.Context,
-        world: androidx.documentfile.provider.DocumentFile
-    ): java.io.File? {
-        val name = (world.name ?: "存档").replace(Regex("[^A-Za-z0-9._ -]"), "_")
-        val root = java.io.File(ctx.filesDir, "mca-mirror").apply { mkdirs() }
-        // 旧镜像不清会和别的世界混在一起
-        root.listFiles()?.forEach { it.deleteRecursively() }
-        val dir = java.io.File(root, name)
-        McaWorld.Mirror.clear()
-        var n = 0
-        fun walk(d: androidx.documentfile.provider.DocumentFile, depth: Int, rel: String) {
-            if (depth > 5) return
-            for (c in d.listFiles()) {
-                val cn = c.name ?: continue
-                if (c.isDirectory) {
-                    if (cn == "poi" || cn == "entities") continue
-                    walk(c, depth + 1, if (rel.isEmpty()) cn else "$rel/$cn")
-                } else if (cn.endsWith(".mca") || cn.endsWith(".mcr")) {
-                    val t = java.io.File(dir, if (rel.isEmpty()) cn else "$rel/$cn")
-                    t.parentFile?.mkdirs()
-                    runCatching {
-                        ctx.contentResolver.openInputStream(c.uri)?.use { src ->
-                            t.outputStream().use { src.copyTo(it) }
-                        }
-                    } ?: continue
-                    if (!t.isFile || t.length() <= 0) continue
-                    McaWorld.Mirror.put(t, c.uri)
-                    n++
-                }
-            }
-        }
-        walk(world, 0, "")
-        return if (n > 0) dir else null
-    }
-
-
-    private fun askNbtPath(ctx: android.content.Context) {
-        val et = android.widget.EditText(ctx).apply { setSingleLine(true) }
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-            .setTitle("NBT 文件路径")
-            .setMessage("没在游戏目录里找到 .dat。\n" +
-                "先在「设置 → 存储」把游戏目录指到 .minecraft，\n" +
-                "或在这里直接填完整路径。")
-            .setView(et)
-            .setPositiveButton("打开") { _, _ ->
-                val p = et.text.toString().trim()
-                if (p.isBlank()) return@setPositiveButton
-                NbtViewerActivity.open(ctx, java.io.File(p))
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
-
-    private fun openDatapack() {
-        val ctx = context ?: return
+    fun openDatapack() {
         // 原生生成器，列表从 schema 推导。
         // 旧的网页版入口撤到开发者实验室里当备用，避免同一个功能两个入口。
-        ctx.startActivity(android.content.Intent(ctx, DatapackActivity::class.java))
+        ctx.startActivity(Intent(ctx, DatapackActivity::class.java))
     }
 
     // ---------------- 依赖体检 ----------------
 
-    private fun depCheck() {
-        val ctx = context ?: return
+    fun depCheck() {
         toast("正在读取本地模组…")
         bg {
             val dir = DirResolve.modsDir(ctx)
@@ -484,10 +331,8 @@ class ToolsFragment : Fragment() {
             }
             val files = dir.listFiles().filter {
                 // 必须排除"已禁用"的（x.jar.disabled）。
-                // 禁用的模组**不会被加载器装载**，它既不提供依赖、
-                // 也不参与冲突，算进去只会让体检报告出现一堆
-                // 根本不存在的"缺失依赖"和"加载器冲突"——
-                // 用户照着去补装，白忙一场。
+                // 禁用的模组不会被加载器装载，它既不提供依赖、也不参与冲突，
+                // 算进去只会让报告出现一堆根本不存在的"缺失依赖"。
                 val n = it.name ?: return@filter false
                 n.endsWith(".jar", true) && !ModToggle.isDisabled(it)
             }
@@ -513,14 +358,18 @@ class ToolsFragment : Fragment() {
                 )
             }
             val report = ModDepGraph.analyze(mods)
-            show("依赖体检（${mods.size} 个模组）", ModDepGraph.format(report))
+            Bg.ui.post { show("依赖体检（${mods.size} 个模组）", ModDepGraph.format(report)) }
         }
     }
 
     // ---------------- 模组开关 ----------------
 
-    private fun modToggle() {
-        val ctx = context ?: return
+    // 列表项状态放这里：勾选后要立刻反映到界面上
+    var toggleFiles by remember { mutableStateOf<List<DocumentFile>>(emptyList()) }
+    var toggleStates by remember { mutableStateOf<List<Boolean>>(emptyList()) }
+
+    fun modToggle() {
+        toast("正在读取本地模组…")
         bg {
             val dir = DirResolve.modsDir(ctx)
             if (dir == null) {
@@ -535,168 +384,144 @@ class ToolsFragment : Fragment() {
                 toast("mods 目录里没有模组")
                 return@bg
             }
-            val names = files.map { ModToggle.displayName(it) }.toTypedArray()
-            val states = files.map { !ModToggle.isDisabled(it) }.toBooleanArray()
-
-            handler.post {
-                if (!isAdded) return@post
-                MaterialAlertDialogBuilder(ctx)
-                    .setTitle("模组开关（点一下切换）")
-                    .setMultiChoiceItems(names, states) { _, which, checked ->
+            val names = files.map { ModToggle.displayName(it) }
+            val states = files.map { !ModToggle.isDisabled(it) }
+            Bg.ui.post {
+                toggleFiles = files
+                toggleStates = states
+                dlg = ToolDlg.Multi(
+                    title = "模组开关（点一下切换）",
+                    items = names,
+                    checked = { toggleStates },
+                    onToggle = { i, checked ->
+                        toggleStates = toggleStates.toMutableList().also { it[i] = checked }
+                        val f = toggleFiles[i]
+                        val wantDisabled = !checked
                         bg {
-                            val f = files[which]
-                            val wantDisabled = !checked
-                            val ok = if (wantDisabled) ModToggle.disable(f)
-                            else ModToggle.enable(f)
-                            handler.post {
+                            val ok = if (wantDisabled) ModToggle.disable(f) else ModToggle.enable(f)
+                            Bg.ui.post {
                                 if (ok != null) {
                                     toast(if (wantDisabled) "已禁用" else "已启用")
                                 } else {
+                                    // 失败要把界面上的勾选退回，否则显示和实际不一致
+                                    toggleStates =
+                                        toggleStates.toMutableList().also { it[i] = !checked }
                                     toast("操作失败（目录可能只读）")
                                 }
                             }
                         }
-                    }
-                    .setPositiveButton(R.string.ok, null)
-                    .setNeutralButton("说明") { _, _ ->
-                        MaterialAlertDialogBuilder(ctx)
-                            .setTitle("这是怎么生效的")
-                            .setMessage(
-                                "禁用 = 把 xxx.jar 改名成 xxx.jar.disabled。\n\n" +
-                                    "加载器只加载 .jar 结尾的文件，改了名它就不加载了。\n\n" +
-                                    "好处：文件还在原地，随时能改回来，比挪走安全。"
-                            )
-                            .setPositiveButton(R.string.ok, null)
-                            .show()
-                    }
-                    .show()
+                    },
+                    onConfirm = {
+                        dlg = ToolDlg.Text(
+                            "这是怎么生效的",
+                            "禁用 = 把 xxx.jar 改名成 xxx.jar.disabled。\n\n" +
+                                "加载器只加载 .jar 结尾的文件，改了名它就不加载了。\n\n" +
+                                "好处：文件还在原地，随时能改回来，比挪走安全。"
+                        )
+                    },
+                    confirmText = "说明"
+                )
             }
         }
     }
 
     // ---------------- 实例结构 ----------------
 
-    private fun createInstance() {
-        val ctx = context ?: return
+    fun createInstance() {
         val dstUri = Prefs.get(ctx).getString(K.DST_URI, "") ?: ""
         if (dstUri.isBlank()) {
             toast("请先在迁移页设置「迁移后」的目录")
             return
         }
-        val opts = arrayOf("Fabric", "Forge", "Quilt", "NeoForge", "先不装加载器")
-        val keys = arrayOf("fabric", "forge", "quilt", "neoforge", "")
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("目标实例用哪个加载器")
-            .setItems(opts) { _, w ->
-                val loader = keys[w]
-                bg {
-                    val dst = Fs.tree(ctx, dstUri)
-                    if (dst == null) {
-                        toast("目标目录不可访问")
-                        return@bg
-                    }
-                    val made = InstanceCreator.scaffold(ctx, dst)
-                    val mc = Prefs.get(ctx).getString(K.MC_VERSION, "") ?: ""
-                    val name = dst.name ?: "新实例"
-                    InstanceCreator.writeInstanceCfg(ctx, dst, name, mc)
-                    InstanceCreator.writeMmcPack(ctx, dst, name, mc, loader)
+        val opts = listOf("Fabric", "Forge", "Quilt", "NeoForge", "先不装加载器")
+        val keys = listOf("fabric", "forge", "quilt", "neoforge", "")
+        dlg = ToolDlg.Pick("目标实例用哪个加载器", opts) { w ->
+            val loader = keys[w]
+            bg {
+                val dst = Fs.tree(ctx, dstUri)
+                if (dst == null) {
+                    toast("目标目录不可访问")
+                    return@bg
+                }
+                val made = InstanceCreator.scaffold(ctx, dst)
+                val mc = Prefs.get(ctx).getString(K.MC_VERSION, "") ?: ""
+                val name = dst.name ?: "新实例"
+                InstanceCreator.writeInstanceCfg(ctx, dst, name, mc)
+                InstanceCreator.writeMmcPack(ctx, dst, name, mc, loader)
 
-                    handler.post {
-                        if (!isAdded) return@post
-                        val sb = StringBuilder()
-                        sb.append("已补齐实例结构。\n\n")
-                        if (made.isNotEmpty()) sb.append("新建目录：${made.joinToString("、")}\n")
-                        sb.append("已写入 instance.cfg 与 mmc-pack.json，")
-                        sb.append("Prism / MultiMC 可直接识别。\n")
-                        if (loader.isBlank()) {
-                            sb.append("\n未选择加载器，之后可以随时再装。")
-                            show("已创建", sb.toString())
-                        } else {
-                            sb.append("\n接下来需要你自己装 ${opts[w]}：")
-                            MaterialAlertDialogBuilder(ctx)
-                                .setTitle("安装 ${opts[w]}")
-                                .setMessage(
-                                    sb.toString() + "\n\n" +
-                                        InstanceCreator.installGuide(loader, mc)
-                                )
-                                .setPositiveButton("打开官方下载页") { _, _ ->
-                                    val page = InstanceCreator.loaderPage(loader)
-                                    if (page.isNotBlank()) {
-                                        WebActivity.open(ctx, page, "${opts[w]} 下载")
-                                    }
-                                }
-                                .setNegativeButton(R.string.cancel, null)
-                                .show()
-                        }
+                val sb = StringBuilder()
+                sb.append("已补齐实例结构。\n\n")
+                if (made.isNotEmpty()) sb.append("新建目录：${made.joinToString("、")}\n")
+                sb.append("已写入 instance.cfg 与 mmc-pack.json，")
+                sb.append("Prism / MultiMC 可直接识别。\n")
+                Bg.ui.post {
+                    if (loader.isBlank()) {
+                        sb.append("\n未选择加载器，之后可以随时再装。")
+                        show("已创建", sb.toString())
+                    } else {
+                        sb.append("\n接下来需要你自己装 ${opts[w]}：")
+                        dlg = ToolDlg.Action(
+                            "安装 ${opts[w]}",
+                            sb.toString() + "\n\n" + InstanceCreator.installGuide(loader, mc),
+                            listOf("打开官方下载页" to {
+                                val page = InstanceCreator.loaderPage(loader)
+                                if (page.isNotBlank()) WebActivity.open(ctx, page, "${opts[w]} 下载")
+                                dlg = ToolDlg.None
+                            })
+                        )
                     }
                 }
             }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
-
-    // ---------------- 导出 mrpack ----------------
-
-    private fun exportMrpack() {
-        val ctx = context ?: return
-        val srcUri = Prefs.get(ctx).getString(K.SRC_URI, "") ?: ""
-        if (srcUri.isBlank()) {
-            toast("请先在迁移页设置「迁移前」的目录")
-            return
         }
-        askFormat(srcUri)
     }
 
-    /**
-     * 先选格式。
-     *
-     * 只出 .mrpack 的话，用 CurseForge 启动器、Prism / MultiMC 的人就装不了。
-     */
-    private fun askFormat(srcUri: String) {
-        val ctx = context ?: return
+    // ---------------- 导出整合包 ----------------
+
+    fun askFormat(srcUri: String) {
         val fs = ModpackFormat.values()
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("导出成哪种整合包")
-            .setItems(fs.map { it.label + "\n" + it.note }.toTypedArray()) { _, w ->
-                askParts(srcUri, fs[w])
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+        // 只出 .mrpack 的话，用 CurseForge 启动器、Prism / MultiMC 的人就装不了
+        dlg = ToolDlg.Pick("导出成哪种整合包", fs.map { it.label + "\n" + it.note }) { w ->
+            askParts(srcUri, fs[w])
+        }
     }
 
+    var partsChecked by remember { mutableStateOf<List<Boolean>>(emptyList()) }
+
     /**
-     * 再选打包哪些内容。
+     * 选打包哪些内容。
      *
      * 个人数据（存档、按键设置、服务器列表）默认不选：
-     * 导出工具普遍把它们归为"可见但默认不勾"，
-     * 因为分享整合包时把别人的存档和服务器列表带出去是没道理的。
+     * 分享整合包时把别人的存档和服务器列表带出去是没道理的。
      */
-    private fun askParts(srcUri: String, fmt: ModpackFormat) {
-        val ctx = context ?: return
+    fun askParts(srcUri: String, fmt: ModpackFormat) {
         val saved = Prefs.get(ctx).getString(McParts.PREF_EXPORT, "") ?: ""
         val on = McParts.resolve(saved, true)
         val items = McParts.ALL.map {
             if (it.personal) it.label + "（个人数据）" else it.label
-        }.toTypedArray()
-        val checked = McParts.ALL.map { on.contains(it) }.toBooleanArray()
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("打包哪些内容")
-            .setMultiChoiceItems(items, checked) { _, w, isChecked -> checked[w] = isChecked }
-            .setPositiveButton("下一步") { _, _ ->
-                val picked = McParts.ALL.filterIndexed { i, _ -> checked[i] }
+        }
+        partsChecked = McParts.ALL.map { on.contains(it) }
+        dlg = ToolDlg.Multi(
+            title = "打包哪些内容",
+            items = items,
+            checked = { partsChecked },
+            onToggle = { i, v ->
+                partsChecked = partsChecked.toMutableList().also { it[i] = v }
+            },
+            onConfirm = {
+                val picked = McParts.ALL.filterIndexed { idx, _ -> partsChecked[idx] }
                 if (picked.isEmpty()) {
                     toast("至少选一类")
-                    return@setPositiveButton
+                } else {
+                    Prefs.get(ctx).edit()
+                        .putString(McParts.PREF_EXPORT, McParts.toPref(picked)).apply()
+                    askEmbed(srcUri, fmt, picked)
                 }
-                Prefs.get(ctx).edit().putString(McParts.PREF_EXPORT, McParts.toPref(picked)).apply()
-                askEmbed(srcUri, fmt, picked)
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+            },
+            confirmText = "下一步"
+        )
     }
 
-    private fun askEmbed(srcUri: String, fmt: ModpackFormat, parts: List<McParts.Part>) {
-        val ctx = context ?: return
+    fun askEmbed(srcUri: String, fmt: ModpackFormat, parts: List<McParts.Part>) {
         val msg = if (fmt == ModpackFormat.MULTIMC || fmt == ModpackFormat.PLAIN) {
             "这个格式没有远程下载，文件会全部随包带走。"
         } else {
@@ -707,18 +532,28 @@ class ToolsFragment : Fragment() {
                 "全部随包带走：\n" +
                 "包会很大，但没网也能装。"
         }
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("模组本体怎么带")
-            .setMessage(msg)
-            .setPositiveButton("按规范导出") { _, _ -> doExport(srcUri, fmt, parts, false) }
-            .setNegativeButton("全部随包") { _, _ -> doExport(srcUri, fmt, parts, true) }
-            .show()
+        dlg = ToolDlg.Confirm(
+            title = "模组本体怎么带",
+            body = msg,
+            confirmText = "按规范导出",
+            onConfirm = { doExport(srcUri, fmt, parts, embedAll = false) },
+            dismissText = "全部随包",
+            onDismiss = { doExport(srcUri, fmt, parts, embedAll = true) }
+        )
     }
 
-    private fun doExport(
+    fun exportMrpack() {
+        val srcUri = Prefs.get(ctx).getString(K.SRC_URI, "") ?: ""
+        if (srcUri.isBlank()) {
+            toast("请先在迁移页设置「迁移前」的目录")
+            return
+        }
+        askFormat(srcUri)
+    }
+
+    fun doExport(
         srcUri: String, fmt: ModpackFormat, parts: List<McParts.Part>, embedAll: Boolean
     ) {
-        val ctx = context ?: return
         toast("正在打包…")
         bg {
             val src = Fs.tree(ctx, srcUri)
@@ -729,7 +564,7 @@ class ToolsFragment : Fragment() {
             val mc = Prefs.get(ctx).getString(K.MC_VERSION, "") ?: ""
             val loader = Prefs.get(ctx).getString(K.LOADER, "") ?: ""
             val name = src.name ?: "整合包"
-            val out = java.io.File(ctx.cacheDir, "export/${fmt.fileName(name, parts)}")
+            val out = File(ctx.cacheDir, "export/${fmt.fileName(name, parts)}")
             out.parentFile?.mkdirs()
             val r = MrpackExport.export(
                 ctx,
@@ -743,8 +578,7 @@ class ToolsFragment : Fragment() {
                 ) { msg -> LogCenter.i("整合包", msg) },
                 src, out
             )
-            handler.post {
-                if (!isAdded) return@post
+            Bg.ui.post {
                 val f = r.file
                 if (f == null || !f.exists()) {
                     toast(if (r.note.isBlank()) "导出失败" else r.note)
@@ -754,91 +588,64 @@ class ToolsFragment : Fragment() {
                 msg += "清单远程下载 ${r.indexed} 个，随包带走 ${r.embedded} 个。\n"
                 msg += "「远程下载」的由启动器按清单拉取并校验哈希。"
                 if (r.note.isNotBlank()) msg += "\n\n" + r.note
-                MaterialAlertDialogBuilder(ctx)
-                    .setTitle("已导出")
-                    .setMessage(msg)
-                    .setPositiveButton("分享") { _, _ ->
+                dlg = ToolDlg.Action(
+                    "已导出", msg,
+                    listOf("分享" to {
                         QuickTransfer.shareOne(ctx, f, f.name)
-                    }
-                    .setNegativeButton(R.string.ok, null)
-                    .show()
+                        dlg = ToolDlg.None
+                    })
+                )
             }
         }
     }
 
     // ---------------- 代码级迁移 ----------------
 
-    private fun codeMigrate() {
-        val ctx = context ?: return
+    fun codeMigrate() {
         val pairs = CodeMigrator.supportedPairs()
-        val labels = pairs.map { "${it.first} → ${it.second}" }.toTypedArray()
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("代码级迁移")
-            .setItems(labels) { _, w ->
-                val (from, to) = pairs[w]
-                val root = WorkDir.root(ctx)
-                val dir = java.io.File(ctx.getExternalFilesDir(null), "code")
-                val target = if (root != null && root.uri.scheme == "file") {
-                    java.io.File(root.uri.path ?: "")
-                } else dir
+        dlg = ToolDlg.Pick(
+            "代码级迁移", pairs.map { "${it.first} → ${it.second}" }
+        ) { w ->
+            val (from, to) = pairs[w]
+            val root = WorkDir.root(ctx)
+            val dir = File(ctx.getExternalFilesDir(null), "code")
+            val target = if (root != null && root.uri.scheme == "file") {
+                File(root.uri.path ?: "")
+            } else dir
 
-                toast("正在扫描…")
-                bg {
-                    val hits = CodeMigrator.scan(target, from, to)
-                    handler.post {
-                        if (!isAdded) return@post
-                        MaterialAlertDialogBuilder(ctx)
-                            .setTitle("$from → $to")
-                            .setMessage(CodeMigrator.report(hits))
-                            .setPositiveButton("全部应用") { _, _ ->
-                                bg {
-                                    val (ok, bad) = CodeMigrator.apply(target, hits)
-                                    toast("已改 $ok 个文件${if (bad > 0) "，$bad 个失败" else ""}")
-                                }
+            toast("正在扫描…")
+            bg {
+                val hits = CodeMigrator.scan(target, from, to)
+                Bg.ui.post {
+                    dlg = ToolDlg.Action(
+                        "$from → $to", CodeMigrator.report(hits),
+                        listOf("全部应用" to {
+                            dlg = ToolDlg.None
+                            bg {
+                                val (ok, bad) = CodeMigrator.apply(target, hits)
+                                toast("已改 $ok 个文件${if (bad > 0) "，$bad 个失败" else ""}")
                             }
-                            .setNegativeButton(R.string.cancel, null)
-                            .show()
-                    }
+                        })
+                    )
                 }
             }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
-
-    private fun btn(text: String, act: () -> Unit): MaterialButton {
-        val ctx = requireContext()
-        return MaterialButton(
-            ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle
-        ).apply {
-            this.text = text
-            val lp = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            lp.bottomMargin = (8 * resources.displayMetrics.density).toInt()
-            layoutParams = lp
-            safeClickUnit { act() }
         }
     }
 
     /**
      * 打包 mods 目录并走系统分享面板发送到别的设备。
      *
-     * 打包必须在**后台线程**做：mods 目录动辄几百 MB，
-     * 在主线程压缩会直接 ANR（界面卡死）。
-     * 但分享（startActivity）必须在主线程，所以压缩完再切回来。
+     * 打包必须在后台线程做：mods 目录动辄几百 MB，
+     * 在主线程压缩会直接 ANR。
      */
-    private fun shareMods() {
-        val ctx = context ?: return
+    fun shareMods() {
         bg {
             val dir = DirResolve.modsDir(ctx)
             if (dir == null) {
                 toast("没有可用的 mods 目录")
                 return@bg
             }
-            val files = dir.listFiles().filter {
-                (it.name ?: "").endsWith(".jar", true)
-            }
+            val files = dir.listFiles().filter { (it.name ?: "").endsWith(".jar", true) }
             if (files.isEmpty()) {
                 toast("mods 目录里没有模组")
                 return@bg
@@ -846,13 +653,13 @@ class ToolsFragment : Fragment() {
             toast("正在打包 ${files.size} 个模组…")
 
             // DocumentFile 不能直接给 ZipOutputStream，先落到本地缓存再打包
-            val tmp = java.io.File(ctx.cacheDir, "share_mods").apply {
+            val tmp = File(ctx.cacheDir, "share_mods").apply {
                 if (exists()) deleteRecursively()
                 mkdirs()
             }
-            val locals = ArrayList<java.io.File>()
+            val locals = ArrayList<File>()
             for (f in files) {
-                val out = java.io.File(tmp, f.name ?: continue)
+                val out = File(tmp, f.name ?: continue)
                 try {
                     ctx.contentResolver.openInputStream(f.uri)?.use { raw ->
                         out.outputStream().use { o ->
@@ -872,107 +679,43 @@ class ToolsFragment : Fragment() {
                 toast("没有可打包的文件（可能读不到）")
                 return@bg
             }
-            handler.post {
-                if (!isAdded) return@post
-                QuickTransfer.shareFiles(ctx, locals, "mods.zip")
-            }
+            Bg.ui.post { QuickTransfer.shareFiles(ctx, locals, "mods.zip") }
         }
     }
 
-    /**
-     * 查看崩溃日志。
-     * 放在后台读：CrashHandler.readAll 会把历次崩溃文件全读一遍，是磁盘 IO。
-     */
-    private fun showCrashLog() {
-        val ctx = context ?: return
+    /** 崩溃日志。放在后台读：readAll 会把历次崩溃文件全读一遍，是磁盘 IO。 */
+    fun showCrashLog() {
         toast("正在读取崩溃日志…")
         bg {
             val txt = CrashHandler.readAll(ctx)
-            handler.post {
-                if (!isAdded) return@post
+            Bg.ui.post {
                 val body = txt.ifBlank { "没有记录到崩溃" }
-                val sv = android.widget.ScrollView(ctx)
-                val tv = TextView(ctx).apply {
-                    text = body
-                    textSize = 12f
-                    setPadding(24, 16, 24, 16)
-                    setTextIsSelectable(true)
-                }
-                sv.addView(tv)
-                MaterialAlertDialogBuilder(ctx)
-                    .setTitle("崩溃日志")
-                    .setView(sv)
-                    .setPositiveButton(R.string.ok, null)
-                    .setNeutralButton("复制") { _, _ ->
-                        val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
-                                as? android.content.ClipboardManager
-                        if (cm == null) {
-                            toast("复制失败：拿不到剪贴板")
-                        } else {
-                            cm.setPrimaryClip(
-                                android.content.ClipData.newPlainText("崩溃日志", body)
-                            )
-                            toast("已复制")
+                dlg = ToolDlg.Action(
+                    "崩溃日志", body,
+                    listOf(
+                        "复制" to {
+                            val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE)
+                                    as? ClipboardManager
+                            if (cm == null) {
+                                toast("复制失败：拿不到剪贴板")
+                            } else {
+                                cm.setPrimaryClip(ClipData.newPlainText("崩溃日志", body))
+                                toast("已复制")
+                            }
+                            dlg = ToolDlg.None
+                        },
+                        "清空" to {
+                            CrashHandler.clear(ctx)
+                            toast("已清空")
+                            dlg = ToolDlg.None
                         }
-                    }
-                    .setNegativeButton("清空") { _, _ ->
-                        CrashHandler.clear(ctx)
-                        toast("已清空")
-                    }
-                    .show()
-            }
-        }
-    }
-
-    private fun toast(s: String) {
-        handler.post { if (isAdded) Tips.short(context, s) }
-    }
-
-    private fun bg(block: () -> Unit) {
-        exec.execute {
-            try {
-                block()
-            } catch (t: Throwable) {
-                toast("出错了：${t.message}")
-            } finally {
-                // 同 MigrationFragment：Progress 是全局单例，
-                // 异常/提前 return 时不复位会永久卡在"运行中"，
-                // 下次开 App 出现幽灵进度条。
-                try { Progress.done() } catch (_: Throwable) {}
-            }
-        }
-    }
-
-    private fun show(title: String, text: String) {
-        handler.post {
-            if (!isAdded) return@post
-            val ctx = requireContext()
-            val sv = android.widget.ScrollView(ctx)
-            val tv = TextView(ctx).apply {
-                this.text = text
-                textSize = 13f
-                setPadding(24, 16, 24, 16)
-                setTextIsSelectable(true)
-            }
-            sv.addView(tv)
-            MaterialAlertDialogBuilder(ctx)
-                .setTitle(title)
-                .setView(sv)
-                .setPositiveButton(R.string.ok, null)
-                .setNeutralButton("复制") { _, _ ->
-                    val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
-                        as? android.content.ClipboardManager
-                    cm?.setPrimaryClip(
-                        android.content.ClipData.newPlainText(title, text)
                     )
-                    toast("已复制")
-                }
-                .show()
+                )
+            }
         }
     }
 
-    private fun doctor() {
-        val ctx = requireContext()
+    fun doctor() {
         val src = Prefs.get(ctx).getString(K.SRC_URI, null)
         if (src.isNullOrBlank()) {
             toast("请先在迁移页选择「迁移前」的版本目录")
@@ -981,12 +724,11 @@ class ToolsFragment : Fragment() {
         toast("体检中…")
         bg {
             val rep = ModTools.doctor(ctx, src)
-            show(rep.title, rep.text)
+            Bg.ui.post { show(rep.title, rep.text) }
         }
     }
 
-    private fun diff() {
-        val ctx = requireContext()
+    fun diff() {
         val p = Prefs.get(ctx)
         val src = p.getString(K.SRC_URI, null)
         val dst = p.getString(K.DST_URI, null)
@@ -997,12 +739,11 @@ class ToolsFragment : Fragment() {
         toast("对比中…")
         bg {
             val rep = ModTools.diffConfig(ctx, src, dst)
-            show(rep.title, rep.text)
+            Bg.ui.post { show(rep.title, rep.text) }
         }
     }
 
-    private fun clearCache() {
-        val ctx = requireContext()
+    fun clearCache() {
         bg {
             var n = 0
             runCatching {
@@ -1023,13 +764,14 @@ class ToolsFragment : Fragment() {
         }
     }
 
-    private fun usage() {
-        val ctx = requireContext()
+    fun usage() {
         bg {
             val sb = StringBuilder()
             val root = WorkDir.root(ctx)
             if (root == null) {
-                show("存储用量", "还没设置工作目录。去「设置 → 存储」选一个目录即可。")
+                Bg.ui.post {
+                    show("存储用量", "还没设置工作目录。去「设置 → 存储」选一个目录即可。")
+                }
                 return@bg
             }
             var total = 0L
@@ -1038,7 +780,7 @@ class ToolsFragment : Fragment() {
                 if (d == null) continue
                 var size = 0L
                 var count = 0
-                fun walk(dir: androidx.documentfile.provider.DocumentFile, depth: Int) {
+                fun walk(dir: DocumentFile, depth: Int) {
                     if (depth > 4) return
                     for (c in Fs.children(dir)) {
                         if (c.isDirectory) walk(c, depth + 1)
@@ -1053,20 +795,316 @@ class ToolsFragment : Fragment() {
                 sb.append("$name：$count 个文件，${fmt(size)}\n")
             }
             sb.append("\n合计：${fmt(total)}")
-            show("存储用量", sb.toString())
+            Bg.ui.post { show("存储用量", sb.toString()) }
         }
     }
 
-    private fun fmt(size: Long): String {
-        if (size < 1024) return "${size}B"
-        if (size < 1024 * 1024) return "${size / 1024}KB"
-        return String.format(java.util.Locale.ROOT, "%.1fMB", size / 1024.0 / 1024.0)
-    }
-    override fun onDestroyView() {
-        super.onDestroyView()
-        // 清理 Handler：页面销毁后若还有未执行的 post，
-        // 回调里访问已销毁的 View 会直接崩。
-        runCatching { handler.removeCallbacksAndMessages(null) }
+    val groups = listOf(
+        "迁移 · 检查" to listOf(
+            ToolItem(R.drawable.ti_circle_check, "模组体检") { doctor() },
+            ToolItem(R.drawable.ti_puzzle, "依赖体检") { depCheck() },
+            ToolItem(R.drawable.ti_copy, "配置对比") { diff() },
+            ToolItem(R.drawable.ti_info_circle, "崩溃日志") { showCrashLog() }
+        ),
+        // 跨加载器已挪到迁移页：它要用到迁移页填好的目标版本与加载器，
+        // 放这里就得让用户再填一遍，两处不一致会出现"换了加载器但版本对不上"
+        "迁移 · 模组处理" to listOf(
+            ToolItem(R.drawable.ti_alert_triangle, "模组开关") { modToggle() },
+            ToolItem(R.drawable.ti_bolt, "代码级迁移") { codeMigrate() }
+        ),
+        "世界与数据" to listOf(
+            ToolItem(R.drawable.ti_folder, "世界存档") { openWorlds() },
+            ToolItem(R.drawable.ti_packages, "区块编辑器") { openMca() },
+            ToolItem(R.drawable.ti_pencil, "NBT 编辑器") { openNbt() },
+            ToolItem(R.drawable.ti_code, "数据包") { openDatapack() }
+        ),
+        "实例与整合包" to listOf(
+            ToolItem(R.drawable.ti_rocket, "补齐实例") { createInstance() },
+            ToolItem(R.drawable.ti_devices, "加载器支持器") {
+                ctx.startActivity(Intent(ctx, LoaderForgeActivity::class.java))
+            },
+            ToolItem(R.drawable.ti_cloud_up, "导出整合包") { exportMrpack() }
+        ),
+        "存储与传输" to listOf(
+            ToolItem(R.drawable.ti_refresh_dot, "存储用量") { usage() },
+            ToolItem(R.drawable.ti_trash, "清理缓存") { clearCache() },
+            ToolItem(R.drawable.ti_building_store, "云盘") { CloudDriveActivity.open(ctx) },
+            ToolItem(R.drawable.ti_external_link, "打包发送") { shareMods() }
+        )
+    )
+
+    LazyColumn(Modifier.fillMaxSize().padding(14.dp)) {
+        item { McNote("工具箱：零散但常用的小工具。长按没有额外操作，点一下即用。") }
+        for ((title, items) in groups) {
+            item { McSectionTitle(title) }
+            item { ToolGrid(items) }
+        }
+        item { Spacer(Modifier.height(16.dp)) }
     }
 
+    // ---------------- 弹窗统一渲染 ----------------
+
+    when (val d = dlg) {
+        is ToolDlg.None -> Unit
+        is ToolDlg.Busy -> AlertDialog(
+            onDismissRequest = { },
+            title = { Text("请稍候") },
+            text = { Text(d.text) },
+            confirmButton = { }
+        )
+        is ToolDlg.Text -> McLongTextDialog(
+            title = d.title,
+            body = d.body,
+            onDismiss = { dlg = ToolDlg.None },
+            action = "复制" to {
+                val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                cm?.setPrimaryClip(ClipData.newPlainText(d.title, d.body))
+                toast("已复制")
+            }
+        )
+        is ToolDlg.Action -> McActionDialog(
+            title = d.title,
+            onDismiss = { dlg = ToolDlg.None },
+            actions = d.actions,
+            content = { McMono(d.body) }
+        )
+        is ToolDlg.Pick -> McPickOne(
+            title = d.title, options = d.items, selected = -1,
+            onPick = { i ->
+                val act = d.onPick
+                dlg = ToolDlg.None
+                act(i)
+            },
+            onDismiss = { dlg = ToolDlg.None }
+        )
+        is ToolDlg.Multi -> McMultiPick(
+            title = d.title,
+            items = d.items,
+            checked = d.checked(),
+            onToggle = d.onToggle,
+            onDismiss = { dlg = ToolDlg.None },
+            confirmText = d.confirmText,
+            onConfirm = { d.onConfirm() }
+        )
+        is ToolDlg.Confirm -> AlertDialog(
+            onDismissRequest = { dlg = ToolDlg.None },
+            title = { Text(d.title) },
+            text = { Text(d.body) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val act = d.onConfirm
+                    dlg = ToolDlg.None
+                    act()
+                }) { Text(d.confirmText) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    val act = d.onDismiss
+                    dlg = ToolDlg.None
+                    act?.invoke()
+                }) { Text(d.dismissText) }
+            }
+        )
+        is ToolDlg.Input -> {
+            var text by remember(d.title) { mutableStateOf("") }
+            AlertDialog(
+                onDismissRequest = { dlg = ToolDlg.None },
+                title = { Text(d.title) },
+                text = {
+                    Column {
+                        Text(d.body, fontSize = 13.sp)
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = text, onValueChange = { text = it },
+                            label = { Text(d.hint) }, singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val act = d.onOk
+                        val v = text
+                        dlg = ToolDlg.None
+                        act(v)
+                    }) { Text("打开") }
+                },
+                dismissButton = { TextButton(onClick = { dlg = ToolDlg.None }) { Text("取消") } }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ToolGrid(list: List<ToolItem>) {
+    Column(Modifier.fillMaxWidth()) {
+        for (row in list.chunked(3)) {
+            Row(Modifier.fillMaxWidth()) {
+                for (it in row) {
+                    Box(Modifier.weight(1f).padding(4.dp)) { ToolTile(it) }
+                }
+                // 最后一行不满时补空位，否则剩下的格子会被 weight 拉宽、跟上面几行对不齐
+                repeat(3 - row.size) { Spacer(Modifier.weight(1f).padding(4.dp)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToolTile(it: ToolItem) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = it.act),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                painterResource(it.icon), null,
+                Modifier.size(26.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                it.label, fontSize = 12.sp, textAlign = TextAlign.Center,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 2.dp)
+            )
+        }
+    }
+}
+
+/**
+ * 在 SAF 树里递归找指定后缀的文件。
+ *
+ * @param exts 后缀集合，如 listOf(".dat", ".nbt")
+ * @param maxDepth 目录层级上限。默认 4 对 .dat 够用，
+ *   但 .mca 藏在 saves/<世界>/region/ 下，需要放宽到 6。
+ */
+private fun collectSafNbt(
+    ctx: Context, uriStr: String, out: ArrayList<Pair<String, Any>>,
+    exts: List<String> = listOf(".dat", ".nbt"), maxDepth: Int = 4
+) {
+    val tree = Fs.tree(ctx, uriStr) ?: return
+    fun walk(d: DocumentFile, depth: Int) {
+        if (out.size >= 40 || depth > maxDepth) return
+        for (c in d.listFiles()) {
+            if (out.size >= 40) return
+            if (c.isDirectory) walk(c, depth + 1)
+            else {
+                val n = c.name ?: continue
+                if (!exts.any { n.endsWith(it) }) continue
+                // 找 .mca 时排除 poi/ 与 entities/：它们不存方块，
+                // 点开只能看到「没有方块数据」
+                val pn = c.parentFile?.name
+                val wantRegion = exts.any { it == ".mca" || it == ".mcr" }
+                if (wantRegion && (pn == "poi" || pn == "entities")) continue
+                out.add(labelOf(n, c) to c.uri)
+            }
+        }
+    }
+    walk(tree, 0)
+}
+
+/**
+ * 只有 `region/` 下的 .mca 才存方块。
+ *
+ * `poi/` 存兴趣点、`entities/` 存实体，两者里面没有 sections，
+ * 打开必然是「没有方块数据」。全都列出来的话，
+ * 随手一点有三分之二是空的 —— 这正是「点进去全提示无数据」的直接来源。
+ */
+private fun isTerrain(f: File): Boolean {
+    val p = f.parentFile?.name
+    return p != "poi" && p != "entities"
+}
+
+/**
+ * 列表里怎么称呼一个文件。
+ *
+ * ⚠️ 之前直接显示文件名：level.dat / r.0.0.mca 在每个世界里都叫这个，
+ * 一排同名摆在一起根本分不清是哪个世界的。
+ * 现在带上所属世界名，形如「新的世界 / level.dat」。
+ */
+private fun labelOf(fileName: String, f: File): String {
+    val p0 = f.parentFile
+    val p0n = p0?.name
+    // region/ / poi/ / entities/ 这层没有信息量，再往上一层才是世界名
+    val wn = if (p0n == "region" || p0n == "poi" || p0n == "entities")
+        p0?.parentFile?.name else p0n
+    return if (wn.isNullOrBlank()) fileName else "$wn / $fileName"
+}
+
+private fun labelOf(fileName: String, d: DocumentFile): String {
+    val parent = d.parentFile?.name
+    val wn = if (parent == "region" || parent == "poi" || parent == "entities")
+        d.parentFile?.parentFile?.name else parent
+    return if (wn.isNullOrBlank()) fileName else "$wn / $fileName"
+}
+
+/** 一个游戏目录（.minecraft）里可能的存档根目录，按可能性排序 */
+private fun savesDirsOf(base: File): List<File> {
+    val out = LinkedHashSet<File>()
+    for (c in listOf(
+        File(base, McDirs.SAVES), base,
+        File(base, ".minecraft/saves")
+    )) {
+        if (c.isDirectory) out.add(c)
+    }
+    // 版本隔离：saves 也可能在 versions/<版本>/ 下
+    File(base, McDirs.VERSIONS).listFiles()?.forEach { v ->
+        val vs = File(v, McDirs.SAVES)
+        if (vs.isDirectory) out.add(vs)
+    }
+    return out.toList()
+}
+
+/**
+ * SAF 世界 → 本地镜像目录。
+ *
+ * 区块地图整块逻辑基于 File，而 content:// 拿不到真实路径，
+ * 所以先把 region 下的 .mca 复制过来，
+ * 并在 [McaWorld.Mirror] 里记下每个文件的原始 Uri，保存时写回。
+ * poi/ 与 entities/ 不复制 —— 它们不存方块，白占空间。
+ */
+private fun mirrorSafWorld(ctx: Context, world: DocumentFile): File? {
+    val name = (world.name ?: "存档").replace(Regex("[^A-Za-z0-9._ -]"), "_")
+    val root = File(ctx.filesDir, "mca-mirror").apply { mkdirs() }
+    // 旧镜像不清会和别的世界混在一起
+    root.listFiles()?.forEach { it.deleteRecursively() }
+    val dir = File(root, name)
+    McaWorld.Mirror.clear()
+    var n = 0
+    fun walk(d: DocumentFile, depth: Int, rel: String) {
+        if (depth > 5) return
+        for (c in d.listFiles()) {
+            val cn = c.name ?: continue
+            if (c.isDirectory) {
+                if (cn == "poi" || cn == "entities") continue
+                walk(c, depth + 1, if (rel.isEmpty()) cn else "$rel/$cn")
+            } else if (cn.endsWith(".mca") || cn.endsWith(".mcr")) {
+                val t = File(dir, if (rel.isEmpty()) cn else "$rel/$cn")
+                t.parentFile?.mkdirs()
+                runCatching {
+                    ctx.contentResolver.openInputStream(c.uri)?.use { src ->
+                        t.outputStream().use { src.copyTo(it) }
+                    }
+                } ?: continue
+                if (!t.isFile || t.length() <= 0) continue
+                McaWorld.Mirror.put(t, c.uri)
+                n++
+            }
+        }
+    }
+    walk(world, 0, "")
+    return if (n > 0) dir else null
+}
+
+private fun fmt(size: Long): String {
+    if (size < 1024) return "${size}B"
+    if (size < 1024 * 1024) return "${size / 1024}KB"
+    return String.format(Locale.ROOT, "%.1fMB", size / 1024.0 / 1024.0)
 }
