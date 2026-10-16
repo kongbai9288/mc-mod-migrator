@@ -1,183 +1,158 @@
 package com.kongbai.modmigrator
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.TextView
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.unit.dp
 import androidx.fragment.app.Fragment
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.util.Locale
 
 /**
  * 设置 → 语言。
  *
  * 两条路：
- *  1. 内置英文（values-en），点一下直接切系统语言。
+ *  1. 内置英文（values-en），点一下直接切。
  *  2. 语言拓展包：工作目录 lang/ 下的 .json，格式 {"字符串名":"译文"}，
  *     优先级高于内置语言，缺的键自动退回默认文案。
+ *
+ * Android 13 起应用内改语言不再生效，必须走系统设置——
+ * 但老版本直接跳走一句提示都没有，用户点了「简体中文」界面纹丝不动，
+ * 只会以为按钮坏了。跳之前会先说明。
  */
 class SettingsLangFragment : Fragment() {
 
-    /**
-     * 复用全局串行池。
-     * 原来是每实例 new 一个、页面销毁也不 shutdown，
-     * 每次进这个设置页就泄漏一条线程。
-     */
-    private val exec = Bg.serial
-    private val handler = Bg.ui
-
     override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
+        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         val ctx = requireContext()
-        val scroll = ScrollView(ctx)
-        val box = LinearLayout(ctx)
-        box.orientation = LinearLayout.VERTICAL
-        val pad = (16 * resources.displayMetrics.density).toInt()
-        box.setPadding(pad, pad, pad, pad)
-        scroll.addView(box)
-
-        val tv = TextView(ctx)
-        tv.textSize = 13f
-        box.addView(tv)
-        refresh(tv)
-
-        box.addView(button(getString(R.string.lang_system)) {
-            setLocale("")
-        })
-        box.addView(button("English") {
-            setLocale("en")
-        })
-        box.addView(button("简体中文") {
-            setLocale("zh")
-        })
-
-        val hint = TextView(ctx)
-        hint.text = getString(R.string.lang_pack_hint)
-        hint.textSize = 12f
-        hint.setPadding(0, 20, 0, 8)
-        box.addView(hint)
-
-        box.addView(button(getString(R.string.lang_pack_scan)) {
-            // ⚠️ `LangPack.load` 是通过 SAF 遍历 lang/ 目录、逐个读 JSON —— 磁盘 IO，
-            // 之前在**主线程**跑，语言包多了点一下就卡住。
-            Tips.short(ctx, "正在扫描…")
-            exec.execute {
-                val n = LangPack.load(ctx)
-                handler.post {
-                    if (!isAdded) return@post
-                    if (n <= 0) {
-                        MaterialAlertDialogBuilder(ctx)
-                            .setMessage(R.string.lang_pack_none)
-                            .setPositiveButton(R.string.ok, null)
-                            .show()
-                    } else {
-                        MaterialAlertDialogBuilder(ctx)
-                            .setMessage(
-                                getString(R.string.lang_pack_found, n.toString(), LangPack.loadedName)
-                            )
-                            .setPositiveButton(R.string.ok) { _, _ ->
-                                activity?.recreateSafely()
-                            }
-                            .show()
-                    }
-                    refresh(tv)
-                }
-            }
-        })
-
-        box.addView(button("导出语言包模板") {
-            // ⚠️ `LangPack.writeTemplate` 是 SAF 写文件（IO），之前在主线程跑。
-            // 顺带：`val dir = WorkDir.uri(ctx)` 声明了**根本没用到**。
-            exec.execute {
-                val ok = runCatching { LangPack.writeTemplate(ctx) }.getOrDefault(false)
-                handler.post {
-                    if (!isAdded) return@post
-                    MaterialAlertDialogBuilder(ctx)
-                        .setMessage(
-                            if (ok) "已生成 lang/template.json，改完重命名即可生效。需要重新点「扫描语言拓展包」加载。"
-                            else "生成失败：工作目录不可用，请先设置工作目录。"
-                        )
-                        .setPositiveButton(R.string.ok, null)
-                        .show()
-                }
-            }
-        })
-
-        box.addView(button("打开工作目录 lang 文件夹") {
-            try {
-                val u = WorkDir.uri(ctx)
-                if (u.isNotBlank()) {
-                    WebActivity.open(requireContext(), u, "")
-                }
-            } catch (t: Throwable) { Err.ignore(t, "WebActivity.open(requireContext(), u, \"\")") }
-        })
-        return scroll
-    }
-
-    private fun button(text: String, onClick: () -> Unit): Button {
-        val ctx = requireContext()
-        val b = com.google.android.material.button.MaterialButton(ctx)
-        b.text = text
-        b.safeClickUnit { onClick() }
-        return b
-    }
-
-    private fun refresh(tv: TextView) {
-        val ctx = requireContext()
-        val code = Prefs.get(ctx).getString(K.LANG_CODE, "") ?: ""
-        val sb = StringBuilder()
-        sb.append("当前：").append(
-            when {
-                code == "en" -> "English"
-                code == "zh" -> "简体中文"
-                else -> getString(R.string.lang_system) + "（${Locale.getDefault().displayLanguage}）"
-            }
-        )
-        if (LangPack.loadedName.isNotBlank()) {
-            sb.append('\n').append("已加载拓展包：").append(LangPack.loadedName)
+        return ComposeView(ctx).apply {
+            setViewCompositionStrategy(
+                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
+            )
+            setContent { McTheme(ctx) { LangScreen(ctx) } }
         }
-        tv.text = sb.toString()
+    }
+}
+
+@Composable
+private fun LangScreen(ctx: android.content.Context) {
+    var gen by remember { mutableIntStateOf(0) }
+    var dialog by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+
+    fun current(): String {
+        val code = Prefs.get(ctx).getString(K.LANG_CODE, "") ?: ""
+        return "当前：" + when (code) {
+            "en" -> "English"
+            "zh" -> "简体中文"
+            else -> ctx.getString(R.string.lang_system) + "（${Locale.getDefault().displayLanguage}）"
+        } + if (LangPack.loadedName.isNotBlank()) "\n已加载拓展包：${LangPack.loadedName}" else ""
     }
 
-    private fun setLocale(code: String) {
-        val ctx = requireContext()
+    fun setLocale(code: String) {
         Prefs.get(ctx).edit().putString(K.LANG_CODE, code).apply()
-        try {
+        runCatching {
             if (Build.VERSION.SDK_INT >= 33) {
-                // ⚠️ Android 13+ 起应用内改 Locale 不再生效，必须走系统设置。
-                // 但之前**直接跳走、一句提示都没有** —— 用户点「简体中文」，
-                // 界面纹丝不动地跳到了一个系统页面，完全不知道要做什么，
-                // 只会以为这个按钮坏了。
                 Tips.long(ctx, "Android 13 起应用不能自己改语言，请在打开的页面里把系统语言设为需要的语言。")
-                startActivity(Intent(android.provider.Settings.ACTION_LOCALE_SETTINGS))
+                ctx.startActivity(Intent(Settings.ACTION_LOCALE_SETTINGS))
             } else {
                 val l = if (code.isBlank()) Locale.getDefault() else Locale(code)
                 Locale.setDefault(l)
-                val cfg = resources.configuration
-                // ⚠️ 之前只用 `cfg.setLocale(l)`：Android 7.0（API 24）起
-                // 资源解析走的是 **LocaleList**，单改 setLocale 只影响第一个条目，
-                // 在部分机型/部分资源上切不干净（表现为"切了英文但还有中文"）。
-                // API 24+ 必须设 LocaleList。
-                if (Build.VERSION.SDK_INT >= 24) {
-                    cfg.setLocales(android.os.LocaleList(l))
-                } else {
-                    @Suppress("DEPRECATION")
-                    cfg.setLocale(l)
-                }
+                val cfg = ctx.resources.configuration
+                // Android 7.0 起资源解析走 LocaleList，单改 setLocale 只影响第一个条目，
+                // 部分机型会"切了英文但还有中文"。
+                if (Build.VERSION.SDK_INT >= 24) cfg.setLocales(android.os.LocaleList(l))
+                else @Suppress("DEPRECATION") cfg.setLocale(l)
                 @Suppress("DEPRECATION")
-                resources.updateConfiguration(cfg, resources.displayMetrics)
-                activity?.recreateSafely()
+                ctx.resources.updateConfiguration(cfg, ctx.resources.displayMetrics)
+                (ctx as? android.app.Activity)?.recreateSafely()
             }
-        } catch (t: Throwable) { Err.ignore(t, "切换语言") }
+        }
+    }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        McNote(remember(gen) { current() })
+
+        McChipRow(
+            listOf(ctx.getString(R.string.lang_system), "English", "简体中文"),
+            remember(gen) {
+                when (Prefs.get(ctx).getString(K.LANG_CODE, "") ?: "") {
+                    "en" -> 1
+                    "zh" -> 2
+                    else -> 0
+                }
+            },
+            { setLocale(listOf("", "en", "zh")[it]) }
+        )
+
+        McSectionTitle("语言拓展包")
+        McNote(ctx.getString(R.string.lang_pack_hint))
+
+        McButtonRow(
+            ctx.getString(R.string.lang_pack_scan),
+            {
+                if (busy) return@McButtonRow
+                busy = true
+                Tips.short(ctx, "正在扫描…")
+                // LangPack.load 走 SAF 遍历 lang/ 并逐个读 JSON —— 磁盘 IO
+                Bg.serial.execute {
+                    val n = LangPack.load(ctx)
+                    Bg.ui.post {
+                        busy = false
+                        gen++
+                        dialog = if (n <= 0) ctx.getString(R.string.lang_pack_none)
+                        else ctx.getString(R.string.lang_pack_found, n.toString(), LangPack.loadedName)
+                    }
+                }
+            },
+            "导出语言包模板",
+            {
+                if (busy) return@McButtonRow
+                busy = true
+                Bg.serial.execute {
+                    val ok = runCatching { LangPack.writeTemplate(ctx) }.getOrDefault(false)
+                    Bg.ui.post {
+                        busy = false
+                        dialog = if (ok) "已生成 lang/template.json，改完重命名即可生效。需要重新点「扫描语言拓展包」加载。"
+                        else "生成失败：工作目录不可用，请先设置工作目录。"
+                    }
+                }
+            }
+        )
+
+        McFilledButton("打开工作目录 lang 文件夹", !busy) {
+            val u = WorkDir.uri(ctx)
+            if (u.isNotBlank()) runCatching { WebActivity.open(ctx, u, "") }
+        }
+    }
+
+    dialog?.let { msg ->
+        McConfirm("语言拓展包", msg, ctx.getString(R.string.ok), {
+            dialog = null
+            (ctx as? android.app.Activity)?.recreateSafely()
+        }, { dialog = null })
     }
 }
