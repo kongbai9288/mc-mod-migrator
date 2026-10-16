@@ -2,161 +2,477 @@ package com.kongbai.modmigrator
 
 import android.os.Bundle
 import android.os.Handler
-import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.EditText
-import android.widget.Spinner
-import android.widget.TextView
-import android.widget.Toast
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.fragment.app.Fragment
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import java.util.concurrent.Executors
 
+/**
+ * 服务器页：连上面板或 FTP/SFTP，列出服务器里的 jar，逐个查更新。
+ *
+ * 页面分三块：连接（没连上时展开、连上后自动收起）、匹配条件、
+ * 文件列表。连上之前下面两步做不了，所以连接区默认展开。
+ */
 class ServerFragment : Fragment() {
 
     companion object {
-        /** 与 fragment_server.xml 里 tvServer 的初始值一致，用来判断连没连 */
         private const val NOT_CONNECTED = "未选择服务器"
+        private const val REQ_OUT_DIR = 91
     }
 
-    private lateinit var etBase: EditText
+    // ── 连接参数 ──────────────────────────────────────────────
+    /** 0 = 面板 API，1/2/3 = FTP / FTPS / SFTP */
+    private var connKind by mutableStateOf(0)
+    private var base by mutableStateOf("")
+    private var key by mutableStateOf("")
+    private var dir by mutableStateOf("/mods")
+    private var host by mutableStateOf("")
+    private var port by mutableStateOf("")
+    private var user by mutableStateOf("")
+    private var pass by mutableStateOf("")
 
-    private lateinit var etKey: EditText
+    // ── 匹配条件 ──────────────────────────────────────────────
+    private var version by mutableStateOf("")
+    private var loaderIdx by mutableStateOf(0)
+    private var sideIdx by mutableStateOf(0)
+    private var srcModrinth by mutableStateOf(true)
+    private var srcCf by mutableStateOf(true)
+    private var srcBackend by mutableStateOf(true)
 
-    private val cred = ServerPanelApi.Cred()
-    private lateinit var etDir: EditText
-    private lateinit var boxPanel: android.widget.LinearLayout
-    private lateinit var tvConnMode: android.widget.TextView
-    private lateinit var etVersion: EditText
-    private lateinit var spLoader: Spinner
-    private lateinit var spSide: Spinner
-    private lateinit var tvServer: TextView
-    private lateinit var tvLog: TextView
-    private lateinit var rv: RecyclerView
-    private var boxConn: View? = null
-    private var tvConnSummary: TextView? = null
-    private var ivConnArrow: android.widget.ImageView? = null
-    private var connExpanded: Boolean = true
-    private lateinit var cbSrcModrinth: android.widget.CheckBox
-    private lateinit var cbSrcCurseforge: android.widget.CheckBox
-    private lateinit var cbSrcBackend: android.widget.CheckBox
+    // ── 运行状态 ──────────────────────────────────────────────
+    private var connExpanded by mutableStateOf(true)
+    private var serverLabel by mutableStateOf(NOT_CONNECTED)
+    private val files = mutableStateListOf<PanelFile>()
+    private var filesRev by mutableStateOf(0)
+    private var logText by mutableStateOf("")
+    private var busy by mutableStateOf(false)
+    private var outLabel by mutableStateOf("")
+    private var logOpen by mutableStateOf(false)
 
-    private val servers = mutableListOf<PanelServer>()
-    private val files = mutableListOf<PanelFile>()
-    private lateinit var adapter: UpdateAdapter
     private var chosen: PanelServer? = null
-
-    private lateinit var spRemoteKind: Spinner
-    private lateinit var boxRemote: View
-    private lateinit var etRemoteHost: android.widget.EditText
-    private lateinit var etRemotePort: android.widget.EditText
-    private lateinit var etRemoteUser: android.widget.EditText
-    private lateinit var etRemotePass: android.widget.EditText
+    private val servers = mutableListOf<PanelServer>()
     /** FTP/SFTP 模式下"已选中的目录"，充当面板模式里的服务器 */
     private var remoteDir: String? = null
 
     private val exec = Bg.io
-    private val handler = Bg.ui
+    private val handler: Handler = Bg.ui
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        val v = inflater.inflate(R.layout.fragment_server, container, false)
-        // 说明文字默认收起，点标题右边的「?」才展开
-        Hints.bind(v)
-        // 下面恢复 FTP/SFTP 表单时要读它，必须先取到
-        val p = Prefs.get(requireContext())
-        etBase = v.findViewById(R.id.etPanelBase)
-        etKey = v.findViewById(R.id.etPanelKey)
-        etDir = v.findViewById(R.id.etPanelDir)
-        boxPanel = v.findViewById(R.id.boxPanel)
-        tvConnMode = v.findViewById(R.id.tvConnMode)
-        etVersion = v.findViewById(R.id.etVersion)
-        spLoader = v.findViewById(R.id.spLoader)
-        LoaderSpinner.attachByPref(spLoader)
-        spSide = v.findViewById(R.id.spSide)
-        tvServer = v.findViewById(R.id.tvServer)
-        tvLog = v.findViewById(R.id.tvLog)
-        boxConn = v.findViewById(R.id.boxConn)
-        tvConnSummary = v.findViewById(R.id.tvConnSummary)
-        ivConnArrow = v.findViewById(R.id.ivConnArrow)
-        v.findViewById<View>(R.id.rowConnHeader).safeClick {
-            connExpanded = !connExpanded
-            applyConnExpand()
-        }
-        rv = v.findViewById(R.id.rvUpdates)
-        // 没连上就展开（连不上后面一步都做不了），连上了收起，整屏给列表
-        connExpanded = tvServer.text.toString() == NOT_CONNECTED
-        applyConnExpand()
-        cbSrcModrinth = v.findViewById(R.id.cbSrcModrinth)
-        cbSrcCurseforge = v.findViewById(R.id.cbSrcCurseforge)
-        cbSrcBackend = v.findViewById(R.id.cbSrcBackend)
-        val saved = ServerUpdate.sources(requireContext())
-        cbSrcModrinth.isChecked = saved.contains(ServerUpdate.MODRINTH)
-        cbSrcCurseforge.isChecked = saved.contains(ServerUpdate.CURSEFORGE)
-        cbSrcBackend.isChecked = saved.contains(ServerUpdate.BACKEND)
-        val onSrc = android.widget.CompoundButton.OnCheckedChangeListener { _, _ -> saveSources() }
-        cbSrcModrinth.setOnCheckedChangeListener(onSrc)
-        cbSrcCurseforge.setOnCheckedChangeListener(onSrc)
-        cbSrcBackend.setOnCheckedChangeListener(onSrc)
-        spRemoteKind = v.findViewById(R.id.spRemoteKind)
-        boxRemote = v.findViewById(R.id.boxRemote)
-        etRemoteHost = v.findViewById(R.id.etRemoteHost)
-        etRemotePort = v.findViewById(R.id.etRemotePort)
-        etRemoteUser = v.findViewById(R.id.etRemoteUser)
-        etRemotePass = v.findViewById(R.id.etRemotePass)
-        // 0 = 面板 API，1/2/3 = FTP / FTPS / SFTP
-        spRemoteKind.setSelection(p.getInt(K.REMOTE_KIND, 0).coerceIn(0, 3), false)
-        etRemoteHost.setText(p.getString(K.REMOTE_HOST, "") ?: "")
-        etRemotePort.setText(p.getString(K.REMOTE_PORT, "") ?: "")
-        etRemoteUser.setText(p.getString(K.REMOTE_USER, "") ?: "")
-        etRemotePass.setText(p.getString(K.REMOTE_PASS, "") ?: "")
-        spRemoteKind.onItemSelectedListener =
-            object : android.widget.AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(
-                    a: android.widget.AdapterView<*>?, b: View?, pos: Int, id: Long
-                ) {
-                    syncRemoteFields()
-                    saveRemote()
-                }
-                override fun onNothingSelected(a: android.widget.AdapterView<*>?) {}
-            }
-        syncRemoteFields()
+    private var dlg by mutableStateOf<Dlg?>(null)
+    private var manualQuery by mutableStateOf("")
 
-        adapter = UpdateAdapter(files) { f -> downloadOne(f) }
-        rv.layoutManager = LinearLayoutManager(requireContext())
-        rv.adapter = adapter
-
-        etBase.setText(p.getString(K.PANEL_BASE, "") ?: "")
-        etKey.setText(p.getString(K.PANEL_KEY, "") ?: "")
-        etDir.setText(p.getString(K.PANEL_DIR, "/mods") ?: "/mods")
-        etVersion.setText(p.getString(K.DEF_VERSION, "") ?: "")
-
-        v.findViewById<Button>(R.id.btnConnect).safeClickUnit { connect() }
-        v.findViewById<Button>(R.id.btnScanFiles).safeClickUnit { scanFiles() }
-        v.findViewById<Button>(R.id.btnProbeDir)?.safeClickUnit { probeDirs() }
-        v.findViewById<Button>(R.id.btnCheckUpdates).safeClickUnit { checkUpdates() }
-        v.findViewById<Button>(R.id.btnDownloadAll).safeClickUnit { downloadAll() }
-        // 目录浏览器：连上之后逐级进入目录，边逛边看这个目录里有哪些 jar
-        v.findViewById<Button>(R.id.btnBrowseDir)?.safeClick {
-            browseDir(etDir.text.toString().trim().ifBlank { "/" })
-        }
-        // 选择"更新下来的文件放哪"（不上传回服务器）
-        v.findViewById<Button>(R.id.btnPickOutDir)?.safeClickUnit { pickOutDir() }
-        refreshOutDirLabel()
-        return v
+    private sealed class Dlg {
+        class Info(val title: String, val msg: String) : Dlg()
+        class KeyHint(val hint: String) : Dlg()
+        /** 可滚动的列表选择：目录浏览、服务器挑选都用它 */
+        class Pick(
+            val title: String, val sub: String,
+            val items: List<Pair<String, () -> Unit>>,
+            val confirm: Pair<String, () -> Unit>? = null
+        ) : Dlg()
+        class Manual(val f: PanelFile) : Dlg()
+        class Candidates(val f: PanelFile, val list: List<MarketMod>) : Dlg()
+        class OutDirPick : Dlg()
     }
 
-    // ---------------- 输出目录（不上传，只落地到本地） ----------------
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
+    ): View {
+        val ctx = requireContext()
+        loadPrefs(ctx)
+        return ComposeView(ctx).apply {
+            setViewCompositionStrategy(
+                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
+            )
+            setContent { McTheme(ctx) { ServerScreen() } }
+        }
+    }
 
-    /** 更新结果存放目录。空=用默认（迁移后目录/工作目录） */
+    private fun loadPrefs(ctx: android.content.Context) {
+        val p = Prefs.get(ctx)
+        connKind = p.getInt(K.REMOTE_KIND, 0).coerceIn(0, 3)
+        host = p.getString(K.REMOTE_HOST, "") ?: ""
+        port = p.getString(K.REMOTE_PORT, "") ?: ""
+        user = p.getString(K.REMOTE_USER, "") ?: ""
+        pass = p.getString(K.REMOTE_PASS, "") ?: ""
+        base = p.getString(K.PANEL_BASE, "") ?: ""
+        key = p.getString(K.PANEL_KEY, "") ?: ""
+        dir = p.getString(K.PANEL_DIR, "/mods") ?: "/mods"
+        version = p.getString(K.DEF_VERSION, "") ?: ""
+        val saved = ServerUpdate.sources(ctx)
+        srcModrinth = saved.contains(ServerUpdate.MODRINTH)
+        srcCf = saved.contains(ServerUpdate.CURSEFORGE)
+        srcBackend = saved.contains(ServerUpdate.BACKEND)
+        connExpanded = true
+        refreshOutDirLabel()
+    }
+
+    // ── 界面 ─────────────────────────────────────────────────
+
+    @Composable
+    private fun ServerScreen() {
+        // 读一次计数：后台改完文件属性后靠它触发重组
+        val rev = filesRev
+        val ctx = requireContext()
+        val loaders = Loaders.visible(
+            Prefs.get(ctx).getBoolean(K.SHOW_EXTRA_LOADERS, false)
+        )
+        val loaderNames = loaders.map { Loaders.label(it) }
+
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(12.dp)
+        ) {
+            // ── 连接区 ────────────────────────────────────
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(Modifier.padding(12.dp)) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            if (connExpanded) "连接" else serverLabel,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = { connExpanded = !connExpanded }) {
+                            Text(if (connExpanded) "收起" else "展开")
+                        }
+                    }
+                    if (connExpanded) {
+                        McChipRow(
+                            listOf("面板 API", "FTP", "FTPS", "SFTP"), connKind
+                        ) { connKind = it; saveRemote() }
+                        McNote(
+                            if (connKind == 0) {
+                                "用面板的 Client API Key 连接（不是登录密码）。没有面板 Key 就改选上面的 FTP/SFTP。"
+                            } else {
+                                "用服务器的 FTP / SSH 账号密码直连，可以浏览并读取 mods、plugins 目录。"
+                            }
+                        )
+                        if (connKind == 0) {
+                            McField(base, { base = it }, "面板地址，如 https://panel.example.com")
+                            McField(key, { key = it }, "Client API Key")
+                        } else {
+                            McField(host, { host = it }, "主机地址")
+                            McField(port, { port = it }, "端口（FTP 21 / SFTP 22）")
+                            McField(user, { user = it }, "用户名")
+                            McField(pass, { pass = it }, "密码")
+                        }
+                        McField(
+                            dir, { dir = it },
+                            if (connKind == 0) "服务器内目录，如 /mods 或 /plugins" else "远程目录，如 /mods"
+                        )
+                    }
+                }
+            }
+
+            // ── 匹配条件 ──────────────────────────────────
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(Modifier.padding(12.dp)) {
+                    Text("匹配条件", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    McField(version, { version = it }, "服务器 MC 版本，如 1.20.1")
+                    McSpinner(loaderNames, loaderIdx, { loaderIdx = it }, "加载器")
+                    McChipRow(listOf("服务端", "客户端"), sideIdx) { sideIdx = it }
+                    McNote(
+                        if (sideIdx == 0) {
+                            "按服务端匹配：只取标了服务端可用的文件。"
+                        } else {
+                            "按客户端匹配：只取客户端可用的文件。"
+                        }
+                    )
+                    Text("更新来源", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    McSwitchRow(srcModrinth, {
+                        srcModrinth = it
+                        saveSources()
+                    }, "Modrinth")
+                    McSwitchRow(srcCf, { srcCf = it; saveSources() }, "CurseForge", "插件是独立分类，和模组不在一个池子里")
+                    McSwitchRow(srcBackend, { srcBackend = it; saveSources() }, "后端搜索")
+                }
+            }
+
+            // ── 操作 ──────────────────────────────────────
+            McButtonRow(
+                if (connKind == 0) "连接面板" else "连接", { connect() },
+                "找模组目录", { probeDirs() }
+            )
+            McButtonRow(
+                "浏览目录", { browseDir(dir.trim().ifBlank { "/" }) },
+                "扫描文件", { scanFiles() }
+            )
+            McFilledButton("检测更新", enabled = !busy && files.isNotEmpty()) { checkUpdates() }
+            McButtonRow(
+                "下载全部可更新", { downloadAll() },
+                "清空列表", { files.clear(); bump() }
+            )
+            McPickRow("更新存放位置", outLabel.ifBlank { "默认（迁移后目录）" }) { pickOutDir() }
+            McNote("下载只落到本机目录，不会上传回服务器。")
+
+            if (busy) Text("正在处理…", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+
+            // ── 文件列表 ──────────────────────────────────
+            if (files.isEmpty()) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("还没有文件", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text(
+                        "连上服务器后点「扫描文件」，列出的 jar 会显示在这里，再点「检测更新」逐个查版本。",
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
+                }
+            } else {
+                McSectionTitle("服务器文件 ${files.size} 个")
+                key(rev) {
+                    for (f in files.toList()) {
+                        FileCard(f)
+                    }
+                }
+            }
+
+            // ── 日志 ──────────────────────────────────────
+            McExpand("日志", logOpen, { logOpen = !logOpen }) {
+                McMono(logText.ifBlank { "（暂无）" })
+            }
+        }
+
+        when (val d = dlg) {
+            null -> Unit
+            is Dlg.Info -> McLongTextDialog(
+                title = d.title, body = d.msg, onDismiss = { dlg = null }
+            )
+            is Dlg.KeyHint -> McConfirm(
+                title = "API Key 可能不对",
+                body = d.hint,
+                confirmText = "仍然连接",
+                onConfirm = { dlg = null; doConnect(cred()) },
+                onDismiss = { dlg = null }
+            )
+            is Dlg.Pick -> ScrollPickDialog(d)
+            is Dlg.Manual -> ManualDialog(d.f)
+            is Dlg.Candidates -> CandidatesDialog(d.f, d.list)
+            is Dlg.OutDirPick -> OutDirDialog()
+        }
+    }
+
+    @Composable
+    private fun FileCard(f: PanelFile) {
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(Modifier.padding(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        f.name,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(onClick = { downloadOne(f) }) {
+                        Text(if (f.latestUrl.isBlank()) "无更新" else "下载")
+                    }
+                }
+                Text(
+                    "${f.kind} · ${f.size / 1024}KB · ${f.path}",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    f.status,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
+
+    /** 目录浏览、服务器挑选：条目数量不定，正文要能滚 */
+    @Composable
+    private fun ScrollPickDialog(d: Dlg.Pick) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { dlg = null },
+            title = { Text(d.title) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    if (d.sub.isNotBlank()) {
+                        Text(d.sub, fontSize = 12.sp)
+                    }
+                    d.items.forEach { (label, act) ->
+                        TextButton(onClick = act) {
+                            Text(
+                                label,
+                                fontSize = 13.sp,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                val cf = d.confirm
+                if (cf != null) {
+                    TextButton(onClick = cf.second) { Text(cf.first) }
+                }
+            },
+            dismissButton = { TextButton(onClick = { dlg = null }) { Text("取消") } }
+        )
+    }
+
+    @Composable
+    private fun ManualDialog(f: PanelFile) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { dlg = null },
+            title = { Text("手动搜索：${f.name}") },
+            text = {
+                Column {
+                    McNote("自动匹配认不出来时，自己填关键词搜。")
+                    OutlinedTextField(
+                        value = manualQuery,
+                        onValueChange = { manualQuery = it },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("模组名", fontSize = 13.sp) }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val q = manualQuery.trim()
+                    if (q.isBlank()) return@TextButton
+                    dlg = null
+                    manualSearch(f, q)
+                }) { Text("搜索") }
+            },
+            dismissButton = { TextButton(onClick = { dlg = null }) { Text("取消") } }
+        )
+    }
+
+    @Composable
+    private fun CandidatesDialog(f: PanelFile, list: List<MarketMod>) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { dlg = null },
+            title = { Text("选一个：${f.name}") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    list.forEach { mod ->
+                        TextButton(onClick = {
+                            val mc = version.trim()
+                            val loader = currentLoader()
+                            dlg = null
+                            bg {
+                                val h = ServerUpdate.resolve(
+                                    requireContext(), mod, mc, loader, currentSide()
+                                )
+                                safePost(handler) {
+                                    if (h == null) {
+                                        toast("这个项目没有可用于 MC $mc 的文件")
+                                    } else {
+                                        applyHit(f, h, currentSide())
+                                        bump()
+                                        toast("已指定：${h.version}")
+                                    }
+                                }
+                            }
+                        }) {
+                            Text(
+                                "${mod.name}（${ServerUpdate.label(mod.source)}）",
+                                fontSize = 13.sp,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { dlg = null }) { Text("关闭") } }
+        )
+    }
+
+    @Composable
+    private fun OutDirDialog() {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { dlg = null },
+            title = { Text("更新下来的文件放哪") },
+            text = {
+                Column {
+                    McNote("服务器模组的更新只会下载到本机指定目录，不会上传回服务器。")
+                    TextButton(onClick = {
+                        Prefs.get(requireContext()).edit()
+                            .putString(K.PANEL_OUT_DIR, "").apply()
+                        dlg = null
+                        refreshOutDirLabel()
+                    }) { Text("用默认目录（迁移后 / 工作目录）", fontSize = 13.sp) }
+                    TextButton(onClick = {
+                        dlg = null
+                        val i = android.content.Intent(
+                            android.content.Intent.ACTION_OPEN_DOCUMENT_TREE
+                        )
+                        startActivityForResult(i, REQ_OUT_DIR)
+                    }) { Text("自己选一个目录…", fontSize = 13.sp) }
+                    TextButton(onClick = {
+                        Prefs.get(requireContext()).edit()
+                            .putString(K.PANEL_OUT_DIR, "").apply()
+                        dlg = null
+                        refreshOutDirLabel()
+                        toast("已回到默认目录")
+                    }) { Text("清除选择，回到默认", fontSize = 13.sp) }
+                }
+            },
+            confirmButton = { TextButton(onClick = { dlg = null }) { Text("关闭") } }
+        )
+    }
+
+    // ── 输出目录（不上传，只落地到本地） ──────────────────────
+
     private fun outDir(): androidx.documentfile.provider.DocumentFile? {
         val ctx = context ?: return null
         val saved = Prefs.get(ctx).getString(K.PANEL_OUT_DIR, "") ?: ""
@@ -170,51 +486,21 @@ class ServerFragment : Fragment() {
     private fun refreshOutDirLabel() {
         val ctx = context ?: return
         val saved = Prefs.get(ctx).getString(K.PANEL_OUT_DIR, "") ?: ""
-        val btn = view?.findViewById<Button>(R.id.btnPickOutDir) ?: return
-        btn.text = if (saved.isBlank()) {
-            "存放位置：默认（迁移后目录）"
+        outLabel = if (saved.isBlank()) {
+            "默认（迁移后目录）"
         } else {
             val d = runCatching { Fs.tree(ctx, saved) }.getOrNull()
-            "存放位置：${d?.name ?: "（已失效，点此重选）"}"
+            d?.name ?: "（已失效，点此重选）"
         }
     }
 
-    /**
-     * 让用户自己挑一个目录放更新下来的模组。
-     * 明确说明：文件只落地到本地，**不会**上传回服务器。
-     */
     private fun pickOutDir() {
-        val ctx = context ?: return
-        val opts = arrayOf("用默认目录（迁移后 / 工作目录）", "自己选一个目录…", "清除选择，回到默认")
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("更新下来的文件放哪")
-            .setMessage("服务器模组的更新只会下载到本机指定目录，不会上传回服务器。")
-            .setItems(opts) { _, w ->
-                when (w) {
-                    0 -> {
-                        Prefs.get(ctx).edit().putString(K.PANEL_OUT_DIR, "").apply()
-                        refreshOutDirLabel()
-                    }
-                    1 -> {
-                        val i = android.content.Intent(
-                            android.content.Intent.ACTION_OPEN_DOCUMENT_TREE
-                        )
-                        startActivityForResult(i, 91)
-                    }
-                    2 -> {
-                        Prefs.get(ctx).edit().putString(K.PANEL_OUT_DIR, "").apply()
-                        refreshOutDirLabel()
-                        toast("已回到默认目录")
-                    }
-                }
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+        dlg = Dlg.OutDirPick()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != 91 || resultCode != android.app.Activity.RESULT_OK) return
+        if (requestCode != REQ_OUT_DIR || resultCode != android.app.Activity.RESULT_OK) return
         val uri = data?.data ?: return
         val ctx = context ?: return
         try {
@@ -224,14 +510,14 @@ class ServerFragment : Fragment() {
                     android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             )
         } catch (t: Throwable) {
-            Err.ignore(t, "恢复上次保存的面板凭据")
+            Err.ignore(t, "保存输出目录授权")
         }
         Prefs.get(ctx).edit().putString(K.PANEL_OUT_DIR, uri.toString()).apply()
         refreshOutDirLabel()
         toast("已设置存放位置")
     }
 
-    // ---------------- 目录浏览器 ----------------
+    // ── 目录浏览 ─────────────────────────────────────────────
 
     private fun browseDir(path: String) {
         val srv = chosen
@@ -240,7 +526,6 @@ class ServerFragment : Fragment() {
             return
         }
         val c = cred()
-        val ctx = requireContext()
         toast("正在读取 $path …")
         bg {
             val token = try {
@@ -260,7 +545,6 @@ class ServerFragment : Fragment() {
                 log("读取失败：${t.message}")
                 emptyList<Pair<String, Boolean>>()
             }
-
             if (entries.isEmpty()) {
                 safePost(handler) {
                     toast("这个目录是空的，或读不出来（面板可能限制了访问）")
@@ -273,80 +557,51 @@ class ServerFragment : Fragment() {
             val jars = entries.filter { !it.second && it.first.endsWith(".jar", true) }
                 .map { it.first }.sorted()
             val others = entries.filter { !it.second && !it.first.endsWith(".jar", true) }
-                .map { it.first }
 
             safePost(handler) {
-                // safePost 内部已检查 isAdded，这里只用 safePost 的标签返回
-                val labels = ArrayList<String>()
-                val actions = ArrayList<() -> Unit>()
-
-                // 上一层
+                val items = ArrayList<Pair<String, () -> Unit>>()
                 if (path != "/" && path.isNotBlank()) {
-                    labels.add("↑ 上一级")
-                    actions.add {
-                        val parent = path.trimEnd('/').substringBeforeLast('/').ifBlank { "/" }
-                        browseDir(parent)
-                    }
+                    val parent = path.trimEnd('/').substringBeforeLast('/').ifBlank { "/" }
+                    items.add("↑ 上一级" to { browseDir(parent) })
                 }
                 for (d in dirs) {
-                    labels.add("📁 $d")
-                    actions.add { browseDir(path.trimEnd('/') + "/" + d) }
+                    items.add("📁 $d" to { browseDir(path.trimEnd('/') + "/" + d) })
                 }
                 for (j in jars) {
-                    labels.add("📦 $j")
-                    actions.add { /* 点 jar 不做事，用下面的按钮确认目录 */ }
+                    items.add("📦 $j" to { })
                 }
-
-                val sb = StringBuilder()
-                sb.append("当前：").append(path).append('\n')
-                sb.append("子目录 ").append(dirs.size).append(" 个 · jar ").append(jars.size)
-                    .append(" 个")
-                if (others.isNotEmpty()) sb.append(" · 其它 ").append(others.size).append(" 个")
-
-                MaterialAlertDialogBuilder(ctx)
-                    .setTitle("浏览服务器目录")
-                    .setMessage(sb.toString())
-                    .setItems(labels.toTypedArray()) { _, w -> actions[w].invoke() }
-                    .setPositiveButton("就用这个目录") { _, _ ->
-                        etDir.setText(path)
-                        Prefs.get(ctx).edit().putString(K.PANEL_DIR, path).apply()
+                val sub = buildString {
+                    append("当前：").append(path).append('\n')
+                    append("子目录 ").append(dirs.size).append(" 个 · jar ").append(jars.size)
+                        .append(" 个")
+                    if (others.isNotEmpty()) append(" · 其它 ").append(others.size).append(" 个")
+                }
+                dlg = Dlg.Pick(
+                    title = "浏览服务器目录",
+                    sub = sub,
+                    items = items,
+                    confirm = "就用这个目录" to {
+                        dir = path
+                        Prefs.get(requireContext()).edit()
+                            .putString(K.PANEL_DIR, path).apply()
+                        dlg = null
                         if (jars.isNotEmpty()) {
                             scanFiles()
                         } else {
                             toast("这个目录没有 jar，可继续进入子目录找找")
                         }
                     }
-                    .setNegativeButton(R.string.cancel, null)
-                    .show()
+                )
             }
         }
     }
 
-    private fun syncRemoteFields() {
-        if (!::boxPanel.isInitialized || !::boxRemote.isInitialized) return
-        val remote = isRemote()
-        boxPanel.visibility = if (remote) View.GONE else View.VISIBLE
-        boxRemote.visibility = if (remote) View.VISIBLE else View.GONE
-        if (::tvConnMode.isInitialized) {
-            tvConnMode.text = if (remote) {
-                "用服务器的 FTP / SSH 账号密码直连，可以浏览并读取 mods、plugins 目录。"
-            } else {
-                "用面板的 Client API Key 连接（不是登录密码）。没有面板 Key 就改选上面的 FTP/SFTP。"
-            }
-        }
-        // 目录框两种模式共用，但含义不同，说清楚免得填错
-        if (::etDir.isInitialized) {
-            etDir.hint = if (remote) "远程目录，如 /mods" else "服务器内目录，如 /mods 或 /plugins"
-        }
-    }
+    // ── 连接 ─────────────────────────────────────────────────
 
-    /** 是否走 FTP/FTPS/SFTP（0 = 面板 API） */
-    private fun isRemote(): Boolean = ::spRemoteKind.isInitialized &&
-        spRemoteKind.selectedItemPosition > 0
+    private fun isRemote(): Boolean = connKind > 0
 
-    /** 当前远程连接配置 */
     private fun remoteConf(): RemoteFs.Conf {
-        val kind = when (spRemoteKind.selectedItemPosition) {
+        val kind = when (connKind) {
             1 -> RemoteFs.Kind.FTP
             2 -> RemoteFs.Kind.FTPS
             3 -> RemoteFs.Kind.SFTP
@@ -354,64 +609,163 @@ class ServerFragment : Fragment() {
         }
         return RemoteFs.Conf(
             kind = kind,
-            host = etRemoteHost.text.toString().trim(),
-            port = etRemotePort.text.toString().trim().toIntOrNull() ?: 0,
-            user = etRemoteUser.text.toString().trim(),
-            pass = etRemotePass.text.toString().trim()
+            host = host.trim(),
+            port = port.trim().toIntOrNull() ?: 0,
+            user = user.trim(),
+            pass = pass.trim()
         )
     }
 
     private fun saveRemote() {
-        if (!::spRemoteKind.isInitialized) return
-        Prefs.get(requireContext()).edit()
-            .putInt(K.REMOTE_KIND, spRemoteKind.selectedItemPosition)
-            .putString(K.REMOTE_HOST, etRemoteHost.text.toString().trim())
-            .putString(K.REMOTE_PORT, etRemotePort.text.toString().trim())
-            .putString(K.REMOTE_USER, etRemoteUser.text.toString().trim())
-            .putString(K.REMOTE_PASS, etRemotePass.text.toString().trim())
+        val ctx = context ?: return
+        Prefs.get(ctx).edit()
+            .putInt(K.REMOTE_KIND, connKind)
+            .putString(K.REMOTE_HOST, host.trim())
+            .putString(K.REMOTE_PORT, port.trim())
+            .putString(K.REMOTE_USER, user.trim())
+            .putString(K.REMOTE_PASS, pass.trim())
             .apply()
     }
 
-    /** 收集当前凭据 */
     private fun cred(): ServerPanelApi.Cred {
-        val p = Prefs.get(requireContext())
         val c = ServerPanelApi.Cred(
-            base = etBase.text.toString().trim(),
+            base = base.trim(),
             mode = ServerPanelApi.Mode.KEY,
-            key = etKey.text.toString().trim()
+            key = key.trim()
         )
-        // 保存（密码走加密 Prefs）
-        p.edit()
+        val ctx = context ?: return c
+        Prefs.get(ctx).edit()
             .putString(K.PANEL_BASE, c.base)
-
             .putString(K.PANEL_KEY, c.key)
-
             .apply()
         return c
     }
 
-    /** 自动找目录：面板下各服务器根目录结构不统一，逐个试候选 */
-    /** 让用户在找到的目录里挑一个，然后立刻扫描 */
-    private fun pickDirDialog(dirs: List<String>) {
-        val arr = dirs.toTypedArray()
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.panel_dir_pick)
-            .setItems(arr) { _, w ->
-                etDir.setText(arr[w])
-                remoteDir = arr[w]
-                scanFiles()
-            }
-            .show()
+    private fun connect() {
+        if (isRemote()) {
+            connectRemote()
+            return
+        }
+        val c = cred()
+        if (c.base.isBlank()) { toast("请填写面板地址"); return }
+        if (c.key.isBlank()) { toast("请填写 Client API Key"); return }
+        val hint = ServerPanelApi.keyHint(c.key)
+        if (hint != null) {
+            log("Key 检查：$hint")
+            dlg = Dlg.KeyHint(hint)
+            return
+        }
+        doConnect(c)
     }
 
-    /** 多个候选目录时让用户选一台（面板模式下的"服务器"同理） */
+    private fun connectRemote() {
+        val c = remoteConf()
+        if (c.host.isBlank()) { toast("请填写主机地址"); return }
+        if (c.user.isBlank()) { toast("请填写用户名"); return }
+        saveRemote()
+        toast("正在连接 ${c.kind.label} ${c.host} …")
+        bg {
+            val err = RemoteFs.test(c)
+            if (err != null) {
+                log("连接失败：$err")
+                safePost(handler) { toast(err) }
+                return@bg
+            }
+            log("已连上，正在找模组目录…")
+            // 并发试候选目录，找出真正有 jar 的那些
+            val found = probeRemoteDirs(c)
+            safePost(handler) {
+                servers.clear()
+                if (found.isEmpty()) {
+                    serverLabel = "已连接，但没找到有 jar 的目录"
+                    connExpanded = false
+                    toast("没找到 mods/plugins 目录，可以在下面手动填路径再扫描")
+                    return@safePost
+                }
+                // 有 jar 的目录当成"服务器"列出来让用户选，
+                // 只有一个就直接选中，不让他多点一次
+                servers.addAll(found.map { d -> PanelServer(id = "remote:$d", uuid = d, name = d) })
+                if (found.size == 1) pickServer(servers[0]) else pickServerDialog()
+            }
+        }
+    }
+
+    private fun doConnect(c: ServerPanelApi.Cred) {
+        toast("正在连接面板…")
+        bg {
+            val token = try {
+                ServerPanelApi.tokenOf(c)
+            } catch (t: Throwable) {
+                log("认证失败：${Err.humanMessage(t)}")
+                safePost(handler) { toast("认证失败：${Err.humanMessage(t)}") }
+                return@bg
+            }
+            if (token == null) {
+                safePost(handler) { showLoginUnsupported() }
+                return@bg
+            }
+            val list = try {
+                ServerPanelApi.servers(c.base, token)
+            } catch (t: Throwable) {
+                log("连接失败：${t.message}")
+                emptyList<PanelServer>()
+            }
+            safePost(handler) {
+                servers.clear()
+                servers.addAll(list)
+                if (list.isEmpty()) {
+                    toast("没读到服务器，请检查地址与 Key（需 Client API Key）")
+                    return@safePost
+                }
+                val saved = Prefs.get(requireContext()).getString(K.PANEL_SERVER_ID, "") ?: ""
+                val remembered = list.firstOrNull { it.id == saved }
+                val auto = remembered ?: if (list.size == 1) list[0] else null
+                if (auto != null) {
+                    pickServer(auto)
+                    toast("已选择 ${auto.name}")
+                    return@safePost
+                }
+                dlg = Dlg.Pick(
+                    title = "选择服务器",
+                    sub = "找到 ${list.size} 台",
+                    items = list.map { s ->
+                        "${s.name}（${s.id}）" to {
+                            dlg = null
+                            pickServer(s)
+                            log("已选择 ${s.name}")
+                        }
+                    }
+                )
+                toast("找到 ${list.size} 台服务器")
+            }
+        }
+    }
+
+    private fun showLoginUnsupported() {
+        dlg = Dlg.Info("请用 API Key 连接", ServerPanelApi.LOGIN_UNSUPPORTED_MSG)
+    }
+
     private fun pickServerDialog() {
-        val arr = servers.map { it.name }.toTypedArray()
-        if (arr.isEmpty()) return
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle("选择目录")
-            .setItems(arr) { _, w -> pickServer(servers[w]) }
-            .show()
+        if (servers.isEmpty()) return
+        dlg = Dlg.Pick(
+            title = "选择目录",
+            sub = "找到 ${servers.size} 个含 jar 的目录",
+            items = servers.map { s -> s.name to { dlg = null; pickServer(s) } }
+        )
+    }
+
+    /** 选中一台服务器并立刻去找目录 */
+    private fun pickServer(s: PanelServer) {
+        chosen = s
+        if (s.id.startsWith("remote:")) {
+            remoteDir = s.uuid
+            dir = s.uuid
+        }
+        serverLabel = "服务器：${s.name} · ${s.id}"
+        connExpanded = false
+        Prefs.get(requireContext()).edit().putString(K.PANEL_SERVER_ID, s.id).apply()
+        // 选完立刻找目录，省得用户自己去猜路径
+        probeDirs()
     }
 
     private fun probeDirs() {
@@ -445,7 +799,7 @@ class ServerFragment : Fragment() {
                 ServerPanelApi.tokenOf(c)
             } catch (t: Throwable) {
                 log("认证失败：${Err.humanMessage(t)}")
-                toast("认证失败：${Err.humanMessage(t)}")
+                safePost(handler) { toast("认证失败：${Err.humanMessage(t)}") }
                 return@bg
             }
             if (token == null) {
@@ -465,147 +819,19 @@ class ServerFragment : Fragment() {
         }
     }
 
-    private fun log(s: String) {
-        safePost(handler) { tvLog.append("$s\n") }
-    }
-
-    private fun toast(s: String) {
-        handler.post {
-            if (!isAdded) return@post
-            try {
-                context?.let { Tips.short(it, s) }
-            } catch (t: Throwable) {
-                // 界面已销毁，不弹
-                     Err.ignore(t, "界面已销毁，不弹")
-                 }
-        }
-    }
-
-    private fun bg(block: () -> Unit) {
-        exec.execute {
-            try {
-                block()
-            } catch (t: Throwable) {
-                log("错误：${t.message}")
-            } finally {
-                // 同 MigrationFragment：Progress 是全局单例，
-                // 异常/提前 return 时不复位会永久卡在"运行中"，
-                // 下次开 App 出现幽灵进度条。
-                try { Progress.done() } catch (_: Throwable) {}
-            }
-        }
-    }
-
-    private fun save() {
-        val p = Prefs.get(requireContext())
-        p.edit()
-            .putString(K.PANEL_BASE, etBase.text.toString().trim())
-            .putString(K.PANEL_KEY, etKey.text.toString().trim())
-            .putString(K.PANEL_DIR, etDir.text.toString().trim().ifBlank { "/mods" })
-            .apply()
-    }
-
-    private fun connect() {
-        // 选了 FTP/FTPS/SFTP：不再要求面板 Key，用账号密码直连
-        if (isRemote()) {
-            connectRemote()
-            return
-        }
-        val c = cred()
-        if (c.base.isBlank()) {
-            toast("请填写面板地址")
-            return
-        }
-        if (c.key.isBlank()) {
-            toast("请填写 Client API Key")
-            return
-        }
-        val hint = ServerPanelApi.keyHint(c.key)
-        if (hint != null) {
-            log("Key 检查：$hint")
-            MaterialAlertDialogBuilder(requireContext())
-                .setTitle("API Key 可能不对")
-                .setMessage(hint)
-                .setPositiveButton("仍然连接") { _, _ -> doConnect(c) }
-                .setNegativeButton(R.string.cancel, null)
-                .show()
-            return
-        }
-        doConnect(c)
-    }
-
-    private fun showLoginUnsupported() {
-        val ctx = context ?: return
-        runCatching {
-            if (!isAdded) return
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-                .setTitle("请用 API Key 连接")
-                .setMessage(ServerPanelApi.LOGIN_UNSUPPORTED_MSG)
-                .setPositiveButton(R.string.ok, null)
-                .show()
-        }
-    }
-
-    /** FTP/SFTP 下列出目录里的 jar */
-    private fun scanRemote() {
-        val dir = remoteDir ?: etDir.text.toString().trim().ifBlank { "/mods" }
-        val c = remoteConf()
-        toast("正在列出 $dir …")
-        bg {
-            val list = try {
-                RemoteFs.jars(c, dir).map {
-                    PanelFile(
-                        name = it.name,
-                        path = it.path,
-                        size = it.size,
-                        kind = ServerPanelApi.guessKind(it.path)
-                    )
+    private fun pickDirDialog(dirs: List<String>) {
+        dlg = Dlg.Pick(
+            title = "选择目录",
+            sub = "找到 ${dirs.size} 个含 jar 的目录",
+            items = dirs.map { d ->
+                d to {
+                    dir = d
+                    remoteDir = d
+                    dlg = null
+                    scanFiles()
                 }
-            } catch (t: Throwable) {
-                log("读取失败：${t.message}")
-                emptyList<PanelFile>()
             }
-            safePost(handler) {
-                files.clear()
-                files.addAll(list)
-                adapter.notifyDataSetChanged()
-                toast("${list.size} 个 jar")
-            }
-        }
-    }
-
-    private fun connectRemote() {
-        val c = remoteConf()
-        if (c.host.isBlank()) { toast("请填写主机地址"); return }
-        if (c.user.isBlank()) { toast("请填写用户名"); return }
-        saveRemote()
-        toast("正在连接 ${c.kind.label} ${c.host} …")
-        bg {
-            val err = RemoteFs.test(c)
-            if (err != null) {
-                log("连接失败：$err")
-                safePost(handler) { toast(err) }
-                return@bg
-            }
-            log("已连上，正在找模组目录…")
-            // 并发试候选目录，找出真正有 jar 的那些
-            val found = probeRemoteDirs(c)
-            safePost(handler) {
-                servers.clear()
-                if (found.isEmpty()) {
-                    tvServer.text = "已连接，但没找到有 jar 的目录"
-                    collapseConn()
-                    toast("没找到 mods/plugins 目录，可以在下面手动填路径再扫描")
-                    return@safePost
-                }
-                // 有 jar 的目录当成"服务器"列出来让用户选，
-                // 只有一个就直接选中，不让他多点一次
-                servers.addAll(found.mapIndexed { i, d ->
-                    PanelServer(id = "remote:$d", uuid = d, name = d)
-                })
-                if (found.size == 1) pickServer(servers[0]) else pickServerDialog()
-            }
-        }
+        )
     }
 
     private fun probeRemoteDirs(c: RemoteFs.Conf): List<String> {
@@ -628,72 +854,7 @@ class ServerFragment : Fragment() {
         }
     }
 
-    private fun doConnect(c: ServerPanelApi.Cred) {
-        toast("正在连接面板…")
-        bg {
-            val token = try {
-                ServerPanelApi.tokenOf(c)
-            } catch (t: Throwable) {
-                log("认证失败：${Err.humanMessage(t)}")
-                safePost(handler) { toast("认证失败：${Err.humanMessage(t)}") }
-                return@bg
-            }
-            if (token == null) {
-                safePost(handler) { showLoginUnsupported() }
-                return@bg
-            }
-            val list = try {
-                ServerPanelApi.servers(c.base, token)
-            } catch (t: Throwable) {
-                log("连接失败：${t.message}")
-                emptyList<PanelServer>()
-            }
-            safePost(handler) {
-                servers.clear()
-                servers.addAll(list)
-                if (list.isEmpty()) {
-                    toast("没读到服务器，请检查地址与 Key（需 Client API Key）")
-                    return@safePost
-                }
-
-                val saved = Prefs.get(requireContext()).getString(K.PANEL_SERVER_ID, "") ?: ""
-                val remembered = list.firstOrNull { it.id == saved }
-                val auto = remembered ?: if (list.size == 1) list[0] else null
-                if (auto != null) {
-                    pickServer(auto)
-                    toast("已选择 ${auto.name}")
-                    return@safePost
-                }
-
-                val names = list.map { "${it.name}（${it.id}）" }.toTypedArray()
-                MaterialAlertDialogBuilder(requireContext())
-                    .setTitle("选择服务器")
-                    .setItems(names) { _, w ->
-                        pickServer(list[w])
-                        log("已选择 ${list[w].name}")
-                    }
-                    .show()
-                toast("找到 ${list.size} 台服务器")
-            }
-        }
-    }
-
-    /**
-     * 选中一台服务器并立刻去找目录。
-     * 选完就记住 id，下次连接自动选回同一台，不用每次都点。
-     */
-    private fun pickServer(s: PanelServer) {
-        chosen = s
-        if (s.id.startsWith("remote:")) {
-            remoteDir = s.uuid
-            etDir.setText(s.uuid)
-        }
-        tvServer.text = "服务器：${s.name} · ${s.id}"
-        collapseConn()
-        Prefs.get(requireContext()).edit().putString(K.PANEL_SERVER_ID, s.id).apply()
-        // 选完立刻找目录，省得用户自己去猜路径
-        probeDirs()
-    }
+    // ── 扫描 ─────────────────────────────────────────────────
 
     private fun scanFiles() {
         val s = chosen
@@ -701,16 +862,14 @@ class ServerFragment : Fragment() {
             toast("请先连接并选择目录")
             return
         }
-        // FTP/SFTP 模式：目录已经在连接时选好了，直接列
         if (s.id.startsWith("remote:")) {
             scanRemote()
             return
         }
         val c = cred()
         val base = c.base
-        val dir = etDir.text.toString().trim().ifBlank { "/mods" }
-        val ctx = requireContext()
-        toast("正在列出 $dir …")
+        val d = dir.trim().ifBlank { "/mods" }
+        toast("正在列出 $d …")
         bg {
             val token = try {
                 ServerPanelApi.tokenOf(c)
@@ -724,7 +883,7 @@ class ServerFragment : Fragment() {
                 return@bg
             }
             val list = try {
-                ServerPanelApi.listFiles(base, token, s.uuid.ifBlank { s.id }, dir)
+                ServerPanelApi.listFiles(base, token, s.uuid.ifBlank { s.id }, d)
             } catch (t: Throwable) {
                 log("读取失败：${t.message}")
                 emptyList<PanelFile>()
@@ -733,11 +892,67 @@ class ServerFragment : Fragment() {
             safePost(handler) {
                 files.clear()
                 files.addAll(list)
-                adapter.notifyDataSetChanged()
+                bump()
                 toast("${list.size} 个 jar")
             }
-            log("列出 ${list.size} 个文件（$dir）")
+            log("列出 ${list.size} 个文件（$d）")
         }
+    }
+
+    private fun scanRemote() {
+        val d = remoteDir ?: dir.trim().ifBlank { "/mods" }
+        val c = remoteConf()
+        toast("正在列出 $d …")
+        bg {
+            val list = try {
+                RemoteFs.jars(c, d).map {
+                    PanelFile(
+                        name = it.name,
+                        path = it.path,
+                        size = it.size,
+                        kind = ServerPanelApi.guessKind(it.path)
+                    )
+                }
+            } catch (t: Throwable) {
+                log("读取失败：${t.message}")
+                emptyList<PanelFile>()
+            }
+            safePost(handler) {
+                files.clear()
+                files.addAll(list)
+                bump()
+                toast("${list.size} 个 jar")
+            }
+        }
+    }
+
+    // ── 检查更新 ─────────────────────────────────────────────
+
+    private fun currentLoader(): String {
+        val ctx = context ?: return "auto"
+        val list = Loaders.visible(
+            Prefs.get(ctx).getBoolean(K.SHOW_EXTRA_LOADERS, false)
+        )
+        return list.getOrNull(loaderIdx) ?: "auto"
+    }
+
+    private fun currentSide(): Environ.Side =
+        if (sideIdx == 0) Environ.Side.SERVER else Environ.Side.CLIENT
+
+    private fun sideLabel(): String =
+        if (currentSide() == Environ.Side.SERVER) "服务端" else "客户端"
+
+    private fun selectedSources(): Set<String> {
+        val s = LinkedHashSet<String>()
+        if (srcModrinth) s.add(ServerUpdate.MODRINTH)
+        if (srcCf) s.add(ServerUpdate.CURSEFORGE)
+        if (srcBackend) s.add(ServerUpdate.BACKEND)
+        return s
+    }
+
+    private fun saveSources() {
+        val ctx = context ?: return
+        ServerUpdate.saveSources(ctx, selectedSources())
     }
 
     private fun checkUpdates() {
@@ -745,8 +960,8 @@ class ServerFragment : Fragment() {
             toast("请先扫描文件")
             return
         }
-        val mc = etVersion.text.toString().trim()
-        val loader = LoaderSpinner.value(spLoader)
+        val mc = version.trim()
+        val loader = currentLoader()
         val ctx = requireContext()
         if (mc.isBlank()) {
             toast("请填写服务器 MC 版本，用于匹配更新")
@@ -759,6 +974,7 @@ class ServerFragment : Fragment() {
         }
         val names = srcs.joinToString("、") { ServerUpdate.label(it) }
         log("开始检测更新（MC $mc / $loader / ${sideLabel()} / $names）")
+        busy = true
         bg {
             val side = currentSide()
             val targets = ArrayList<PanelFile>()
@@ -767,7 +983,7 @@ class ServerFragment : Fragment() {
                 targets.add(f)
                 f.status = "检测中…"
             }
-            safePost(handler) { adapter.notifyDataSetChanged() }
+            safePost(handler) { bump() }
 
             val pool = java.util.concurrent.Executors.newFixedThreadPool(
                 (Prefs.get(ctx).getInt(K.DOWNLOAD_PARALLEL, 4) / 2).coerceIn(1, 4)
@@ -796,7 +1012,8 @@ class ServerFragment : Fragment() {
 
             val found = files.count { it.latestUrl.isNotBlank() }
             safePost(handler) {
-                adapter.notifyDataSetChanged()
+                bump()
+                busy = false
                 toast("可更新 $found / ${files.size}（${sideLabel()}）")
             }
             log("检测完成：可更新 $found（${sideLabel()}）")
@@ -815,87 +1032,29 @@ class ServerFragment : Fragment() {
         }
     }
 
-    /** 手动指定：自己搜、自己挑，用于自动匹配认不出来的文件 */
     private fun manualPick(f: PanelFile) {
-        val ctx = context ?: return
-        val q0 = ServerUpdate.queryOf(f.name)
-        val et = android.widget.EditText(ctx)
-        et.setText(q0)
-        et.setSelection(q0.length)
-        et.setSingleLine(true)
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("手动搜索：${f.name}")
-            .setView(et)
-            .setPositiveButton("搜索") { _, _ ->
-                val q = et.text.toString().trim()
-                if (q.isBlank()) return@setPositiveButton
-                val mc = etVersion.text.toString().trim()
-                val loader = LoaderSpinner.value(spLoader)
-                val srcs = selectedSources()
-                toast("正在搜索 $q …")
-                bg {
-                    val list = ServerUpdate.searchAll(ctx, q, mc, loader, srcs)
-                    safePost(handler) { showCandidates(f, list, mc, loader) }
-                }
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+        manualQuery = ServerUpdate.queryOf(f.name)
+        dlg = Dlg.Manual(f)
     }
 
-    private fun showCandidates(
-        f: PanelFile, list: List<MarketMod>, mc: String, loader: String
-    ) {
-        val ctx = context ?: return
-        if (list.isEmpty()) {
-            MaterialAlertDialogBuilder(ctx)
-                .setTitle("没搜到")
-                .setMessage("换一个关键词试试，或者在设置里换一个平台。")
-                .setPositiveButton(R.string.ok, null)
-                .show()
-            return
+    private fun manualSearch(f: PanelFile, q: String) {
+        val mc = version.trim()
+        val loader = currentLoader()
+        val srcs = selectedSources()
+        toast("正在搜索 $q …")
+        bg {
+            val list = ServerUpdate.searchAll(requireContext(), q, mc, loader, srcs)
+            safePost(handler) {
+                if (list.isEmpty()) {
+                    dlg = Dlg.Info("没搜到", "换一个关键词试试，或者在设置里换一个平台。")
+                } else {
+                    dlg = Dlg.Candidates(f, list)
+                }
+            }
         }
-        val labels = list.map { "${it.name}（${ServerUpdate.label(it.source)}）" }.toTypedArray()
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("选一个：${f.name}")
-            .setItems(labels) { _, w ->
-                val mod = list.getOrNull(w) ?: return@setItems
-                val side = currentSide()
-                bg {
-                    val h = ServerUpdate.resolve(ctx, mod, mc, loader, side)
-                    safePost(handler) {
-                        if (h == null) {
-                            toast("这个项目没有可用于 MC $mc 的文件")
-                        } else {
-                            applyHit(f, h, side)
-                            adapter.notifyDataSetChanged()
-                            toast("已指定：${h.version}")
-                        }
-                    }
-                }
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
     }
 
-    private fun selectedSources(): Set<String> {
-        val s = LinkedHashSet<String>()
-        if (::cbSrcModrinth.isInitialized && cbSrcModrinth.isChecked) s.add(ServerUpdate.MODRINTH)
-        if (::cbSrcCurseforge.isInitialized && cbSrcCurseforge.isChecked) s.add(ServerUpdate.CURSEFORGE)
-        if (::cbSrcBackend.isInitialized && cbSrcBackend.isChecked) s.add(ServerUpdate.BACKEND)
-        return s
-    }
-
-    private fun saveSources() {
-        val ctx = context ?: return
-        ServerUpdate.saveSources(ctx, selectedSources())
-    }
-
-    /** 当前要按哪一端来匹配：服务端 or 客户端 */
-    private fun currentSide(): Environ.Side =
-        if (spSide.selectedItemPosition == 0) Environ.Side.SERVER else Environ.Side.CLIENT
-
-    private fun sideLabel(): String =
-        if (currentSide() == Environ.Side.SERVER) "服务端" else "客户端"
+    // ── 下载 ─────────────────────────────────────────────────
 
     private fun downloadOne(f: PanelFile) {
         if (f.latestUrl.isBlank()) {
@@ -903,38 +1062,24 @@ class ServerFragment : Fragment() {
             return
         }
         val ctx = requireContext()
-        val dir = outDir()
-        if (dir == null) {
+        val out = outDir()
+        if (out == null) {
             toast("「迁移后」的目录不可用，请先在迁移页选择")
             return
         }
         bg {
             safePost(handler) {
                 f.status = "下载中"
-                adapter.notifyDataSetChanged()
+                bump()
             }
-            val out = Downloader.download(ctx, f.latestUrl, dir, f.latestName)
+            val r = Downloader.download(ctx, f.latestUrl, out, f.latestName)
             safePost(handler) {
-                f.status = if (out == null) "下载失败" else "已下载，请自行上传到服务器"
-                adapter.notifyDataSetChanged()
+                f.status = if (r == null) "下载失败" else "已下载，请自行上传到服务器"
+                bump()
             }
             Notifier.show(ctx, "服务器模组", f.name)
-            log(if (out == null) "下载失败：${f.name}" else "已下载：${f.latestName}（请手动上传）")
+            log(if (r == null) "下载失败：${f.name}" else "已下载：${f.latestName}（请手动上传）")
         }
-    }
-
-    private fun applyConnExpand() {
-        boxConn?.visibility = if (connExpanded) View.VISIBLE else View.GONE
-        ivConnArrow?.rotation = if (connExpanded) 180f else 0f
-        tvConnSummary?.text =
-            if (connExpanded) "填写连接参数" else tvServer.text.toString()
-    }
-
-    /** 连上之后自动收起配置，不用手动收 */
-    private fun collapseConn() {
-        if (!connExpanded) return
-        connExpanded = false
-        applyConnExpand()
     }
 
     private fun downloadAll() {
@@ -944,31 +1089,76 @@ class ServerFragment : Fragment() {
             return
         }
         val ctx = requireContext()
-        val dir = outDir()
-        if (dir == null) {
+        val out = outDir()
+        if (out == null) {
             toast("「迁移后」的目录不可用")
             return
         }
         toast("开始下载 ${pend.size} 个…")
+        busy = true
         bg {
             var ok = 0
             for (f in pend) {
-                val out = Downloader.download(ctx, f.latestUrl, dir, f.latestName)
-                if (out != null) ok++
+                val r = Downloader.download(ctx, f.latestUrl, out, f.latestName)
+                if (r != null) ok++
                 safePost(handler) {
-                    f.status = if (out == null) "下载失败" else "已下载，请自行上传"
-                    adapter.notifyDataSetChanged()
+                    f.status = if (r == null) "下载失败" else "已下载，请自行上传"
+                    bump()
                 }
             }
+            safePost(handler) { busy = false }
             log("批量下载完成 $ok/${pend.size}，文件在目标 mods 目录，需自行上传")
             toast("完成 $ok/${pend.size}")
         }
     }
-    override fun onDestroyView() {
-        super.onDestroyView()
-        // 清理 Handler：页面销毁后若还有未执行的 post，
-        // 回调里访问已销毁的 View 会直接崩。
-        runCatching { handler.removeCallbacksAndMessages(null) }
+
+    // ── 小工具 ───────────────────────────────────────────────
+
+    private fun bump() {
+        filesRev++
     }
 
+    private fun log(s: String) {
+        safePost(handler) { logText += "$s\n" }
+    }
+
+    private fun toast(s: String) {
+        handler.post {
+            if (!isAdded) return@post
+            try {
+                context?.let { Tips.short(it, s) }
+            } catch (t: Throwable) {
+                Err.ignore(t, "界面已销毁，不弹")
+            }
+        }
+    }
+
+    private fun bg(block: () -> Unit) {
+        exec.execute {
+            try {
+                block()
+            } catch (t: Throwable) {
+                log("错误：${t.message}")
+            } finally {
+                // 同 MigrationFragment：Progress 是全局单例，
+                // 异常/提前 return 时不复位会永久卡在"运行中"。
+                try { Progress.done() } catch (_: Throwable) {}
+            }
+        }
+    }
+
+    private fun save() {
+        val ctx = context ?: return
+        Prefs.get(ctx).edit()
+            .putString(K.PANEL_BASE, base.trim())
+            .putString(K.PANEL_KEY, key.trim())
+            .putString(K.PANEL_DIR, dir.trim().ifBlank { "/mods" })
+            .apply()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        save()
+        saveRemote()
+    }
 }
