@@ -284,4 +284,17 @@
     <string name="mode_client_hint">从手机上的游戏目录取模组和配置。</string>
     <string name="mode_server_hint">从服务器（面板 / FTP）取模组和配置。</string>
     <string name="mode_tip">大多数情况用客户端。改回客户端：设置 → 迁移模式。</string>
+
+    <string name="dir_unknown_title">认不出这个启动器</string>
+    <string name="dir_unknown_hint">清单里没有它，或者它的目录在 Android/data 里读不到。下面两种方式任选一种。</string>
+    <string name="way_pick_public">自己选一个公开目录</string>
+    <string name="way_pick_public_desc">在系统文件管理器里选到能直接看到 mods 的那一层。启动器支持自定义目录时这条最省事。</string>
+    <string name="way_sync_private">用同步器读私有目录并打包</string>
+    <string name="way_sync_private_desc">装了同步器之后本应用能读 Android/data 下的目录，读出来打成整合包。</string>
+    <string name="way_launcher_import">让启动器自己导入</string>
+    <string name="way_launcher_import_desc">把整合包放到公共目录，在启动器里用「导入整合包」安装 —— 启动器写自己的目录不受系统限制。</string>
+    <string name="priv_sync_title">同步器</string>
+    <string name="priv_pack_done">已导出：%1$s</string>
+    <string name="priv_pack_fail">没能读出来：%1$s</string>
+    <string name="priv_open_home">下载同步器</string>
 </resources>
