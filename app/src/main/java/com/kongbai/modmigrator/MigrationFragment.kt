@@ -255,25 +255,6 @@ private fun MigrationScreen(
             .putString(K.DEF_LOADER, loaders.getOrNull(i) ?: "auto").apply()
     }
 
-    fun refreshPaths() {
-        srcText = pathText(ctx, K.SRC_URI)
-        dstText = pathText(ctx, K.DST_URI)
-        dirState = DirGuide.state(ctx, Prefs.get(ctx).getString(K.SRC_URI, "") ?: "")
-        serverText = serverStateOf(ctx)
-        serverMode = Prefs.get(ctx).getInt(K.APP_MODE, 0) == 1
-        probeSource()
-    }
-
-    /**
-     * 探测「迁移前」目录选到了哪一层。
-     *
-     * 选错层级是这一步最常见也最隐蔽的错误：**不报错、不崩溃**，
-     * 只是静悄悄迁移 0 个模组，或者把别的版本的模组搬过来。
-     * 所以选完当场把结论写在界面上，而不是等迁移完才让人莫名其妙。
-     *
-     * 读目录是磁盘 / SAF 操作，必须后台 —— 这里只往下钻
-     * versions / saves / mods 几个名字，且有节点预算，不会把选目录变卡。
-     */
     fun probeSource() {
         val uri = Prefs.get(ctx).getString(K.SRC_URI, "") ?: ""
         srcProbe = ""
@@ -289,6 +270,15 @@ private fun MigrationScreen(
             val warn = r != null && (!r.usable || (r.usable && r.empty()))
             Bg.post { srcProbe = txt; srcProbeWarn = warn }
         }
+    }
+
+    fun refreshPaths() {
+        srcText = pathText(ctx, K.SRC_URI)
+        dstText = pathText(ctx, K.DST_URI)
+        dirState = DirGuide.state(ctx, Prefs.get(ctx).getString(K.SRC_URI, "") ?: "")
+        serverText = serverStateOf(ctx)
+        serverMode = Prefs.get(ctx).getInt(K.APP_MODE, 0) == 1
+        probeSource()
     }
 
     fun copyLogs(txt: String) {
