@@ -290,4 +290,12 @@
     <string name="priv_pack_done">Exported: %1$s</string>
     <string name="priv_pack_fail">Could not read it: %1$s</string>
     <string name="priv_open_home">Get the sync tool</string>
+    <string name="mig_guard_busy">Another task is running. Wait for it to finish.</string>
+    <string name="priv_pack_meta">Detected: game %1$s / loader %2$s</string>
+    <string name="priv_pack_share">Send to launcher for import</string>
+    <string name="priv_pack_unknown">unknown</string>
+    <string name="more">More</string>
+    <string name="mig_result_title">Scan results</string>
+    <string name="mig_tools">Migration tools</string>
+    <string name="mig_tools_entry">Open the full toolbox</string>
 </resources>
