@@ -176,6 +176,8 @@ private fun MigrationScreen(
     var dirState by remember {
         mutableStateOf(DirGuide.state(ctx, prefs.getString(K.SRC_URI, "") ?: ""))
     }
+    var srcProbe by remember { mutableStateOf("") }
+    var srcProbeWarn by remember { mutableStateOf(false) }
     var serverText by remember { mutableStateOf(serverStateOf(ctx)) }
     var version by remember { mutableStateOf(prefs.getString(K.DEF_VERSION, "") ?: "") }
     val loaders = remember { Loaders.visible(prefs.getBoolean(K.SHOW_EXTRA_LOADERS, false)) }
@@ -259,6 +261,34 @@ private fun MigrationScreen(
         dirState = DirGuide.state(ctx, Prefs.get(ctx).getString(K.SRC_URI, "") ?: "")
         serverText = serverStateOf(ctx)
         serverMode = Prefs.get(ctx).getInt(K.APP_MODE, 0) == 1
+        probeSource()
+    }
+
+    /**
+     * 探测「迁移前」目录选到了哪一层。
+     *
+     * 选错层级是这一步最常见也最隐蔽的错误：**不报错、不崩溃**，
+     * 只是静悄悄迁移 0 个模组，或者把别的版本的模组搬过来。
+     * 所以选完当场把结论写在界面上，而不是等迁移完才让人莫名其妙。
+     *
+     * 读目录是磁盘 / SAF 操作，必须后台 —— 这里只往下钻
+     * versions / saves / mods 几个名字，且有节点预算，不会把选目录变卡。
+     */
+    fun probeSource() {
+        val uri = Prefs.get(ctx).getString(K.SRC_URI, "") ?: ""
+        srcProbe = ""
+        srcProbeWarn = false
+        if (uri.isBlank()) return
+        Bg.run {
+            val r = McProbe.of(ctx, uri)
+            val txt = if (r == null) "" else buildString {
+                append(r.summary)
+                if (r.suggest.isNotBlank()) append("\n→ 建议改选到 ${r.suggest}")
+                if (r.usable && r.empty()) append("\n这一层还没有模组，当「迁移前」用会没有东西可搬。")
+            }
+            val warn = r != null && (!r.usable || (r.usable && r.empty()))
+            Bg.post { srcProbe = txt; srcProbeWarn = warn }
+        }
     }
 
     fun copyLogs(txt: String) {
@@ -1551,6 +1581,15 @@ private fun MigrationScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 2.dp)
                     )
+                    if (srcProbe.isNotBlank()) {
+                        Text(
+                            srcProbe,
+                            fontSize = 11.sp,
+                            color = if (srcProbeWarn) MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                     OutlinedButton(
                         onClick = { pickDir(11, DirGuide.Purpose.SOURCE) },
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
