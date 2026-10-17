@@ -99,6 +99,15 @@ object McProbe {
 
         /** 一个模组都没有（当源目录用时等于空跑一趟） */
         fun empty(): Boolean = mods == 0 && isolated().all { it.mods == 0 }
+
+        /**
+         * 只是游戏核心、没装模组的版本数。
+         *
+         * ⚠️ 以前结论里只报隔离出来的实例，于是 `versions/` 下那些
+         * 没装模组的原版版本彻底消失——用户会以为自己的版本丢了，
+         * 其实是探测没报。现在数量单独给出来，界面能写清楚。
+         */
+        fun cores(): Int = versions.count { !it.isolated }
     }
 
     /** 只往下钻这几个名字，避免把整个目录树读进来 */
@@ -234,6 +243,7 @@ object McProbe {
         }
 
         val iso = versions.filter { it.isolated }
+        val cores = versions.size - iso.size
         val game = isGameLayer(names)
 
         val kind = when {
@@ -266,11 +276,16 @@ object McProbe {
 
         val summary = when (kind) {
             Kind.INSTANCE -> "游戏版本目录：模组 $mods 个，存档 $saves 个"
-            Kind.PLAIN_ROOT ->
-                "这是 .minecraft 根目录，没开版本隔离：模组 $mods 个，存档 $saves 个"
+            Kind.PLAIN_ROOT -> buildString {
+                append("这是 .minecraft 根目录，没开版本隔离：模组 $mods 个，存档 $saves 个。")
+                if (versions.isNotEmpty()) {
+                    append("versions/ 下 ${versions.size} 个都是游戏核心，不是实例。")
+                }
+            }
             Kind.ISOLATED_ROOT -> buildString {
                 append("这是 .minecraft 根目录，里面开了版本隔离：")
                 append("真正的模组在 versions/ 下（${iso.size} 个版本），")
+                if (cores > 0) append("另有 $cores 个没装模组的是游戏核心，")
                 append("根目录自己的 mods/ 有 $mods 个。")
                 if (mods > 0) append("直接用这一层会把 ${iso.size} 个版本的模组混在一起。")
             }
