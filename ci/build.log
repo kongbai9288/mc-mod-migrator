@@ -47,8 +47,8 @@ Unable to strip the following libraries, packaging them as they are: libconscryp
 > Task :app:processReleaseResources
 > Task :app:mergeExtDexRelease
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
-> Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseShaders
+> Task :app:mergeReleaseArtProfile
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
 > Task :app:mergeReleaseAssets
@@ -61,11 +61,6 @@ Unable to strip the following libraries, packaging them as they are: libconscryp
 > Task :app:optimizeReleaseResources
 > Task :app:compileReleaseKotlin
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/LauncherAccess.kt:171:71 Type mismatch: inferred type is List<Int> but Comparable<*>? was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsStorageFragment.kt:239:68 Type mismatch: inferred type is String but (String) -> Unit was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsStorageFragment.kt:239:72 Too many arguments for public final fun packFromPrivate(ctx: Context, found: LauncherAccess.Found, log: (String) -> Unit): LauncherAccess.PackResult defined in com.kongbai.modmigrator.LauncherAccess
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsStorageFragment.kt:239:76 Too many arguments for public final fun packFromPrivate(ctx: Context, found: LauncherAccess.Found, log: (String) -> Unit): LauncherAccess.PackResult defined in com.kongbai.modmigrator.LauncherAccess
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsStorageFragment.kt:239:78 Cannot infer a type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsStorageFragment.kt:245:81 Unresolved reference: absolutePath
 
 > Task :app:compileReleaseKotlin FAILED
 
@@ -82,5 +77,5 @@ Execution failed for task ':app:compileReleaseKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 2m 50s
+BUILD FAILED in 2m 55s
 34 actionable tasks: 34 executed
