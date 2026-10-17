@@ -1,14 +1,29 @@
 # 真实存档验证（ai.zip / 26.2 世界）
-run: 39031173040
+run: 39034358170
 
 ## 测试类清单
 app/build/test-results/testDebugUnitTest/TEST-com.kongbai.modmigrator.LauncherDirsTest.xml
+app/build/test-results/testDebugUnitTest/TEST-com.kongbai.modmigrator.McProbeTest.xml
 app/build/test-results/testDebugUnitTest/TEST-com.kongbai.modmigrator.McaRealWorldTest.xml
 app/build/test-results/testDebugUnitTest/TEST-com.kongbai.modmigrator.McaSamplesTest.xml
 app/build/test-results/testDebugUnitTest/TEST-com.kongbai.modmigrator.McaWorldTest.xml
 app/build/test-results/testDebugUnitTest/TEST-com.kongbai.modmigrator.RetryTest.xml
 app/build/test-results/testDebugUnitTest/TEST-com.kongbai.modmigrator.WorldLayoutTest.xml
 == TEST-com.kongbai.modmigrator.LauncherDirsTest.xml
+tests="15" skipped="0" failures="3" errors="0"
+    <failure message="java.util.NoSuchElementException: Collection contains no element matching the predicate." type="java.util.NoSuchElementException">java.util.NoSuchElementException: Collection contains no element matching the predicate.
+	at com.kongbai.modmigrator.LauncherDirsTest.updateFromDefaultsToCommunity(LauncherDirsTest.kt:174)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+--
+    <failure message="java.util.NoSuchElementException: Collection contains no element matching the predicate." type="java.util.NoSuchElementException">java.util.NoSuchElementException: Collection contains no element matching the predicate.
+	at com.kongbai.modmigrator.LauncherDirsTest.updateFromKeepsSystemAndAppRanges(LauncherDirsTest.kt:172)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+--
+    <failure message="java.lang.AssertionError" type="java.lang.AssertionError">java.lang.AssertionError
+	at org.junit.Assert.fail(Assert.java:87)
+== TEST-com.kongbai.modmigrator.McProbeTest.xml
 tests="12" skipped="0" failures="0" errors="0"
 == TEST-com.kongbai.modmigrator.McaRealWorldTest.xml
 tests="9" skipped="0" failures="0" errors="0"
@@ -22,30 +37,9 @@ tests="16" skipped="0" failures="0" errors="0"
 tests="11" skipped="0" failures="0" errors="0"
 
 ## gradle 末尾 40 行
-To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
-Daemon will be stopped at the end of the build 
-> Task :app:checkKotlinGradlePluginConfigurationErrors
-> Task :app:preBuild UP-TO-DATE
-> Task :app:preDebugBuild UP-TO-DATE
-> Task :app:checkDebugAarMetadata UP-TO-DATE
-> Task :app:generateDebugResValues UP-TO-DATE
-> Task :app:mapDebugSourceSetPaths UP-TO-DATE
-> Task :app:generateDebugResources UP-TO-DATE
-> Task :app:mergeDebugResources UP-TO-DATE
-> Task :app:packageDebugResources UP-TO-DATE
-> Task :app:parseDebugLocalResources UP-TO-DATE
-> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
-> Task :app:extractDeepLinksDebug UP-TO-DATE
-> Task :app:processDebugMainManifest UP-TO-DATE
-> Task :app:processDebugManifest UP-TO-DATE
-> Task :app:processDebugManifestForPackage UP-TO-DATE
-> Task :app:processDebugResources UP-TO-DATE
-> Task :app:compileDebugKotlin UP-TO-DATE
-> Task :app:javaPreCompileDebug UP-TO-DATE
-> Task :app:compileDebugJavaWithJavac UP-TO-DATE
 > Task :app:preDebugUnitTestBuild UP-TO-DATE
-> Task :app:javaPreCompileDebugUnitTest
 > Task :app:processDebugJavaRes UP-TO-DATE
+> Task :app:javaPreCompileDebugUnitTest
 > Task :app:bundleDebugClassesToCompileJar
 > Task :app:bundleDebugClassesToRuntimeJar
 
@@ -56,7 +50,30 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/test/java/co
 
 > Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
 > Task :app:processDebugUnitTestJavaRes
+
 > Task :app:testDebugUnitTest
 
-BUILD SUCCESSFUL in 26s
+com.kongbai.modmigrator.LauncherDirsTest > updateFromDefaultsToCommunity FAILED
+    java.util.NoSuchElementException at LauncherDirsTest.kt:174
+
+com.kongbai.modmigrator.LauncherDirsTest > updateFromKeepsSystemAndAppRanges FAILED
+    java.util.NoSuchElementException at LauncherDirsTest.kt:172
+
+com.kongbai.modmigrator.LauncherDirsTest > updateFromKeepsBuiltinWhenBroken FAILED
+    java.lang.AssertionError at LauncherDirsTest.kt:162
+
+72 tests completed, 3 failed
+
+> Task :app:testDebugUnitTest FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:testDebugUnitTest'.
+> There were failing tests. See the report at: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/build/reports/tests/testDebugUnitTest/index.html
+
+* Try:
+> Run with --scan to get full insights.
+
+BUILD FAILED in 19s
 23 actionable tasks: 7 executed, 16 up-to-date
