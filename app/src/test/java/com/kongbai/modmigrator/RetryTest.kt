@@ -18,7 +18,7 @@ import javax.net.ssl.SSLException
  * 最后装上去打不开"或者"4G 上永远下不完"，真机上极难定位，
  * 所以在这里钉死。
  *
- * 全部不碰 Android 框架，[Retry] / [Resume] 也刻意不 import 任何 android 类。
+ * 全部不碰 Android 框架，[Retry] / [ByteRange] 也刻意不 import 任何 android 类。
  */
 class RetryTest {
 
@@ -147,25 +147,25 @@ class RetryTest {
     @Test
     fun resumeRangeIsNullWhenItCannotResume() {
         // 服务端不支持 Range、本地没下过：都只能从头
-        assertNull(Resume.range(1000, 5000, acceptRange = false))
-        assertNull(Resume.range(0, 5000, acceptRange = true))
+        assertNull(ByteRange.header(1000, 5000, acceptRange = false))
+        assertNull(ByteRange.header(0, 5000, acceptRange = true))
         // 下完了，或本地比服务端还长（内容换过），不能再续
-        assertNull(Resume.range(5000, 5000, acceptRange = true))
-        assertNull(Resume.range(6000, 5000, acceptRange = true))
+        assertNull(ByteRange.header(5000, 5000, acceptRange = true))
+        assertNull(ByteRange.header(6000, 5000, acceptRange = true))
     }
 
     @Test
     fun resumeRangeContinuesFromHave() {
-        assertEquals("bytes=1000-", Resume.range(1000, 5000, acceptRange = true))
+        assertEquals("bytes=1000-", ByteRange.header(1000, 5000, acceptRange = true))
         // 总长未知也要能续：只要不是"已经下完"就不该从头
-        assertEquals("bytes=1000-", Resume.range(1000, -1, acceptRange = true))
+        assertEquals("bytes=1000-", ByteRange.header(1000, -1, acceptRange = true))
     }
 
     // ── 分块计划 ────────────────────────────────────────────
 
     @Test
     fun planCoversEveryByteExactlyOnce() {
-        val plan = Resume.plan(1000, 4)
+        val plan = ByteRange.plan(1000, 4)
         assertEquals(4, plan.size)
         assertEquals(0L, plan.first().first)
         assertEquals(999L, plan.last().last)
@@ -178,7 +178,7 @@ class RetryTest {
     @Test
     fun planLastChunkTakesTheRemainder() {
         // 10 分 3 段：3 / 3 / 4，最后一段吃掉余数
-        val plan = Resume.plan(10, 3)
+        val plan = ByteRange.plan(10, 3)
         assertEquals(3, plan.size)
         assertEquals(0L..2L, plan[0])
         assertEquals(3L..5L, plan[1])
@@ -189,14 +189,14 @@ class RetryTest {
     @Test
     fun planCollapsesWhenFileIsTiny() {
         // 块比段数还少时合成一段，否则调用方按 chunks 取 plan[i] 会越界
-        val plan = Resume.plan(2, 8)
+        val plan = ByteRange.plan(2, 8)
         assertEquals(1, plan.size)
         assertEquals(0L..1L, plan[0])
     }
 
     @Test
     fun planIsEmptyForNonPositiveTotal() {
-        assertTrue(Resume.plan(0, 4).isEmpty())
-        assertTrue(Resume.plan(-1, 4).isEmpty())
+        assertTrue(ByteRange.plan(0, 4).isEmpty())
+        assertTrue(ByteRange.plan(-1, 4).isEmpty())
     }
 }
