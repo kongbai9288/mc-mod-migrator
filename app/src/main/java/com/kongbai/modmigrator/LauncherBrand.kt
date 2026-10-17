@@ -83,6 +83,9 @@ object LauncherBrand {
 
     fun all(): List<Brand> = ALL
 
+    /** 已知品牌的关键词，给「未知启动器」筛查用 */
+    fun keys(): List<String> = BRANDS.map { it.key }
+
     // ── 下面是"来源启动器"接口 ──────────────────────────────
 
     const val EXTRA_LAUNCHER_NAME = "com.kongbai.modmigrator.LAUNCHER_NAME"
