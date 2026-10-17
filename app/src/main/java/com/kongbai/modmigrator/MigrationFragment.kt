@@ -959,12 +959,23 @@ private fun MigrationScreen(
     }
 
     fun doMigrate(srcUri: String, dstUri: String) {
+        // 同一时间只允许一个迁移。busy 只是页面状态，离开页面就丢了，
+        // 通知栏、工具箱这些别的入口还能再起一个；两个任务同时往同一个
+        // mods 目录写，出来的包是坏的，而用户只看得到进度条乱跳。
+        if (!MigGuard.acquire(MigGuard.TAG_MIGRATE)) {
+            toast("已经有一个迁移在跑，请先等它结束，或点「中止」")
+            return
+        }
         val p = Prefs.get(ctx)
         val chosen = McParts.ALL.filter { parts.contains(it.id) }
         busy = true
         log("开始迁移…")
 
         bg {
+            // try/finally 而不是在每个分支里各放一次：
+            // 下面有好几处 return@bg（目录打不开、被中止、没有可下载的），
+            // 漏一处就会永久占住，之后再也迁不动。
+            try {
             val src = Fs.tree(ctx, srcUri)
             val dst = Fs.tree(ctx, dstUri)
             if (src == null || dst == null) {
@@ -1100,6 +1111,9 @@ private fun MigrationScreen(
                     log(if (launched) "已启动 $pkg" else "启动失败 $pkg")
                 }
             }
+            } finally {
+                MigGuard.release(MigGuard.TAG_MIGRATE)
+            }
         }
     }
 
@@ -1133,7 +1147,47 @@ private fun MigrationScreen(
             toast("请先扫描生成迁移方案")
             return
         }
-        doMigrate(srcUri, dstUri)
+        // 迁移前先确认游戏没在跑。判不出来就问用户，不把"没查到"当"没在跑"。
+        val rep = MigGuard.check(
+            ctx,
+            listOf(Fs.tree(ctx, srcUri), Fs.tree(ctx, dstUri)),
+            MigGuard.launcherPkgs(ctx)
+        )
+        when (rep.verdict) {
+            MigGuard.Verdict.RUNNING -> {
+                dlg = MigDlg.Confirm(
+                    "游戏可能还在运行",
+                    rep.detail +
+                        "\n\n这时候复制存档和模组，拿到的是写到一半的内容，" +
+                        "装上去多半是坏包。\n\n" +
+                        "请先在游戏里存档并完全退出，再回来继续。",
+                    "我确定已经关了，继续"
+                ) {
+                    dlg = MigDlg.None
+                    doMigrate(srcUri, dstUri)
+                }
+                return
+            }
+
+            MigGuard.Verdict.UNKNOWN -> {
+                dlg = MigDlg.Confirm(
+                    "请确认游戏已关闭",
+                    rep.detail +
+                        "\n\n自动判断不了，需要你确认一下：" +
+                        "游戏正在跑的时候迁移，存档可能复制到被改写一半的内容。",
+                    "已经关了，开始迁移"
+                ) {
+                    dlg = MigDlg.None
+                    doMigrate(srcUri, dstUri)
+                }
+                return
+            }
+
+            MigGuard.Verdict.IDLE -> {
+                log("未发现游戏在运行（${rep.detail}）")
+                doMigrate(srcUri, dstUri)
+            }
+        }
     }
 
     // ── 迁移相关工具 ────────────────────────────────────────
