@@ -10,9 +10,12 @@ import java.io.File
  *
  * 存档的目录结构前后改过三次，三种都得认：
  *
- *   · 1.21 起（含 26.x）：<世界>/dimensions/minecraft/<维度>/region
- *   · 1.16 及更早      ：<世界>/region、<世界>/DIM-1/region、<世界>/DIM1/region
- *   · 模组自定义维度    ：<世界>/dimensions/<命名空间>/<维度>/region
+ *   · 26.1 起        ：<世界>/dimensions/minecraft/<维度>/region
+ *                      （主世界也从根目录挪进了 dimensions/minecraft/overworld）
+ *   · 26.1 之前       ：<世界>/region、<世界>/DIM-1/region、<世界>/DIM1/region
+ *   · 模组自定义维度   ：<世界>/dimensions/<命名空间>/<维度>/region
+ *
+ * 三种落法的新旧对照与切换版本统一放在 [WorldLayout]，改目录只改那里。
  *
  * 只认 region 目录。同级的 poi / entities 不存方块数据，
  * 混进来会让用户点开一片空白 —— 那是之前"点进去全提示无数据"的来源。
