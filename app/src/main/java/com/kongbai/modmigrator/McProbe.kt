@@ -230,7 +230,7 @@ object McProbe {
     /**
      * 从 SAF 树读（绝大多数情况走这条）。
      *
-     * @param ctx 传了才会顺带读 `versions/<名字>/*.json` 的开头（用来认 MC 版本）；
+     * @param ctx 传了才会顺带读 `versions/<名字>/<名字>.json` 的开头（用来认 MC 版本）；
      *            不传就只认目录结构，不读文件内容
      */
     fun fromDoc(d: DocumentFile, ctx: Context? = null): Node =
