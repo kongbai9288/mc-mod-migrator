@@ -13,14 +13,44 @@ import java.io.File
  * 逻辑不用碰。启动器换路径是常态（Pojav 换过、FCL 换过包名），
  * 所以目录同时记「旧」和「新」两套，两套都会去找。
  *
- * ⚠️ 官方 Android 11 存储更新已确认：**SAF 无法授权 Android/data 及其子目录**。
- * 因此 [Entry.priv] 里的私有路径只能拿来看、以及交给同步器读取（见 [PrivSync]），
- * 绝不能拿去发起目录授权。
+ * ## 每条记录都要标明证据等级（[Evidence]）
  *
- * [Entry.mcFrom] / [Entry.mcTo] 是社区资料整理的适配版本区间，
- * 会随启动器更新变化，仅用于提示，不用来拦截操作。
+ * 这份清单过去混进了凭印象写的路径和包名。应用要对外发布，
+ * 显示给用户的东西不能有编造成分，所以现在分三档：
+ *
+ * - [Evidence.SOURCE] —— 有上游源码或官方文件佐证，[Entry.source] 写明出处
+ * - [Evidence.COMMUNITY] —— 社区资料整理，**未经核实**，只能当候选去试
+ * - [Evidence.RUNTIME] —— 在这台设备上探测到了，属于本机事实
+ *
+ * **候选路径一律"存在才算"**（见 [detect]），猜错不会误导用户，
+ * 但 [Evidence.COMMUNITY] 的条目在界面上应当标明未核实，
+ * 免得用户以为这是官方确认的路径。
+ *
+ * ⚠️ 官方 Android 11 存储更新：**SAF 无法授权 `Android/data` 及其子目录**，
+ * 且从 11 起就是如此，不是 Android 14 才收紧（见 [StoreRules]）。
+ * 因此 [Entry.privNew] / [Entry.privOld] 里的私有路径只能拿来看、
+ * 以及交给同步器读取（见 [PrivSync]），绝不能拿去发起目录授权。
+ *
+ * [Entry.mcFrom] / [Entry.mcTo] 是社区整理的适配区间，
+ * 会随启动器更新变化，**仅用于提示，不用来拦截操作**。
  */
 object LauncherDirs {
+
+    /**
+     * 一条记录的依据有多硬。
+     *
+     * 对外发布后，界面上会据此决定要不要标注"未核实"。
+     */
+    enum class Evidence {
+        /** 有上游源码 / 官方文件佐证，见 [Entry.source] */
+        SOURCE,
+
+        /** 社区资料整理，未核实 */
+        COMMUNITY,
+
+        /** 本机探测到确实存在 */
+        RUNTIME,
+    }
 
     /** 一条启动器记录。改目录只改这里。 */
     data class Entry(
@@ -43,7 +73,11 @@ object LauncherDirs {
         /** 适配的 MC 版本上限，"" = 跟随最新 */
         val mcTo: String = "",
         /** 备注 */
-        val note: String = ""
+        val note: String = "",
+        /** 这条记录的依据有多硬 */
+        val evidence: Evidence = Evidence.COMMUNITY,
+        /** [Evidence.SOURCE] 时写明出处，例如上游文件路径 */
+        val source: String = ""
     )
 
     // ══════════════════════════════════════════════════════════
@@ -53,23 +87,29 @@ object LauncherDirs {
     private val TABLE = listOf(
         Entry(
             name = "FCL", key = "fcl",
-            pkgs = listOf("com.tungsten.fcl", "com.fcl.launcher"),
+            pkgs = listOf("com.tungsten.fcl", "com.tungsten.fcl.debug"),
             pubNew = listOf("FCL/.minecraft"),
             pubOld = listOf("games/FCL/.minecraft"),
-            privNew = listOf("Android/data/com.fcl.launcher/files/.minecraft"),
-            privOld = listOf("Android/data/com.tungsten.fcl/files/.minecraft"),
+            privNew = listOf("Android/data/com.tungsten.fcl/files/.minecraft"),
+            privOld = listOf("Android/data/com.tungsten.fcl.debug/files/.minecraft"),
             mcFrom = "1.0", mcTo = "",
-            note = "开版本隔离则在 versions/<版本>/ 下"
+            note = "开版本隔离则在 versions/<版本>/ 下；" +
+                "games/FCL 那条是社区说法，未在上游源码中确认",
+            evidence = Evidence.SOURCE,
+            source = "FCLPath.java 的 SHARED_COMMON_DIR 与 PRIVATE_COMMON_DIR；" +
+                "FCL/build.gradle.kts 的 applicationId"
         ),
         Entry(
             name = "Zalith Launcher 2", key = "zalith2",
-            pkgs = listOf("com.movtery.zalithlauncher.v2", "com.movtery.zalithlauncher2"),
-            pubNew = listOf("games/ZalithLauncher2/.minecraft"),
-            pubOld = listOf("games/ZalithLauncher/.minecraft"),
+            pkgs = listOf("com.movtery.zalithlauncher.v2", "com.movtery.zalithlauncher.debug"),
             privNew = listOf("Android/data/com.movtery.zalithlauncher.v2/files/.minecraft"),
-            privOld = listOf("Android/data/com.movtery.zalithlauncher/files/.minecraft"),
+            privOld = listOf("Android/data/com.movtery.zalithlauncher.debug/files/.minecraft"),
             mcFrom = "1.7.10", mcTo = "",
-            note = "可在启动器里改到外部存储，改了就走公开目录"
+            note = "默认就放在私有目录；但它支持用户自定义多个游戏目录，" +
+                "改过之后位置由用户决定，猜不到——请让用户在文件管理器里选",
+            evidence = Evidence.SOURCE,
+            source = "GamePathManager.kt 的 defaultGamePath = File(DIR_FILES_EXTERNAL, \".minecraft\")；" +
+                "ZalithLauncher/build.gradle.kts 的 applicationId + \".v2\""
         ),
         Entry(
             name = "Zalith Launcher", key = "zalith",
