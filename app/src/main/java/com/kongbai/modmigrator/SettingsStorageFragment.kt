@@ -214,6 +214,7 @@ private fun StorageScreen(ctx: android.content.Context, gen: Int, pick: (Int) ->
 
         var privLog by remember { mutableStateOf("") }
         var privBusy by remember { mutableStateOf(false) }
+        var privResult by remember { mutableStateOf<LauncherAccess.PackResult?>(null) }
 
         McFilledButton(ctx.getString(R.string.way_pick_public)) { pick(22) }
 
@@ -233,21 +234,55 @@ private fun StorageScreen(ctx: android.content.Context, gen: Int, pick: (Int) ->
                 entry, entry.privNew.firstOrNull().orEmpty(),
                 LauncherAccess.Kind.PRIVATE, true
             )
+            // 读目录 + 打包是重活，和迁移互斥：两个大任务一起往磁盘写会把 IO 打满
+            if (!MigGuard.acquire(MigGuard.TAG_PRIV)) {
+                Tips.short(ctx, ctx.getString(R.string.mig_guard_busy))
+                return@McFilledButton
+            }
             privBusy = true
             privLog = ""
+            privResult = null
             Bg.io.execute {
-                val f = LauncherAccess.packFromPrivate(ctx, found, "", "") { line ->
-                    Bg.ui.post { privLog += line + "\n" }
+                var res: LauncherAccess.PackResult? = null
+                try {
+                    res = LauncherAccess.packFromPrivate(ctx, found) { line ->
+                        Bg.ui.post { privLog += line + "\n" }
+                    }
+                } catch (t: Throwable) {
+                    Err.ignore(t, "同步器读取")
+                    Bg.ui.post { privLog += "\n出错：${Err.humanMessage(t)}\n" }
+                } finally {
+                    // 放在 finally 里：抛异常时按钮不会永远停在「正在读取…」
+                    MigGuard.release(MigGuard.TAG_PRIV)
                 }
+                val r = res
                 Bg.ui.post {
                     privBusy = false
-                    if (f != null) {
-                        Tips.long(ctx, ctx.getString(R.string.priv_pack_done, f.absolutePath))
+                    privResult = r
+                    if (r?.ok == true) {
                         privLog += "\n" + ctx.getString(R.string.way_launcher_import_desc)
                     } else {
                         privLog += "\n读不出来：改用「自己选公开目录」，或让启动器自己导入"
                     }
                 }
+            }
+        }
+
+        // 打包成功后给两条出路：直接发给启动器导入，或自己去下载目录拿
+        val pr = privResult
+        if (pr?.ok == true) {
+            McNote(
+                ctx.getString(
+                    R.string.priv_pack_meta,
+                    pr.mcVersion.ifBlank { ctx.getString(R.string.priv_pack_unknown) },
+                    pr.loader.ifBlank { ctx.getString(R.string.priv_pack_unknown) }
+                )
+            )
+            McFilledButton(ctx.getString(R.string.priv_pack_share)) {
+                LauncherAccess.sharePack(ctx, pr)
+            }
+            if (pr.savedTo.isNotBlank()) {
+                McNote(ctx.getString(R.string.priv_pack_done, pr.savedTo))
             }
         }
 
