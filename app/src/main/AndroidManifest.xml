@@ -186,6 +186,15 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/filepaths" />
         </provider>
+
+        <!-- 同步器（Shizuku）授权回调所必需，缺了请求授权不会有反应 -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:grantUriPermissions="true" />
     </application>
 
 </manifest>
