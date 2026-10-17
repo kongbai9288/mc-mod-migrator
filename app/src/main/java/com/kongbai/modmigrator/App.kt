@@ -100,6 +100,8 @@ class App : Application() {
         runCatching { Notifier.createChannel(this) }
         // 应用内活动弹窗：给所有界面自动挂浮层，替代底部小弹窗
         runCatching { InAppNotice.install(this) }
+        // 同步器授权结果：读启动器私有目录要用（见 PrivSync）
+        runCatching { PrivSync.bindResultListener { granted -> timber.log.Timber.i("同步器授权：$granted") } }
         // 后台任务的通知栏进度：挂到进度中心上，所有耗时任务统一有反馈
         runCatching { TaskNotifier.install(this) }
     }
