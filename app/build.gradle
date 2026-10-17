@@ -205,6 +205,8 @@ dependencies {
     // Android 14 起连「所有文件访问」权限也进不去别的 App 的私有目录，
     // 启动器的 Android/data 只能让用户装同步器、由它以 adb/root 身份代读。
     // api 提供调用入口，provider 是授权回调必需的 ContentProvider。
-    implementation 'dev.rikka.shizuku:api:13.1.5'
-    implementation 'dev.rikka.shizuku:provider:13.1.5'
+    // 用 12.2.0：13.x 起 Shizuku#newProcess 被收成私有（官方要求改用 UserService），
+    // 而读私有目录目前只用它跑一条 cp。
+    implementation 'dev.rikka.shizuku:api:12.2.0'
+    implementation 'dev.rikka.shizuku:provider:12.2.0'
 }
