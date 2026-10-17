@@ -4,6 +4,12 @@ Minecraft Java 版 **模组与配置迁移工具**（Android）。
 
 Minecraft java edition 手机启动器的跨版本更新迁移工具
 
+[![Android CI](https://github.com/kongbai9288/mc-mod-migrator/actions/workflows/build-apk.yml/badge.svg)](https://github.com/kongbai9288/mc-mod-migrator/actions/workflows/build-apk.yml)
+![Downloads](https://img.shields.io/github/downloads/kongbai9288/mc-mod-migrator/total?style=flat-square&color=6C5CE7)
+![Release](https://img.shields.io/github/v/release/kongbai9288/mc-mod-migrator?include_prereleases&label=Kcu-beta&style=flat-square&color=6C5CE7)
+[![Website](https://img.shields.io/badge/Website-Kcu--Migrator-6C5CE7?style=flat-square)](https://kongbai9288.github.io/KCU-Migrator/)
+
+
 > 适用：安卓上的 FCL、Zalith、Pojav、Amethyst、HMCL-PE、澪-Ultimate 等(java edition)启动器。
 > 不适用：基岩版（Bedrock edition）
 
