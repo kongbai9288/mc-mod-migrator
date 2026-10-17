@@ -324,7 +324,7 @@ object InstanceScanner {
      * 远端补丁更新目录时这里自动跟着变，不会各改各的。
      *
      * 注意：.minecraft 才是游戏目录；它下面的 versions/<名字> 只有在
-     * 「版本隔离」且含 mods/saves/config 时才算独立实例（见 [DirProbe]）。
+     * 「版本隔离」且含 mods/saves/config 时才算独立实例（判定规则见 [McProbe]）。
      */
     private fun knownDirs(): List<String> {
         val root = android.os.Environment.getExternalStorageDirectory().absolutePath.trimEnd('/')
@@ -383,18 +383,22 @@ object InstanceScanner {
             // 现在它们确实**不计入实例**（没有模组可迁移），
             // 但数量会写进日志，界面上看得到「这里还有 N 个没装模组的版本」。
             //
-            val vers = DirProbe.readVersions(f)
+            val vs = java.io.File(f, McDirs.VERSIONS)
             var iso = 0
-            for (v in vers) {
-                if (v.kind != DirProbe.VersionKind.INSTANCE) continue
-                val gi = readFromFile(java.io.File(v.path)) ?: continue
-                if (gi.modCount > 0 || gi.hasConfig) {
-                    out[gi.uri] = gi
-                    iso++
-                    log("发现隔离版本：${gi.name}（${gi.modCount} 个模组）")
+            var total = 0
+            if (vs.isDirectory) {
+                for (g in vs.listFiles() ?: emptyArray()) {
+                    if (!g.isDirectory) continue
+                    total++
+                    val gi = readFromFile(g)
+                    if (gi != null && (gi.modCount > 0 || gi.hasConfig)) {
+                        out[gi.uri] = gi
+                        iso++
+                        log("发现隔离版本：${gi.name}（${gi.modCount} 个模组）")
+                    }
                 }
             }
-            val rest = vers.size - iso
+            val rest = total - iso
             if (rest > 0) log("　└ versions 下另有 $rest 个没装模组的版本，不算实例")
         }
 
@@ -435,6 +439,41 @@ object InstanceScanner {
         if (name == ".minecraft" || name == "minecraft") return true
         val kids = dir.listFiles() ?: return false
         return kids.any { it.name.lowercase(Locale.ROOT) in GAME_MARKS }
+    }
+
+    /**
+     * 版本兜底：mmc-pack / manifest / version.json 都没给出版本号时，
+     * 到 `versions/<名字>/<名字>.json` 里找 —— 官方启动器和多数第三方
+     * 启动器都这样存。
+     *
+     * ⚠️ 以前这条路压根没走，于是这类实例的版本常年是空串，
+     * 界面显示 "MC ?"，用户以为扫错了。
+     *
+     * 取「装了模组」的那个版本优先：版本隔离时它才是真正在玩的。
+     * 全都认不出就返回空串，**不猜**。
+     */
+    private fun versionIdFallback(dir: java.io.File): String {
+        val vs = java.io.File(dir, McDirs.VERSIONS)
+        if (!vs.isDirectory) return ""
+        return try {
+            val kids = (vs.listFiles() ?: return "").filter { it.isDirectory }
+            fun idOf(v: java.io.File): String {
+                val j = java.io.File(v, v.name + ".json")
+                if (!j.isFile) return ""
+                val o = Json.obj(readFileText(j)) ?: return ""
+                return Json.s(o, "id").trim()
+            }
+            for (v in kids) {
+                val isolated = java.io.File(v, McDirs.MODS).isDirectory ||
+                    java.io.File(v, McDirs.CONFIG).isDirectory
+                if (!isolated) continue
+                val id = idOf(v)
+                if (id.isNotBlank()) return id
+            }
+            kids.firstNotNullOfOrNull { idOf(it).takeIf { s -> s.isNotBlank() } } ?: ""
+        } catch (t: Throwable) {
+            ""
+        }
     }
 
     fun readFromFile(dir: java.io.File): InstanceInfo? {
@@ -534,7 +573,7 @@ object InstanceScanner {
         // 空串，界面显示 "MC ?"，用户以为扫错了。
         //
         if (info.mcVersion.isBlank()) {
-            info.mcVersion = DirProbe.mcVersionOf(dir)
+            info.mcVersion = versionIdFallback(dir)
         }
 
         if (info.kind.isBlank()) info.kind = "目录"
