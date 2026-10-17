@@ -72,6 +72,19 @@ object LauncherDirs {
         val mcFrom: String = "",
         /** 适配的 MC 版本上限，"" = 跟随最新 */
         val mcTo: String = "",
+        /**
+         * 这条记录适用的**安卓系统**版本下限（数字，如 "10"）。
+         * 空串 = 不限。
+         *
+         * 启动器的目录不只会随启动器版本变，**还会随安卓版本变**：
+         * PojavLauncher 就是典型——Android 9 及更早放在公开的
+         * `games/PojavLauncher`，Android 10 起被迫挪进 `Android/data`
+         *（来源：PojavLauncher issue #2122）。所以同一款启动器
+         * 在系统版本不同时是两条记录，否则会去找一个根本不存在的目录。
+         */
+        val sysFrom: String = "",
+        /** 适用的安卓系统版本上限，空串 = 不限 */
+        val sysTo: String = "",
         /** 备注 */
         val note: String = "",
         /** 这条记录的依据有多硬 */
@@ -87,7 +100,12 @@ object LauncherDirs {
     private val TABLE = listOf(
         Entry(
             name = "FCL", key = "fcl",
-            pkgs = listOf("com.tungsten.fcl", "com.tungsten.fcl.debug"),
+            pkgs = listOf(
+                "com.tungsten.fcl", "com.tungsten.fcl.debug",
+                // 社区资料里还出现过这个包名，可能是旧版或另一分支；
+                // 没在上游源码里核到，只当候选，探不到就不显示
+                "com.foldcraft.launcher"
+            ),
             pubNew = listOf("FCL/.minecraft"),
             pubOld = listOf("games/FCL/.minecraft"),
             privNew = listOf("Android/data/com.tungsten.fcl/files/.minecraft"),
@@ -120,13 +138,28 @@ object LauncherDirs {
             note = "支持自定义游戏目录"
         ),
         Entry(
-            name = "PojavLauncher", key = "pojav",
+            name = "PojavLauncher（Android 10 起）", key = "pojav",
             pkgs = listOf("net.kdt.pojavlaunch", "net.kdt.pojavlaunch.debug"),
-            pubNew = listOf("games/PojavLauncher/.minecraft"),
             privNew = listOf("Android/data/net.kdt.pojavlaunch/files/.minecraft"),
             privOld = listOf("Android/data/net.kdt.pojavlaunch.debug/files/.minecraft"),
             mcFrom = "1.0", mcTo = "1.21",
-            note = "已停止维护，建议换 Zalith"
+            sysFrom = "10",
+            note = "已停止维护，建议换 Zalith；Android 10 起游戏目录挪进私有目录",
+            evidence = Evidence.SOURCE,
+            source = "PojavLauncher issue #2122：稳定版曾可用 games/PojavLauncher，" +
+                "测试版只能用 Android/data/net.kdt.pojavlaunch.debug/files/"
+        ),
+        Entry(
+            name = "PojavLauncher（Android 9 及更早）", key = "pojav",
+            pkgs = listOf("net.kdt.pojavlaunch", "net.kdt.pojavlaunch.debug"),
+            pubNew = listOf("games/PojavLauncher/.minecraft"),
+            pubOld = listOf("games/PojavLauncher"),
+            mcFrom = "1.0", mcTo = "1.21",
+            sysTo = "9",
+            note = "老系统上的公开目录，可以直接读写；已停止维护",
+            evidence = Evidence.SOURCE,
+            source = "PojavLauncher issue #2122 与项目协作者答复：" +
+                "Android 9 及更早是 /storage/emulated/0/games/PojavLauncher"
         ),
         Entry(
             name = "Amethyst", key = "amethyst",
@@ -142,7 +175,10 @@ object LauncherDirs {
             pubNew = listOf("HMCLPE/.minecraft"),
             privNew = listOf("Android/data/com.tungsten.hmclpe/files/.minecraft"),
             mcFrom = "1.0", mcTo = "1.20",
-            note = "开版本隔离则在 versions/<版本>/ 下"
+            note = "开版本隔离则在 versions/<版本>/ 下",
+            evidence = Evidence.SOURCE,
+            source = "HMCL-PE 用户手册「Some tips about file location」：" +
+                "HMCLPE/.minecraft，版本隔离时是 HMCLPE/.minecraft/versions/<版本名>"
         ),
         Entry(
             name = "澪 MioLauncher", key = "mio",
@@ -205,6 +241,43 @@ object LauncherDirs {
         else -> "${e.mcFrom} – ${e.mcTo}"
     }
 
+    /**
+     * 这条记录在当前**安卓系统**上适用吗。
+     *
+     * 用户装的老版本启动器在新系统上、或新启动器装在老系统上，
+     * 目录位置都可能不同，所以按系统版本过一遍再去找，
+     * 免得去探测一个根本不存在的目录（Pojav 就是这么分开的）。
+     *
+     * 区间没填的（sysFrom / sysTo 都空）一律适用。
+     */
+    fun appliesToSdk(e: Entry, sdk: Int = android.os.Build.VERSION.SDK_INT): Boolean {
+        val from = e.sysFrom.filter(Char::isDigit).toIntOrNull()?.let(::apiOf)
+        val to = e.sysTo.filter(Char::isDigit).toIntOrNull()?.let(::apiOf)
+        if (from != null && sdk < from) return false
+        if (to != null && sdk > to) return false
+        return true
+    }
+
+    /**
+     * 安卓大版本号 → API 等级。
+     *
+     * [Entry.sysFrom] / [Entry.sysTo] 写的是「Android 10」这种人读的版本号，
+     * 而 [android.os.Build.VERSION.SDK_INT] 是 API 等级（Android 10 = 29），
+     * 两者不能直接比，必须先过这张表。
+     * 表里没有的版本返回 null，调用方按「不过滤」处理，避免误杀。
+     */
+    private fun apiOf(major: Int): Int? = when (major) {
+        9 -> 28
+        10 -> 29
+        11 -> 30
+        12 -> 31   // 12L 是 32，这里按 12 算
+        13 -> 33
+        14 -> 34
+        15 -> 35
+        16 -> 36
+        else -> null
+    }
+
     /** 公开目录候选，新的排前面 */
     fun publicCandidates(e: Entry): List<String> = e.pubNew + e.pubOld
 
@@ -220,7 +293,7 @@ object LauncherDirs {
     fun detect(ctx: Context): List<Pair<Entry, File>> {
         val root = sdcard()
         val out = ArrayList<Pair<Entry, File>>()
-        for (e in entries) {
+        for (e in entries.filter { appliesToSdk(it) }) {
             val f = publicCandidates(e).map { File(root, it) }.firstOrNull { it.isDirectory }
                 ?: continue
             out.add(e to f)
@@ -242,7 +315,7 @@ object LauncherDirs {
     fun detectAll(ctx: Context): List<LauncherAccess.Found> {
         val root = sdcard()
         val out = ArrayList<LauncherAccess.Found>()
-        for (e in entries) {
+        for (e in entries.filter { appliesToSdk(it) }) {
             val ins = installed(ctx, e)
             val pub = publicCandidates(e).map { File(root, it) }.firstOrNull { it.isDirectory }
             if (pub != null) {
