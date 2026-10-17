@@ -155,6 +155,16 @@ object LauncherAccess {
     private fun verParts(s: String): List<Int> =
         s.split('.').mapNotNull { it.toIntOrNull() }
 
+    /** 逐段比大小，短的按 0 补 —— 不能按字典序，"1.10" 要大于 "1.3" */
+    private fun cmpParts(a: List<Int>, b: List<Int>): Int {
+        for (i in 0 until maxOf(a.size, b.size)) {
+            val x = a.getOrElse(i) { 0 }
+            val y = b.getOrElse(i) { 0 }
+            if (x != y) return x.compareTo(y)
+        }
+        return 0
+    }
+
     /**
      * 从读出来的目录里认游戏版本：只看 `versions/` 下的目录名。
      *
@@ -168,7 +178,7 @@ object LauncherAccess {
                 ?.filter { it.isDirectory && VER_RE.matches(it.name) }
                 ?.map { it.name }
             if (!names.isNullOrEmpty()) {
-                return names.sortedWith(compareByDescending<String> { verParts(it) }).first()
+                return names.sortedWith { a, b -> cmpParts(verParts(b), verParts(a)) }.first()
             }
         }
         return ""
