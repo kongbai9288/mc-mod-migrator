@@ -28,8 +28,8 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:packageReleaseResources
 > Task :app:createReleaseCompatibleScreenManifests
 > Task :app:extractDeepLinksRelease
-> Task :app:parseReleaseLocalResources
 > Task :app:mergeReleaseResources
+> Task :app:parseReleaseLocalResources
 > Task :app:processReleaseMainManifest
 > Task :app:processReleaseManifest
 > Task :app:javaPreCompileRelease
@@ -37,23 +37,23 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mergeReleaseJniLibFolders
 > Task :app:mergeReleaseNativeLibs
 > Task :app:desugarReleaseFileDependencies
-> Task :app:checkReleaseDuplicateClasses
 > Task :app:processReleaseManifestForPackage
-> Task :app:mergeReleaseArtProfile
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
 
+> Task :app:checkReleaseDuplicateClasses
 > Task :app:extractReleaseNativeSymbolTables
 > Task :app:processReleaseResources
 > Task :app:mergeExtDexRelease
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:mergeReleaseShaders
+> Task :app:mergeReleaseArtProfile
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
 > Task :app:mergeReleaseAssets
-> Task :app:compressReleaseAssets
 > Task :app:collectReleaseDependencies
+> Task :app:compressReleaseAssets
 > Task :app:sdkReleaseDependencyData
 > Task :app:validateSigningRelease
 > Task :app:writeReleaseAppMetadata
@@ -186,14 +186,14 @@ Note: Recompile with -Xlint:unchecked for details.
 > Task :app:mergeReleaseJavaResource
 > Task :app:mergeDexRelease
 > Task :app:compileReleaseArtProfile
-> Task :app:lintVitalAnalyzeRelease
 > Task :app:packageRelease
 > Task :app:createReleaseApkListingFileRedirect
+> Task :app:lintVitalAnalyzeRelease
 > Task :app:lintVitalReportRelease
 > Task :app:lintVitalRelease
 > Task :app:assembleRelease
 
-BUILD SUCCESSFUL in 4m 47s
+BUILD SUCCESSFUL in 3m 53s
 46 actionable tasks: 46 executed
 To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
 Daemon will be stopped at the end of the build 
@@ -363,5 +363,5 @@ Note: Recompile with -Xlint:unchecked for details.
 > Task :app:createDebugApkListingFileRedirect
 > Task :app:assembleDebug
 
-BUILD SUCCESSFUL in 3m 12s
+BUILD SUCCESSFUL in 2m 27s
 36 actionable tasks: 36 executed
