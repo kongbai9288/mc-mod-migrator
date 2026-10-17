@@ -297,4 +297,8 @@
     <string name="priv_pack_done">已导出：%1$s</string>
     <string name="priv_pack_fail">没能读出来：%1$s</string>
     <string name="priv_open_home">下载同步器</string>
+    <string name="mig_guard_busy">已经有一个任务在跑，请先等它结束</string>
+    <string name="priv_pack_meta">认出：游戏版本 %1$s / 加载器 %2$s</string>
+    <string name="priv_pack_share">发送给启动器导入</string>
+    <string name="priv_pack_unknown">未认出</string>
 </resources>
