@@ -1,6 +1,7 @@
 package com.kongbai.modmigrator
 
 import android.content.Context
+import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 import java.io.File
 import java.net.URLDecoder
@@ -85,30 +86,74 @@ object Downloader {
         } catch (t: Throwable) {
             Err.ignore(t, "记录下载流量")
         }
-        return try {
-            val existing = dir.findFile(name)
-            if (existing != null) existing.delete()
-            val out = dir.createFile(Fs.mimeOf(name), name) ?: return null
-            // ⚠️ openOutputStream 返回 null 时，`?.use {}` 整块被跳过，
-            // 但下面的 tmp.delete() 和 return out **照常执行**。
-            // 调用方拿到一个非 null 的 DocumentFile，以为下载成功，
-            // 实际是个 0 字节空 jar —— 装进 mods 目录直接坏包。
-            // 必须把 null 当成失败返回。
-            val os = ctx.contentResolver.openOutputStream(out.uri, "wt")
-            if (os == null) {
-                out.delete()
-                // 保留 tmp，下次可直接重试，不必重新下载
-                return null
-            }
-            os.use { o -> tmp.inputStream().use { it.copyTo(o, 1 shl 16) } }
-            tmp.delete()
-            out
+        val out = try {
+            place(ctx, tmp, dir, name)
         } catch (t: Throwable) {
-            // 失败时 tmp 留在 cache 里，每次失败残留一个完整文件，
-            // 长期下来会吃掉几百 MB。这里必须清掉。
-            try { tmp.delete() } catch (_: Throwable) { }
             null
         }
+        if (out == null) {
+            // 失败时 tmp 留在 cache 里，每次失败残留一个完整文件，
+            // 长期下来会吃掉几百 MB。这里必须清掉。
+            //（缓存文件不会被复用，见 downloadToCacheLocked，留着没有意义）
+            try { tmp.delete() } catch (_: Throwable) { }
+            return null
+        }
+        tmp.delete()
+        return out
+    }
+
+    /**
+     * 把已下好的缓存文件放进目标目录：先写副名，再删旧的，最后改名。
+     *
+     * 以前的顺序是「先删旧的 → 再建新的」。中间任何一步失败
+     *（createFile 返回 null、openOutputStream 返回 null、写到一半存储满了），
+     * 用户的旧模组已经没了、新的也没装上 —— 迁移前还能进的存档直接变坏包。
+     * 这正是"先复制后删除"要解决的：新内容完整落盘之前，不动旧文件。
+     *
+     * SAF 没有通用的"原子替换"，所以退而求其次：
+     *   1. 完整写一份 `<名字>.mmpart`（这一步失败，旧文件毫发无损）
+     *   2. 确认写完之后才删旧文件
+     *   3. 用 renameDocument 改回正式名（外部存储这类 provider 普遍支持）
+     *   4. 不支持改名时，再复制一份到正式名并清掉副名
+     * 风险窗口只剩 2 到 3 之间，此时副名文件还在，下次进来会被清掉重来。
+     */
+    private fun place(ctx: Context, tmp: File, dir: DocumentFile, name: String): DocumentFile? {
+        val partName = name + MigGuard.PART_SUFFIX
+        // 上次残留的副名文件先清掉，否则 createFile 会另起一个 "(1)" 名字
+        runCatching { dir.findFile(partName)?.delete() }
+
+        val part = dir.createFile(Fs.mimeOf(name), partName) ?: return null
+        // ⚠️ openOutputStream 返回 null 时，`?.use {}` 整块被跳过，
+        // 但下面的 return part **照常执行**。调用方拿到一个非 null 的
+        // DocumentFile，以为下载成功，实际是个 0 字节空 jar ——
+        // 装进 mods 目录直接坏包。必须把 null 当成失败返回。
+        val os = ctx.contentResolver.openOutputStream(part.uri, "wt")
+        if (os == null) {
+            part.delete()
+            return null
+        }
+        os.use { o -> tmp.inputStream().use { it.copyTo(o, 1 shl 16) } }
+
+        // 走到这里，新内容已经在目标目录里完整存在了，才动旧文件
+        runCatching { dir.findFile(name)?.delete() }
+
+        val renamed = runCatching {
+            DocumentsContract.renameDocument(ctx.contentResolver, part.uri, name)
+        }.getOrNull()
+        if (renamed != null) return DocumentFile.fromSingleUri(ctx, renamed)
+
+        // provider 不支持改名：复制一份到正式名
+        val out = dir.createFile(Fs.mimeOf(name), name) ?: return null
+        val os2 = ctx.contentResolver.openOutputStream(out.uri, "wt")
+        if (os2 == null) {
+            out.delete()
+            return null
+        }
+        os2.use { o ->
+            ctx.contentResolver.openInputStream(part.uri)?.use { it.copyTo(o, 1 shl 16) }
+        }
+        runCatching { part.delete() }
+        return out
     }
 
     /** 下载到 cache，内部自动判断是否分块 */
