@@ -3,15 +3,20 @@ package com.kongbai.modmigrator
 import android.content.Context
 import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
+import okhttp3.Response
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 import java.net.URLDecoder
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * 下载器：单文件多线程分块下载 + 断点续传尝试。
+ * 下载器：单文件多线程分块下载 + 断点续传 + 弱网退避重试。
  *
  * 思路参考开源下载框架（lingochamp/FileDownloader、jackfengji/android-download-manager，
  * 均为 Apache-2.0 / MIT），但这里是按同样思路用 OkHttp 自行实现，
@@ -23,6 +28,16 @@ import java.util.concurrent.atomic.AtomicLong
  *   3. 不支持或文件小 → 直接单线程下载（省掉分块开销）
  *   4. 所有块下完，按顺序合并写入目标目录
  *   5. 任意一步失败 → 回退到单线程重试，保证"能下下来"优先于"下得快"
+ *
+ * 断点续传（本轮补上）：
+ *   以前每次进来先 `part.delete()`，注释写着"断点续传尝试"，
+ *   实际上一次都没续上——几十 MB 的模组在 4G 上下到 90% 断一次
+ *   就全白费。现在 part 与每个分块都留在 cache 里，
+ *   下次进来从已有长度接着要（Range: bytes=<已下>-）。
+ *
+ * 弱网退避（本轮补上）：
+ *   以前一次超时就判失败、直接返回 null。现在交给 [Retry.loop]，
+ *   对超时/连接重置/429/5xx 退避重试，已下的字节不丢。
  *
  * 为什么要先写临时文件再合并：
  *   目标是 SAF 的 DocumentFile，只能顺序写、不能随机 seek，
@@ -38,6 +53,9 @@ object Downloader {
 
     /** 最大块数，避免把连接打满 */
     private const val MAX_CHUNKS = 8
+
+    /** 续传残片保留多久。超过就清，避免长期占着 cache */
+    private const val STALE_MS = 3L * 24 * 60 * 60 * 1000
 
     private val pool by lazy { Executors.newFixedThreadPool(MAX_CHUNKS) }
 
@@ -92,9 +110,9 @@ object Downloader {
             null
         }
         if (out == null) {
-            // 失败时 tmp 留在 cache 里，每次失败残留一个完整文件，
+            // 写入目标目录失败时 tmp 留在 cache 里，每次失败残留一个完整文件，
             // 长期下来会吃掉几百 MB。这里必须清掉。
-            //（缓存文件不会被复用，见 downloadToCacheLocked，留着没有意义）
+            //（下一轮重下会走续传，从头再来也不亏）
             try { tmp.delete() } catch (_: Throwable) { }
             return null
         }
@@ -170,12 +188,13 @@ object Downloader {
      * 按文件名加锁：不同文件完全并行不受影响，
      * 只有真正同名才串行，代价极小。
      */
-    private val fileLocks = java.util.concurrent.ConcurrentHashMap<String, Any>()
+    private val fileLocks = ConcurrentHashMap<String, Any>()
 
     private fun downloadToCache(
         ctx: Context, url: String, name: String,
         headers: Map<String, String>, onProgress: ((Long, Long) -> Unit)?
     ): File? {
+        trimCache(ctx)
         val cache = File(ctx.cacheDir, "dl").apply { if (!exists()) mkdirs() }
         val safe = guessName(name).ifBlank { "mod.jar" }
         val out = File(cache, safe)
@@ -191,38 +210,62 @@ object Downloader {
         }
     }
 
+    /**
+     * 清掉过期的续传残片。
+     *
+     * 续传要求残片留在 cache 里，否则"下次接着下"无从谈起——
+     * 但放之任之会越积越多。折中：保留 3 天。
+     * 还在用的文件每次续写都会更新 mtime，不会被误删。
+     */
+    private fun trimCache(ctx: Context) {
+        runCatching {
+            val dir = File(ctx.cacheDir, "dl")
+            if (!dir.exists()) return@runCatching
+            val cut = System.currentTimeMillis() - STALE_MS
+            dir.listFiles()?.forEach { f ->
+                if (f.isFile && f.lastModified() < cut) f.delete()
+            }
+        }
+    }
+
     private fun downloadToCacheLocked(
         ctx: Context, url: String, out: File,
         headers: Map<String, String>, onProgress: ((Long, Long) -> Unit)?
     ): File? {
-
-        // 原子提交：先写 .part，完整写完后才 rename 成正式文件。
-        // 否则下载中断会留下半截文件，下次复用缓存时会被当成完整文件，
-        // 装进 mods 目录就是个坏 jar——这是"下载中断后模组装不上"的常见根因。
         val safe = out.name
         val cache = out.parentFile ?: return null
-        val part = File(cache, "$safe.part")
-        runCatching { if (part.exists()) part.delete() }
+        // 分块/续传文件带上 url 指纹：同名但不同地址的模组
+        //（比如两个源给出同名文件）不会互相续到对方的残片上。
+        val token = (url.hashCode() and 0x7fffffff).toString(36)
+        val part = File(cache, "$safe.$token.part")
+
+        // ⚠️ 这里**不能**再像以前那样一上来就 `part.delete()`。
+        // 那一行让"断点续传"从类注释上的承诺变成了一句空话：
+        // 每次失败都从 0 重来，弱网上大文件几乎永远下不完。
+        // part 现在是有状态的续传进度，只有确认无法续传才清掉重来。
         runCatching { if (out.exists()) out.delete() }
 
         val parallel = Prefs.get(ctx).getInt(K.DOWNLOAD_PARALLEL, 3).coerceIn(1, MAX_CHUNKS)
-        val info = probe(url, headers)
+        val info = try {
+            Retry.loop("probe") { probeOnce(url, headers) }
+        } catch (t: Throwable) {
+            null
+        }
 
-        // 不支持断点、拿不到长度、文件太小、或用户只开 1 并发 → 单线程
         val got: File? = if (
             info == null || !info.acceptRange ||
             info.length < MIN_CHUNK_TOTAL || parallel <= 1
         ) {
-            single(url, headers, part, onProgress, info?.length ?: -1)
+            singleWithRetry(url, headers, part, info?.length ?: -1L, info?.acceptRange == true, onProgress)
         } else {
             val chunks = chunkCount(info.length, parallel)
-            val parts = chunked(url, headers, info.length, chunks, onProgress)
-            if (parts == null) {
-                // 分块失败就退回单线程，不能因为追求速度导致下不下来
-                runCatching { part.delete() }
-                single(url, headers, part, onProgress, info.length)
+            val files = chunked(url, headers, info.length, chunks, cache, safe, token, onProgress)
+            if (files == null) {
+                // 分块失败就退回单线程，不能因为追求速度导致下不下来。
+                // part 里可能留有上次单线程的进度，续传会接着用，不会白下。
+                singleWithRetry(url, headers, part, info.length, true, onProgress)
             } else {
-                mergeParts(parts, part)
+                mergeParts(files, part)
             }
         }
 
@@ -232,9 +275,13 @@ object Downloader {
             return null
         }
         if (info != null && info.length > 0 && got.length() != info.length) {
+            // 大小对不上说明服务端内容变了，续传的残片是旧的，一并清掉
             runCatching { got.delete() }
+            clearChunks(cache, safe, token)
             return null
         }
+        // 成功：分块文件已经合并进 part，留着没用，清掉
+        clearChunks(cache, safe, token)
         return try {
             if (out.exists()) out.delete()
             if (!part.renameTo(out)) {
@@ -257,32 +304,44 @@ object Downloader {
      * 同样优先 HEAD：只需要响应头。
      * 拿不到长度（部分服务器 HEAD 不给 Content-Length）时
      * 才用 1 字节 Range 请求再确认一次。
+     *
+     * 返回 null 只表示"通了但拿不到长度"，不是网络失败；
+     * 网络失败抛异常，交给 [Retry.loop] 退避重试。
      */
-    private fun probe(url: String, headers: Map<String, String>): Probe? {
+    private fun probeOnce(url: String, headers: Map<String, String>): Probe? {
         // 1) HEAD
         try {
-            val r = Http.head(url, headers)
-            val len = r.header("Content-Length")?.toLongOrNull()
-                ?: r.header("Content-Range")?.substringAfter("/")?.toLongOrNull()
-            val ar = r.header("Accept-Ranges")?.equals("bytes", true) == true
-            r.close()
-            if (len != null && len > 0) return Probe(len, ar)
+            val r = Http.head(url, headers, Http.SHORT)
+            r.use {
+                val len = it.header("Content-Length")?.toLongOrNull()
+                    ?: it.header("Content-Range")?.substringAfter("/")?.toLongOrNull()
+                val ar = it.header("Accept-Ranges")?.equals("bytes", true) == true
+                if (len != null && len > 0) return Probe(len, ar)
+                // 通了但没长度：再问一次也是一样，没必要重试
+                if (it.isSuccessful) return null
+                if (Retry.retryableCode(it.code)) throw IOException("HTTP ${it.code}")
+                // 405/501 之类：服务端不支持 HEAD，落到下面的回退
+            }
         } catch (t: Throwable) {
-            // 不支持 HEAD，走回退
+            // 不可重试的（证书问题、URL 非法等）不再退避，但仍可试试回退
+            if (Retry.retryable(t)) throw t
         }
         // 2) 回退：GET 只取 1 字节，同时能确认是否支持续传
-        return try {
-            val r = Http.call(url, headers + mapOf("Range" to "bytes=0-0"))
-            val len = r.header("Content-Range")?.substringAfter("/")?.toLongOrNull()
-                ?: r.header("Content-Length")?.toLongOrNull()
-                ?: r.body?.contentLength()?.takeIf { it > 0 }
-            val ar = r.header("Accept-Ranges")?.equals("bytes", true) == true ||
-                r.header("Content-Range")?.startsWith("bytes", true) == true
-            r.close()
-            if (len == null || len <= 0) null else Probe(len, ar)
-        } catch (t: Throwable) {
-            null
+        val (code, len, ar) = Http
+            .call(url, headers + mapOf("Range" to "bytes=0-0"), Http.SHORT)
+            .use {
+                val l = it.header("Content-Range")?.substringAfter("/")?.toLongOrNull()
+                    ?: it.header("Content-Length")?.toLongOrNull()
+                    ?: it.body?.contentLength()?.takeIf { v -> v > 0 }
+                val a = it.header("Accept-Ranges")?.equals("bytes", true) == true ||
+                    it.header("Content-Range")?.startsWith("bytes", true) == true
+                Triple(it.code, l, a)
+            }
+        if (len == null || len <= 0) {
+            if (Retry.retryableCode(code)) throw IOException("HTTP $code")
+            return null
         }
+        return Probe(len, ar)
     }
 
     /** 计算分几块 */
@@ -291,87 +350,120 @@ object Downloader {
         return minOf(parallel, bySize, MAX_CHUNKS).coerceAtLeast(1)
     }
 
-    /** 分块并行下载，返回各块的临时文件（按序），失败返回 null */
+    /**
+     * 分块并行下载，返回各块的临时文件（按序），失败返回 null。
+     *
+     * 每块的文件名是确定的（`<名字>.<url指纹>.c<序号>`），
+     * 所以上一次下了一半的块这次能接着要——这是分块路径上的续传。
+     */
     private fun chunked(
         url: String, headers: Map<String, String>, total: Long, chunks: Int,
+        cache: File, base: String, token: String,
         onProgress: ((Long, Long) -> Unit)?
     ): List<File>? {
-        val size = total / chunks
+        val plan = Resume.plan(total, chunks)
+        if (plan.isEmpty()) return null
+
+        // 以 plan 的实际段数为准：total 太小时 plan 会合并成一段，
+        // 若仍按 chunks 取 plan[i] 会越界
+        val n = plan.size
         val parts = ConcurrentHashMap<Int, File>()
         val done = AtomicLong(0)
-        val failed = java.util.concurrent.atomic.AtomicBoolean(false)
-        val latch = java.util.concurrent.CountDownLatch(chunks)
+        val failed = AtomicBoolean(false)
+        val latch = CountDownLatch(n)
 
-        for (i in 0 until chunks) {
-            val start = i * size
-            val end = if (i == chunks - 1) total - 1 else (start + size - 1)
+        for (i in 0 until n) {
+            val start = plan[i].first
+            val end = plan[i].last
+            val want = end - start + 1
+            val f = File(cache, "$base.$token.c$i")
+
+            // ⚠️ 只有"长度正好等于本块预期"的残片才能续用。
+            // 比预期长，说明总长变了（服务端换了文件）或块数变了，
+            // 续上去会拼出一个体积对、内容坏的 jar——比重新下还糟。
+            if (f.exists() && f.length() > want) f.delete()
+            if (f.exists() && f.length() == want) {
+                parts[i] = f
+                done.addAndGet(want)
+                latch.countDown()
+                continue
+            }
+
             pool.submit {
-                // 本块自己创建的临时文件，必须保证任何退出路径都能清掉。
-                // 之前只在"明确的失败分支"里 delete，
-                // 一旦异常发生在创建之后、删除之前（Http.call 抛异常、
-                // 写盘抛异常、被中断等），catch 里只设了 failed 标志却没删文件 ——
-                // 那个 .tmp 就永远留在 cache 里。
-                // 又因为下面失败时整个下载作废，这些文件再也没人来收，
-                // 重试几次就堆出几十上百 MB 的垃圾。
-                var mine: File? = null
                 try {
-                    if (failed.get()) return@submit
-                    val f = File.createTempFile("part${i}_", ".tmp")
-                    mine = f
-                    val h = headers.toMutableMap()
-                    h["Range"] = "bytes=$start-$end"
-                    val r = Http.call(url, h)
-                    if (!r.isSuccessful) {
-                        r.close(); f.delete(); failed.set(true); return@submit
-                    }
-                    r.body?.byteStream()?.use { input ->
-                        f.outputStream().use { o ->
-                            val buf = ByteArray(1 shl 16)
-                            var n: Int
-                            while (input.read(buf).also { n = it } > 0) {
-                                // 别的块已经失败就立刻停手。
-                                // 只在提交时检查一次 failed 是不够的：
-                                // 那之后已启动的块仍会把整块下完才收尾，
-                                // 一个失败导致其余几块白白把流量跑满。
-                                if (failed.get()) {
-                                    r.close()
+                    Retry.loop("chunk$i") { _ ->
+                        if (failed.get()) throw Retry.Abort("同批次的另一块已失败")
+
+                        val have = if (f.exists()) f.length().coerceAtMost(want) else 0L
+                        val from = start + have
+                        val h = headers.toMutableMap()
+                        h["Range"] = "bytes=$from-$end"
+                        val r = Http.call(url, h)
+                        try {
+                            when {
+                                // 本地这份比服务端还长，或内容已换，清掉重来
+                                r.code == 416 -> {
                                     f.delete()
-                                    return@submit
+                                    throw IOException("HTTP 416")
                                 }
-                                o.write(buf, 0, n)
+                                // 要了区间却回 200：服务端根本不支持 Range，
+                                // 分块这条路走不通，交给单线程兜底
+                                r.code == 200 -> throw Retry.Abort("服务端忽略 Range")
+                                !r.isSuccessful -> throw IOException("HTTP ${r.code}")
+                                else -> {
+                                    r.body?.byteStream()?.use { input ->
+                                        FileOutputStream(f, have > 0).use { o ->
+                                            val buf = ByteArray(1 shl 16)
+                                            var got: Int
+                                            while (input.read(buf).also { got = it } > 0) {
+                                                // 别的块已经失败就立刻停手。
+                                                // 只在提交时检查一次 failed 是不够的：
+                                                // 那之后已启动的块仍会把整块下完才收尾，
+                                                // 一个失败导致其余几块白白把流量跑满。
+                                                if (failed.get()) throw Retry.Abort("同批次的另一块已失败")
+                                                o.write(buf, 0, got)
+                                            }
+                                        }
+                                    }
+                                }
                             }
+                        } finally {
+                            runCatching { r.close() }
+                        }
+                        if (!f.exists() || f.length() != want) {
+                            throw IOException("块 $i 长度不符：${if (f.exists()) f.length() else -1} != $want")
                         }
                     }
-                    r.close()
                     parts[i] = f
-                    val n = done.addAndGet(f.length())
-                    onProgress?.invoke(n, total)
+                    done.addAndGet(want)
+                    onProgress?.invoke(done.get(), total)
                 } catch (t: Throwable) {
                     failed.set(true)
-                    // 异常路径也要清理：不用等下面的统一收尾，
-                    // 因为这块的文件根本没进 parts，统一收尾看不见它。
-                    runCatching { mine?.delete() }
+                    runCatching { f.delete() }
                 } finally {
                     latch.countDown()
                 }
             }
         }
+
         return try {
-            latch.await(5, TimeUnit.MINUTES)
-            if (failed.get() || parts.size != chunks) {
-                // ⚠️ 失败时必须把已经下好的分块全部删掉。
-                // 之前这里直接返回 null 就不管了，
-                // 那些已下载成功的 part 文件留在 cache 里无人清理 ——
-                // 下载大文件反复失败几次，cache 就被几百 MB 的残块占满，
-                // 而用户完全不知道这些空间去哪了。
-                parts.values.forEach { runCatching { it.delete() } }
-                parts.clear()
+            latch.await(10, TimeUnit.MINUTES)
+            if (failed.get() || parts.size != n) {
+                // ⚠️ 失败的那一块必须删掉（catch 里已删）。
+                // 但**成功的块要留着**——它们正是下次续传的进度，
+                // 全删等于把断点续传又变回从零开始。
+                // 因此只删本次标记为失败的块，缓存总量由 trimCache 按时间兜底。
                 null
-            } else (0 until chunks).mapNotNull { parts[it] }
+            } else (0 until n).mapNotNull { parts[it] }
         } catch (t: Throwable) {
-            // 等待被中断等情况同样要清理
-            parts.values.forEach { runCatching { it.delete() } }
             null
+        }
+    }
+
+    private fun clearChunks(cache: File, base: String, token: String) {
+        runCatching {
+            val pfx = "$base.$token.c"
+            cache.listFiles { f -> f.isFile && f.name.startsWith(pfx) }?.forEach { it.delete() }
         }
     }
 
@@ -391,34 +483,86 @@ object Downloader {
         }
     }
 
-    /** 单线程下载 */
-    private fun single(
+    /** 单线程下载，失败按 [Retry] 退避重试，已下字节不丢 */
+    private fun singleWithRetry(
         url: String, headers: Map<String, String>, out: File,
-        onProgress: ((Long, Long) -> Unit)?, total: Long
+        total: Long, acceptRange: Boolean, onProgress: ((Long, Long) -> Unit)?
     ): File? {
         return try {
-            if (out.exists()) out.delete()
-            val r = Http.call(url, headers)
-            if (!r.isSuccessful) {
-                r.close()
-                return null
+            Retry.loop("download") {
+                singleOnce(url, headers, out, total, acceptRange, onProgress)
             }
-            r.body?.byteStream()?.use { input ->
-                out.outputStream().use { o ->
-                    val buf = ByteArray(1 shl 16)
-                    var sum = 0L
-                    var n: Int
-                    while (input.read(buf).also { n = it } > 0) {
-                        o.write(buf, 0, n)
-                        sum += n
-                        onProgress?.invoke(sum, total)
-                    }
+            if (out.exists() && out.length() > 0) out else null
+        } catch (t: Throwable) {
+            Err.ignore(t, "单线程下载")
+            null
+        }
+    }
+
+    /**
+     * 单线程下载一次（带续传）。失败就抛，让 [Retry.loop] 决定要不要再来。
+     *
+     * 关键：抛异常时**不删** out。已下的字节就是续传的资本。
+     */
+    private fun singleOnce(
+        url: String, headers: Map<String, String>, out: File,
+        total: Long, acceptRange: Boolean, onProgress: ((Long, Long) -> Unit)?
+    ) {
+        var at = if (out.exists()) out.length() else 0L
+        if (total > 0 && at > total) {
+            // 本地比服务端还长：内容换了，旧的没有意义
+            runCatching { out.delete() }
+            at = 0L
+        }
+        val range = Resume.range(at, total, acceptRange)
+        // ⚠️ range 为 null 意味着"不能续"，此时 at 未必是 0
+        //（比如已经下完、或本地比服务端还长）。继续用 at 追加会把文件写成两倍，
+        // 所以只要不续传就一律从 0 写。
+        val writeAt = if (range != null) at else 0L
+        if (range == null) runCatching { out.delete() }
+
+        val h = headers.toMutableMap()
+        if (range != null) h["Range"] = range
+
+        val r = Http.call(url, h)
+        try {
+            when {
+                r.code == 416 -> {
+                    runCatching { out.delete() }
+                    throw IOException("HTTP 416：本地已下字节超出服务端范围")
+                }
+                // 要了续传却回 200：服务端忽略 Range，会把整份从头发来。
+                // 这时必须清空再写，否则拼出来是"旧的前半截 + 完整文件"的坏包。
+                range != null && r.code == 200 -> {
+                    runCatching { out.delete() }
+                    copyBody(r, out, 0L, total, onProgress)
+                }
+                !r.isSuccessful -> throw IOException("HTTP ${r.code}")
+                else -> copyBody(r, out, writeAt, total, onProgress)
+            }
+        } finally {
+            runCatching { r.close() }
+        }
+    }
+
+    /** 把响应体写入 [out]；[at] 大于 0 时追加 */
+    private fun copyBody(
+        r: Response, out: File, at: Long, total: Long,
+        onProgress: ((Long, Long) -> Unit)?
+    ) {
+        val input = r.body?.byteStream()
+        if (input == null) throw IOException("响应没有内容")
+        input.use { i ->
+            FileOutputStream(out, at > 0).use { o ->
+                val buf = ByteArray(1 shl 16)
+                var sum = at
+                var n: Int
+                while (i.read(buf).also { n = it } > 0) {
+                    o.write(buf, 0, n)
+                    sum += n
+                    onProgress?.invoke(sum, total)
                 }
             }
-            r.close()
-            out
-        } catch (t: Throwable) {
-            null
         }
     }
 
@@ -433,22 +577,39 @@ object Downloader {
      */
     fun probeLength(url: String): Long {
         // 1) HEAD：零流量拿到长度
-        try {
-            val r = Http.head(url, timeout = Http.SHORT)
-            val len = r.header("Content-Length")?.toLongOrNull()
-                ?: r.header("Content-Range")?.substringAfter("/")?.toLongOrNull()
-            r.close()
-            if (len != null && len > 0) return len
+        val head = try {
+            Retry.loop("probeLength") {
+                val r = Http.head(url, timeout = Http.SHORT)
+                try {
+                    val len = r.header("Content-Length")?.toLongOrNull()
+                        ?: r.header("Content-Range")?.substringAfter("/")?.toLongOrNull()
+                    if (len != null && len > 0) len
+                    else if (!r.isSuccessful && Retry.retryableCode(r.code)) throw IOException("HTTP ${r.code}")
+                    else 0L
+                } finally {
+                    r.close()
+                }
+            }
         } catch (t: Throwable) {
-            // 服务器不支持 HEAD（405 等），走下面的回退
+            // 服务器不支持 HEAD（405 等）或网络抖动，走下面的回退
+            0L
         }
+        if (head > 0) return head
+
         // 2) 回退：GET 但只请求第 1 个字节，不拉整个文件
         return try {
-            val r = Http.call(url, mapOf("Range" to "bytes=0-0"), Http.SHORT)
-            val len = r.header("Content-Range")?.substringAfter("/")?.toLongOrNull()
-                ?: r.header("Content-Length")?.toLongOrNull()
-            r.close()
-            if (len != null && len > 0) len else -1L
+            Retry.loop("probeLengthRange") {
+                val r = Http.call(url, mapOf("Range" to "bytes=0-0"), Http.SHORT)
+                try {
+                    val len = r.header("Content-Range")?.substringAfter("/")?.toLongOrNull()
+                        ?: r.header("Content-Length")?.toLongOrNull()
+                    if (len != null && len > 0) len
+                    else if (Retry.retryableCode(r.code)) throw IOException("HTTP ${r.code}")
+                    else -1L
+                } finally {
+                    r.close()
+                }
+            }
         } catch (t: Throwable) {
             -1L
         }
