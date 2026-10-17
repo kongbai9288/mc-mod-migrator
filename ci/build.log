@@ -38,26 +38,26 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mergeReleaseNativeLibs
 > Task :app:desugarReleaseFileDependencies
 > Task :app:checkReleaseDuplicateClasses
-> Task :app:processReleaseManifestForPackage
-> Task :app:mergeReleaseArtProfile
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
 
-> Task :app:processReleaseResources
+> Task :app:mergeReleaseArtProfile
 > Task :app:extractReleaseNativeSymbolTables
+> Task :app:processReleaseManifestForPackage
 > Task :app:mergeExtDexRelease
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
 > Task :app:mergeReleaseAssets
-> Task :app:compressReleaseAssets
 > Task :app:collectReleaseDependencies
 > Task :app:sdkReleaseDependencyData
 > Task :app:validateSigningRelease
 > Task :app:writeReleaseAppMetadata
+> Task :app:compressReleaseAssets
 > Task :app:writeReleaseSigningConfigVersions
+> Task :app:processReleaseResources
 > Task :app:optimizeReleaseResources
 > Task :app:compileReleaseKotlin
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/AggregateSearch.kt:73:13 Variable 'p' is never used
@@ -169,6 +169,7 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebTranslate.kt:163:21 Unnecessary safe call on a non-null receiver of type WebViewClient
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebTranslate.kt:179:30 Unnecessary safe call on a non-null receiver of type WebViewClient
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebTranslate.kt:179:72 Elvis operator (?:) always returns the left operand of non-nullable type Boolean
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WorldLayout.kt:231:9 Parameter 'mcVersion' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/io/misode/mobile/MisodeDataCache.kt:130:7 Variable 'r' is never used
 
 > Task :app:compileReleaseJavaWithJavac
@@ -183,14 +184,14 @@ Note: Recompile with -Xlint:unchecked for details.
 > Task :app:mergeReleaseJavaResource
 > Task :app:mergeDexRelease
 > Task :app:compileReleaseArtProfile
-> Task :app:lintVitalAnalyzeRelease
 > Task :app:packageRelease
 > Task :app:createReleaseApkListingFileRedirect
+> Task :app:lintVitalAnalyzeRelease
 > Task :app:lintVitalReportRelease
 > Task :app:lintVitalRelease
 > Task :app:assembleRelease
 
-BUILD SUCCESSFUL in 5m 3s
+BUILD SUCCESSFUL in 4m 4s
 46 actionable tasks: 46 executed
 To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
 Daemon will be stopped at the end of the build 
@@ -214,19 +215,19 @@ Daemon will be stopped at the end of the build
 > Task :app:compileDebugShaders NO-SOURCE
 > Task :app:generateDebugAssets UP-TO-DATE
 > Task :app:mergeDebugAssets
-> Task :app:desugarDebugFileDependencies
+> Task :app:processDebugManifestForPackage
 > Task :app:compressDebugAssets
+> Task :app:desugarDebugFileDependencies
 > Task :app:mergeDebugJniLibFolders
 > Task :app:checkDebugDuplicateClasses
 > Task :app:mergeDebugNativeLibs
-> Task :app:processDebugManifestForPackage
+> Task :app:processDebugResources
 > Task :app:mergeExtDexDebug
 > Task :app:mergeLibDexDebug
 
 > Task :app:stripDebugDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
 
-> Task :app:processDebugResources
 > Task :app:validateSigningDebug
 > Task :app:writeDebugAppMetadata
 > Task :app:writeDebugSigningConfigVersions
@@ -340,6 +341,7 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebTranslate.kt:163:21 Unnecessary safe call on a non-null receiver of type WebViewClient
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebTranslate.kt:179:30 Unnecessary safe call on a non-null receiver of type WebViewClient
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WebTranslate.kt:179:72 Elvis operator (?:) always returns the left operand of non-nullable type Boolean
+w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/WorldLayout.kt:231:9 Parameter 'mcVersion' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/io/misode/mobile/MisodeDataCache.kt:130:7 Variable 'r' is never used
 
 > Task :app:compileDebugJavaWithJavac
@@ -357,5 +359,5 @@ Note: Recompile with -Xlint:unchecked for details.
 > Task :app:createDebugApkListingFileRedirect
 > Task :app:assembleDebug
 
-BUILD SUCCESSFUL in 3m 8s
+BUILD SUCCESSFUL in 2m 37s
 36 actionable tasks: 36 executed
