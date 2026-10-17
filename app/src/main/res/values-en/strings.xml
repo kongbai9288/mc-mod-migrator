@@ -320,4 +320,44 @@
     <string name="mig_result_title">Scan results</string>
     <string name="mig_tools">Migration tools</string>
     <string name="mig_tools_entry">Open the full toolbox</string>
+    <!-- First-run onboarding -->
+    <string name="fir_welcome_sub">Cross-version migration and sync helper</string>
+    <string name="fir_continue">Continue</string>
+    <string name="fir_back">Back</string>
+    <string name="fir_next">Next</string>
+    <string name="fir_enter">Enter</string>
+    <string name="fir_step_dir">Preparing the working folder</string>
+    <string name="fir_step_launcher">Scanning installed launchers</string>
+    <string name="fir_step_ver">Loading version list</string>
+    <string name="fir_page_dir_title">Directories</string>
+    <string name="fir_page_dir_hint">Tell the app where your files live. You can change all of this later in Settings.</string>
+    <string name="fir_work_title">Working folder</string>
+    <string name="fir_work_app">App-private folder</string>
+    <string name="fir_work_app_desc">Works out of the box, no permission needed</string>
+    <string name="fir_work_ext">Pick my own folder</string>
+    <string name="fir_work_ext_desc">Readable by other apps, survives uninstall</string>
+    <string name="fir_mig_title">Migration directories</string>
+    <string name="fir_need_both">Both lists need at least one entry to continue</string>
+    <string name="fir_src_list">Source directories</string>
+    <string name="fir_dst_list">Destination directories</string>
+    <string name="fir_add_dir">Add</string>
+    <string name="fir_empty_list">Nothing added yet</string>
+    <string name="fir_remove">Remove</string>
+    <string name="fir_warn_denied">Folder access was not granted. You can fall back to the app-private folder: everything still works, files just are not shared with other apps.</string>
+    <string name="fir_bypass">Use app-private folder</string>
+    <string name="fir_launcher_title">Launcher detection</string>
+    <string name="fir_launcher_hint">If your launcher is not recognised, pick it here; if it is not listed, point at its .minecraft manually.</string>
+    <string name="fir_launcher_other">Other / specify manually</string>
+    <string name="fir_launcher_pick">Pick a launcher</string>
+    <string name="fir_launcher_found">Found: %1$s</string>
+    <string name="fir_launcher_not_found">Its folder was not found on this device. You can specify it manually.</string>
+    <string name="fir_add_to_src">Add to source</string>
+    <string name="fir_add_to_dst">Add to destination</string>
+    <string name="fir_page_agree_title">Agreements</string>
+    <string name="fir_agree_privacy">I have read and agree to the privacy policy</string>
+    <string name="fir_agree_ai">I understand some content is AI-generated and may be inaccurate</string>
+    <string name="fir_link_oss">Open source licenses</string>
+    <string name="fir_link_about">About this app</string>
+    <string name="fir_need_agree">Both boxes above must be checked</string>
+
 </resources>
