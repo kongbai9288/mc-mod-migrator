@@ -22,6 +22,10 @@ import java.io.File
  *     allowCommands  是否允许作弊
  *     GameType       0生存 1创造 2冒险 3旁观
  *     DataVersion    存档数据版本（可反推 MC 版本范围）
+ *
+ * 26.1 snapshot-6 重排了整个存档格式，level.dat 里的 Difficulty
+ * 换成字符串并挪进 difficulty_setting。两种写法都要认，
+ * 具体对照（区块/玩家/地图等目录的新旧落法）见 [WorldLayout]。
  */
 object WorldInfo {
 
@@ -104,7 +108,7 @@ object WorldInfo {
 
             last = data.getNumberTag("LastPlayed")?.getValue()?.toLong() ?: 0L
             ticks = data.getNumberTag("Time")?.getValue()?.toLong() ?: 0L
-            diff = data.getNumberTag("Difficulty")?.getValue()?.toInt() ?: -1
+            diff = WorldLayout.difficultyOf(data)
             cmd = (data.getNumberTag("allowCommands")?.getValue()?.toInt() ?: 0) != 0
             gt = data.getNumberTag("GameType")?.getValue()?.toInt() ?: -1
             dv = data.getNumberTag("DataVersion")?.getValue()?.toInt() ?: 0
@@ -147,7 +151,7 @@ object WorldInfo {
                 ?: data.getNumberTag("Seed")?.getValue()?.toLong(),
             lastPlayed = data.getNumberTag("LastPlayed")?.getValue()?.toLong() ?: 0L,
             gameTimeTicks = data.getNumberTag("Time")?.getValue()?.toLong() ?: 0L,
-            difficulty = data.getNumberTag("Difficulty")?.getValue()?.toInt() ?: -1,
+            difficulty = WorldLayout.difficultyOf(data),
             allowCommands = (data.getNumberTag("allowCommands")?.getValue()?.toInt() ?: 0) != 0,
             gameType = data.getNumberTag("GameType")?.getValue()?.toInt() ?: -1,
             dataVersion = data.getNumberTag("DataVersion")?.getValue()?.toInt() ?: 0,
@@ -159,7 +163,7 @@ object WorldInfo {
     /** 找出 saves 目录下的所有存档 */
     fun listIn(saves: File): List<World> {
         val dirs = saves.listFiles()?.filter {
-            it.isDirectory && (File(it, "level.dat").exists() || File(it, "region").isDirectory)
+            it.isDirectory && WorldLayout.looksLikeWorld(it)
         } ?: return emptyList()
         return dirs.sortedByDescending { it.lastModified() }.map { read(it) }
     }
