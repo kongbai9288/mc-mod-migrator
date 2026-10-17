@@ -233,4 +233,93 @@ class McProbeTest {
         assertTrue(root.child("mods") != null)
         assertTrue(root.names().contains("mods"))
     }
+
+    // ── MC 版本：从 versions/<名字>/*.json 的 id 认 ──────────
+
+    /** 造一个带版本描述文件的版本目录 */
+    private fun vjson(name: String, id: String, vararg kids: McProbe.Node): McProbe.Node {
+        val json = McProbe.Node("$name.json", false, emptyList(),
+            "{\"id\": \"$id\", \"type\": \"release\"}")
+        val all = kids.toList() + json
+        return d(name, *all.toTypedArray())
+    }
+
+    @Test
+    fun jsonIdReadsTopLevelId() {
+        assertEquals("1.20.1", McProbe.jsonId("{\"id\": \"1.20.1\"}"))
+        assertEquals("1.21.4", McProbe.jsonId("{\n  \"id\" : \"1.21.4\",\n  \"type\": \"release\"\n}"))
+    }
+
+    @Test
+    fun jsonIdIgnoresNestedAssetIndex() {
+        // assetIndex 里也有 id，但它在文件后面，不能被先命中
+        val text = "{\"id\":\"1.20.1\",\"assetIndex\":{\"id\":\"3\"}}"
+        assertEquals("1.20.1", McProbe.jsonId(text))
+    }
+
+    @Test
+    fun jsonIdReturnsBlankWhenAbsent() {
+        assertEquals("", McProbe.jsonId("{}"))
+        assertEquals("", McProbe.jsonId(""))
+        assertEquals("", McProbe.jsonId("not json at all"))
+    }
+
+    @Test
+    fun isolatedRootReportsThePlayedVersion() {
+        // 版本隔离：三个版本里只有 1.20.1 装了模组，它才是真正在用的那个
+        val root = d(
+            ".minecraft",
+            d("mods"),
+            d(
+                "versions",
+                vjson("1.20.1", "1.20.1", d("mods", f("sodium.jar"))),
+                vjson("1.19.4", "1.19.4", f("1.19.4.jar")),
+                vjson("1.21", "1.21", f("1.21.jar"))
+            )
+        )
+        val r = McProbe.report(root)
+        assertEquals(McProbe.Kind.ISOLATED_ROOT, r.kind)
+        assertEquals("1.20.1", r.mcVersion())
+        assertTrue(r.summary.contains("MC 1.20.1"))
+    }
+
+    @Test
+    fun plainRootFallsBackToAnyVersion() {
+        // 没隔离时 versions/ 下全是游戏核心，没有 isolated 的那一个，
+        // 这时取第一个认出版本的
+        val root = d(
+            ".minecraft",
+            d("mods", f("sodium.jar")),
+            d("versions", vjson("1.20.1", "1.20.1", f("1.20.1.jar")))
+        )
+        val r = McProbe.report(root)
+        assertEquals("1.20.1", r.mcVersion())
+    }
+
+    @Test
+    fun launcherNameIsNotTrimmed() {
+        // 启动器写的自定义名原样返回，不做猜测式裁剪
+        val root = d(
+            ".minecraft",
+            d("versions", vjson("1.20.1-fabric", "1.20.1-fabric", d("mods", f("a.jar"))))
+        )
+        assertEquals("1.20.1-fabric", McProbe.report(root).mcVersion())
+    }
+
+    @Test
+    fun noJsonMeansBlankVersion() {
+        val root = d(
+            ".minecraft",
+            d("versions", d("1.20.1", d("mods", f("sodium.jar"))))
+        )
+        assertEquals("", McProbe.report(root).mcVersion())
+    }
+
+    @Test
+    fun jsonTextIsOnlyReadInsideVersions() {
+        // 其它地方的 .json 不该被当成版本描述文件
+        val root = d(".minecraft", d("config", McProbe.Node("sodium.json", false, emptyList(),
+            "{\"id\":\"bogus\"}")))
+        assertEquals("", McProbe.report(root).mcVersion())
+    }
 }
