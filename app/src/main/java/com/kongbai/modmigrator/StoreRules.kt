@@ -28,15 +28,16 @@ import android.os.Build
  *
  * **1. 分水岭是 Android 11（API 30），不是 14。**
  * 分区存储 Android 10 引入、11 强制，`requestLegacyExternalStorage` 从 11 起
- * 一律失效。SAF 从 11 起禁止选择内部存储根目录、`Android/data`、`Android/obb`。
- * Android 14 / 15 / 16 没有再新增单独禁令，适用的是同一套现行规则。
- * 所以"Android 14 以后 SAF 看不到 Android/data"这种说法不准确——
- * 准确说法是"从 11 起就不让选"。
+ * 一律失效。Android 14 / 15 / 16 没有再新增单独一层规则，适用同一套。
+ * 所以"Android 14 以后才收紧"这种说法不准确。
  *
- * **2. 有了"所有文件访问"权限，也写不了 `/sdcard/Android/data`。**
- * 官方文档明确：该权限不含其他应用的专属目录，直接路径写入仍被禁止。
- * 更反直觉的是：**SAF 的可授权范围不会因为拿到这个权限而扩大**。
- * 所以"先申请全局权限再递归拷贝"这条路在技术上不可靠。
+ * **2. 别把"限制"当成明文禁令。**
+ * Google 的文档描述的是**存储模型**，不会写"我们禁用了某个功能"——
+ * 具体到 `Android/data` 能不能选、能不能写，是 ROM、系统小版本、
+ * 预装文件管理器共同决定的**行为**，各设备并不一致，个别设备能选进去。
+ * 因此本表的取值只是**预期**，实际以运行时实测为准（见 [recordProbe]）。
+ * 正确姿势是"先试着走一次，成了就用，没成再降级到同步器"，
+ * 而不是拿预期值提前把功能禁用掉——那会让本来能用的设备也用不了.
  *
  * **3. Shizuku 不是官方承诺。**
  * 它让应用借 adb/root 身份代读，社区常用，但没有跨版本的官方保证，
@@ -75,6 +76,18 @@ object StoreRules {
         PRIVILEGED,
     }
 
+    // 实测记录：key 是 "<区域>|<通道>"，value 是这台设备上实际试出来的结果。
+    // 见下方 safCanGrant：有实测就以实测为准，没有才退回预期。
+    private val probes = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+
+    /** 记一次实测结果。走通记 true，被系统挡回记 false。 */
+    fun recordProbe(zone: Zone, channel: Channel, ok: Boolean) {
+        probes["$zone|$channel"] = ok
+    }
+
+    /** 这台设备上试过吗？没试过返回 null。 */
+    fun probed(zone: Zone, channel: Channel): Boolean? = probes["$zone|$channel"]
+
     /** 当前系统 SDK */
     fun sdk(): Int = Build.VERSION.SDK_INT
 
@@ -101,29 +114,45 @@ object StoreRules {
     /**
      * 这个区域能不能走 SAF 让用户授权。
      *
-     * `Android/data` 与 `Android/obb` 从 Android 11 起**禁止**
-     * 出现在目录选择器里（也不让浏览其子目录）。
-     * 注意这不是 Android 14 才有的新规。
+     * 预期值：`Android/data` 与 `Android/obb` 从 Android 11 起在多数设备上
+     * 选不到（也不让浏览其子目录）。注意这不是 Android 14 才有的新规。
+     *
+     * **但这是"预期"，不是定论。** 这类限制是系统实现出来的行为，
+     * 并非 Google 当作公开契约承诺的 API 规则——官方文档不会写
+     * "我们禁用了某功能"，厂商 ROM、系统小版本、预装文件管理器
+     * 都可能让它表现不同，个别设备上甚至能选进去。
+     * 所以这里优先返回**本机实测**结果（见 [recordProbe]）：
+     * 试过就以试的为准，没试过才退回预期。
+     * 用法是"先试着授权一次，成了就用，没成再降级"，
+     * 而不是拿预期值去提前禁用按钮——那会让本来能用的设备也用不了。
      */
-    fun safCanGrant(zone: Zone): Boolean = when (zone) {
-        Zone.PUBLIC -> true
-        Zone.SELF -> true
-        Zone.ANDROID_DATA -> false
-        Zone.OBB -> false
+    fun safCanGrant(zone: Zone): Boolean {
+        probed(zone, Channel.SAF)?.let { return it }
+        return when (zone) {
+            Zone.PUBLIC -> true
+            Zone.SELF -> true
+            Zone.ANDROID_DATA -> false
+            Zone.OBB -> false
+        }
     }
 
     /**
      * 拿到"所有文件访问"权限后，能否用**直接路径**写这个区域。
      *
      * 官方原文把 `/Android/data/`、`/sdcard/Android` 及其多数子目录
-     * 排除在外，所以这里对 [Zone.ANDROID_DATA] 一律返回 false，
-     * **不管有没有那个权限**。
+     * 排除在外，所以预期值对 [Zone.ANDROID_DATA] 是 false。
+     *
+     * 同 [safCanGrant]：这只是预期。**先试、看结果、再决定**，
+     * 实测到能写就以实测为准（见 [recordProbe]）。
      */
-    fun manageAllCanWrite(zone: Zone): Boolean = when (zone) {
-        Zone.PUBLIC -> true
-        Zone.SELF -> true
-        Zone.ANDROID_DATA -> false
-        Zone.OBB -> false
+    fun manageAllCanWrite(zone: Zone): Boolean {
+        probed(zone, Channel.MANAGE_ALL)?.let { return it }
+        return when (zone) {
+            Zone.PUBLIC -> true
+            Zone.SELF -> true
+            Zone.ANDROID_DATA -> false
+            Zone.OBB -> false
+        }
     }
 
     /**
