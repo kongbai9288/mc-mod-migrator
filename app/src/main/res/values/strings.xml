@@ -323,4 +323,44 @@
         <item>选刚才导出的 .mrpack（在「下载 / ModMigrator」目录）</item>
         <item>装完后回到本应用，把「迁移后目录」指到启动器生成的那个实例</item>
     </string-array>
+    <!-- 首次启动引导页 -->
+    <string name="fir_welcome_sub">跨版本迁移与同步助手</string>
+    <string name="fir_continue">继续</string>
+    <string name="fir_back">上一步</string>
+    <string name="fir_next">下一页</string>
+    <string name="fir_enter">进入主页</string>
+    <string name="fir_step_dir">准备工作目录</string>
+    <string name="fir_step_launcher">扫描本机启动器</string>
+    <string name="fir_step_ver">读取版本清单</string>
+    <string name="fir_page_dir_title">目录配置</string>
+    <string name="fir_page_dir_hint">先告诉应用东西放在哪。之后在设置里随时可以改。</string>
+    <string name="fir_work_title">工作目录</string>
+    <string name="fir_work_app">应用专属目录</string>
+    <string name="fir_work_app_desc">开箱可用，不需要任何授权</string>
+    <string name="fir_work_ext">手动选择外部目录</string>
+    <string name="fir_work_ext_desc">跨应用读写，卸载后仍保留</string>
+    <string name="fir_mig_title">迁移目录</string>
+    <string name="fir_need_both">两类目录各至少要有一个，才能进入下一页</string>
+    <string name="fir_src_list">迁移前目录</string>
+    <string name="fir_dst_list">迁移后目录</string>
+    <string name="fir_add_dir">添加目录</string>
+    <string name="fir_empty_list">还没有添加目录</string>
+    <string name="fir_remove">移除</string>
+    <string name="fir_warn_denied">没拿到目录授权。可以改用应用专属目录，功能不受影响，只是文件不会跨应用共享。</string>
+    <string name="fir_bypass">使用应用专属目录</string>
+    <string name="fir_launcher_title">启动器识别</string>
+    <string name="fir_launcher_hint">没认出你的启动器时在这里选一个；列表里没有就手动指定 .minecraft。</string>
+    <string name="fir_launcher_other">其他 / 手动指定</string>
+    <string name="fir_launcher_pick">选择一个启动器</string>
+    <string name="fir_launcher_found">找到：%1$s</string>
+    <string name="fir_launcher_not_found">在这台设备上没找到它的目录，可以手动指定。</string>
+    <string name="fir_add_to_src">加到迁移前</string>
+    <string name="fir_add_to_dst">加到迁移后</string>
+    <string name="fir_page_agree_title">协议与说明</string>
+    <string name="fir_agree_privacy">我已阅读并同意隐私政策</string>
+    <string name="fir_agree_ai">我了解部分内容由 AI 生成，可能存在不准确之处</string>
+    <string name="fir_link_oss">开源许可</string>
+    <string name="fir_link_about">关于本应用</string>
+    <string name="fir_need_agree">需要先勾选上面两项</string>
+
 </resources>
