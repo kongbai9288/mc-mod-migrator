@@ -277,4 +277,17 @@
     <string name="mode_client_hint">Take mods and configs from a game directory on this device.</string>
     <string name="mode_server_hint">Take mods and configs from a server (panel / FTP).</string>
     <string name="mode_tip">Client fits most cases. To switch back: Settings → Migration mode.</string>
+
+    <string name="dir_unknown_title">Launcher not recognized</string>
+    <string name="dir_unknown_hint">It is not in the list, or its directory sits inside Android/data and cannot be read. Pick either way below.</string>
+    <string name="way_pick_public">Pick a public directory yourself</string>
+    <string name="way_pick_public_desc">Choose the level where you can see mods directly. Easiest when the launcher supports a custom game directory.</string>
+    <string name="way_sync_private">Read the private directory with a sync tool, then pack it</string>
+    <string name="way_sync_private_desc">With the sync tool installed this app can read under Android/data and export it as a modpack.</string>
+    <string name="way_launcher_import">Let the launcher import it</string>
+    <string name="way_launcher_import_desc">Put the modpack in a public directory and install it from the launcher\'s import screen — a launcher can always write its own directory.</string>
+    <string name="priv_sync_title">Sync tool</string>
+    <string name="priv_pack_done">Exported: %1$s</string>
+    <string name="priv_pack_fail">Could not read it: %1$s</string>
+    <string name="priv_open_home">Get the sync tool</string>
 </resources>
