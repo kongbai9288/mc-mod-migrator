@@ -60,7 +60,7 @@ object PrivSync {
         }
         val grant = if (run) {
             try {
-                rikka.shizuku.Shizuku.checkPermission() == PackageManager.PERMISSION_GRANTED
+                rikka.shizuku.Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
             } catch (t: Throwable) {
                 false
             }
@@ -72,7 +72,7 @@ object PrivSync {
     fun requestPermission(): Boolean {
         return try {
             if (!rikka.shizuku.Shizuku.pingBinder()) return false
-            if (rikka.shizuku.Shizuku.checkPermission() == PackageManager.PERMISSION_GRANTED) return true
+            if (rikka.shizuku.Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) return true
             rikka.shizuku.Shizuku.requestPermission(REQ)
             true
         } catch (t: Throwable) {
@@ -120,6 +120,7 @@ object PrivSync {
             return try {
                 d.mkdirs()
                 copyTree(s, d, log)
+                true
             } catch (t: Throwable) {
                 Err.ignore(t, "直接复制私有目录")
                 false
