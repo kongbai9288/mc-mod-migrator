@@ -33,6 +33,18 @@ import java.io.File
  *
  * [Entry.mcFrom] / [Entry.mcTo] 是社区整理的适配区间，
  * 会随启动器更新变化，**仅用于提示，不用来拦截操作**。
+ *
+ * ## 三个版本维度，各管一件事
+ *
+ * 用户装的可能不是最新版启动器（老手机、或刻意装旧版），
+ * 所以「目录在哪」要同时看三个版本，缺一个都会找错地方：
+ *
+ * - [Entry.sysFrom] / [Entry.sysTo] —— **安卓系统**版本，见 [appliesToSdk]
+ * - [Entry.appFrom] / [Entry.appTo] —— **启动器自身**版本，见 [appliesToApp]
+ * - [Entry.mcFrom] / [Entry.mcTo] —— 支持的 MC 版本，仅用于显示
+ *
+ * 三个区间都遵循同一条规则：**没填或读不到就不过滤**。
+ * 拿不到证据时宁可多试几个候选路径，也不能把对的路径过滤掉。
  */
 object LauncherDirs {
 
@@ -85,6 +97,20 @@ object LauncherDirs {
         val sysFrom: String = "",
         /** 适用的安卓系统版本上限，空串 = 不限 */
         val sysTo: String = "",
+        /**
+         * 适用的**启动器自身**版本下限（比对 PackageInfo.versionName）。
+         * 空串 = 不限。
+         *
+         * 老版本启动器和新版本启动器的目录可能不同（换过包名、换过
+         * 存储策略），同一款启动器因此可能要拆成两条记录。
+         * 比较规则见 [verCmp]。
+         *
+         * ⚠️ 只有核到「某版本起目录变了」才填。没核到就留空——
+         * 空串表示不过滤，猜一个版本区间反而会把对的路径挡掉。
+         */
+        val appFrom: String = "",
+        /** 适用的启动器版本上限，空串 = 不限 */
+        val appTo: String = "",
         /** 备注 */
         val note: String = "",
         /** 这条记录的依据有多硬 */
@@ -102,20 +128,29 @@ object LauncherDirs {
             name = "FCL", key = "fcl",
             pkgs = listOf(
                 "com.tungsten.fcl", "com.tungsten.fcl.debug",
+                // 整合包版：上游 README 里 -DpkgName 的默认值，
+                // 存在的目的就是和官方版/调试版共存，所以是第三个包名
+                "com.tungsten.fcl.modpack",
                 // 社区资料里还出现过这个包名，可能是旧版或另一分支；
                 // 没在上游源码里核到，只当候选，探不到就不显示
                 "com.foldcraft.launcher"
             ),
             pubNew = listOf("FCL/.minecraft"),
             pubOld = listOf("games/FCL/.minecraft"),
-            privNew = listOf("Android/data/com.tungsten.fcl/files/.minecraft"),
+            privNew = listOf(
+                "Android/data/com.tungsten.fcl/files/.minecraft",
+                // 整合包版的私有目录：路径由包名决定（Android/data/<包名>/files/），
+                // 这是安卓的通用规则，不是猜的路径；但里面的子目录名未核到
+                "Android/data/com.tungsten.fcl.modpack/files/.minecraft"
+            ),
             privOld = listOf("Android/data/com.tungsten.fcl.debug/files/.minecraft"),
             mcFrom = "1.0", mcTo = "",
             note = "开版本隔离则在 versions/<版本>/ 下；" +
                 "games/FCL 那条是社区说法，未在上游源码中确认",
             evidence = Evidence.SOURCE,
             source = "FCLPath.java 的 SHARED_COMMON_DIR 与 PRIVATE_COMMON_DIR；" +
-                "FCL/build.gradle.kts 的 applicationId"
+                "FCL/build.gradle.kts 的 applicationId；" +
+                "整合包版包名见上游 README 的 -DpkgName 默认值"
         ),
         Entry(
             name = "Zalith Launcher 2", key = "zalith2",
@@ -138,28 +173,35 @@ object LauncherDirs {
             note = "支持自定义游戏目录"
         ),
         Entry(
-            name = "PojavLauncher（Android 10 起）", key = "pojav",
-            pkgs = listOf("net.kdt.pojavlaunch", "net.kdt.pojavlaunch.debug"),
-            privNew = listOf("Android/data/net.kdt.pojavlaunch/files/.minecraft"),
-            privOld = listOf("Android/data/net.kdt.pojavlaunch.debug/files/.minecraft"),
+            name = "PojavLauncher（测试版，Android 9 起）", key = "pojav",
+            pkgs = listOf("net.kdt.pojavlaunch.debug", "net.kdt.pojavlaunch"),
+            privNew = listOf("Android/data/net.kdt.pojavlaunch.debug/files/.minecraft"),
+            privOld = listOf("Android/data/net.kdt.pojavlaunch/files/.minecraft"),
             mcFrom = "1.0", mcTo = "1.21",
-            sysFrom = "10",
-            note = "已停止维护，建议换 Zalith；Android 10 起游戏目录挪进私有目录",
+            // 分界是 API 28（Android 9），不是 Android 10。
+            // 中文 Minecraft Wiki 写的是「API<28 时和正式版相同，API≥28 时挪进
+            // Android/data/net.kdt.pojavlaunch.debug」；社区帖子常写成「Android
+            // 10 起」，那是按大版本名称近似的说法，差了整整一个 API 等级，
+            // 会让 Android 9（API 28）的用户去找一个不存在的公开目录。
+            sysFrom = "9",
+            note = "已停止维护，建议换 Zalith；测试版在 API 28 起挪进私有目录",
             evidence = Evidence.SOURCE,
-            source = "PojavLauncher issue #2122：稳定版曾可用 games/PojavLauncher，" +
-                "测试版只能用 Android/data/net.kdt.pojavlaunch.debug/files/"
+            source = "中文 Minecraft Wiki「在安卓设备上玩MC-java版/Pojav」：" +
+                "测试版 API≥28 时保存在 Android/data/net.kdt.pojavlaunch.debug/files/.minecraft"
         ),
         Entry(
-            name = "PojavLauncher（Android 9 及更早）", key = "pojav",
-            pkgs = listOf("net.kdt.pojavlaunch", "net.kdt.pojavlaunch.debug"),
+            name = "PojavLauncher（正式版）", key = "pojav",
+            pkgs = listOf("net.kdt.pojavlaunch"),
             pubNew = listOf("games/PojavLauncher/.minecraft"),
             pubOld = listOf("games/PojavLauncher"),
             mcFrom = "1.0", mcTo = "1.21",
-            sysTo = "9",
-            note = "老系统上的公开目录，可以直接读写；已停止维护",
+            // 正式版据 Wiki 一直是 games/PojavLauncher，不限系统版本；
+            // 老系统上的测试版也落在这里。这里**不设** sysTo ——
+            // 候选一律「存在才算」，多列一个候选不会误导，漏掉才会。
+            note = "正式版一直放在公开目录；老系统上的测试版也在这里",
             evidence = Evidence.SOURCE,
-            source = "PojavLauncher issue #2122 与项目协作者答复：" +
-                "Android 9 及更早是 /storage/emulated/0/games/PojavLauncher"
+            source = "中文 Minecraft Wiki「在安卓设备上玩MC-java版/Pojav」：" +
+                "正式版为内部存储/games/PojavLauncher/.minecraft"
         ),
         Entry(
             name = "Amethyst", key = "amethyst",
@@ -278,6 +320,88 @@ object LauncherDirs {
         else -> null
     }
 
+    /**
+     * 版本号比较，给 [appliesToApp] 用。
+     *
+     * 启动器的 versionName 没有统一格式：FCL 是 `1.3.4.0`，
+     * Zalith 是 `2.0.0_beta-20251016a`。所以按「数字段优先」比——
+     * 先逐段比数字（`1.10` > `1.3`，按字符串比会正好反过来），
+     * 数字段都一样再按完整字符串定序。
+     * 一个数字段都解析不出来时退回字符串比较，不因为格式怪就判等。
+     */
+    fun verCmp(a: String, b: String): Int {
+        if (a.isBlank() && b.isBlank()) return 0
+        if (a.isBlank()) return -1
+        if (b.isBlank()) return 1
+        val pa = numParts(a)
+        val pb = numParts(b)
+        if (pa.isEmpty() || pb.isEmpty()) return a.compareTo(b)
+        val n = minOf(pa.size, pb.size)
+        for (i in 0 until n) {
+            if (pa[i] != pb[i]) return if (pa[i] < pb[i]) -1 else 1
+        }
+        return when {
+            pa.size == pb.size -> a.compareTo(b)
+            pa.size < pb.size -> -1
+            else -> 1
+        }
+    }
+
+    /** 把版本号里的连续数字切成段：`1.3.4.0` → [1,3,4,0] */
+    private fun numParts(s: String): List<Int> {
+        val out = ArrayList<Int>()
+        var cur = ""
+        for (c in s) {
+            if (c.isDigit()) cur += c
+            else if (cur.isNotEmpty()) {
+                out.add(cur.toIntOrNull() ?: 0)
+                cur = ""
+            }
+        }
+        if (cur.isNotEmpty()) out.add(cur.toIntOrNull() ?: 0)
+        return out
+    }
+
+    /**
+     * 这台机器上装着的这个启动器是什么版本（versionName）。
+     * 按 [Entry.pkgs] 顺序找，取第一个读到的。
+     * 没装、或系统不给读，返回 null —— 这时 [appliesToApp] 一律放行。
+     */
+    fun installedVersion(ctx: Context, e: Entry): String? {
+        val pm = ctx.packageManager
+        for (p in e.pkgs) {
+            val v = try {
+                pm.getPackageInfo(p, 0)?.versionName
+            } catch (t: Throwable) {
+                null
+            }
+            if (!v.isNullOrBlank()) return v
+        }
+        return null
+    }
+
+    /**
+     * 这条记录对**当前装着的启动器版本**适用吗。
+     *
+     * 和 [appliesToSdk] 同一条规则：区间没填、或读不到版本号，一律 true。
+     * 用户装的是老版本还是新版本我们往往核不到证据，
+     * 这时候多试几个候选路径，比把唯一对的那条过滤掉安全。
+     */
+    fun appliesToApp(e: Entry, ver: String?): Boolean {
+        if (e.appFrom.isBlank() && e.appTo.isBlank()) return true
+        if (ver.isNullOrBlank()) return true
+        if (e.appFrom.isNotBlank() && verCmp(ver, e.appFrom) < 0) return false
+        if (e.appTo.isNotBlank() && verCmp(ver, e.appTo) > 0) return false
+        return true
+    }
+
+    /**
+     * 这条记录在**这台机器**上适用吗：安卓系统版本 + 启动器版本都过一遍。
+     * 探测入口统一走这里，免得哪天加了新维度漏改一处。
+     */
+    private fun appliesHere(ctx: Context, e: Entry): Boolean =
+        appliesToSdk(e) && appliesToApp(e, installedVersion(ctx, e))
+
     /** 公开目录候选，新的排前面 */
     fun publicCandidates(e: Entry): List<String> = e.pubNew + e.pubOld
 
@@ -293,7 +417,7 @@ object LauncherDirs {
     fun detect(ctx: Context): List<Pair<Entry, File>> {
         val root = sdcard()
         val out = ArrayList<Pair<Entry, File>>()
-        for (e in entries.filter { appliesToSdk(it) }) {
+        for (e in entries.filter { appliesHere(ctx, it) }) {
             val f = publicCandidates(e).map { File(root, it) }.firstOrNull { it.isDirectory }
                 ?: continue
             out.add(e to f)
@@ -315,7 +439,7 @@ object LauncherDirs {
     fun detectAll(ctx: Context): List<LauncherAccess.Found> {
         val root = sdcard()
         val out = ArrayList<LauncherAccess.Found>()
-        for (e in entries.filter { appliesToSdk(it) }) {
+        for (e in entries.filter { appliesHere(ctx, it) }) {
             val ins = installed(ctx, e)
             val pub = publicCandidates(e).map { File(root, it) }.firstOrNull { it.isDirectory }
             if (pub != null) {
