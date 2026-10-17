@@ -223,8 +223,10 @@ object WorldLayout {
     }
 
     /**
-     * 候选路径：新的排前面，旧的兜底。
-     * 版本认不出时两个都在列表里，逐个找到存在的为止。
+     * 候选路径：按版本把**该用的那个排前面**，另一个兜底。
+     *
+     * 版本认不出（空串）时两个都给，顺序按「新 → 旧」。
+     * 调用方逐个找到存在的为止 —— 版本号判断错了也不会漏数据。
      */
     fun candidates(
         kind: Kind,
@@ -233,7 +235,9 @@ object WorldLayout {
         ns: String = "minecraft"
     ): List<String> {
         val r = rule(kind) ?: return emptyList()
-        return listOf(fill(r.new, id, ns), fill(r.old, id, ns))
+        val nw = fill(r.new, id, ns)
+        val od = fill(r.old, id, ns)
+        return if (atLeast(mcVersion, r.since)) listOf(nw, od) else listOf(od, nw)
     }
 
     /** 在存档目录里找这种数据，返回第一个真实存在的 */
