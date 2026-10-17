@@ -10,27 +10,40 @@ import java.io.File
  * 这些目录字符串以前散在扫描、迁移、地图、NBT 各处各写一份，
  * 改一处漏一处；现在只在这张表里写一次。
  *
- * ## ⚠️ 「新版」那一列目前的证据状态
+ * ## 证据状态（2026-10-17 核对）
  *
- * [Rule.new] 里那套 `dimensions/minecraft/overworld/region`、`players/data`
- * 的布局，来自社区转述的 26.1 重排说法。**截至 2026-10，没有找到
- * Mojang 官方 changelog、Minecraft Wiki 条目或游戏源文件可以佐证。**
+ * 已用真实存档样本逐版核对，样本来自两处：
  *
- * 所以这张表的定位是**候选路径清单**，不是版本事实表：
- * 无论版本号怎么判，[candidates] 一律两套都给、[find] 逐个试到存在为止。
- * 这样即使 26.1 的说法是错的，也不会漏数据或搬错位置；
- * 如果某台设备上真的出现了 `dimensions/`、`players/`，那是运行时样本，
- * 照样能找到。**不要把 [Rule.since] 当成已确认的版本分界线。**
+ * - `kongbaisever/mc-java-save-samples`：b1.3、1.2.1、1.13、1.16、1.18、1.20.5
+ * - 本仓库 `ai.zip`：26.2（世界名「新的世界 (9)」，DataVersion 4903）
+ *
+ * [Rule.new] 里带「样本实证」字样的，是在上述样本里**逐个数出来**的，
+ * 可以当事实用；没带的仍是社区转述，只作候选。
+ *
+ * 26.2 样本实测的顶层结构：
+ * ```
+ * data/minecraft/{game_rules,world_gen_settings,scoreboard,weather,…}.dat
+ * dimensions/minecraft/{overworld,the_nether,the_end}/region|entities|poi
+ * dimensions/minecraft/<维度>/data/minecraft/{chunk_tickets,raids,world_border}.dat
+ * players/{advancements,stats}/<uuid>.json      ← 注意是 .json
+ * players/data/<uuid>.dat                        ← 只有这个是 .dat
+ * datapacks/  scripts/  icon.png  level.dat  session.lock
+ * ```
+ *
+ * 由此修正了两处此前照传闻写错的路径：
+ * `chunk_tickets` 与 `raids` 在 26.2 **位于维度目录之下**，
+ * 不在根目录的 `data/minecraft/`（根目录那个目录下根本没有这两个文件）。
  *
  * ## 怎么改
  *
  * 只动 [RULES]。一条 Rule = 一种数据的「旧路径 / 新路径 / 从哪个版本起优先走新的」。
- * 路径相对存档根目录，用 `/` 分隔；`{id}` 是地图编号这类可变部分，`{ns}` 是命名空间。
- * 拿到官方依据后，把 [Rule.since] 和注释里的证据状态一起改。
+ * 路径相对存档根目录，用 `/` 分隔；`{id}` 是地图编号，`{ns}` 是命名空间，
+ * `{dim}` 是维度名（默认 overworld）。
+ * 即便版本判断错了，[candidates] 两套都给，不会漏数据。
  *
  * ## 版本判定
  *
- * [atLeast] 只做数字比较，26.1 大于 1.21.11（26 > 1）。
+ * [atLeast] 只做数字比较，26.2 大于 1.21.11（26 > 1）。
  * 快照号（"26.1 snapshot-6"）取空格前那段。
  * **判定不出来时两套路径都找**，宁可多找一次，也不要漏掉数据。
  */
@@ -75,7 +88,16 @@ object WorldLayout {
         RAIDS,
 
         /** 命令存储 */
-        COMMAND_STORAGE
+        COMMAND_STORAGE,
+
+        /** 世界生成设置。1.16 起在 level.dat 内，26.2 抽成独立文件 */
+        WORLD_GEN,
+
+        /** 存档自带数据包 */
+        DATAPACKS,
+
+        /** 脚本。26.2 样本里出现 */
+        SCRIPTS,
     }
 
     /**
@@ -95,9 +117,8 @@ object WorldLayout {
     // ══════════════════════════════════════════════════════════
     //  数据区：目录再变，只改这一段
     //  路径一律相对存档根目录（saves/<世界>/）
-    //
-    //  ⚠️ new 那一列的证据状态见文件头，改之前先读一遍，
-    //     别把未证实的版本号当成事实写进 since。
+    //  标注「样本实证」的是在 b1.3 / 1.2.1 / 1.13 / 1.16 / 1.18 /
+    //  1.20.5 / 26.2 这七个真实存档里数出来的，改之前先想清楚。
     // ══════════════════════════════════════════════════════════
     private val RULES = listOf(
         Rule(
@@ -105,87 +126,116 @@ object WorldLayout {
             old = "region",
             new = "dimensions/minecraft/overworld/region",
             since = "26.1",
-            note = "26.1 前主世界区块就在存档根目录"
+            note = "样本实证：26.2 在此；1.20.5 及更早都在根目录 region"
         ),
         Rule(
             Kind.NETHER, "下界区块",
             old = "DIM-1/region",
             new = "dimensions/minecraft/the_nether/region",
             since = "26.1",
-            note = "26.1 前是 DIM-1，且不带命名空间"
+            note = "样本实证：26.2 目录名是 the_nether；1.16–1.20.5 是 DIM-1"
         ),
         Rule(
             Kind.END, "末地区块",
             old = "DIM1/region",
             new = "dimensions/minecraft/the_end/region",
             since = "26.1",
-            note = "26.1 前是 DIM1"
+            note = "样本实证：26.2 目录名是 the_end；1.16–1.20.5 是 DIM1"
         ),
         Rule(
             Kind.PLAYER_DATA, "玩家数据",
             old = "playerdata",
             new = "players/data",
             since = "26.1",
-            note = "26.1 把 playerdata 收进 players/"
+            note = "样本实证：26.2 是 players/data/<uuid>.dat"
         ),
         Rule(
             Kind.PLAYER_ADV, "玩家进度",
             old = "advancements",
             new = "players/advancements",
-            since = "26.1"
+            since = "26.1",
+            note = "样本实证：26.2 是 players/advancements/<uuid>.json，后缀变 json"
         ),
         Rule(
             Kind.PLAYER_STATS, "玩家统计",
             old = "stats",
             new = "players/stats",
-            since = "26.1"
+            since = "26.1",
+            note = "样本实证：26.2 是 players/stats/<uuid>.json，后缀变 json"
         ),
+        Rule(
+            Kind.CHUNK_TICKETS, "强制加载区块",
+            old = "data/chunks.dat",
+            new = "dimensions/minecraft/{dim}/data/minecraft/chunk_tickets.dat",
+            since = "26.1",
+            note = "样本实证：26.2 在每个维度各自的 data/minecraft/ 下，" +
+                "根目录 data/minecraft/ 里没有这个文件"
+        ),
+        Rule(
+            Kind.RAIDS, "袭击数据",
+            old = "data/raids_end.dat",
+            new = "dimensions/minecraft/{dim}/data/minecraft/raids.dat",
+            since = "26.1",
+            note = "样本实证：26.2 每个维度各一份，根目录没有；" +
+                "1.16 是 data/raids.dat + DIM-1/raids.dat + DIM1/raids_end.dat"
+        ),
+        Rule(
+            Kind.WORLD_GEN, "世界生成设置",
+            old = "",
+            new = "data/minecraft/world_gen_settings.dat",
+            since = "26.1",
+            note = "样本实证：26.2 抽成独立文件；" +
+                "1.16–1.20.5 是 level.dat 里的 WorldGenSettings 复合，没有单独文件"
+        ),
+        Rule(
+            Kind.DATAPACKS, "存档数据包",
+            old = "datapacks",
+            new = "datapacks",
+            since = "",
+            note = "样本实证：26.2 与 1.13+ 都在根目录，位置没变"
+        ),
+        Rule(
+            Kind.SCRIPTS, "脚本",
+            old = "",
+            new = "scripts",
+            since = "26.1",
+            note = "样本实证：26.2 根目录有 scripts/；更老的版本没有"
+        ),
+        // ── 以下三种手头没有样本，仍是候选，别当事实 ──
         Rule(
             Kind.WORLD_PACK, "世界资源包",
             old = "resources.zip",
             new = "resourcepacks/resources.zip",
             since = "26.1",
-            note = "26.1 起和玩家加的材质包放在同一层"
+            note = "无样本：七个样本里都没有 resources.zip，未获证实"
         ),
         Rule(
             Kind.GENERATED, "结构方块结构",
             old = "generated/{ns}/structures",
             new = "generated/{ns}/structure",
             since = "26.1",
-            note = "注意是 structures → structure"
+            note = "无样本：未获证实"
         ),
         Rule(
             Kind.MAP_INDEX, "地图编号计数",
             old = "data/idcounts.dat",
             new = "data/minecraft/maps/last_id.dat",
-            since = "26.1"
+            since = "26.1",
+            note = "无样本：未获证实"
         ),
         Rule(
             Kind.MAP_ITEM, "地图数据",
             old = "data/map_{id}.dat",
             new = "data/minecraft/maps/{id}.dat",
             since = "26.1",
-            note = "26.1 起文件名只剩编号"
-        ),
-        Rule(
-            Kind.CHUNK_TICKETS, "强制加载区块",
-            old = "data/chunks.dat",
-            new = "data/minecraft/chunk_tickets.dat",
-            since = "26.1"
-        ),
-        Rule(
-            Kind.RAIDS, "袭击数据",
-            old = "data/raids_end.dat",
-            new = "data/minecraft/raids.dat",
-            since = "26.1",
-            note = "26.1 起末地不再单独一个文件"
+            note = "无样本：未获证实"
         ),
         Rule(
             Kind.COMMAND_STORAGE, "命令存储",
             old = "data/command_storage_{ns}.dat",
             new = "data/{ns}/command_storage.dat",
             since = "26.1",
-            note = "26.1 起命名空间变成一层目录"
+            note = "无样本：未获证实"
         )
     )
     // ══════════════════════════════════════════════════════════
@@ -196,7 +246,7 @@ object WorldLayout {
     fun all(): List<Rule> = RULES
 
     /**
-     * 版本比较。只比数字段，26.1 > 1.21.11。
+     * 版本比较。只比数字段，26.2 > 1.21.11。
      * 认不出来的段一律按 0 处理，不会抛异常。
      */
     fun cmp(a: String, b: String): Int {
@@ -226,24 +276,45 @@ object WorldLayout {
      * 版本认不出（空串、解析失败）时返回 true，调用方应当：
      * **整棵目录原样复制，不改名、不挪位、不删任何旧文件**，
      * 并在界面上提示用户先备份。
-     *
-     * 这么做是因为目录布局的判断可能出错——尤其是 [RULES] 里
-     * 未获官方佐证的那部分（见文件头）。宁可多复制一点，
-     * 也不能因为猜错布局把一个世界搬坏。
      */
     fun conservative(mcVersion: String?): Boolean = mcVersion.isNullOrBlank()
 
-    /** 填掉路径里的 {id} / {ns} */
-    private fun fill(tpl: String, id: String, ns: String): String =
-        tpl.replace("{id}", id).replace("{ns}", ns)
+    /**
+     * 区域文件的后缀。
+     *
+     * 样本实证：b1.3 是 `.mcr`（Region 格式），1.2.1 起换成 `.mca`（Anvil）。
+     * 只认 `.mca` 会把 Beta 时代的存档整个漏掉。
+     *
+     * 返回的是候选，按「该版本最可能的排前面」排序，调用方逐个试。
+     */
+    fun regionExtensions(mcVersion: String?): List<String> =
+        if (atLeast(mcVersion, "1.2")) listOf("mca", "mcr") else listOf("mcr", "mca")
+
+    /** 填掉路径里的 {id} / {ns} / {dim} */
+    private fun fill(
+        tpl: String,
+        id: String,
+        ns: String,
+        dim: String
+    ): String = tpl
+        .replace("{id}", id)
+        .replace("{ns}", ns)
+        .replace("{dim}", dim)
 
     /**
      * 该版本下这种数据**应该用**的路径。
      * 版本认不出（空串）时按旧路径返回 —— 调用方要兜底请用 [candidates]。
+     * 空串表示该版本下没有这种数据（例如 1.16 的 world_gen_settings 在 level.dat 内）。
      */
-    fun path(kind: Kind, mcVersion: String?, id: String = "", ns: String = "minecraft"): String? {
+    fun path(
+        kind: Kind,
+        mcVersion: String?,
+        id: String = "",
+        ns: String = "minecraft",
+        dim: String = "overworld"
+    ): String? {
         val r = rule(kind) ?: return null
-        return if (atLeast(mcVersion, r.since)) fill(r.new, id, ns) else fill(r.old, id, ns)
+        return if (atLeast(mcVersion, r.since)) fill(r.new, id, ns, dim) else fill(r.old, id, ns, dim)
     }
 
     /**
@@ -251,17 +322,20 @@ object WorldLayout {
      *
      * 版本认不出（空串）时两个都给，顺序按「新 → 旧」。
      * 调用方逐个找到存在的为止 —— 版本号判断错了也不会漏数据。
+     * 空串候选会被丢掉，免得匹配到存档根目录。
      */
     fun candidates(
         kind: Kind,
         mcVersion: String?,
         id: String = "",
-        ns: String = "minecraft"
+        ns: String = "minecraft",
+        dim: String = "overworld"
     ): List<String> {
         val r = rule(kind) ?: return emptyList()
-        val nw = fill(r.new, id, ns)
-        val od = fill(r.old, id, ns)
-        return if (atLeast(mcVersion, r.since)) listOf(nw, od) else listOf(od, nw)
+        val nw = fill(r.new, id, ns, dim)
+        val od = fill(r.old, id, ns, dim)
+        val both = if (atLeast(mcVersion, r.since)) listOf(nw, od) else listOf(od, nw)
+        return both.filter { it.isNotBlank() }.distinct()
     }
 
     /** 在存档目录里找这种数据，返回第一个真实存在的 */
@@ -270,33 +344,35 @@ object WorldLayout {
         kind: Kind,
         mcVersion: String?,
         id: String = "",
-        ns: String = "minecraft"
+        ns: String = "minecraft",
+        dim: String = "overworld"
     ): File? {
-        for (p in candidates(kind, mcVersion, id, ns)) {
+        for (p in candidates(kind, mcVersion, id, ns, dim)) {
             val f = File(worldDir, p)
             if (f.exists()) return f
         }
         return null
     }
 
-    /** 同 [find]，但按 [DocumentFile] 之外拿不到 File 的场合用：只回相对路径 */
+    /** 同 [find]，但按拿不到 [File] 的场合用：只回相对路径 */
     fun findRelative(
         worldDir: File,
         kind: Kind,
         mcVersion: String?,
         id: String = "",
-        ns: String = "minecraft"
+        ns: String = "minecraft",
+        dim: String = "overworld"
     ): String? {
-        val f = find(worldDir, kind, mcVersion, id, ns) ?: return null
+        val f = find(worldDir, kind, mcVersion, id, ns, dim) ?: return null
         return f.relativeTo(worldDir).path
     }
 
     /**
      * 这个目录像一个存档吗。
      *
-     * 26.1 起主世界区块不在根目录，所以只认 `region` 会**漏掉新存档** ——
-     * 必须连 `dimensions/minecraft/overworld/region` 一起认。
-     * level.dat 一直都在根目录，那个仍是主力判据。
+     * 26.2 起主世界区块不在根目录，所以只认 `region` 会**漏掉新存档** ——
+     * 必须连 `dimensions/minecraft/overworld/region` 一起认
+     *（26.2 样本实证）。level.dat 一直都在根目录，那个仍是主力判据。
      */
     fun looksLikeWorld(dir: File): Boolean {
         if (!dir.isDirectory) return false
@@ -308,25 +384,60 @@ object WorldLayout {
     }
 
     /**
-     * 难度在 level.dat 里的取法：26.1 起换成字符串并挪进 difficulty_setting。
+     * 难度在 level.dat 里的取法。
      *
-     * 旧：`Data.Difficulty` 是 0..3 的数字
-     * 新：`Data.difficulty_setting.difficulty` 是 peaceful/easy/normal/hard
+     * 样本实证，**三个时代三种写法**：
+     *
+     * - b1.3 / 1.2.1：`Data` 里**根本没有难度字段**（那两个样本连
+     *   `Difficulty` 键都没有），返回 -1 显示「未知」才是对的，
+     *   不要拿 0 去冒充「和平」
+     * - 1.13 – 1.20.5：`Data.Difficulty` 是 0..3 的数字（样本实测 1.13 = 1）
+     * - 26.2：`Data.difficulty_settings.difficulty` 是字符串，
+     *   样本实测值 `"normal"`；注意是 **settings 复数**，
+     *   单数 `difficulty_setting` 是此前照传闻写的错名，这里一并兼容
      *
      * 统一回 0..3，取不到返回 -1（界面显示"未知"）。
      */
     fun difficultyOf(data: com.viaversion.nbt.tag.CompoundTag?): Int {
         val d = data ?: return -1
         d.getNumberTag("Difficulty")?.getValue()?.toInt()?.let { return it }
-        val s = d.getCompoundTag("difficulty_setting")
-            ?.getStringTag("difficulty")?.getValue()
-            ?.trim()?.lowercase() ?: return -1
-        return when (s) {
-            "peaceful" -> 0
-            "easy" -> 1
-            "normal" -> 2
-            "hard" -> 3
-            else -> -1
+        for (key in listOf("difficulty_settings", "difficulty_setting")) {
+            val s = d.getCompoundTag(key)
+                ?.getStringTag("difficulty")?.getValue()
+                ?.trim()?.lowercase()
+            if (!s.isNullOrBlank()) {
+                return when (s) {
+                    "peaceful" -> 0
+                    "easy" -> 1
+                    "normal" -> 2
+                    "hard" -> 3
+                    else -> -1
+                }
+            }
         }
+        return -1
     }
+
+    /**
+     * 是否硬核。
+     *
+     * 样本实证：1.2.1 – 1.20.5 是 `Data.hardcore`（顶层数字）；
+     * 26.2 顶层没有这个键，挪进了 `difficulty_settings.hardcore`。
+     * 读不到返回 null —— b1.3 样本里确实没有，不能当成 false。
+     */
+    fun hardcoreOf(data: com.viaversion.nbt.tag.CompoundTag?): Boolean? {
+        val d = data ?: return null
+        d.getNumberTag("hardcore")?.getValue()?.toInt()?.let { return it != 0 }
+        for (key in listOf("difficulty_settings", "difficulty_setting")) {
+            d.getCompoundTag(key)?.getNumberTag("hardcore")?.getValue()?.toInt()
+                ?.let { return it != 0 }
+        }
+        return null
+    }
+
+    //
+    // 出生点也有一样的变迁，但项目里目前没有读它的地方，
+    // 等界面要用时再补：1.20.5 及更早是 SpawnX/SpawnY/SpawnZ 三个数字键，
+    // 26.2 换成 spawn 复合里的 pos 数组（样本实测 [0, -60, 0]）。
+    //
 }
