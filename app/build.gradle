@@ -200,4 +200,11 @@ dependencies {
     // 否则 Rhino 会走 JVM 字节码那条路，在 Android 上直接失败。
     implementation 'org.mozilla:rhino:1.7.15'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+
+    // ── 同步器：Shizuku（Apache-2.0）──────────────────────────
+    // Android 14 起连「所有文件访问」权限也进不去别的 App 的私有目录，
+    // 启动器的 Android/data 只能让用户装同步器、由它以 adb/root 身份代读。
+    // api 提供调用入口，provider 是授权回调必需的 ContentProvider。
+    implementation 'dev.rikka.shizuku:api:13.1.5'
+    implementation 'dev.rikka.shizuku:provider:13.1.5'
 }
