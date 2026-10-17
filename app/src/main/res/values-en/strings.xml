@@ -294,6 +294,28 @@
     <string name="priv_pack_meta">Detected: game %1$s / loader %2$s</string>
     <string name="priv_pack_share">Send to launcher for import</string>
     <string name="priv_pack_unknown">unknown</string>
+
+    <!-- Modpack import guide (P1-9): steps live in resources so both locales stay in sync -->
+    <string name="import_guide_title">Let the launcher import it</string>
+    <string name="import_guide_hint">This app cannot write another app\'s private directory, but a launcher can write its own. Hand the modpack to it — this step is not restricted by the system.</string>
+    <string name="import_guide_open">Open %1$s</string>
+    <string name="import_guide_not_installed">%1$s is not installed — install it first, then import</string>
+    <string name="import_guide_unverified">These menu locations are unverified and may differ between versions.</string>
+
+    <string-array name="import_steps_pojav">
+        <item>Open PojavLauncher</item>
+        <item>Go to "Enhanced features"</item>
+        <item>Choose "MOD management"</item>
+        <item>Tap "+" in the top-right corner</item>
+        <item>Pick the .mrpack you just exported</item>
+    </string-array>
+
+    <string-array name="import_steps_generic">
+        <item>Open the launcher</item>
+        <item>Find "Import modpack" / "Import mrpack" — usually under "+" on the instance list, or in the top-right menu</item>
+        <item>Pick the .mrpack you just exported (in the "Download / ModMigrator" folder)</item>
+        <item>When it finishes, come back here and point the destination directory at the instance the launcher created</item>
+    </string-array>
     <string name="more">More</string>
     <string name="mig_result_title">Scan results</string>
     <string name="mig_tools">Migration tools</string>
