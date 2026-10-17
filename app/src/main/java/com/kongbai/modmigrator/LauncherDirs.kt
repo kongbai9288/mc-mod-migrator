@@ -9,93 +9,182 @@ import java.io.File
 /**
  * 各启动器的 `.minecraft` 目录在哪。
  *
- * ⚠️ 之前默认落到 **App 私有目录**（getExternalFilesDir，
- * 即 /sdcard/Android/data/<本包名>/files/ModMigrator）。
- * 那个目录有三个致命问题：
- *   1. 启动器**根本读不到** —— 模组下进去等于白下，游戏里一个都不加载
- *   2. 用户在文件管理器里看不见（Android 11+ 其他 App 也进不来）
- *   3. 卸载本 App 时系统一起清掉
- * 所以默认目录必须换成启动器真正的 `.minecraft`。
+ * 本文件**只有一份数据**（[TABLE]），改目录改包名改版本都只动那张表，
+ * 逻辑不用碰。启动器换路径是常态（Pojav 换过、FCL 换过包名），
+ * 所以目录同时记「旧」和「新」两套，两套都会去找。
  *
- * ⚠️ 另一条硬限制（官方 Android 11 存储更新已确认）：
- *   **SAF 无法授权 Android/data 及其子目录**，无论 targetSDK 多少。
- * 因此这里**只收录公共目录下的路径**（/sdcard/games/…、/sdcard/FCL/… 等）。
- * 落在 Android/data 的私有路径仅供显示说明，不能拿来授权。
+ * ⚠️ 官方 Android 11 存储更新已确认：**SAF 无法授权 Android/data 及其子目录**。
+ * 因此 [Entry.priv] 里的私有路径只能拿来看、以及交给同步器读取（见 [PrivSync]），
+ * 绝不能拿去发起目录授权。
  *
- * 启动器将来改路径是不可避免的（Pojav 就换过一次），
- * 所以这份表是**数据**而非硬编码逻辑，支持从远端补丁更新（见 [updateFrom]）。
+ * [Entry.mcFrom] / [Entry.mcTo] 是社区资料整理的适配版本区间，
+ * 会随启动器更新变化，仅用于提示，不用来拦截操作。
  */
 object LauncherDirs {
 
-    /** 一条启动器目录记录 */
+    /** 一条启动器记录。改目录只改这里。 */
     data class Entry(
-        /** 显示名，如 "Zalith Launcher 2" */
+        /** 显示名 */
         val name: String,
-        /** 公共目录下的相对路径，如 "games/ZalithLauncher2/.minecraft" */
-        val rel: String,
-        /** 该启动器的包名，用于判断是否已安装 */
-        val pkg: String = "",
-        /** 备注：版本隔离、私有路径等说明 */
+        /** 品牌 key，对应 [LauncherBrand]，用于显示图标 */
+        val key: String = "",
+        /** 包名（可能有多个：历史包名 + 现用包名） */
+        val pkgs: List<String> = emptyList(),
+        /** 旧公开目录，相对 /sdcard */
+        val pubOld: List<String> = emptyList(),
+        /** 新公开目录，相对 /sdcard */
+        val pubNew: List<String> = emptyList(),
+        /** 旧私有目录（Android/data 下），仅供显示与同步器读取 */
+        val privOld: List<String> = emptyList(),
+        /** 新私有目录（Android/data 下），仅供显示与同步器读取 */
+        val privNew: List<String> = emptyList(),
+        /** 适配的 MC 版本下限 */
+        val mcFrom: String = "",
+        /** 适配的 MC 版本上限，"" = 跟随最新 */
+        val mcTo: String = "",
+        /** 备注 */
         val note: String = ""
     )
 
-    /**
-     * 内置预设。
-     *
-     * 路径均已联网核对：
-     *   - PojavLauncher      /sdcard/games/PojavLauncher/.minecraft
-     *   - Zalith Launcher    /sdcard/games/ZalithLauncher/.minecraft
-     *   - Zalith Launcher 2  /sdcard/games/ZalithLauncher2/.minecraft
-     *   - FCL                /sdcard/FCL/.minecraft
-     *   - HMCL PE            /sdcard/HMCLPE/.minecraft
-     *   - 澪 MioLauncher     /sdcard/MioLauncher/.minecraft
-     *   - MCinaBox           /sdcard/MCinaBox/.minecraft
-     */
-    private val BUILTIN = listOf(
-        Entry("PojavLauncher", "games/PojavLauncher/.minecraft",
-            "net.kdt.pojavlaunch", "已停止维护，建议换 Zalith"),
-        Entry("Zalith Launcher", "games/ZalithLauncher/.minecraft",
-            "com.movtery.zalithlauncher", ""),
-        Entry("Zalith Launcher 2", "games/ZalithLauncher2/.minecraft",
-            "com.movtery.zalithlauncher2", "推荐"),
-        Entry("Amethyst", "games/Amethyst/.minecraft",
-            "com.aurora.amethyst", ""),
-        Entry("FCL", "FCL/.minecraft",
-            "com.fcl.launcher", "开版本隔离则在 versions/<版本>/ 下"),
-        Entry("HMCL PE", "HMCLPE/.minecraft",
-            "com.tungsten.hmclpe", "开版本隔离则在 versions/<版本>/ 下"),
-        Entry("澪 MioLauncher", "MioLauncher/.minecraft", "", ""),
-        Entry("MCinaBox", "MCinaBox/.minecraft",
-            "com.aof.mcinabox", "")
+    // ══════════════════════════════════════════════════════════
+    //  数据区：改目录 / 改包名 / 改版本，只改这一段
+    //  路径一律相对 /sdcard（多数设备是 /storage/emulated/0）
+    // ══════════════════════════════════════════════════════════
+    private val TABLE = listOf(
+        Entry(
+            name = "FCL", key = "fcl",
+            pkgs = listOf("com.tungsten.fcl", "com.fcl.launcher"),
+            pubNew = listOf("FCL/.minecraft"),
+            pubOld = listOf("games/FCL/.minecraft"),
+            privNew = listOf("Android/data/com.fcl.launcher/files/.minecraft"),
+            privOld = listOf("Android/data/com.tungsten.fcl/files/.minecraft"),
+            mcFrom = "1.0", mcTo = "",
+            note = "开版本隔离则在 versions/<版本>/ 下"
+        ),
+        Entry(
+            name = "Zalith Launcher 2", key = "zalith2",
+            pkgs = listOf("com.movtery.zalithlauncher.v2", "com.movtery.zalithlauncher2"),
+            pubNew = listOf("games/ZalithLauncher2/.minecraft"),
+            pubOld = listOf("games/ZalithLauncher/.minecraft"),
+            privNew = listOf("Android/data/com.movtery.zalithlauncher.v2/files/.minecraft"),
+            privOld = listOf("Android/data/com.movtery.zalithlauncher/files/.minecraft"),
+            mcFrom = "1.7.10", mcTo = "",
+            note = "可在启动器里改到外部存储，改了就走公开目录"
+        ),
+        Entry(
+            name = "Zalith Launcher", key = "zalith",
+            pkgs = listOf("com.movtery.zalithlauncher"),
+            pubNew = listOf("games/ZalithLauncher/.minecraft"),
+            privNew = listOf("Android/data/com.movtery.zalithlauncher/files/.minecraft"),
+            mcFrom = "1.7.10", mcTo = "",
+            note = "支持自定义游戏目录"
+        ),
+        Entry(
+            name = "PojavLauncher", key = "pojav",
+            pkgs = listOf("net.kdt.pojavlaunch", "net.kdt.pojavlaunch.debug"),
+            pubNew = listOf("games/PojavLauncher/.minecraft"),
+            privNew = listOf("Android/data/net.kdt.pojavlaunch/files/.minecraft"),
+            privOld = listOf("Android/data/net.kdt.pojavlaunch.debug/files/.minecraft"),
+            mcFrom = "1.0", mcTo = "1.21",
+            note = "已停止维护，建议换 Zalith"
+        ),
+        Entry(
+            name = "Amethyst", key = "amethyst",
+            pkgs = listOf("org.angelauramc.amethyst", "org.angelauramc.amethyst.debug"),
+            privNew = listOf("Android/data/org.angelauramc.amethyst/files/.minecraft"),
+            privOld = listOf("Android/data/org.angelauramc.amethyst.debug/files/.minecraft"),
+            mcFrom = "1.14", mcTo = "",
+            note = "仅私有目录"
+        ),
+        Entry(
+            name = "HMCL PE", key = "hmcl",
+            pkgs = listOf("com.tungsten.hmclpe"),
+            pubNew = listOf("HMCLPE/.minecraft"),
+            privNew = listOf("Android/data/com.tungsten.hmclpe/files/.minecraft"),
+            mcFrom = "1.0", mcTo = "1.20",
+            note = "开版本隔离则在 versions/<版本>/ 下"
+        ),
+        Entry(
+            name = "澪 MioLauncher", key = "mio",
+            pkgs = listOf("com.mio.launcher", "com.tungsten.mio"),
+            pubNew = listOf("MioLauncher/.minecraft"),
+            mcFrom = "1.7.10", mcTo = "",
+            note = "模组放在 versions/<版本>/mods"
+        ),
+        Entry(
+            name = "Boat", key = "other",
+            pubNew = listOf("boat/gamedir"),
+            pubOld = listOf("games/boat/.minecraft"),
+            mcFrom = "1.7.10", mcTo = "",
+            note = " Boat 系底座，目录名各分支不同"
+        ),
+        Entry(
+            name = "MojoLauncher / MJLauncher", key = "other",
+            pkgs = listOf("com.mojolauncher.android"),
+            privNew = listOf("Android/data/com.mojolauncher.android/files/mc_data"),
+            mcFrom = "1.0", mcTo = "",
+            note = "注意是 mc_data 不是 .minecraft"
+        ),
+        Entry(
+            name = "MCinaBox", key = "mcinabox",
+            pkgs = listOf("com.aof.mcinabox"),
+            pubNew = listOf("MCinaBox/.minecraft"),
+            mcFrom = "1.7.10", mcTo = "1.17",
+            note = ""
+        )
     )
+    // ══════════════════════════════════════════════════════════
 
-    /** 外部存储根。多数设备是 /storage/emulated/0 */
-    private fun sdcard(): File =
-        Environment.getExternalStorageDirectory()
+    /** 当前生效的表：远端更新过的用远端的，否则用内置 */
+    private var entries: List<Entry> = TABLE
 
-    /** 当前生效的目录清单：远端更新过的用远端的，否则用内置 */
-    private var entries: List<Entry> = BUILTIN
-
-    /** 全部（含未安装的），供设置页列出 */
+    /** 全部（含未安装的） */
     fun all(): List<Entry> = entries
 
+    /** 按品牌 key 找 */
+    fun byKey(key: String): Entry? = entries.firstOrNull { it.key == key }
+
+    private fun sdcard(): File = Environment.getExternalStorageDirectory()
+
+    private fun installed(ctx: Context, e: Entry): Boolean {
+        if (e.pkgs.isEmpty()) return false
+        val pm = ctx.packageManager
+        return e.pkgs.any { p ->
+            try { pm.getPackageInfo(p, 0) != null } catch (t: Throwable) { false }
+        }
+    }
+
+    /** 该启动器已装吗 */
+    fun isInstalled(ctx: Context, e: Entry): Boolean = installed(ctx, e)
+
+    /** 适配版本的一句话，如「1.7.10 起」 */
+    fun mcRange(e: Entry): String = when {
+        e.mcFrom.isBlank() && e.mcTo.isBlank() -> ""
+        e.mcTo.isBlank() -> "${e.mcFrom} 起"
+        e.mcFrom.isBlank() -> "到 ${e.mcTo}"
+        else -> "${e.mcFrom} – ${e.mcTo}"
+    }
+
+    /** 公开目录候选，新的排前面 */
+    fun publicCandidates(e: Entry): List<String> = e.pubNew + e.pubOld
+
+    /** 私有目录候选，新的排前面 */
+    fun privateCandidates(e: Entry): List<String> = e.privNew + e.privOld
+
     /**
-     * 探测：返回**确实存在**的目录。
-     * 按「启动器已安装」优先排序，装了的排前面。
+     * 探测：返回**确实存在**的公开目录。
+     * 按「启动器已安装」优先排序。
+     *
+     * 签名保持不变，设置页与工具箱依赖它。
      */
     fun detect(ctx: Context): List<Pair<Entry, File>> {
         val root = sdcard()
-        val pm = ctx.packageManager
         val out = ArrayList<Pair<Entry, File>>()
         for (e in entries) {
-            val f = File(root, e.rel)
-            if (!f.isDirectory) continue
-            val installed = e.pkg.isNotBlank() && try {
-                pm.getPackageInfo(e.pkg, 0) != null
-            } catch (t: Throwable) { false }
+            val f = publicCandidates(e).map { File(root, it) }.firstOrNull { it.isDirectory }
+                ?: continue
             out.add(e to f)
-            if (installed) {
-                // 已安装的排到最前
+            if (installed(ctx, e)) {
                 val i = out.indexOfFirst { it.first === e }
                 if (i > 0) {
                     val item = out.removeAt(i)
@@ -106,41 +195,73 @@ object LauncherDirs {
         return out
     }
 
+    /**
+     * 完整探测：公开目录存在就给出来，不存在但启动器已装的
+     * 也列出来（这时只有私有目录，要走同步器）。
+     */
+    fun detectAll(ctx: Context): List<LauncherAccess.Found> {
+        val root = sdcard()
+        val out = ArrayList<LauncherAccess.Found>()
+        for (e in entries) {
+            val ins = installed(ctx, e)
+            val pub = publicCandidates(e).map { File(root, it) }.firstOrNull { it.isDirectory }
+            if (pub != null) {
+                out.add(LauncherAccess.Found(e, pub.absolutePath, LauncherAccess.Kind.PUBLIC, ins))
+                continue
+            }
+            if (ins && privateCandidates(e).isNotEmpty()) {
+                out.add(
+                    LauncherAccess.Found(
+                        e, privateCandidates(e).first(),
+                        LauncherAccess.Kind.PRIVATE, true
+                    )
+                )
+            }
+        }
+        return out.sortedWith(compareBy({ it.installed.not().toString() }, { it.entry.name }))
+    }
+
     /** 该目录是不是一个真正的 .minecraft（有 mods / saves / versions 之一） */
     fun looksLikeMinecraft(f: File): Boolean {
         if (!f.isDirectory) return false
         val names = f.list()?.toSet() ?: return false
-        return names.any {
-            McDirs.ROOT_MARKS.any { m -> it.equals(m, true) }
-        }
+        return names.any { McDirs.ROOT_MARKS.any { m -> it.equals(m, true) } }
     }
 
     /**
      * 从远端补丁更新目录表。
-     *
-     * 启动器改名/换路径时不用发新版 App，下一份 JSON 即可。
-     * 格式：[{"name":"…","rel":"…","pkg":"…","note":"…"}, …]
-     *
+     * 格式：[{"name":"…","pubNew":["…"],"privNew":["…"],"pkgs":["…"],"mcFrom":"…","mcTo":"…","note":"…"}, …]
      * 解析失败一律保留内置表 —— 补丁坏了不能让用户没得选。
      */
     fun updateFrom(json: String): Boolean {
         return try {
             val arr = JSONArray(json)
-            val list = ArrayList<Entry>(BUILTIN)
+            val list = ArrayList<Entry>(TABLE)
             for (i in 0 until arr.length()) {
                 val o: JSONObject = arr.getJSONObject(i)
                 val name = o.optString("name").trim()
-                val rel = o.optString("rel").trim().trimStart('/')
-                if (name.isBlank() || rel.isBlank()) continue
-                // 同名覆盖内置的，其余追加
-                list.removeAll { it.name == name }
-                list.add(
-                    Entry(
-                        name, rel,
-                        o.optString("pkg").trim(),
-                        o.optString("note").trim()
-                    )
+                if (name.isBlank()) continue
+                fun strs(k: String): List<String> {
+                    val a = o.optJSONArray(k) ?: return emptyList()
+                    return (0 until a.length()).mapNotNull { a.optString(it).trim().takeIf { s -> s.isNotEmpty() } }
+                }
+                val e = Entry(
+                    name = name,
+                    key = o.optString("key").trim(),
+                    pkgs = strs("pkgs"),
+                    pubOld = strs("pubOld"),
+                    pubNew = strs("pubNew"),
+                    privOld = strs("privOld"),
+                    privNew = strs("privNew"),
+                    mcFrom = o.optString("mcFrom").trim(),
+                    mcTo = o.optString("mcTo").trim(),
+                    note = o.optString("note").trim()
                 )
+                if (e.pubNew.isEmpty() && e.pubOld.isEmpty() &&
+                    e.privNew.isEmpty() && e.privOld.isEmpty()
+                ) continue
+                list.removeAll { it.name == name }
+                list.add(e)
             }
             if (list.isEmpty()) return false
             entries = list
@@ -152,5 +273,5 @@ object LauncherDirs {
     }
 
     /** 恢复内置表 */
-    fun reset() { entries = BUILTIN }
+    fun reset() { entries = TABLE }
 }
