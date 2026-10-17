@@ -60,6 +60,18 @@ object WorldLayout {
         /** 末地区块 */
         END,
 
+        /** 区块里的实体。1.18 起从 .mca 里拆出来单独存 */
+        ENTITIES,
+
+        /** 兴趣点：床、工作方块。1.14 起才有，取代了 villages.dat */
+        POI,
+
+        /** 村庄数据。1.13 时代叫 villages.dat，1.14 起被 [POI] 取代 */
+        VILLAGES,
+
+        /** 世界级数据目录。1.13–1.20.5 是 data/，26.2 多了一层 minecraft/ */
+        WORLD_DATA,
+
         /** 玩家背包与位置 */
         PLAYER_DATA,
 
@@ -111,6 +123,13 @@ object WorldLayout {
         val old: String,
         val new: String,
         val since: String,
+        /**
+         * 额外候选。主路径找不到时一并试。
+         *
+         * 用在哪：某些维度的文件名跟主世界不一样（末地的袭击叫
+         * `raids_end.dat` 而不是 `raids.dat`），只靠一个模板写不出来。
+         */
+        val alt: List<String> = emptyList(),
         val note: String = ""
     )
 
@@ -119,6 +138,34 @@ object WorldLayout {
     //  路径一律相对存档根目录（saves/<世界>/）
     //  标注「样本实证」的是在 b1.3 / 1.2.1 / 1.13 / 1.16 / 1.18 /
     //  1.20.5 / 26.2 这七个真实存档里数出来的，改之前先想清楚。
+    //
+    //  七个样本实测出来的版本对照（✅ = 该版本样本里确实有）：
+    //
+    //  目录/文件              b1.3  1.2.1  1.13  1.16  1.18  1.20.5  26.2
+    //  ─────────────────────────────────────────────────────────────────
+    //  region/               .mcr   .mca   ✅    ✅    ✅    ✅      —
+    //  dimensions/.../region  —      —      —     —     —     —      ✅
+    //  entities/              —      —      —     —     ✅    ✅      —
+    //  dimensions/.../entities —     —      —     —     —     —      ✅
+    //  poi/                   —      —      —     ✅    ✅    ✅      ✅(维度下)
+    //  data/villages*.dat     —      —      ✅    —     —     —      —
+    //  data/*.dat             —      —      ✅    ✅    ✅    ✅      —
+    //  data/minecraft/*.dat   —      —      —     —     —     —      ✅
+    //  DIM-1/ DIM1/           —      ✅     ✅    ✅    ✅    ✅      —
+    //  dimensions/the_nether  —      —      —     —     —     —      ✅
+    //  playerdata/            —      —      ✅*   ✅*   ✅*   ✅*     —
+    //  players/data/          —      —      —     —     —     —      ✅
+    //  players/*.json         —      —      —     —     —     —      ✅
+    //  datapacks/             —      —      ✅    ✅    ✅    ✅      ✅
+    //  scripts/               —      —      —     —     —     —      ✅
+    //
+    //  * playerdata 是 README 说法，样本里没出现（全新世界没人进去过），
+    //    所以这条不算实证，只作候选。
+    //
+    //  两个由此定下的变迁点：
+    //  1. 1.14 起 villages.dat 被 poi/ 取代；1.18 起实体拆出到 entities/
+    //  2. 26.2 把维度目录换成 dimensions/minecraft/<名字>/，
+    //     并把世界级 .dat 收进 data/minecraft/ 这一层
     // ══════════════════════════════════════════════════════════
     private val RULES = listOf(
         Rule(
@@ -164,6 +211,41 @@ object WorldLayout {
             note = "样本实证：26.2 是 players/stats/<uuid>.json，后缀变 json"
         ),
         Rule(
+            Kind.ENTITIES, "区块实体",
+            old = "entities",
+            new = "dimensions/minecraft/{dim}/entities",
+            since = "26.1",
+            note = "样本实证：1.18 与 1.20.5 在根目录 entities/；" +
+                "26.2 挪到每个维度下；1.16 及更早根本没有（实体内嵌在 .mca 里）"
+        ),
+        Rule(
+            Kind.POI, "兴趣点",
+            old = "poi",
+            new = "dimensions/minecraft/{dim}/poi",
+            since = "26.1",
+            note = "样本实证：1.16 / 1.18 / 1.20.5 在根目录 poi/；" +
+                "26.2 挪到每个维度下；1.13 及更早没有（那时代是 villages.dat）"
+        ),
+        Rule(
+            Kind.VILLAGES, "村庄数据",
+            old = "data/villages.dat",
+            new = "",
+            since = "",
+            alt = listOf("data/villages_end.dat", "data/villages_nether.dat"),
+            note = "样本实证：只有 1.13 有这三个文件；1.14 起被 poi/ 取代，" +
+                "1.16 及之后的样本里一个都没有。new 留空表示新版下这种数据已不存在"
+        ),
+        Rule(
+            Kind.WORLD_DATA, "世界级数据目录",
+            old = "data",
+            new = "data/minecraft",
+            since = "26.1",
+            note = "样本实证：1.13–1.20.5 的 raids/villages 直接躺在 data/ 下；" +
+                "26.2 多了一层 minecraft/（data/minecraft/game_rules.dat 等）。" +
+                "模组数据也随之挪到 data/<命名空间>/，样本里就有 " +
+                "data/shulkerboxtooltip_ender_chest_cache.dat"
+        ),
+        Rule(
             Kind.CHUNK_TICKETS, "强制加载区块",
             old = "data/chunks.dat",
             new = "dimensions/minecraft/{dim}/data/minecraft/chunk_tickets.dat",
@@ -173,11 +255,17 @@ object WorldLayout {
         ),
         Rule(
             Kind.RAIDS, "袭击数据",
-            old = "data/raids_end.dat",
+            old = "data/raids.dat",
             new = "dimensions/minecraft/{dim}/data/minecraft/raids.dat",
             since = "26.1",
-            note = "样本实证：26.2 每个维度各一份，根目录没有；" +
-                "1.16 是 data/raids.dat + DIM-1/raids.dat + DIM1/raids_end.dat"
+            alt = listOf(
+                "data/raids_end.dat",
+                "DIM-1/data/raids.dat",
+                "DIM1/data/raids_end.dat"
+            ),
+            note = "样本实证：主世界叫 raids.dat，末地叫 raids_end.dat —— " +
+                "三个样本（1.16/1.18/1.20.5）都是这个命名。" +
+                "此前这里写死 raids_end.dat，会漏掉主世界那份"
         ),
         Rule(
             Kind.WORLD_GEN, "世界生成设置",
@@ -250,9 +338,17 @@ object WorldLayout {
      * 认不出来的段一律按 0 处理，不会抛异常。
      */
     fun cmp(a: String, b: String): Int {
-        fun parts(s: String): List<Int> =
-            s.trim().substringBefore(" ").split(".")
+        fun parts(s: String): List<Int> {
+            val t = s.trim().substringBefore(" ")
+            val segs = t.split(".")
                 .map { it.filter(Char::isDigit).toIntOrNull() ?: 0 }
+                .toMutableList()
+            // Beta（b1.3 / Beta 1.3）整体早于正式版 1.x。
+            // 不加这句的话 "b1.3" 会被拆成 [1,3]，反而比 "1.2" 的 [1,2] 大，
+            // 于是 Beta 存档被当成新版 —— 表现就是去找 .mca 而漏掉真实的 .mcr。
+            if (t.firstOrNull() == 'b' || t.firstOrNull() == 'B') segs.add(0, 0)
+            return segs
+        }
         val pa = parts(a)
         val pb = parts(b)
         val n = maxOf(pa.size, pb.size)
@@ -335,7 +431,8 @@ object WorldLayout {
         val nw = fill(r.new, id, ns, dim)
         val od = fill(r.old, id, ns, dim)
         val both = if (atLeast(mcVersion, r.since)) listOf(nw, od) else listOf(od, nw)
-        return both.filter { it.isNotBlank() }.distinct()
+        val alts = r.alt.map { fill(it, id, ns, dim) }
+        return (both + alts).filter { it.isNotBlank() }.distinct()
     }
 
     /** 在存档目录里找这种数据，返回第一个真实存在的 */
