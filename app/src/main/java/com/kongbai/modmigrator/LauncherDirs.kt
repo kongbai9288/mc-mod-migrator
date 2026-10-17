@@ -247,8 +247,45 @@ object LauncherDirs {
             name = "MCinaBox", key = "mcinabox",
             pkgs = listOf("com.aof.mcinabox"),
             pubNew = listOf("MCinaBox/.minecraft"),
+            // 大小写两种写法在社区资料里都出现过，安卓外存多数不区分大小写，
+            // 但部分 ROM 区分；两条都留，按「存在才算」探测
+            pubOld = listOf("mcinaBox/.minecraft"),
             mcFrom = "1.7.10", mcTo = "1.17",
             note = ""
+        ),
+
+        // ── 下面几条来自旧版扫描器里写死的绝对路径清单 ──
+        // 那份清单和本表重复，且没有任何证据等级，
+        // 编造的路径和核过的路径混在一起显示给用户。
+        // 现在收进本表并按 COMMUNITY 标注：界面上可以据此写「未核实」。
+        Entry(
+            name = "FoldCraftLauncher", key = "fcl",
+            pubNew = listOf("FoldCraftLauncher/.minecraft"),
+            mcFrom = "1.0", mcTo = "",
+            note = "社区资料里的旧目录名，未在上游源码中核到",
+            evidence = Evidence.COMMUNITY
+        ),
+        Entry(
+            name = "FCL（服务端版）", key = "fcl",
+            pkgs = listOf("com.tungsten.fcl.server"),
+            privNew = listOf("Android/data/com.tungsten.fcl.server/files/.minecraft"),
+            mcFrom = "1.0", mcTo = "",
+            note = "私有目录路径由包名推导（安卓通用规则），子目录名未核到",
+            evidence = Evidence.COMMUNITY
+        ),
+        Entry(
+            name = "HMCL（games 下）", key = "hmcl",
+            pubNew = listOf("games/HMCL/.minecraft"),
+            mcFrom = "1.0", mcTo = "",
+            note = "桌面版 HMCL 的目录名搬到安卓上的说法，未核到",
+            evidence = Evidence.COMMUNITY
+        ),
+        Entry(
+            name = "PCL", key = "other",
+            pubNew = listOf("games/PCL/.minecraft"),
+            mcFrom = "1.0", mcTo = "",
+            note = "PCL 是桌面启动器，安卓上的目录未经核实",
+            evidence = Evidence.COMMUNITY
         )
     )
     // ══════════════════════════════════════════════════════════
