@@ -1,5 +1,5 @@
 # 真实存档验证（ai.zip / 26.2 世界）
-run: 39034358170
+run: 39049155128
 
 ## 测试类清单
 app/build/test-results/testDebugUnitTest/TEST-com.kongbai.modmigrator.LauncherDirsTest.xml
@@ -24,7 +24,7 @@ tests="15" skipped="0" failures="3" errors="0"
     <failure message="java.lang.AssertionError" type="java.lang.AssertionError">java.lang.AssertionError
 	at org.junit.Assert.fail(Assert.java:87)
 == TEST-com.kongbai.modmigrator.McProbeTest.xml
-tests="12" skipped="0" failures="0" errors="0"
+tests="22" skipped="0" failures="0" errors="0"
 == TEST-com.kongbai.modmigrator.McaRealWorldTest.xml
 tests="9" skipped="0" failures="0" errors="0"
 == TEST-com.kongbai.modmigrator.McaSamplesTest.xml
@@ -38,10 +38,10 @@ tests="11" skipped="0" failures="0" errors="0"
 
 ## gradle 末尾 40 行
 > Task :app:preDebugUnitTestBuild UP-TO-DATE
-> Task :app:processDebugJavaRes UP-TO-DATE
 > Task :app:javaPreCompileDebugUnitTest
-> Task :app:bundleDebugClassesToCompileJar
+> Task :app:processDebugJavaRes UP-TO-DATE
 > Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:bundleDebugClassesToCompileJar
 
 > Task :app:compileDebugUnitTestKotlin
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/test/java/com/kongbai/modmigrator/RetryTest.kt:109:13 Unreachable code
@@ -62,7 +62,7 @@ com.kongbai.modmigrator.LauncherDirsTest > updateFromKeepsSystemAndAppRanges FAI
 com.kongbai.modmigrator.LauncherDirsTest > updateFromKeepsBuiltinWhenBroken FAILED
     java.lang.AssertionError at LauncherDirsTest.kt:162
 
-72 tests completed, 3 failed
+82 tests completed, 3 failed
 
 > Task :app:testDebugUnitTest FAILED
 
@@ -75,5 +75,5 @@ Execution failed for task ':app:testDebugUnitTest'.
 * Try:
 > Run with --scan to get full insights.
 
-BUILD FAILED in 19s
+BUILD FAILED in 16s
 23 actionable tasks: 7 executed, 16 up-to-date
