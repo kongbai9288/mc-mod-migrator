@@ -492,7 +492,22 @@ object LauncherDirs {
                     privNew = strs("privNew"),
                     mcFrom = o.optString("mcFrom").trim(),
                     mcTo = o.optString("mcTo").trim(),
-                    note = o.optString("note").trim()
+                    //
+                    // 下面这几个不能漏。远端补丁以前只解析目录和包名，
+                    // 一旦下发过一次，Pojav 的 API 28 分界（sysFrom）、
+                    // 启动器版本区间（appFrom/appTo）和证据等级都会被抹成
+                    // 默认值 —— 分界没了就不过滤，等于又回到「按社区说法找目录」。
+                    // 而且补丁里的路径本来就是社区整理的，默认按 COMMUNITY 记，
+                    // 免得界面上把它当有源码佐证的条目显示。
+                    sysFrom = o.optString("sysFrom").trim(),
+                    sysTo = o.optString("sysTo").trim(),
+                    appFrom = o.optString("appFrom").trim(),
+                    appTo = o.optString("appTo").trim(),
+                    note = o.optString("note").trim(),
+                    evidence = runCatching {
+                        Evidence.valueOf(o.optString("evidence").trim().uppercase())
+                    }.getOrDefault(Evidence.COMMUNITY),
+                    source = o.optString("source").trim()
                 )
                 if (e.pubNew.isEmpty() && e.pubOld.isEmpty() &&
                     e.privNew.isEmpty() && e.privOld.isEmpty()
