@@ -216,6 +216,15 @@ private fun StorageScreen(ctx: android.content.Context, gen: Int, pick: (Int) ->
         var privBusy by remember { mutableStateOf(false) }
         var privResult by remember { mutableStateOf<LauncherAccess.PackResult?>(null) }
 
+        // 让启动器自己导入（P1-⑨）。默认收起，打包成功后自动展开。
+        var guideOpen by remember { mutableStateOf(false) }
+        val guide = remember(pickIdx, gen) {
+            if (pickIdx > 0 && pickIdx - 1 < cands.size) {
+                val (label, pkg) = cands[pickIdx - 1]
+                ImportGuide.forPackage(ctx, pkg, label)
+            } else ImportGuide.generic(ctx, "")
+        }
+
         McFilledButton(ctx.getString(R.string.way_pick_public)) { pick(22) }
 
         McFilledButton(
@@ -261,6 +270,8 @@ private fun StorageScreen(ctx: android.content.Context, gen: Int, pick: (Int) ->
                     privResult = r
                     if (r?.ok == true) {
                         privLog += "\n" + ctx.getString(R.string.way_launcher_import_desc)
+                        // 包已经在公共目录里了，直接把导入步骤摊开，省得用户自己找
+                        guideOpen = true
                     } else {
                         privLog += "\n读不出来：改用「自己选公开目录」，或让启动器自己导入"
                     }
@@ -283,6 +294,25 @@ private fun StorageScreen(ctx: android.content.Context, gen: Int, pick: (Int) ->
             }
             if (pr.savedTo.isNotBlank()) {
                 McNote(ctx.getString(R.string.priv_pack_done, pr.savedTo))
+            }
+        }
+
+        // 导入步骤：不管有没有打包成功都能展开看 —— 用户手上可能本来就有整合包
+        McExpand(ctx.getString(R.string.import_guide_title), guideOpen, { guideOpen = !guideOpen }) {
+            McNote(ctx.getString(R.string.import_guide_hint))
+            if (!guide.verified) {
+                McNote(ctx.getString(R.string.import_guide_unverified))
+            }
+            McNote(guide.steps.mapIndexed { i, step -> "${i + 1}. $step" }.joinToString("\n"))
+            if (guide.pkg.isNotBlank()) {
+                val has = ImportGuide.installed(ctx, guide.pkg)
+                val txt = if (has) ctx.getString(R.string.import_guide_open, guide.launcher)
+                else ctx.getString(R.string.import_guide_not_installed, guide.launcher)
+                McFilledButton(txt) {
+                    if (!ImportGuide.open(ctx, guide.pkg)) {
+                        Tips.short(ctx, ctx.getString(R.string.import_guide_not_installed, guide.launcher))
+                    }
+                }
             }
         }
 
