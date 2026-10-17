@@ -314,34 +314,28 @@ object InstanceScanner {
 
     /**
      * 各启动器的游戏目录（.minecraft）真实路径。
-     * 这份列表按公开资料核对过，覆盖安卓主流启动器：
-     *   FCL        /storage/emulated/0/FCL/.minecraft
-     *   Zalith     Android/data/com.movtery.zalithlauncher/files/.minecraft
-     *   Pojav      Android/data/net.kdt.pojavlaunch(.debug)/files/.minecraft
-     *              /storage/emulated/0/games/PojavLauncher/.minecraft
-     *   Amethyst   Android/data/org.angelauramc.amethyst.debug/files/.minecraft
-     *   HMCL-PE    /storage/emulated/0/HMCLPE/.minecraft
-     *   澪-Ultimate /storage/emulated/0/MioLauncher/.minecraft
+     *
+     * ⚠️ 这里以前是写死的 15 条绝对路径，和 [LauncherDirs] 的表**完全重复**：
+     * 改一个忘另一个是常态，而且这份清单没有任何证据等级——
+     * 编造的路径和核过的路径混在一起，界面上显示得一模一样。
+     *
+     * 现在统一从 [LauncherDirs] 推导（公开目录在前、私有目录在后）。
+     * 目录表和证据等级只有 [LauncherDirs.TABLE] 一处，
+     * 远端补丁更新目录时这里自动跟着变，不会各改各的。
+     *
      * 注意：.minecraft 才是游戏目录；它下面的 versions/<名字> 只有在
-     * 「版本隔离」且含 mods/saves/config 时才算独立实例。
+     * 「版本隔离」且含 mods/saves/config 时才算独立实例（见 [DirProbe]）。
      */
-    private val MC_DIRS = listOf(
-        "/storage/emulated/0/FCL/.minecraft",
-        "/storage/emulated/0/FoldCraftLauncher/.minecraft",
-        "/storage/emulated/0/Android/data/com.tungsten.fcl/files/.minecraft",
-        "/storage/emulated/0/Android/data/com.tungsten.fcl.server/files/.minecraft",
-        "/storage/emulated/0/Android/data/com.movtery.zalithlauncher/files/.minecraft",
-        "/storage/emulated/0/Android/data/net.kdt.pojavlaunch/files/.minecraft",
-        "/storage/emulated/0/Android/data/net.kdt.pojavlaunch.debug/files/.minecraft",
-        "/storage/emulated/0/games/PojavLauncher/.minecraft",
-        "/storage/emulated/0/Android/data/org.angelauramc.amethyst.debug/files/.minecraft",
-        "/storage/emulated/0/HMCLPE/.minecraft",
-        "/storage/emulated/0/MioLauncher/.minecraft",
-        "/storage/emulated/0/games/HMCL/.minecraft",
-        "/storage/emulated/0/games/PCL/.minecraft",
-        "/storage/emulated/0/mcinaBox/.minecraft",
-        "/storage/emulated/0/MCinaBox/.minecraft"
-    )
+    private fun knownDirs(): List<String> {
+        val root = android.os.Environment.getExternalStorageDirectory().absolutePath.trimEnd('/')
+        val pub = ArrayList<String>()
+        val priv = ArrayList<String>()
+        for (e in LauncherDirs.all()) {
+            for (p in LauncherDirs.publicCandidates(e)) pub += "$root/$p"
+            for (p in LauncherDirs.privateCandidates(e)) priv += "$root/$p"
+        }
+        return (pub + priv).distinct()
+    }
 
     /** 兜底父目录：直接列 .minecraft 找不到时，再在这些目录里往下找 */
     private val DATA_DIRS = listOf(
@@ -372,7 +366,7 @@ object InstanceScanner {
         val out = LinkedHashMap<String, InstanceInfo>()
 
         // 第一步：直接命中已知启动器的 .minecraft（最准、最快）
-        for (d in MC_DIRS) {
+        for (d in knownDirs()) {
             val f = java.io.File(d)
             if (!f.exists() || !f.isDirectory) continue
             val info = readFromFile(f)
@@ -380,18 +374,28 @@ object InstanceScanner {
                 out[info.uri] = info
                 log("发现游戏目录：${info.name}（MC ${info.mcVersion.ifBlank { "?" }} / ${info.loader}）")
             }
-            // 版本隔离：.minecraft/versions/<名字> 下含 mods/saves/config 的才算独立实例
-            val vs = java.io.File(f, McDirs.VERSIONS)
-            if (vs.isDirectory) {
-                for (g in vs.listFiles() ?: emptyArray()) {
-                    if (!g.isDirectory) continue
-                    val gi = readFromFile(g)
-                    if (gi != null && (gi.modCount > 0 || gi.hasConfig)) {
-                        out[gi.uri] = gi
-                        log("发现隔离版本：${gi.name}（${gi.modCount} 个模组）")
-                    }
+            //
+            // 版本隔离：.minecraft/versions/<名字> 下含 mods/saves/config 的才算独立实例。
+            //
+            // ⚠️ 以前这里把「没装模组、没配置」的版本直接丢掉，连日志都不写一句，
+            // 于是原版（vanilla）版本在扫描结果里彻底消失——
+            // 用户会以为自己的版本丢了，其实是扫描器没报。
+            // 现在它们确实**不计入实例**（没有模组可迁移），
+            // 但数量会写进日志，界面上看得到「这里还有 N 个没装模组的版本」。
+            //
+            val vers = DirProbe.readVersions(f)
+            var iso = 0
+            for (v in vers) {
+                if (v.kind != DirProbe.VersionKind.INSTANCE) continue
+                val gi = readFromFile(java.io.File(v.path)) ?: continue
+                if (gi.modCount > 0 || gi.hasConfig) {
+                    out[gi.uri] = gi
+                    iso++
+                    log("发现隔离版本：${gi.name}（${gi.modCount} 个模组）")
                 }
             }
+            val rest = vers.size - iso
+            if (rest > 0) log("　└ versions 下另有 $rest 个没装模组的版本，不算实例")
         }
 
         // 第二步：没命中就在父目录里递归找
@@ -522,6 +526,17 @@ object InstanceScanner {
                 it.isFile && it.name.endsWith(".jar", true)
             } ?: 0
         }
+
+        //
+        // 版本兜底：mmc-pack / manifest / version.json 都没给出版本号时，
+        // 到 versions/<名字>/<名字>.json 里找（官方启动器和多数第三方
+        // 启动器都这样存）。以前这条路没走，于是这类实例的版本常年是
+        // 空串，界面显示 "MC ?"，用户以为扫错了。
+        //
+        if (info.mcVersion.isBlank()) {
+            info.mcVersion = DirProbe.mcVersionOf(dir)
+        }
+
         if (info.kind.isBlank()) info.kind = "目录"
         return info
     }
