@@ -301,4 +301,26 @@
     <string name="priv_pack_meta">认出：游戏版本 %1$s / 加载器 %2$s</string>
     <string name="priv_pack_share">发送给启动器导入</string>
     <string name="priv_pack_unknown">未认出</string>
+
+    <!-- 整合包导入引导（P1-⑨）：步骤放资源里，便于英文包一起翻 -->
+    <string name="import_guide_title">让启动器自己导入</string>
+    <string name="import_guide_hint">本应用写不了别的应用的私有目录，但启动器写自己的可以。把整合包交给它导入，这一步不受系统限制。</string>
+    <string name="import_guide_open">打开 %1$s</string>
+    <string name="import_guide_not_installed">没装 %1$s，先装好再来导入</string>
+    <string name="import_guide_unverified">以下菜单位置未经核实，不同版本可能不一样。</string>
+
+    <string-array name="import_steps_pojav">
+        <item>打开 PojavLauncher</item>
+        <item>进「增强版功能」</item>
+        <item>选「MOD管理」</item>
+        <item>点右上角的「+」</item>
+        <item>选刚才导出的 .mrpack</item>
+    </string-array>
+
+    <string-array name="import_steps_generic">
+        <item>打开启动器</item>
+        <item>找「导入整合包」/「导入 mrpack」—— 通常在实例列表的「+」或右上角菜单里</item>
+        <item>选刚才导出的 .mrpack（在「下载 / ModMigrator」目录）</item>
+        <item>装完后回到本应用，把「迁移后目录」指到启动器生成的那个实例</item>
+    </string-array>
 </resources>
