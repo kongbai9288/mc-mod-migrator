@@ -195,6 +195,64 @@ private fun StorageScreen(ctx: android.content.Context, gen: Int, pick: (Int) ->
         }
         McFilledButton(ctx.getString(R.string.cfg_gamedir_pick)) { pick(22) }
 
+        // ---------- 认不出这个启动器 ----------
+        McSectionTitle(ctx.getString(R.string.dir_unknown_title))
+        McNote(ctx.getString(R.string.dir_unknown_hint))
+
+        val sync = remember(gen) { PrivSync.status(ctx) }
+        McNote(sync.text(ctx))
+
+        val cands = remember(gen) { LauncherAccess.unknownCandidates(ctx) }
+        var pickIdx by remember { mutableIntStateOf(0) }
+        if (cands.isNotEmpty()) {
+            McSpinner(
+                listOf("（不指定，先自己选公开目录）") +
+                    cands.map { "${it.first} · ${it.second}" },
+                pickIdx, { pickIdx = it }, "疑似启动器"
+            )
+        }
+
+        var privLog by remember { mutableStateOf("") }
+        var privBusy by remember { mutableStateOf(false) }
+
+        McFilledButton(ctx.getString(R.string.way_pick_public)) { pick(22) }
+
+        McFilledButton(
+            if (privBusy) "正在读取…" else ctx.getString(R.string.way_sync_private)
+        ) {
+            if (privBusy) return@McFilledButton
+            if (!sync.ready) {
+                if (sync.installed) PrivSync.requestPermission() else openSyncHome(ctx)
+                return@McFilledButton
+            }
+            val entry = if (pickIdx > 0 && pickIdx - 1 < cands.size) {
+                val (label, pkg) = cands[pickIdx - 1]
+                LauncherAccess.fromPackage(pkg, label)
+            } else LauncherAccess.unknown()
+            val found = LauncherAccess.Found(
+                entry, entry.privNew.firstOrNull().orEmpty(),
+                LauncherAccess.Kind.PRIVATE, true
+            )
+            privBusy = true
+            privLog = ""
+            Bg.io.execute {
+                val f = LauncherAccess.packFromPrivate(ctx, found, "", "") { line ->
+                    Bg.ui.post { privLog += line + "\n" }
+                }
+                Bg.ui.post {
+                    privBusy = false
+                    if (f != null) {
+                        Tips.long(ctx, ctx.getString(R.string.priv_pack_done, f.absolutePath))
+                        privLog += "\n" + ctx.getString(R.string.way_launcher_import_desc)
+                    } else {
+                        privLog += "\n读不出来：改用「自己选公开目录」，或让启动器自己导入"
+                    }
+                }
+            }
+        }
+
+        if (privLog.isNotBlank()) McNote(privLog.trim())
+
         // ---------- 多个启动器各自的目录 ----------
         McSectionTitle(ctx.getString(R.string.cfg_gamedir_multi_title))
         McNote(ctx.getString(R.string.cfg_gamedir_multi_hint))
@@ -288,4 +346,16 @@ private fun StorageScreen(ctx: android.content.Context, gen: Int, pick: (Int) ->
             }
         )
     }
+}
+
+/** 打开同步器下载页。用外部浏览器，不占用本应用的 WebView */
+private fun openSyncHome(ctx: android.content.Context) {
+    runCatching {
+        ctx.startActivity(
+            android.content.Intent(
+                android.content.Intent.ACTION_VIEW,
+                android.net.Uri.parse(PrivSync.HOME)
+            ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    }.onFailure { Tips.short(ctx, "打不开浏览器") }
 }
