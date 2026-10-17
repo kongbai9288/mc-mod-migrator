@@ -28,6 +28,10 @@
         </intent>
         <package android:name="net.kdt.pojavlaunch" />
         <package android:name="com.movtery.zalithlauncher" />
+        <package android:name="com.movtery.zalithlauncher.v2" />
+        <package android:name="net.kdt.pojavlaunch.debug" />
+        <package android:name="com.tungsten.fcl" />
+        <package android:name="com.tungsten.hmclpe" />
         <package android:name="com.aof.mcinabox" />
         <package android:name="com.mojang.minecraftpe" />
     </queries>
