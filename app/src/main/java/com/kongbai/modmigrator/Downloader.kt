@@ -361,7 +361,7 @@ object Downloader {
         cache: File, base: String, token: String,
         onProgress: ((Long, Long) -> Unit)?
     ): List<File>? {
-        val plan = Resume.plan(total, chunks)
+        val plan = ByteRange.plan(total, chunks)
         if (plan.isEmpty()) return null
 
         // 以 plan 的实际段数为准：total 太小时 plan 会合并成一段，
@@ -514,7 +514,7 @@ object Downloader {
             runCatching { out.delete() }
             at = 0L
         }
-        val range = Resume.range(at, total, acceptRange)
+        val range = ByteRange.header(at, total, acceptRange)
         // ⚠️ range 为 null 意味着"不能续"，此时 at 未必是 0
         //（比如已经下完、或本地比服务端还长）。继续用 at 追加会把文件写成两倍，
         // 所以只要不续传就一律从 0 写。
