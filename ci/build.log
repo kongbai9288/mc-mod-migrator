@@ -38,21 +38,21 @@ Installing Android SDK Build-Tools 33.0.1 in /home/runner/android-sdk/build-tool
 > Task :app:mergeReleaseNativeLibs
 > Task :app:desugarReleaseFileDependencies
 > Task :app:checkReleaseDuplicateClasses
+> Task :app:mergeReleaseArtProfile
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libconscrypt_jni.so, libtranslate_jni.so.
 
-> Task :app:mergeReleaseArtProfile
-> Task :app:extractReleaseNativeSymbolTables
 > Task :app:processReleaseManifestForPackage
 > Task :app:mergeExtDexRelease
-> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:mergeReleaseShaders
+> Task :app:extractReleaseNativeSymbolTables
 > Task :app:compileReleaseShaders NO-SOURCE
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
 > Task :app:mergeReleaseAssets
-> Task :app:compressReleaseAssets
 > Task :app:collectReleaseDependencies
+> Task :app:compressReleaseAssets
 > Task :app:sdkReleaseDependencyData
 > Task :app:validateSigningRelease
 > Task :app:writeReleaseAppMetadata
@@ -61,10 +61,7 @@ Unable to strip the following libraries, packaging them as they are: libconscryp
 > Task :app:optimizeReleaseResources
 > Task :app:compileReleaseKotlin
 e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/DevLabActivity.kt:462:75 Unresolved reference: rel
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/PrivSync.kt:63:39 Unresolved reference: checkPermission
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/PrivSync.kt:75:39 Unresolved reference: checkPermission
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/PrivSync.kt:120:24 Type mismatch: inferred type is Unit but Boolean was expected
-e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/PrivSync.kt:156:43 Cannot access 'newProcess': it is private in 'Shizuku'
+e: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/PrivSync.kt:157:43 Cannot access 'newProcess': it is private in 'Shizuku'
 
 > Task :app:compileReleaseKotlin FAILED
 
@@ -81,5 +78,5 @@ Execution failed for task ':app:compileReleaseKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 2m 53s
+BUILD FAILED in 2m 29s
 34 actionable tasks: 34 executed
