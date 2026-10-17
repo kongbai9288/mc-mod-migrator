@@ -122,4 +122,44 @@ class LauncherDirsTest {
         assertTrue(LauncherDirs.appliesToSdk(e, 26))
         assertTrue(LauncherDirs.appliesToSdk(e, 36))
     }
+
+    // ── 远端补丁不能把版本维度抹掉 ──────────────────────
+    //
+    // 以前 updateFrom 只解析目录和包名，下发一次之后
+    // sysFrom 分界、appFrom/appTo、evidence 全被重置成默认值。
+    // 表现是：Pojav 的 API 28 分界悄悄失效，又回到「按社区说法找目录」。
+
+    @Test
+    fun updateFromKeepsSystemAndAppRanges() {
+        val json = """[{"name":"测试启动器","pkgs":["a.b.c"],"pubNew":["x/.minecraft"],
+            "sysFrom":"9","sysTo":"13","appFrom":"2.0","appTo":"3.0",
+            "evidence":"SOURCE","source":"某上游文件"}]""".trimIndent()
+        assertTrue(LauncherDirs.updateFrom(json))
+        val e = LauncherDirs.all().first { it.name == "测试启动器" }
+        assertEquals("9", e.sysFrom)
+        assertEquals("13", e.sysTo)
+        assertEquals("2.0", e.appFrom)
+        assertEquals("3.0", e.appTo)
+        assertEquals(LauncherDirs.Evidence.SOURCE, e.evidence)
+        assertEquals("某上游文件", e.source)
+        LauncherDirs.reset()
+    }
+
+    @Test
+    fun updateFromDefaultsToCommunity() {
+        // 补丁里的路径本来就是社区整理的，不能默认当有源码佐证
+        val json = """[{"name":"社区条目","pubNew":["y/.minecraft"]}]"""
+        assertTrue(LauncherDirs.updateFrom(json))
+        val e = LauncherDirs.all().first { it.name == "社区条目" }
+        assertEquals(LauncherDirs.Evidence.COMMUNITY, e.evidence)
+        assertEquals("", e.sysFrom)
+        LauncherDirs.reset()
+    }
+
+    @Test
+    fun updateFromKeepsBuiltinWhenBroken() {
+        val before = LauncherDirs.all().size
+        assertFalse(LauncherDirs.updateFrom("not json at all"))
+        assertEquals(before, LauncherDirs.all().size)
+    }
 }
