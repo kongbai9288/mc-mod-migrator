@@ -185,6 +185,46 @@ class McProbeTest {
         assertEquals(0, r.mods)
     }
 
+    // ── versions/ 下的游戏核心也要报出来 ──────────────────
+
+    @Test
+    fun coresAreCountedNotDropped() {
+        // 开了版本隔离，但只有其中一个装了模组，另两个是纯游戏核心
+        val root = d(
+            ".minecraft",
+            d("mods"),
+            d(
+                "versions",
+                d("1.20.1-fabric", d("mods", f("sodium.jar"))),
+                d("1.16.5", f("1.16.5.jar"), f("1.16.5.json")),
+                d("1.18.2", f("1.18.2.jar"), f("1.18.2.json"))
+            )
+        )
+        val r = McProbe.report(root)
+        assertEquals(McProbe.Kind.ISOLATED_ROOT, r.kind)
+        assertEquals(1, r.isolated().size)
+        //
+        // 以前只报隔离出来的那一个，另外两个在结论里彻底消失，
+        // 用户会以为自己的版本丢了。现在必须数得出来。
+        //
+        assertEquals(2, r.cores())
+        assertEquals(3, r.versions.size)
+        assertTrue(r.summary.contains("游戏核心"))
+    }
+
+    @Test
+    fun plainRootTellsVersionsAreCores() {
+        val root = d(
+            ".minecraft",
+            d("mods", f("sodium.jar")),
+            d("versions", d("1.20.1", f("1.20.1.jar"), f("1.20.1.json")))
+        )
+        val r = McProbe.report(root)
+        assertEquals(McProbe.Kind.PLAIN_ROOT, r.kind)
+        assertEquals(1, r.cores())
+        assertTrue(r.summary.contains("游戏核心"))
+    }
+
     // ── Node 辅助 ─────────────────────────────────────────
 
     @Test
