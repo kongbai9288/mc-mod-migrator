@@ -459,7 +459,10 @@ class DevLabActivity : AppCompatActivity() {
                 else r.joinToString("\n") { "${it.first.name} → ${it.second.absolutePath}" }
             },
             Case("本机", "启动器清单", "含未安装的") { _, _ ->
-                LauncherDirs.all().joinToString("\n") { "${it.name}  ${it.rel}" }
+                LauncherDirs.all().joinToString("\n") { e ->
+                    "${e.name}  公开=${LauncherDirs.publicCandidates(e).joinToString(",")}" +
+                        "  私有=${LauncherDirs.privateCandidates(e).joinToString(",")}"
+                }
             },
             Case("本机", "网络开关状态") { ctx, _ ->
                 NetGate.Area.values().joinToString("\n") {
