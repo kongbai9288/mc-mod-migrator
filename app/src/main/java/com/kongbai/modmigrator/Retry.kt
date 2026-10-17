@@ -151,11 +151,14 @@ object Retry {
 /**
  * 下载的分块与续传规划（纯逻辑，不碰 Android，方便单测）。
  *
+ * 名字不能叫 Resume：项目里已经有 `object Resume`（断点续做记录，
+ * 记的是"哪些文件做完了"，跟这里的字节区间不是一回事）。
+ *
  * 和 [Retry] 一样放在这里就是为了可测：
  * 区间算错会拼出"体积对、内容坏"的 jar，
  * 这种错误在真机上只会表现为"装上去游戏起不来"，极难定位。
  */
-object Resume {
+object ByteRange {
 
     /**
      * 续传该发的 Range 头；返回 null 表示从头下。
@@ -165,7 +168,7 @@ object Resume {
      * - 已下的字节数已达到/超过总长 → 说明要么下完了，
      *   要么服务端内容换了（本地这份是旧的），从头
      */
-    fun range(have: Long, total: Long, acceptRange: Boolean): String? {
+    fun header(have: Long, total: Long, acceptRange: Boolean): String? {
         if (!acceptRange) return null
         if (have <= 0) return null
         if (total > 0 && have >= total) return null
