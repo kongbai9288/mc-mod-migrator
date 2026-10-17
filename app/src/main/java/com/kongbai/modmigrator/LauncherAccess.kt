@@ -1,6 +1,11 @@
 package com.kongbai.modmigrator
 
+import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.documentfile.provider.DocumentFile
 import java.io.File
 
@@ -123,44 +128,176 @@ object LauncherAccess {
     )
 
     /**
-     * 方式②：同步器读私有目录 → 复制到公共暂存区 → 打成整合包。
+     * 方式②的结果。
      *
-     * 返回导出的 .mrpack；读不到或打包失败返回 null，
-     * 原因会通过 [log] 逐条写出来，界面直接显示这些行。
+     * [PackResult.file] 是缓存里那份，用来分享给启动器；
+     * [PackResult.uri] / [PackResult.savedTo] 是公共下载目录里那份，
+     * 用户自己能在文件管理器里找到 —— 之前产物只落在 cacheDir，
+     * 用户既看不见也拿不到，等于白打。
+     */
+    data class PackResult(
+        val file: File? = null,
+        val uri: Uri? = null,
+        /** 人能读的存放位置；空 = 没能存进公共目录 */
+        val savedTo: String = "",
+        val mcVersion: String = "",
+        val loader: String = "",
+        val indexed: Int = 0,
+        val embedded: Int = 0,
+        val note: String = ""
+    ) {
+        val ok: Boolean get() = file != null
+    }
+
+    /** 版本号形如 1.20.1 / 26.2 */
+    private val VER_RE = Regex("^\\d+(\\.\\d+)*$")
+
+    private fun verParts(s: String): List<Int> =
+        s.split('.').mapNotNull { it.toIntOrNull() }
+
+    /**
+     * 从读出来的目录里认游戏版本：只看 `versions/` 下的目录名。
+     *
+     * 认不出就返回空，**不猜** —— 导入时启动器会自己列出版本让你选，
+     * 填一个猜的数字反而会让启动器按错的版本去准备依赖。
+     */
+    fun detectMcVersion(root: File): String {
+        for (base in listOf(File(root, "versions"), File(root, ".minecraft/versions"))) {
+            if (!base.isDirectory) continue
+            val names = base.listFiles()
+                ?.filter { it.isDirectory && VER_RE.matches(it.name) }
+                ?.map { it.name }
+            if (!names.isNullOrEmpty()) {
+                return names.sortedWith(compareByDescending<String> { verParts(it) }).first()
+            }
+        }
+        return ""
+    }
+
+    /** 加载器在 libraries 下的落点，命中哪个算哪个 */
+    private val LOADER_HINTS = listOf(
+        "net/neoforged" to "neoforge",
+        "net/minecraftforge" to "forge",
+        "net/fabricmc" to "fabric",
+        "org/quiltmc" to "quilt"
+    )
+
+    fun detectLoader(root: File): String {
+        for (libs in listOf(File(root, "libraries"), File(root, ".minecraft/libraries"))) {
+            if (!libs.isDirectory) continue
+            for ((sub, name) in LOADER_HINTS) {
+                if (File(libs, sub).isDirectory) return name
+            }
+        }
+        return ""
+    }
+
+    /**
+     * 把整合包存进公共下载目录，让用户自己也能拿到。
+     *
+     * Android 10 起走 MediaStore（不用权限）；更低版本退回公共 Download 目录，
+     * 那边需要写权限，没授就失败 —— 失败不影响分享那条路。
+     */
+    fun saveToDownloads(ctx: Context, src: File, name: String): Pair<Uri?, String> {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                val v = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, "Download/ModMigrator")
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+                val uri = ctx.contentResolver.insert(
+                    MediaStore.Downloads.EXTERNAL_CONTENT_URI, v
+                )
+                if (uri != null) {
+                    ctx.contentResolver.openOutputStream(uri)?.use { o ->
+                        src.inputStream().use { i -> i.copyTo(o) }
+                    }
+                    v.clear()
+                    v.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                    ctx.contentResolver.update(uri, v, null, null)
+                    return uri to "下载/ModMigrator/$name"
+                }
+            } catch (t: Throwable) {
+                Err.ignore(t, "存到下载目录")
+            }
+        }
+        return fallback(ctx, src, name)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun fallback(ctx: Context, src: File, name: String): Pair<Uri?, String> {
+        return try {
+            val d = File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                "ModMigrator"
+            ).apply { mkdirs() }
+            val out = File(d, name)
+            src.inputStream().use { i -> out.outputStream().use { o -> i.copyTo(o) } }
+            Uri.fromFile(out) to out.absolutePath
+        } catch (t: Throwable) {
+            Err.ignore(t, "导出整合包")
+            null to ""
+        }
+    }
+
+    /** 把打好的包发给别的 App —— 启动器的「导入整合包」通常能接 */
+    fun sharePack(ctx: Context, r: PackResult) {
+        val f = r.file ?: return
+        QuickTransfer.shareOne(ctx, f, "整合包")
+    }
+
+    /**
+     * 方式②：同步器读私有目录 → 复制到公共暂存区 → 打成整合包
+     * → 存一份到公共下载目录。
+     *
+     * 游戏版本和加载器**从读出来的目录里认**，不再由调用方传空字符串 ——
+     * 之前界面上传的是 `""`，打出来的包 index 里版本是空的，
+     * 启动器导入时会按错的（或默认的）版本去准备依赖。
+     *
+     * 全过程的原因会通过 [log] 逐条写出来，界面直接显示这些行。
      */
     fun packFromPrivate(
         ctx: Context,
         found: Found,
-        mcVersion: String,
-        loader: String,
         log: (String) -> Unit
-    ): File? {
+    ): PackResult {
         val cands = LauncherDirs.privateCandidates(found.entry)
         if (cands.isEmpty()) {
             log("清单里没记 ${found.entry.name} 的私有目录，只能自己选一个公开目录")
-            return null
+            return PackResult()
         }
         val src = cands.firstOrNull { PrivSync.exists(it) }
         if (src == null) {
             log("这些私有目录都读不到：\n" + cands.joinToString("\n"))
             val st = Prefs.appCtx()?.let { PrivSync.status(it) }
             if (st != null) log(st.text(ctx))
-            return null
+            return PackResult()
         }
         val stage = File(ctx.filesDir, "priv-stage/" + (found.entry.key.ifBlank { "unknown" }))
         stage.deleteRecursively()
         if (!PrivSync.copyOut(src, stage.absolutePath, log)) {
             log("读出来了但复制失败，暂存区：${stage.absolutePath}")
-            return null
+            return PackResult()
         }
-        val out = File(ctx.cacheDir, "export/${found.entry.name.replace("/", "_")}_mods.mrpack")
+
+        val mc = detectMcVersion(stage)
+        val ld = detectLoader(stage)
+        log(
+            if (mc.isBlank()) "没能认出游戏版本，导入时启动器会让你自己选"
+            else "认出游戏版本 $mc" + if (ld.isBlank()) "" else "，加载器 $ld"
+        )
+
+        val safe = found.entry.name.replace(Regex("[^0-9A-Za-z._\\-一-龥]"), "_")
+        val out = File(ctx.cacheDir, "export/${safe}_mods.mrpack")
         out.parentFile?.mkdirs()
         val r = MrpackExport.export(
             ctx,
             MrpackExport.Options(
                 name = found.entry.name,
-                mcVersion = mcVersion,
-                loader = loader,
+                mcVersion = mc,
+                loader = ld,
                 format = ModpackFormat.MODRINTH,
                 onProgress = log
             ),
@@ -169,10 +306,15 @@ object LauncherAccess {
         )
         if (r.file == null) {
             log("打包失败")
-            return null
+            return PackResult(note = "打包失败")
         }
         log("清单下载 ${r.indexed} 个，随包带走 ${r.embedded} 个")
         if (r.note.isNotBlank()) log(r.note)
-        return r.file
+
+        val name = "${safe}-${mc.ifBlank { "mc" }}.mrpack"
+        val (uri, where) = saveToDownloads(ctx, r.file, name)
+        if (where.isNotBlank()) log("已放到：$where")
+        else log("没能存进公共下载目录，可以直接用下面的「发送给启动器导入」")
+        return PackResult(r.file, uri, where, mc, ld, r.indexed, r.embedded, r.note)
     }
 }
