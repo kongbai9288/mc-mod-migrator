@@ -529,5 +529,4 @@ object PluginHost {
         append("没声明的权限调用时会直接返回错误，不会静默放行。\n\n")
         append("脚本能用的：log、toast、http.get、file.read/write/list/delete、prefs.get/set。")
     }
-
-
+}
