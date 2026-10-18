@@ -17,6 +17,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
@@ -59,10 +60,7 @@ class DevsFragment : Fragment() {
 private fun DevsScreen(ctx: android.content.Context) {
     var list by remember { mutableStateOf<List<DevTeam.Dev>>(emptyList()) }
     var stateText by remember { mutableStateOf("正在读取名单…") }
-    var loaded by remember { mutableStateOf(false) }
-
-    if (!loaded) {
-        loaded = true
+    LaunchedEffect(Unit) {
         Bg.io.execute {
             val got = try {
                 DevTeam.load(ctx)
