@@ -104,3 +104,61 @@ fun textColorSecondary(ctx: android.content.Context): Int {
     }
 }
 
+
+// ---------------------------------------------------------------- 带上限的读
+
+/**
+ * 从一个流里最多读 [cap] 字节，超过就返回 null 并立刻停手。
+ *
+ * ## 为什么要有这个函数
+ *
+ * `InputStream.readBytes()` 会一直读到 EOF：先在堆里攒下一个与数据等长的
+ * ByteArray，每满一次就复制扩容（ByteArrayOutputStream 是 ×1.5 增长，
+ * 峰值能到实际体积的约 2 倍）。对下面这些"长度由外部决定"的数据，
+ * 等于把内存上限交给对方：
+ *
+ *  · 网络响应（对方想返回多少就返回多少）
+ *  · zip / .mca 条目（用户从文件管理器里选的，大小不可控）
+ *
+ * 更隐蔽的坑是"先读后判"：
+ * ```kotlin
+ * val bytes = ins.readBytes()      // 已经进堆了
+ * if (bytes.size > MAX) return     // 这时才判，晚了
+ * ```
+ * 那个上限拦不住任何东西，数据已经把堆吃掉了。本项目里原来有三处这种写法。
+ *
+ * 这里用固定 64KB 缓冲循环，累计超过 [cap] 就返回 null，
+ * 峰值内存恒定为 cap + 64KB。
+ *
+ * @return 读到的字节；超过 [cap] 或读取出错返回 null
+ */
+fun readCappedBytes(ins: java.io.InputStream, cap: Int): ByteArray? {
+    val buf = ByteArray(1 shl 16)
+    val out = java.io.ByteArrayOutputStream()
+    var total = 0
+    // ⚠️ 这里刻意 **不** 关流：`use { }` 会把调用方的流一起关掉，
+    // 而 ZipInputStream 场景下调用方还要接着读下一个条目
+    // （关掉之后 nextEntry 直接返回 null，整包被当成空包）。
+    // 流的生命周期交给调用方，本函数只管读多少。
+    return try {
+        while (true) {
+            val n = ins.read(buf)
+            if (n < 0) break
+            total += n
+            if (total > cap) return null
+            out.write(buf, 0, n)
+        }
+        out.toByteArray()
+    } catch (t: Throwable) {
+        null
+    }
+}
+
+/**
+ * [readCappedBytes] 的字符串版本。
+ *
+ * 整段读完再统一解码，而不是边读边转 —— 否则一个多字节字符（中文、emoji）
+ * 被切在缓冲区边界上就会变成乱码。
+ */
+fun readCappedText(ins: java.io.InputStream, cap: Int): String? =
+    readCappedBytes(ins, cap)?.let { String(it, Charsets.UTF_8) }
