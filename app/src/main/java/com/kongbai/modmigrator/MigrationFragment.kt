@@ -297,6 +297,94 @@ private fun MigrationScreen(
         probeSource()
     }
 
+    fun detectLoaderFromMods(root: DocumentFile): String {
+        val modsDir = runCatching { Fs.find(root, McDirs.MODS) }.getOrNull() ?: return "auto"
+        val files = runCatching { modsDir.listFiles() }.getOrNull() ?: return "auto"
+        val votes = HashMap<String, Int>()
+        for (f in files) {
+            val n = (f.name ?: "").lowercase(Locale.ROOT)
+            if (!n.endsWith(".jar") && !n.endsWith(".jar.disabled")) continue
+            val ld = Loaders.normalize(n)
+            if (ld == "auto") continue
+            votes[ld] = (votes[ld] ?: 0) + 1
+        }
+        if (votes.isEmpty()) return "auto"
+        return votes.entries.maxByOrNull { it.value }?.key ?: "auto"
+    }
+
+    fun detectSource(root: DocumentFile) {
+        val modsLoader = detectLoaderFromMods(root)
+        val mmc = Fs.find(root, "mmc-pack.json")
+        if (mmc != null) {
+            val o = Json.obj(Fs.readText(ctx, mmc))
+            val comps = Json.a(o, "components")
+            var mc = ""
+            var loader = "auto"
+            if (comps != null) {
+                for (c in comps) {
+                    val uid = Json.s(c, "uid")
+                    val ver = Json.s(c, "version")
+                    when {
+                        uid == "net.minecraft" -> mc = ver
+                        uid.startsWith("net.fabricmc") || uid.startsWith("org.quiltmc") ->
+                            if (uid.contains("quilt")) loader = "quilt" else loader = "fabric"
+                        uid.startsWith("net.minecraftforge") -> loader = "forge"
+                        uid.startsWith("net.neoforged") -> loader = "neoforge"
+                    }
+                }
+            }
+            val finalLoader = if (loader == "auto") modsLoader else loader
+            if (mc.isNotBlank()) {
+                post { setVersion(mc); setLoader(finalLoader) }
+                log("识别到 MC $mc / $finalLoader（MultiMC/Prism 实例）")
+                return
+            }
+        }
+        val man = Fs.find(root, "manifest.json")
+        if (man != null) {
+            val o = Json.obj(Fs.readText(ctx, man))
+            val mcObj = o?.asJsonObject?.get("minecraft")
+            val mc = Json.s(mcObj, "version")
+            var loader = "auto"
+            val ls = Json.a(mcObj, "modLoaders")
+            if (ls != null && ls.size() > 0) {
+                val idv = Json.s(ls.get(0), "id")
+                loader = when {
+                    idv.startsWith("forge") -> "forge"
+                    idv.startsWith("neoforge") -> "neoforge"
+                    idv.startsWith("fabric") -> "fabric"
+                    idv.startsWith("quilt") -> "quilt"
+                    else -> "auto"
+                }
+            }
+            val finalLoader = if (loader == "auto") modsLoader else loader
+            if (mc.isNotBlank()) {
+                post { setVersion(mc); setLoader(finalLoader) }
+                log("识别到 MC $mc / $finalLoader（CurseForge 清单）")
+                return
+            }
+        }
+        val vj = Fs.find(root, "version.json")
+        if (vj != null) {
+            val o = Json.obj(Fs.readText(ctx, vj))
+            val id = Json.s(o, "id")
+            if (id.isNotBlank()) {
+                post {
+                    setVersion(id)
+                    if (modsLoader != "auto") setLoader(modsLoader)
+                }
+                log("识别到 MC $id / $modsLoader（version.json + 模组推断）")
+                return
+            }
+        }
+        if (modsLoader != "auto") {
+            post { setLoader(modsLoader) }
+            log("未找到版本清单，按已装模组推断加载器：$modsLoader。MC 版本仍需手动填写")
+            return
+        }
+        log("未能自动识别版本，请手动填写目标 MC 版本")
+    }
+
     // ── 目录库 ──────────────────────────────────────────────
 
     /** 打开目录库。选的就是引导页里多选出来的那一批。 */
@@ -425,93 +513,6 @@ private fun MigrationScreen(
         }
     }
 
-    fun detectLoaderFromMods(root: DocumentFile): String {
-        val modsDir = runCatching { Fs.find(root, McDirs.MODS) }.getOrNull() ?: return "auto"
-        val files = runCatching { modsDir.listFiles() }.getOrNull() ?: return "auto"
-        val votes = HashMap<String, Int>()
-        for (f in files) {
-            val n = (f.name ?: "").lowercase(Locale.ROOT)
-            if (!n.endsWith(".jar") && !n.endsWith(".jar.disabled")) continue
-            val ld = Loaders.normalize(n)
-            if (ld == "auto") continue
-            votes[ld] = (votes[ld] ?: 0) + 1
-        }
-        if (votes.isEmpty()) return "auto"
-        return votes.entries.maxByOrNull { it.value }?.key ?: "auto"
-    }
-
-    fun detectSource(root: DocumentFile) {
-        val modsLoader = detectLoaderFromMods(root)
-        val mmc = Fs.find(root, "mmc-pack.json")
-        if (mmc != null) {
-            val o = Json.obj(Fs.readText(ctx, mmc))
-            val comps = Json.a(o, "components")
-            var mc = ""
-            var loader = "auto"
-            if (comps != null) {
-                for (c in comps) {
-                    val uid = Json.s(c, "uid")
-                    val ver = Json.s(c, "version")
-                    when {
-                        uid == "net.minecraft" -> mc = ver
-                        uid.startsWith("net.fabricmc") || uid.startsWith("org.quiltmc") ->
-                            if (uid.contains("quilt")) loader = "quilt" else loader = "fabric"
-                        uid.startsWith("net.minecraftforge") -> loader = "forge"
-                        uid.startsWith("net.neoforged") -> loader = "neoforge"
-                    }
-                }
-            }
-            val finalLoader = if (loader == "auto") modsLoader else loader
-            if (mc.isNotBlank()) {
-                post { setVersion(mc); setLoader(finalLoader) }
-                log("识别到 MC $mc / $finalLoader（MultiMC/Prism 实例）")
-                return
-            }
-        }
-        val man = Fs.find(root, "manifest.json")
-        if (man != null) {
-            val o = Json.obj(Fs.readText(ctx, man))
-            val mcObj = o?.asJsonObject?.get("minecraft")
-            val mc = Json.s(mcObj, "version")
-            var loader = "auto"
-            val ls = Json.a(mcObj, "modLoaders")
-            if (ls != null && ls.size() > 0) {
-                val idv = Json.s(ls.get(0), "id")
-                loader = when {
-                    idv.startsWith("forge") -> "forge"
-                    idv.startsWith("neoforge") -> "neoforge"
-                    idv.startsWith("fabric") -> "fabric"
-                    idv.startsWith("quilt") -> "quilt"
-                    else -> "auto"
-                }
-            }
-            val finalLoader = if (loader == "auto") modsLoader else loader
-            if (mc.isNotBlank()) {
-                post { setVersion(mc); setLoader(finalLoader) }
-                log("识别到 MC $mc / $finalLoader（CurseForge 清单）")
-                return
-            }
-        }
-        val vj = Fs.find(root, "version.json")
-        if (vj != null) {
-            val o = Json.obj(Fs.readText(ctx, vj))
-            val id = Json.s(o, "id")
-            if (id.isNotBlank()) {
-                post {
-                    setVersion(id)
-                    if (modsLoader != "auto") setLoader(modsLoader)
-                }
-                log("识别到 MC $id / $modsLoader（version.json + 模组推断）")
-                return
-            }
-        }
-        if (modsLoader != "auto") {
-            post { setLoader(modsLoader) }
-            log("未找到版本清单，按已装模组推断加载器：$modsLoader。MC 版本仍需手动填写")
-            return
-        }
-        log("未能自动识别版本，请手动填写目标 MC 版本")
-    }
 
     fun setAs(inst: InstanceInfo, asSource: Boolean) {
         val p = Prefs.get(ctx)
