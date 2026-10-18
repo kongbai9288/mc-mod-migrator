@@ -46,8 +46,8 @@ Unable to strip the following libraries, packaging them as they are: libconscryp
 > Task :app:processReleaseManifestForPackage
 > Task :app:mergeExtDexRelease
 > Task :app:extractReleaseNativeSymbolTables
-> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:mergeReleaseShaders
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
 > Task :app:mergeReleaseAssets
@@ -162,7 +162,6 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsStorageFragment.kt:80:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsStorageFragment.kt:242:17 Name shadowed: found
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SyncManager.kt:231:25 Name shadowed: f
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/TaskCenter.kt:74:49 Parameter 'done' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ToolsFragment.kt:1037:11 Unnecessary safe call on a non-null receiver of type File!
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ToolsFragment.kt:1095:19 Elvis operator (?:) always returns the left operand of non-nullable type Result<Long?>
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Translator.kt:80:9 Parameter 'ctx' is never used
@@ -194,7 +193,7 @@ Note: Recompile with -Xlint:unchecked for details.
 > Task :app:lintVitalRelease
 > Task :app:assembleRelease
 
-BUILD SUCCESSFUL in 5m 13s
+BUILD SUCCESSFUL in 4m 59s
 46 actionable tasks: 46 executed
 To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
 Daemon will be stopped at the end of the build 
@@ -210,20 +209,20 @@ Daemon will be stopped at the end of the build
 > Task :app:createDebugCompatibleScreenManifests
 > Task :app:extractDeepLinksDebug
 > Task :app:parseDebugLocalResources
+> Task :app:mergeDebugResources
 > Task :app:processDebugMainManifest
 > Task :app:processDebugManifest
 > Task :app:javaPreCompileDebug
 > Task :app:mergeDebugShaders
 > Task :app:compileDebugShaders NO-SOURCE
 > Task :app:generateDebugAssets UP-TO-DATE
-> Task :app:mergeDebugResources
 > Task :app:mergeDebugAssets
 > Task :app:desugarDebugFileDependencies
 > Task :app:compressDebugAssets
 > Task :app:mergeDebugJniLibFolders
 > Task :app:checkDebugDuplicateClasses
-> Task :app:processDebugManifestForPackage
 > Task :app:mergeDebugNativeLibs
+> Task :app:processDebugManifestForPackage
 > Task :app:mergeExtDexDebug
 > Task :app:mergeLibDexDebug
 
@@ -337,7 +336,6 @@ w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/co
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsStorageFragment.kt:80:15 'onActivityResult(Int, Int, Intent?): Unit' is deprecated. Deprecated in Java
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SettingsStorageFragment.kt:242:17 Name shadowed: found
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/SyncManager.kt:231:25 Name shadowed: f
-w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/TaskCenter.kt:74:49 Parameter 'done' is never used
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ToolsFragment.kt:1037:11 Unnecessary safe call on a non-null receiver of type File!
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/ToolsFragment.kt:1095:19 Elvis operator (?:) always returns the left operand of non-nullable type Result<Long?>
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/main/java/com/kongbai/modmigrator/Translator.kt:80:9 Parameter 'ctx' is never used
@@ -365,5 +363,5 @@ Note: Recompile with -Xlint:unchecked for details.
 > Task :app:createDebugApkListingFileRedirect
 > Task :app:assembleDebug
 
-BUILD SUCCESSFUL in 3m 20s
+BUILD SUCCESSFUL in 3m 21s
 36 actionable tasks: 36 executed
