@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -935,7 +936,12 @@ private fun FilterDialog(
         onDismissRequest = onDismiss,
         title = { Text("筛选") },
         text = {
-            Column(Modifier.fillMaxWidth()) {
+            //
+            // 分区之后内容变高了，而 Material3 的 AlertDialog 不会自动给正文加滚动：
+            // 屏幕小的话下面的「已标记的链接」会被顶出对话框，既看不见也点不到。
+            // 显式加 verticalScroll，多长都能滚到底。
+            //
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
                 Text("加载器", fontSize = 12.sp)
                 Row(Modifier.horizontalScroll(rememberScrollState())) {
                     loaderOpts.forEachIndexed { i, s ->
