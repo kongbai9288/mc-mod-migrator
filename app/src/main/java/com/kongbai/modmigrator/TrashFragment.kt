@@ -96,59 +96,61 @@ private fun TrashScreen(ctx: android.content.Context, register: (() -> Unit) -> 
         }
     }
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        McNote("删掉的模组先放这里，过期自动清掉。点「还原」可放回原处。")
+        McScope {
+            McNote("删掉的模组先放这里，过期自动清掉。点「还原」可放回原处。")
 
-        if (items.isEmpty()) {
-            McEmpty("回收站是空的", "删掉模组后会出现在这里。")
-            return@Column
-        }
+            if (items.isEmpty()) {
+                McEmpty("回收站是空的", "删掉模组后会出现在这里。")
+                return@McScope
+            }
 
-        Text(
-            "共 ${items.size} 个 · 保留 $days 天",
-            fontSize = 12.sp,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        McButtonRow(
-            left = "保留天数：$days 天", onLeft = { askDays = true },
-            right = "清空回收站", onRight = { askEmpty = true }
-        )
-
-        Row(
-            Modifier.fillMaxWidth().padding(top = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Checkbox(
-                checked = picked.size == items.size,
-                onCheckedChange = { on ->
-                    picked = if (on) items.map { it.name }.toSet() else emptySet()
-                }
+            Text(
+                "共 ${items.size} 个 · 保留 $days 天",
+                fontSize = 12.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
             )
-            Text("全选", fontSize = 13.sp)
-            androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-            McFilledButton(
-                text = if (picked.isEmpty()) "还原所选" else "还原所选（${picked.size}）",
-                enabled = picked.isNotEmpty(),
-                onClick = { restoreSelected(ctx, picked.toList()) { picked = emptySet(); refresh() } }
+            McButtonRow(
+                left = "保留天数：$days 天", onLeft = { askDays = true },
+                right = "清空回收站", onRight = { askEmpty = true }
             )
-        }
 
-        val fmt = remember { SimpleDateFormat("MM-dd HH:mm", Locale.CHINA) }
-        LazyColumn(contentPadding = PaddingValues(top = 12.dp, bottom = 16.dp)) {
-            items(items, key = { it.name }) { item ->
-                McCheckRow(
-                    checked = picked.contains(item.name),
-                    onChecked = { on ->
-                        picked = if (on) picked + item.name else picked - item.name
+            Row(
+                Modifier.fillMaxWidth().padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = picked.size == items.size,
+                    onCheckedChange = { on ->
+                        picked = if (on) items.map { it.name }.toSet() else emptySet()
                     }
-                ) {
-                    TrashCard(ctx, item, fmt) {
-                        Bg.io.execute {
-                            val ok = Trash.restore(ctx, item)
-                            Bg.ui.post {
-                                Tips.short(
-                                    ctx, if (ok) "已还原" else "还原失败（原目录可能已不可用）"
-                                )
-                                refresh()
+                )
+                Text("全选", fontSize = 13.sp)
+                androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+                McFilledButton(
+                    text = if (picked.isEmpty()) "还原所选" else "还原所选（${picked.size}）",
+                    enabled = picked.isNotEmpty(),
+                    onClick = { restoreSelected(ctx, picked.toList()) { picked = emptySet(); refresh() } }
+                )
+            }
+
+            val fmt = remember { SimpleDateFormat("MM-dd HH:mm", Locale.CHINA) }
+            LazyColumn(contentPadding = PaddingValues(top = 12.dp, bottom = 16.dp)) {
+                items(items, key = { it.name }) { item ->
+                    McCheckRow(
+                        checked = picked.contains(item.name),
+                        onChecked = { on ->
+                            picked = if (on) picked + item.name else picked - item.name
+                        }
+                    ) {
+                        TrashCard(ctx, item, fmt) {
+                            Bg.io.execute {
+                                val ok = Trash.restore(ctx, item)
+                                Bg.ui.post {
+                                    Tips.short(
+                                        ctx, if (ok) "已还原" else "还原失败（原目录可能已不可用）"
+                                    )
+                                    refresh()
+                                }
                             }
                         }
                     }
