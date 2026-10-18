@@ -951,16 +951,34 @@ private fun FilterDialog(
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("游戏版本") }
                 )
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton(onClick = onRecommend) { Text("推荐") }
-                    TextButton(onClick = onAddLink) { Text("标记链接") }
-                    TextButton(onClick = onOpenPage) { Text("打开页面") }
-                    TextButton(onClick = onShare) { Text("分享") }
+                //
+                // 弹窗叫「筛选」，原来却把推荐/标记链接/打开页面/分享四个操作
+                // 直接接在筛选条件后面，中间没有任何分区，看起来就是一堆按钮
+                // 堆在一起 —— 反馈里的「商店页排版混乱」就是这个。
+                // 现在按用途分成三块：筛选条件 / 更多操作 / 已标记的链接。
+                //
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "更多操作",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                // 四个按钮挤一行在窄屏上会互相压字，改成两行各两个
+                Row(Modifier.fillMaxWidth()) {
+                    TextButton(onClick = onRecommend, modifier = Modifier.weight(1f)) { Text("推荐") }
+                    TextButton(onClick = onAddLink, modifier = Modifier.weight(1f)) { Text("标记链接") }
+                }
+                Row(Modifier.fillMaxWidth()) {
+                    TextButton(onClick = onOpenPage, modifier = Modifier.weight(1f)) { Text("打开页面") }
+                    TextButton(onClick = onShare, modifier = Modifier.weight(1f)) { Text("分享") }
                 }
                 if (links.isNotEmpty()) {
-                    Spacer(Modifier.height(8.dp))
-                    Text("已标记的链接", fontSize = 12.sp)
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "已标记的链接",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                     LazyColumn(Modifier.fillMaxWidth().heightIn(max = 180.dp)) {
                         items(links, key = { it.url }) { l ->
                             Row(
