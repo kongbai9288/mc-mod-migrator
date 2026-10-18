@@ -213,7 +213,7 @@ private fun ModpackScreen(
         if (busy) item { McSkeleton(2) }
         if (results.isNotEmpty()) {
             item { McSectionTitle("检查结果") }
-            items(results) { r ->
+            items(results, key = { it.file }) { r ->
                 UpdateRowCard(r) { downloadOne(ctx, r, ::toast) { doneText = it } }
             }
         }
