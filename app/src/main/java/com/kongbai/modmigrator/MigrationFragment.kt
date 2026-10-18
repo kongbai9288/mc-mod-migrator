@@ -1454,10 +1454,21 @@ private fun MigrationScreen(
 
     fun openAllTools() {
         try {
-            parentFragmentManagerOf(ctx)?.beginTransaction()
-                ?.replace(R.id.fragment_container, ToolsFragment())
-                ?.addToBackStack("tools")
-                ?.commit()
+            //
+            // ⚠️ 之前是 replace：会把容器里的一级 tab 全部 remove，
+            // 从工具箱返回后「迁移」页要整个重建，
+            // 刚扫出来的方案、勾选状态、日志全没了。
+            // 改成 add 叠加，再把底下的页面 hide 掉（不 hide 会两层内容重叠）。
+            //
+            val fm = parentFragmentManagerOf(ctx) ?: return
+            val f = ToolsFragment()
+            val tx = fm.beginTransaction()
+                .add(R.id.fragment_container, f, "page:tools")
+                .addToBackStack("tools")
+            for (x in fm.fragments) {
+                if (x != null && x !== f && !x.isHidden) tx.hide(x)
+            }
+            tx.commitAllowingStateLoss()
         } catch (t: Throwable) {
             Err.fail(t, "打开工具箱")
             Tips.short(ctx, "打不开工具箱，请从「更多」进入")
