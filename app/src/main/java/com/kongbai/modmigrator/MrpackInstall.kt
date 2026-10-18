@@ -237,6 +237,9 @@ object MrpackInstall {
         )
     }
 
+    /** 单个清单文件最多读多少。正常清单只有几 KB，这个上限纯粹是防异常文件 */
+    private const val MANIFEST_MAX = 2 * 1024 * 1024
+
     /** 一趟流式读完 zip，取出可能存在的清单并统计条目数 */
     private fun readManifests(ctx: Context, uri: Uri): Pair<Map<String, String>, Int> {
         val want = setOf(Mrpack.INDEX_NAME, "manifest.json", "mmc-pack.json")
@@ -251,8 +254,15 @@ object MrpackInstall {
                             count++
                             val n = e.name.substringAfterLast('/')
                             if (want.contains(n) && !out.containsKey(n)) {
-                                val txt = zis.readBytes().toString(Charsets.UTF_8)
-                                if (txt.length < 2_000_000) out[n] = txt
+                                // ⚠️ 之前是 readBytes() 读完再判 `txt.length < 2_000_000`。
+                                // 清单一般只有几 KB，但条目名是**对方**写的，
+                                // 里面塞个 500MB 的文件也叫 manifest.json ——
+                                // 上限得在读之前生效才有用。
+                                // ⚠️ 这里不能用 `?: continue` —— continue 会跳过循环末尾的
+                                // `e = zis.nextEntry`，条目指针不动，直接死循环。
+                                // 超限就当这条没读到，交给循环自己往下走。
+                                val txt = readCappedText(zis, MANIFEST_MAX)
+                                if (txt != null) out[n] = txt
                             }
                         }
                         e = zis.nextEntry
@@ -273,7 +283,7 @@ object MrpackInstall {
                     var e = zis.nextEntry
                     while (e != null) {
                         if (!e.isDirectory && e.name == name) {
-                            return zis.readBytes().toString(Charsets.UTF_8)
+                            return readCappedText(zis, MANIFEST_MAX) ?: ""
                         }
                         e = zis.nextEntry
                     }
