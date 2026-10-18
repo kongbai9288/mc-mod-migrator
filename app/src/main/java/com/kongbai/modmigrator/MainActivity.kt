@@ -396,26 +396,11 @@ class MainActivity : AppCompatActivity() {
      * 返回键路径：子页 → 设置入口 → 上一个 tab。
      */
     fun openSettingsPage(page: String) {
+        // 子页映射收在 SettingsPages 一处。
+        // 之前这里和 SettingsHostActivity 各写一份 when，
+        // 两边对不上时同一个页面在两种入口下表现不一样。
         val f: Fragment = try {
-            when (page) {
-                "backend" -> SettingsBackendFragment()
-                "search" -> SettingsSearchFragment()
-                "migrate" -> SettingsMigrateFragment()
-                "storage" -> SettingsStorageFragment()
-                "nav" -> SettingsNavFragment()
-                "theme" -> SettingsThemeFragment()
-                "lang" -> SettingsLangFragment()
-                "anim" -> SettingsAnimFragment()
-                "translate" -> SettingsTranslateFragment()
-                "plugin" -> PluginFragment()
-                "devs" -> DevsFragment()
-                "log" -> SettingsLogFragment()
-                "patch" -> SettingsPatchFragment()
-                "about" -> SettingsAboutFragment()
-                "lab" -> SettingsLabFragment()
-                "feed" -> McFeedFragment()
-                else -> SettingsMainFragment()
-            }
+            SettingsPages.make(page)
         } catch (t: Throwable) {
             SettingsMainFragment()
         }
