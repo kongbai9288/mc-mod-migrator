@@ -103,13 +103,6 @@ object McaTileStore {
 
     // ------------------------------------------------------------------ 查
 
-    /**
-     * 瓦片解码的尺寸上限。超过就按这个比例降采样。
-     * 取 1024 而不是精确的 IMG：正常瓦片（512）完全不受影响，
-     * 只有明显异常的大图才会被压下来。
-     */
-    private const val TILE_MAX_PX = 1024
-
     /** 瓦片最后写入时间（秒）。用来判断缓存是不是比源文件旧 */
     fun modifiedSec(ctx: Context, ns: String, name: String): Long =
         try {
@@ -124,22 +117,7 @@ object McaTileStore {
         return try {
             val f = fileOf(ctx, ns, name)
             if (!f.isFile) return null
-            // ⚠️ 之前直接 decodeFile：按文件原尺寸整张解码。
-            // 瓦片是应用自己画的（McaTiles.IMG，通常 512×512），
-            // 但磁盘上的文件是能被替换的（用户清理过、别的工具写过、
-            // 或者上一次写入被打断留下半截又被拼上）。换成一张 4000×3000 的图，
-            // ARGB_8888 就是 48MB —— 这一页本来就要同时挂几十张瓦片，
-            // 读几张就崩，而且崩在 BitmapFactory 里，看不出是缓存目录的锅。
-            // 先只解码边界，明显超尺寸就降采样；正常尺寸不受影响（inSampleSize=1）。
-            val bounds = android.graphics.BitmapFactory.Options().apply {
-                inJustDecodeBounds = true
-            }
-            android.graphics.BitmapFactory.decodeFile(f.absolutePath, bounds)
-            val opt = android.graphics.BitmapFactory.Options().apply {
-                val big = maxOf(bounds.outWidth, bounds.outHeight)
-                if (big > 0) inSampleSize = maxOf(1, big / TILE_MAX_PX)
-            }
-            val bmp = android.graphics.BitmapFactory.decodeFile(f.absolutePath, opt)
+            val bmp = decodeTile(f)
             if (bmp == null) {
                 // 半截文件：留着只会一直失败，删掉让它重新渲染
                 f.delete()
@@ -149,6 +127,28 @@ object McaTileStore {
             Err.ignore(t, "读瓦片缓存")
             null
         }
+    }
+
+    /**
+     * 按瓦片边长采样解码。
+     *
+     * ⚠️ 之前是直接 decodeFile：瓦片缓存正常是 512×512（1MB），
+     * 但磁盘上那个文件可能被写坏过、也可能被别的程序换成了一张大图，
+     * 这时候按原尺寸整张解码就是几十上百 MB，一次读进内存直接 OOM。
+     * 先只解边界拿到原始尺寸，超过瓦片边长就按 2 的幂采样。
+     */
+    private fun decodeTile(f: File): Bitmap? {
+        val side = McaTiles.IMG
+        val b = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeFile(f.absolutePath, b)
+        var sample = 1
+        var max = maxOf(b.outWidth, b.outHeight)
+        while (max > side * 2 && sample < 32) {
+            sample *= 2
+            max /= 2
+        }
+        val o = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
+        return android.graphics.BitmapFactory.decodeFile(f.absolutePath, o)
     }
 
     // ------------------------------------------------------------------ 删
