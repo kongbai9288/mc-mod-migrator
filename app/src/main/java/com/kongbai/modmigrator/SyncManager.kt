@@ -102,9 +102,38 @@ object SyncManager {
             val names = listOf(McDirs.CONFIG, McDirs.SCRIPTS, McDirs.RESOURCEPACKS, McDirs.SHADERPACKS)
             val okZip = BundleManager.zipInto(ctx, src, names, zip) { log?.invoke(it) }
             if (okZip && zip.exists() && zip.length() > 0) {
-                val mb = zip.length() / 1024 / 1024
-                if (zip.length() > 25L * 1024 * 1024) {
-                    msg += "；配置包 ${mb}MB，偏大，GitHub 单文件上限 100MB"
+                //
+                // ⚠️ 这行原来是本应用最容易 OOM 的一处，改动前长这样：
+                //
+                //   if (zip.length() > 25MB) msg += "偏大，GitHub 单文件上限 100MB"
+                //   val b64 = Base64.encodeToString(zip.readBytes(), Base64.NO_WRAP)
+                //
+                // 三个错误叠在一起：
+                //
+                // 1. 上限写错了。GitHub **Contents API** 的上限是约 1MB，
+                //    不是 100MB（100MB 是仓库里单个文件的推荐上限，走的是 Git
+                //    LFS / blob 那一套，跟这个接口无关）。所以下面那个
+                //    `raw > CONTENT_MAX_BYTES` 的判断几乎必然命中 ——
+                //    也就是说这段代码绝大多数情况下在白干。
+                //
+                // 2. 更糟的是顺序：先 readBytes() 把整个 zip 读进内存，
+                //    再 Base64 编码。25MB 的峰值是
+                //      原始字节 25MB + 编码输出 33MB + 返回的 String 33MB ≈ 91MB，
+                //    且 ByteArrayOutputStream 扩容时还要多占一份。
+                //    在低内存机上这一步几乎必崩，崩在 ByteString/ByteArray 分配上，
+                //    从日志看不出来是"上传"引起的。
+                //
+                // 3. 花了 91MB 编码出来的东西，最后因为超过 1MB 直接被扔掉。
+                //
+                // 现在：先拿文件长度判断 —— 长度是文件系统的元数据，不占堆。
+                // 超限就一个字节都不读。
+                //
+                if (zip.length() > GitHubApi.CONTENT_MAX_BYTES) {
+                    val mb = zip.length() / 1048576.0
+                    msg += "；配置包 ${String.format("%.1f", mb)}MB，" +
+                        "超过 GitHub Contents API 约 1MB 的上限，已跳过（清单已上传）。" +
+                        "可去掉光影包/资源包再试，或用网盘备份。"
+                    return msg
                 }
                 val b64 = Base64.encodeToString(zip.readBytes(), Base64.NO_WRAP)
                 val sha = GitHubApi.sha(c.owner, c.repo, "$ROOT/$id/config.zip", c.branch, c.token)
