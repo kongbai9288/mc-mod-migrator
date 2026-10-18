@@ -119,39 +119,41 @@ private fun WorldsScreen(ctx: android.content.Context, register: (() -> Unit) ->
     }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        McNote("只读取展示；要改具体数值请用 NBT 编辑器。")
-        McSearchField(query, { query = it }, "搜存档名")
-        McChipRow(listOf("最近游玩", "按名字", "按体积"), sortMode) { sortMode = it }
+        McScope {
+            McNote("只读取展示；要改具体数值请用 NBT 编辑器。")
+            McSearchField(query, { query = it }, "搜存档名")
+            McChipRow(listOf("最近游玩", "按名字", "按体积"), sortMode) { sortMode = it }
 
-        if (loading) {
-            Text(progress, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
-            // 摆三块：够撑起一屏，又不至于多到让人以为已经扫出这么多
-            repeat(3) { McSkeleton(3) }
-            return@Column
-        }
+            if (loading) {
+                Text(progress, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
+                // 摆三块：够撑起一屏，又不至于多到让人以为已经扫出这么多
+                repeat(3) { McSkeleton(3) }
+                return@McScope
+            }
 
-        if (worlds.isEmpty()) {
-            McEmpty(
-                "没找到存档",
-                "先在设置 → 存储里把游戏目录指到启动器的 .minecraft，" +
-                    "并且确认那个启动器至少启动过一次游戏。"
+            if (worlds.isEmpty()) {
+                McEmpty(
+                    "没找到存档",
+                    "先在设置 → 存储里把游戏目录指到启动器的 .minecraft，" +
+                        "并且确认那个启动器至少启动过一次游戏。"
+                )
+                return@McScope
+            }
+
+            Text(
+                if (q.isBlank()) "共 ${shown.size} 个存档" else "匹配 ${shown.size} / ${worlds.size} 个",
+                fontSize = 12.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
             )
-            return@Column
-        }
+            if (shown.isEmpty()) {
+                McEmpty("没有匹配的存档", "换个名字再试试")
+                return@McScope
+            }
 
-        Text(
-            if (q.isBlank()) "共 ${shown.size} 个存档" else "匹配 ${shown.size} / ${worlds.size} 个",
-            fontSize = 12.sp,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        if (shown.isEmpty()) {
-            McEmpty("没有匹配的存档", "换个名字再试试")
-            return@Column
-        }
-
-        LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
-            items(shown, key = { it.dir.absolutePath }) { w ->
-                WorldCard(w) { detail = w }
+            LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
+                items(shown, key = { it.dir.absolutePath }) { w ->
+                    WorldCard(w) { detail = w }
+                }
             }
         }
     }
