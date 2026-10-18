@@ -1858,7 +1858,7 @@ private fun MigrationScreen(
                         .fillMaxWidth()
                         .height(resultH)
                 ) {
-                    items(mods.toList()) { m ->
+                    items(mods.toList(), key = { it.uri }) { m ->
                         MigModRow(
                             m = m,
                             onDownload = { downloadOne(m) },
