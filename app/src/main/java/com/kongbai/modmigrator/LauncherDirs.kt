@@ -2,8 +2,6 @@ package com.kongbai.modmigrator
 
 import android.content.Context
 import android.os.Environment
-import org.json.JSONArray
-import org.json.JSONObject
 import java.io.File
 
 /**
@@ -534,27 +532,39 @@ object LauncherDirs {
      * 解析失败一律保留内置表 —— 补丁坏了不能让用户没得选。
      */
     fun updateFrom(json: String): Boolean {
+        //
+        // ⚠️ 这里原来是 org.json.JSONArray。
+        // JVM 单元测试里 Android 的 org.json 是**空壳**：build.gradle 开了
+        // `unitTests.returnDefaultValues = true`，桩方法不抛异常而是返回默认值，
+        // 于是 `JSONArray("not json at all")` 不报错、`length()` 直接给 0。
+        // 后果有两层：
+        //   1. 坏补丁不会返回 false，坏数据照样写进表（测试里表现为 3 条用例挂掉）；
+        //   2. 更要命的是 length()=0 —— 好补丁也会被当成空数组，
+        //      一条都不解析，等于下发补丁永远是"什么都没发生"。
+        // 换成项目里已经在用的 Gson（纯 Java，无 Android 依赖），
+        // 解析失败就是失败，坏输入挡得住，这段逻辑也终于能在 JVM 上被真实测到。
+        //
+        val arr = Json.arr(json) ?: return false
         return try {
-            val arr = JSONArray(json)
             val list = ArrayList<Entry>(TABLE)
-            for (i in 0 until arr.length()) {
-                val o: JSONObject = arr.getJSONObject(i)
-                val name = o.optString("name").trim()
+            for (i in 0 until arr.size()) {
+                val el = arr.get(i)
+                if (el == null || !el.isJsonObject) continue
+                val o = el.asJsonObject
+                val name = Json.s(o, "name").trim()
                 if (name.isBlank()) continue
-                fun strs(k: String): List<String> {
-                    val a = o.optJSONArray(k) ?: return emptyList()
-                    return (0 until a.length()).mapNotNull { a.optString(it).trim().takeIf { s -> s.isNotEmpty() } }
-                }
+                fun strs(k: String): List<String> = Json.sa(o, k).map { it.trim() }
+                    .filter { it.isNotEmpty() }
                 val e = Entry(
                     name = name,
-                    key = o.optString("key").trim(),
+                    key = Json.s(o, "key").trim(),
                     pkgs = strs("pkgs"),
                     pubOld = strs("pubOld"),
                     pubNew = strs("pubNew"),
                     privOld = strs("privOld"),
                     privNew = strs("privNew"),
-                    mcFrom = o.optString("mcFrom").trim(),
-                    mcTo = o.optString("mcTo").trim(),
+                    mcFrom = Json.s(o, "mcFrom").trim(),
+                    mcTo = Json.s(o, "mcTo").trim(),
                     //
                     // 下面这几个不能漏。远端补丁以前只解析目录和包名，
                     // 一旦下发过一次，Pojav 的 API 28 分界（sysFrom）、
@@ -562,15 +572,15 @@ object LauncherDirs {
                     // 默认值 —— 分界没了就不过滤，等于又回到「按社区说法找目录」。
                     // 而且补丁里的路径本来就是社区整理的，默认按 COMMUNITY 记，
                     // 免得界面上把它当有源码佐证的条目显示。
-                    sysFrom = o.optString("sysFrom").trim(),
-                    sysTo = o.optString("sysTo").trim(),
-                    appFrom = o.optString("appFrom").trim(),
-                    appTo = o.optString("appTo").trim(),
-                    note = o.optString("note").trim(),
+                    sysFrom = Json.s(o, "sysFrom").trim(),
+                    sysTo = Json.s(o, "sysTo").trim(),
+                    appFrom = Json.s(o, "appFrom").trim(),
+                    appTo = Json.s(o, "appTo").trim(),
+                    note = Json.s(o, "note").trim(),
                     evidence = runCatching {
-                        Evidence.valueOf(o.optString("evidence").trim().uppercase())
+                        Evidence.valueOf(Json.s(o, "evidence").trim().uppercase())
                     }.getOrDefault(Evidence.COMMUNITY),
-                    source = o.optString("source").trim()
+                    source = Json.s(o, "source").trim()
                 )
                 if (e.pubNew.isEmpty() && e.pubOld.isEmpty() &&
                     e.privNew.isEmpty() && e.privOld.isEmpty()
