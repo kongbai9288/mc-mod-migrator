@@ -586,8 +586,22 @@ class MainActivity : AppCompatActivity() {
     private fun ensureContainerFilled() {
         if (isFinishing || isDestroyed) return
         if (supportFragmentManager.isStateSaved) return
-        val has = supportFragmentManager.findFragmentById(R.id.fragment_container) != null
-        if (has) return
+        val fm = supportFragmentManager
+        //
+        // ⚠️ 原来判的是 findFragmentById(...) != null。
+        // 切 tab 用的是 add + hide/show 缓存，容器里一直有好几个 Fragment，
+        // 它永远非空 —— 这个兜底等于从不生效。
+        // 但只要它们**全被 hide**（子页返回时底下的 tab 没被重新 show 回来），
+        // 界面就是一片空白，正是反馈里的「设置页返回后白屏」。
+        // 改成判「有没有真正可见的那个」：没有就把当前 tab 重新 show。
+        //
+        val visible = fm.fragments.any { f -> !f.isHidden && f.view != null }
+        if (visible) return
+        val back = if (currentTabKey.isBlank()) null else fm.findFragmentByTag("tab:$currentTabKey")
+        if (back != null) {
+            showOnly(back)
+            return
+        }
         val key = NavConfig.keyOfId(currentTabId) ?: return
         val p = NavConfig.find(key) ?: return
         try {
