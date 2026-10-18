@@ -2031,7 +2031,7 @@ private fun ModIcon(uri: String) {
         Image(
             bitmap = bmp!!.asImageBitmap(),
             contentDescription = null,
-            modifier = Modifier.size(36.dp).clip(CircleShape)
+            modifier = Modifier.size(36.dp).clip(RoundedCornerShape(4.dp))
         )
     } else {
         Image(
