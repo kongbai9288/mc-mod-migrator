@@ -129,7 +129,7 @@ private fun FeedScreen(
                     McFilledButton("打开 ${z.site}") { WebActivity.open(ctx, z.url, z.label) }
                 }
             } else {
-                items(list) { e ->
+                items(list, key = { it.url.ifBlank { it.title } }) { e ->
                     McModCard(
                         iconUrl = "",
                         title = e.title,
