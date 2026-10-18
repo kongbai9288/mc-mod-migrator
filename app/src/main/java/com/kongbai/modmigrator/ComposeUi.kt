@@ -116,7 +116,7 @@ fun McModCard(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(CircleShape)
+                    .clip(RoundedCornerShape(4.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             )
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
@@ -327,7 +327,6 @@ fun McSwitchRow(
  * 不像 View 的 Spinner —— 那边必须加 loading 守卫，否则一进页面就
  * 把第 0 项写进配置。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun McSpinner(options: List<String>, selected: Int, onPick: (Int) -> Unit, label: String) {
     var open by remember { mutableStateOf(false) }
@@ -341,9 +340,7 @@ fun McSpinner(options: List<String>, selected: Int, onPick: (Int) -> Unit, label
                 readOnly = true,
                 modifier = Modifier.fillMaxWidth(),
                 textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp),
-                trailingIcon = {
-                    IconButton(onClick = { open = true }) { Text("▾", fontSize = 14.sp) }
-                }
+                trailingIcon = { Text("▾", fontSize = 14.sp) }
             )
             // 覆盖一层透明点击区：readOnly 的输入框点击不一定触发
             Box(
@@ -351,15 +348,36 @@ fun McSpinner(options: List<String>, selected: Int, onPick: (Int) -> Unit, label
                     .matchParentSize()
                     .clickable { open = true }
             )
-            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-                options.forEachIndexed { i, o ->
-                    DropdownMenuItem(
-                        text = { Text(o, fontSize = 14.sp) },
-                        onClick = { open = false; onPick(i) }
-                    )
-                }
-            }
         }
+    }
+    //
+    // 这里原来是 DropdownMenu：它挂在上面那个 Box 里，展开后受父布局
+    // 定位和宽度约束影响，实测点开后要么不出现、要么一闪就没 ——
+    // 反馈里说的「下拉菜单拉不下去」就是它。
+    // 改成对话框单选：位置由自己决定，不受父布局约束，选项多了还能滚。
+    //
+    if (open) {
+        AlertDialog(
+            onDismissRequest = { open = false },
+            title = { Text(label) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    options.forEachIndexed { i, o ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { open = false; onPick(i) }
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = i == selected, onClick = { open = false; onPick(i) })
+                            Text(o, Modifier.padding(start = 8.dp), fontSize = 14.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { open = false }) { Text("关闭") } }
+        )
     }
 }
 
