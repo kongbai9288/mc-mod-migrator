@@ -4,6 +4,8 @@ import android.app.AppOpsManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
+import android.content.Intent
+import android.provider.Settings
 import android.os.Build
 import android.os.Process
 import androidx.documentfile.provider.DocumentFile
@@ -126,6 +128,12 @@ object MigGuard {
         val detail: String,
         /** [How.USAGE_STATS] 时命中的包名 */
         val pkg: String = "",
+        /**
+         * 是不是因为没拿到「使用情况访问」才判不出来。
+         * 界面据此给一个去授权的入口 —— 不然用户永远不知道
+         * 为什么每次都要手动确认一遍。
+         */
+        val needUsage: Boolean = false,
     )
 
     /** `session.lock` 的档案名。Mojang 固定写法，见文件头依据。 */
@@ -170,7 +178,9 @@ object MigGuard {
         if (!usageGranted(ctx)) {
             return Report(
                 Verdict.UNKNOWN, How.NONE,
-                "系统没有授予「使用情况访问」，无法自动判断游戏是否在运行"
+                "系统没有授予「使用情况访问」，无法自动判断游戏是否在运行。" +
+                    "开启后这里就能自动判断，不用每次都手动确认。",
+                needUsage = true
             )
         }
         val fg = foreground(ctx, want)
@@ -221,8 +231,17 @@ object MigGuard {
         return out
     }
 
+    /**
+     * 跳到系统的「使用情况访问」页面。
+     *
+     * 这个页面没有直接的 API 开关，只能把用户送过去自己开。
+     * 注意：`PACKAGE_USAGE_STATS` 必须在清单里声明，否则本应用
+     * 根本不会出现在那个列表里 —— 用户想给也给不了。
+     */
+    fun usageIntent(): Intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+
     /** 用户授予「使用情况访问」了吗 */
-    private fun usageGranted(ctx: Context): Boolean {
+    fun usageGranted(ctx: Context): Boolean {
         val ao = ctx.getSystemService(Context.APP_OPS_SERVICE) as? AppOpsManager
             ?: return false
         val mode = runCatching {
