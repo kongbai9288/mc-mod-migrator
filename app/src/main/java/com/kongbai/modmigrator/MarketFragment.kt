@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -675,7 +676,7 @@ private fun MarketScreen(ctx: Context) {
                 state = listState,
                 modifier = Modifier.weight(1f).fillMaxWidth()
             ) {
-                items(results, key = { it.id.ifBlank { it.name } }) { m ->
+                itemsIndexed(results, key = { i, _ -> i }) { _, m ->
                     // 翻译改的是 MarketMod 的字段而不是列表结构，
                     // 靠 rev 变化重建这一项来重绘
                     key(rev) {
@@ -818,7 +819,7 @@ private fun MarketCard(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(CircleShape)
+                    .clip(RoundedCornerShape(4.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             )
             Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
