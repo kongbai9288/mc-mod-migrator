@@ -1,5 +1,5 @@
 # 真实存档验证（ai.zip / 26.2 世界）
-run: 39049155128
+run: 39086257069
 
 ## 测试类清单
 app/build/test-results/testDebugUnitTest/TEST-com.kongbai.modmigrator.LauncherDirsTest.xml
@@ -40,8 +40,8 @@ tests="11" skipped="0" failures="0" errors="0"
 > Task :app:preDebugUnitTestBuild UP-TO-DATE
 > Task :app:javaPreCompileDebugUnitTest
 > Task :app:processDebugJavaRes UP-TO-DATE
-> Task :app:bundleDebugClassesToRuntimeJar
 > Task :app:bundleDebugClassesToCompileJar
+> Task :app:bundleDebugClassesToRuntimeJar
 
 > Task :app:compileDebugUnitTestKotlin
 w: file:///home/runner/work/mc-mod-migrator/mc-mod-migrator/app/src/test/java/com/kongbai/modmigrator/RetryTest.kt:109:13 Unreachable code
@@ -75,5 +75,5 @@ Execution failed for task ':app:testDebugUnitTest'.
 * Try:
 > Run with --scan to get full insights.
 
-BUILD FAILED in 16s
+BUILD FAILED in 27s
 23 actionable tasks: 7 executed, 16 up-to-date
