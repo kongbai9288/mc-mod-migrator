@@ -129,28 +129,6 @@ object McaTileStore {
         }
     }
 
-    /**
-     * 按瓦片边长采样解码。
-     *
-     * ⚠️ 之前是直接 decodeFile：瓦片缓存正常是 512×512（1MB），
-     * 但磁盘上那个文件可能被写坏过、也可能被别的程序换成了一张大图，
-     * 这时候按原尺寸整张解码就是几十上百 MB，一次读进内存直接 OOM。
-     * 先只解边界拿到原始尺寸，超过瓦片边长就按 2 的幂采样。
-     */
-    private fun decodeTile(f: File): Bitmap? {
-        val side = McaTiles.IMG
-        val b = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        android.graphics.BitmapFactory.decodeFile(f.absolutePath, b)
-        var sample = 1
-        var max = maxOf(b.outWidth, b.outHeight)
-        while (max > side * 2 && sample < 32) {
-            sample *= 2
-            max /= 2
-        }
-        val o = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
-        return android.graphics.BitmapFactory.decodeFile(f.absolutePath, o)
-    }
-
     // ------------------------------------------------------------------ 删
 
     fun remove(ctx: Context, ns: String, name: String) {
@@ -158,6 +136,27 @@ object McaTileStore {
             fileOf(ctx, ns, name).delete()
             File(dirOf(ctx, ns), "$name.tmp").delete()
         }
+    }
+
+    /**
+     * 按目标尺寸解码瓦片。
+     *
+     * 不采样的话，缓存文件一旦被写坏成一张大图，就会按原尺寸整张解码 ——
+     * 一张 4096×4096 的 ARGB 图是 64MB，光读一张就够把应用拖崩。
+     * 瓦片本来就是 [McaTiles.IMG] 见方，超出这个尺寸的部分没有意义。
+     */
+    private fun decodeTile(f: File): Bitmap? {
+        val side = McaTiles.IMG
+        val probe = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeFile(f.absolutePath, probe)
+        if (probe.outWidth <= 0 || probe.outHeight <= 0) return null
+        var s = 1
+        while (probe.outWidth / s > side && probe.outHeight / s > side) s *= 2
+        val opt = android.graphics.BitmapFactory.Options().apply {
+            inSampleSize = s
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        return android.graphics.BitmapFactory.decodeFile(f.absolutePath, opt)
     }
 
     /** 清掉一个命名空间下的全部瓦片 */
