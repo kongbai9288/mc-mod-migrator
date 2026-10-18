@@ -491,7 +491,9 @@ class DevLabActivity : AppCompatActivity() {
                     val f = java.io.File(a)
                     if (!f.exists()) "文件不存在"
                     else {
-                        val r = McaEdit.Region(f.readBytes())
+                        // ⚠️ 之前是 Region(f.readBytes())：整份 .mca 进堆。
+                        // Region(File) 走 RandomAccessFile 按需读，不整份入内存。
+                        val r = McaEdit.Region(f)
                         "非空区块 ${r.present().size} 个：${r.present().take(12).joinToString(",")}"
                     }
                 }
