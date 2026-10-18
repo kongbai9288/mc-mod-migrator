@@ -60,6 +60,9 @@ object PluginHost {
     /** 单文件读写上限 */
     private const val FILE_MAX = 2 * 1024 * 1024
 
+    /** 装插件时整个压缩包解压后的总字节上限 */
+    private const val ZIP_TOTAL_MAX = 32 * 1024 * 1024
+
     /**
      * 权限：清单里声明了才注入对应能力。
      *
@@ -161,11 +164,24 @@ object PluginHost {
         try {
             ctx.contentResolver.openInputStream(uri)?.use { ins ->
                 java.util.zip.ZipInputStream(ins).use { zs ->
+                    var total = 0L
                     while (true) {
                         val e = zs.nextEntry ?: break
                         val name = e.name
                         if (!e.isDirectory && entries.size < 400 && !name.contains("..")) {
-                            entries[name] = zs.readBytes()
+                            // ⚠️ 边读边判，而不是 readBytes() 读完再算。
+                            // 原来只压了"条目数 < 400"，那只挡得住文件特别多，
+                            // 挡不住单个文件特别大 —— 一条 200MB 的条目照样吃光堆。
+                            // 这里同时压住单条大小和解压后总量。
+                            val b = readCappedBytes(zs, FILE_MAX)
+                            if (b == null) {
+                                return Pair(false, "压缩包里有超过 ${FILE_MAX / 1024 / 1024}MB 的文件，已中止")
+                            }
+                            total += b.size
+                            if (total > ZIP_TOTAL_MAX) {
+                                return Pair(false, "压缩包内容超过 ${ZIP_TOTAL_MAX / 1024 / 1024}MB，已中止")
+                            }
+                            entries[name] = b
                         }
                         zs.closeEntry()
                     }
@@ -408,9 +424,12 @@ object PluginHost {
             }
             val code = c.responseCode
             if (code !in 200..299) return "HTTP $code"
-            val bytes = c.inputStream.use { it.readBytes() }
-            if (bytes.size > HTTP_MAX) return "响应超过 2MB，截断"
-            String(bytes, Charsets.UTF_8)
+            // ⚠️ 之前是 readBytes() 整段读进来再和 HTTP_MAX 比 ——
+            // 上限等于没设：对方真返回 500MB，也是先吃掉 500MB 堆再扔掉，
+            // 中间那一下就是 OutOfMemoryError。改成边读边判，超了就停。
+            val body = c.inputStream.use { readCappedText(it, HTTP_MAX) }
+                ?: return "响应超过 ${HTTP_MAX / 1024 / 1024}MB，已放弃"
+            body
         } catch (t: Throwable) {
             "请求失败：${t.message}"
         } finally {
@@ -510,4 +529,5 @@ object PluginHost {
         append("没声明的权限调用时会直接返回错误，不会静默放行。\n\n")
         append("脚本能用的：log、toast、http.get、file.read/write/list/delete、prefs.get/set。")
     }
-}
+
+
