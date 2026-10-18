@@ -132,6 +132,16 @@ private sealed class MigDlg {
     ) : MigDlg()
 
     data class Logs(val title: String, val shown: String, val full: String) : MigDlg()
+
+    /**
+     * 目录库：引导页里多选出来的那一批目录。
+     *
+     * 存 [items] 快照而不是在弹窗里现读：加/删之后要立刻重画，
+     * 现读的话得再配一个版本号触发重组，多一处状态多一处忘记更新的地方。
+     */
+    data class Lib(
+        val key: String, val asSource: Boolean, val items: List<DirLib.Item>
+    ) : MigDlg()
 }
 
 private fun pathText(ctx: Context, key: String): String =
@@ -173,6 +183,10 @@ private fun MigrationScreen(
     var serverMode by remember { mutableStateOf(prefs.getInt(K.APP_MODE, 0) == 1) }
     var srcText by remember { mutableStateOf(pathText(ctx, K.SRC_URI)) }
     var dstText by remember { mutableStateOf(pathText(ctx, K.DST_URI)) }
+    // 目录库里各有几项。引导页多选的目录以前进主页就只剩第一个，
+    // 这里把数量显示出来，用户至少知道还有别的可选。
+    var srcLibN by remember { mutableStateOf(DirLib.size(ctx, DirLib.P_SRC)) }
+    var dstLibN by remember { mutableStateOf(DirLib.size(ctx, DirLib.P_DST)) }
     var dirState by remember {
         mutableStateOf(DirGuide.state(ctx, prefs.getString(K.SRC_URI, "") ?: ""))
     }
@@ -278,7 +292,59 @@ private fun MigrationScreen(
         dirState = DirGuide.state(ctx, Prefs.get(ctx).getString(K.SRC_URI, "") ?: "")
         serverText = serverStateOf(ctx)
         serverMode = Prefs.get(ctx).getInt(K.APP_MODE, 0) == 1
+        srcLibN = DirLib.size(ctx, DirLib.P_SRC)
+        dstLibN = DirLib.size(ctx, DirLib.P_DST)
         probeSource()
+    }
+
+    // ── 目录库 ──────────────────────────────────────────────
+
+    /** 打开目录库。选的就是引导页里多选出来的那一批。 */
+    fun openLib(asSource: Boolean) {
+        val key = if (asSource) DirLib.P_SRC else DirLib.P_DST
+        dlg = MigDlg.Lib(key, asSource, DirLib.read(ctx, key))
+    }
+
+    /** 把某项设为当前的迁移前/后目录 */
+    fun useLibItem(asSource: Boolean, item: DirLib.Item) {
+        val p = Prefs.get(ctx)
+        if (asSource) p.edit().putString(K.SRC_URI, item.uri).apply()
+        else p.edit().putString(K.DST_URI, item.uri).apply()
+        dlg = MigDlg.None
+        refreshPaths()
+        val shown = item.name.ifBlank { DirGuide.human(item.uri) }
+        log("${if (asSource) "迁移前" else "迁移后"}的目录切换到：$shown")
+        if (asSource) {
+            bg {
+                val root = Fs.tree(ctx, item.uri)
+                if (root != null) detectSource(root)
+            }
+        }
+    }
+
+    /** 把当前选中的目录加进列表，方便下次直接切 */
+    fun addToLib(asSource: Boolean) {
+        val key = if (asSource) DirLib.P_SRC else DirLib.P_DST
+        val cur = Prefs.get(ctx)
+            .getString(if (asSource) K.SRC_URI else K.DST_URI, "").orEmpty()
+        if (cur.isBlank()) {
+            toast("先选一个目录，再把它加入目录库")
+            return
+        }
+        val name = Fs.tree(ctx, cur)?.name ?: DirGuide.human(cur)
+        val ok = DirLib.add(ctx, key, DirLib.Item(name.orEmpty(), cur))
+        toast(if (ok) "已加入目录库" else "这个目录已经在列表里了")
+        dlg = MigDlg.Lib(key, asSource, DirLib.read(ctx, key))
+        srcLibN = DirLib.size(ctx, DirLib.P_SRC)
+        dstLibN = DirLib.size(ctx, DirLib.P_DST)
+    }
+
+    fun removeFromLib(asSource: Boolean, uri: String) {
+        val key = if (asSource) DirLib.P_SRC else DirLib.P_DST
+        DirLib.remove(ctx, key, uri)
+        dlg = MigDlg.Lib(key, asSource, DirLib.read(ctx, key))
+        srcLibN = DirLib.size(ctx, DirLib.P_SRC)
+        dstLibN = DirLib.size(ctx, DirLib.P_DST)
     }
 
     fun copyLogs(txt: String) {
@@ -1190,16 +1256,32 @@ private fun MigrationScreen(
             }
 
             MigGuard.Verdict.UNKNOWN -> {
-                dlg = MigDlg.Confirm(
+                // 判不出来的时候顺便给个去授权的入口：
+                // 没拿到「使用情况访问」就永远只能手动确认，
+                // 不给入口的话用户根本不知道还能开。
+                val acts = ArrayList<Pair<String, () -> Unit>>()
+                acts += ("已经关了，开始迁移" to {
+                    dlg = MigDlg.None
+                    doMigrate(srcUri, dstUri)
+                })
+                if (rep.needUsage) {
+                    acts += ("去开启「使用情况访问」" to {
+                        dlg = MigDlg.None
+                        runCatching {
+                            ctx.startActivity(
+                                MigGuard.usageIntent()
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }.onFailure { toast("打不开系统设置页：${Err.humanMessage(it)}") }
+                    })
+                }
+                dlg = MigDlg.Text(
                     "请确认游戏已关闭",
                     rep.detail +
                         "\n\n自动判断不了，需要你确认一下：" +
                         "游戏正在跑的时候迁移，存档可能复制到被改写一半的内容。",
-                    "已经关了，开始迁移"
-                ) {
-                    dlg = MigDlg.None
-                    doMigrate(srcUri, dstUri)
-                }
+                    acts
+                )
                 return
             }
 
@@ -1553,6 +1635,12 @@ private fun MigrationScreen(
                             modifier = Modifier.weight(1f)
                         )
                         Text(
+                            "目录库（$srcLibN）",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.clickable { openLib(true) }.padding(8.dp)
+                        )
+                        Text(
                             ctx.getString(R.string.more),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.primary,
@@ -1611,7 +1699,19 @@ private fun MigrationScreen(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(Modifier.padding(12.dp)) {
-                Text(ctx.getString(R.string.sec_target), fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        ctx.getString(R.string.sec_target),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        "目录库（$dstLibN）",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable { openLib(false) }.padding(8.dp)
+                    )
+                }
                 McField(version, { setVersion(it) }, ctx.getString(R.string.hint_mc_version))
                 Spacer(Modifier.height(8.dp))
                 McSpinner(
@@ -1806,6 +1906,14 @@ private fun MigrationScreen(
                 "清空" to { LogCenter.clear(); logSummary = logSummaryOf() }
             )
         ) { dlg = MigDlg.None }
+        is MigDlg.Lib -> LibDialog(
+            title = "目录库（${if (d.asSource) "迁移前" else "迁移后"}）",
+            items = d.items,
+            onUse = { useLibItem(d.asSource, it) },
+            onRemove = { removeFromLib(d.asSource, it.uri) },
+            onAddCurrent = { addToLib(d.asSource) },
+            onDismiss = { dlg = MigDlg.None }
+        )
         MigDlg.None -> {}
     }
 
@@ -1948,6 +2056,58 @@ private fun ScrollTextDialog(
                 }
             }
         }
+    )
+}
+
+/**
+ * 目录库弹窗：列出引导页里多选出来的那一批目录，点一下就切成当前目录。
+ *
+ * 以前这些目录存进去就没人读，用户多选了三个、进主页只剩第一个。
+ * 这里不做"一次迁多对"——那要连带改扫描和迁移流程；先把选过的
+ * 目录都留下来能切，已经能解决"另外几个凭空消失"。
+ */
+@Composable
+private fun LibDialog(
+    title: String,
+    items: List<DirLib.Item>,
+    onUse: (DirLib.Item) -> Unit,
+    onRemove: (DirLib.Item) -> Unit,
+    onAddCurrent: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                if (items.isEmpty()) {
+                    Text(
+                        "还没有目录。可以先用上面的按钮选一个，再点「把当前目录加进来」。",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+                for (it in items) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            DirLib.label(it),
+                            fontSize = 13.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = { onUse(it) }) { Text("用这个") }
+                        TextButton(onClick = { onRemove(it) }) { Text("移除") }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
+        dismissButton = { TextButton(onClick = onAddCurrent) { Text("把当前目录加进来") } }
     )
 }
 
