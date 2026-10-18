@@ -377,24 +377,13 @@ class NbtViewerActivity : AppCompatActivity() {
     private fun backupSaf(src: Uri): Uri? {
         return try {
             val name = DocumentFile.fromSingleUri(this, src)?.name ?: return null
+            // 流式搬运。level.dat 几十 MB 并不罕见，
+            // 整读再整写会让同一份数据在堆里同时占两块。
             val out = createSibling(src, "$name.bak")
-            // ⚠️ 之前是整份 readBytes() 再 write(bytes)：
-            // 这里备份的是 NBT 文件，level.dat 大到几十 MB 并不罕见，
-            // 整份进堆、再拷一份出去，等于同一份数据在内存里占两块。
-            // 改成 8KB 缓冲流式搬运，占用恒定，与文件大小无关。
-            val buf = ByteArray(8 * 1024)
-            var wrote = false
-            contentResolver.openInputStream(src)?.use { ins ->
-                contentResolver.openOutputStream(out, "wt")?.use { os ->
-                    while (true) {
-                        val n = ins.read(buf)
-                        if (n <= 0) break
-                        os.write(buf, 0, n)
-                    }
-                    wrote = true
-                }
-            }
-            if (!wrote) return null
+            val ins = contentResolver.openInputStream(src) ?: return null
+            val os = contentResolver.openOutputStream(out, "wt")
+            if (os == null) { runCatching { ins.close() }; return null }
+            ins.use { i -> os.use { o -> i.copyTo(o, 64 * 1024) } }
             out
         } catch (t: Throwable) {
             Err.ignore(t, "NBT 备份失败")
