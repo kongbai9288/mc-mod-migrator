@@ -56,7 +56,10 @@ object SettingsPages {
         "weekly" -> WeeklyReportFragment()
         "sites" -> SitesFragment()
         "more" -> MoreFragment()
-        else -> SettingsMainFragment()
+        // 兜底再查一遍底部导航/「更多」的登记表：
+        // 从设置容器里打开「更多」时，点的是 migration / market 这类 key，
+        // 上表没有，落到这里才不会开出一个不相干的页面
+        else -> NavConfig.find(page)?.make?.invoke() ?: SettingsMainFragment()
     }
 
     fun titleRes(page: String): Int = when (page) {
