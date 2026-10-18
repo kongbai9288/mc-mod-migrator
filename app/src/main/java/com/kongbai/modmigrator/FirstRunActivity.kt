@@ -61,8 +61,6 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.min
@@ -276,42 +274,29 @@ class FirstRunActivity : AppCompatActivity() {
         val work = p.getString(K.WORKDIR_URI, null).orEmpty()
         st.workUri = work
         st.useAppDir = work.isBlank()
-        loadList(P_SRC_LIST)?.let { st.src.addAll(it) }
-        loadList(P_DST_LIST)?.let { st.dst.addAll(it) }
+        loadList(DirLib.P_SRC)?.let { st.src.addAll(it) }
+        loadList(DirLib.P_DST)?.let { st.dst.addAll(it) }
     }
 
-    private fun loadList(key: String): List<FirDir>? {
-        val raw = Prefs.get(this).getString(key, null) ?: return null
-        return runCatching {
-            val a = JSONArray(raw)
-            val out = ArrayList<FirDir>(a.length())
-            for (i in 0 until a.length()) {
-                val o = a.optJSONObject(i) ?: continue
-                val uri = o.optString("uri")
-                if (uri.isBlank()) continue
-                out.add(FirDir(o.optString("name"), uri))
-            }
-            out
-        }.getOrNull()
-    }
+    /** 复用 DirLib 的解析，避免引导页和迁移页对同一份数据读出不一样的结果 */
+    private fun loadList(key: String): List<FirDir>? =
+        DirLib.read(this, key).takeIf { it.isNotEmpty() }
+            ?.map { FirDir(it.name, it.uri) }
 
     private fun saveList(key: String, list: List<FirDir>) {
-        val a = JSONArray()
-        for (d in list) {
-            a.put(JSONObject().apply {
-                put("name", d.name)
-                put("uri", d.uri)
-            })
-        }
-        Prefs.get(this).edit().putString(key, a.toString()).apply()
+        // 走 DirLib，别在这里另写一套 JSON：
+        // 迁移页读的是同一份，两边解析不一致就会出现"存了读不到"
+        DirLib.write(this, key, list.map { DirLib.Item(it.name, it.uri) })
     }
 
     private fun finishSetup() {
         val ed = Prefs.get(this).edit()
         if (st.useAppDir) ed.remove(K.WORKDIR_URI) else ed.putString(K.WORKDIR_URI, st.workUri)
-        saveList(P_SRC_LIST, st.src)
-        saveList(P_DST_LIST, st.dst)
-        // 迁移页目前还是单选，把每类的第一个直接填进去，进主页就能用
+        saveList(DirLib.P_SRC, st.src)
+        saveList(DirLib.P_DST, st.dst)
+        // 迁移页一次只能处理一对目录，这里只把每类的第一个填成当前值，
+        // 剩下的都留在列表里 —— 迁移页顶部的「目录库」能随时切过去。
+        // 以前注释写「进主页就能用」，实际是其余几个凭空消失。
         st.src.firstOrNull()?.let { ed.putString(K.SRC_URI, it.uri) }
         st.dst.firstOrNull()?.let { ed.putString(K.DST_URI, it.uri) }
         ed.putString(K.TARGET_MC, McTargets.MC_VERSIONS[0])
@@ -327,11 +312,6 @@ class FirstRunActivity : AppCompatActivity() {
         // 不要系统默认转场，否则会和最后那下淡出叠在一起闪一下
         @Suppress("DEPRECATION")
         overridePendingTransition(0, 0)
-    }
-
-    companion object {
-        private const val P_SRC_LIST = "fir_src_dirs"
-        private const val P_DST_LIST = "fir_dst_dirs"
     }
 }
 
