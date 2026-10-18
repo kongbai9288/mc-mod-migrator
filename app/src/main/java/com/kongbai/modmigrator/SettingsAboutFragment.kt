@@ -255,7 +255,10 @@ private fun showCrash(ctx: android.content.Context, out: (AboutDlg) -> Unit) {
             }
             out(
                 AboutDlg.Crash(
-                    txt.take(4000),
+                    // 原来只取前 4000 字符：一旦第一条日志本身较长，
+                    // 后面的记录连同每条开头的「设备/系统」行一起被截掉，
+                    // 看起来就像崩溃日志里没有机型。放宽到 20000。
+                    txt.take(20000),
                     listOf(
                         "保存" to { CrashShare.save(ctx, txt) },
                         "分享" to { CrashShare.share(ctx, txt, "ModMigrator 崩溃日志") }
