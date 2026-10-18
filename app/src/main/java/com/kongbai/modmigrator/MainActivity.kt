@@ -391,33 +391,40 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 打开设置子页。
-     * 跟一级设置页共用同一个容器并压入返回栈，
-     * 返回键路径：子页 → 设置入口 → 上一个 tab。
+     * 打开一个子页：设置子页、从「更多」点进来的页面都走这里。
+     *
+     * ⚠️ 之前「更多」页是自己 `replace(R.id.fragment_container, …)` 打开的，
+     * 和这里不一致：replace 会把容器里的一级 tab **全部 remove**，
+     * 返回后它们只能整个重建 —— 迁移页填了一半点进某个功能，
+     * 回来全没了，而且每次都要重新扫描。这里统一改成 add 叠加。
      */
-    fun openSettingsPage(page: String) {
-        // 子页映射收在 SettingsPages 一处。
-        // 之前这里和 SettingsHostActivity 各写一份 when，
-        // 两边对不上时同一个页面在两种入口下表现不一样。
+    fun openPage(key: String) {
         val f: Fragment = try {
-            SettingsPages.make(page)
+            // 先查底部导航/「更多」的登记表，再查设置子页表。
+            // 两张表合起来才覆盖全部入口：少了哪边，
+            // 对应的 key 就会开出一个不相干的页面。
+            NavConfig.find(key)?.make?.invoke() ?: SettingsPages.make(key)
         } catch (t: Throwable) {
-            SettingsMainFragment()
-        }
+            Err.ignore(t, "创建页面 $key")
+            null
+        } ?: return
         try {
             //
             // 用 add 叠在当前页之上，不用 replace。
             // replace 会把底下的一级页一起 remove，
             // 返回后它就得整个重建 —— 从设置返回到「迁移」又要重新加载，
-            // 正是这次要修的那个"每次进来都重新加载"。
+            // 正是之前那个"每次进来都重新加载"。
             //
             supportFragmentManager.beginTransaction()
-                .add(R.id.fragment_container, f, "page:$page")
-                .addToBackStack("settings:$page")
+                .add(R.id.fragment_container, f, "page:$key")
+                .addToBackStack("page:$key")
                 .commitAllowingStateLoss()
             handler.post { showOnly(f) }
         } catch (t: Throwable) { Err.ignore(t, ".commit()") }
     }
+
+    /** 设置子页入口，保留旧调用名 */
+    fun openSettingsPage(page: String) = openPage(page)
 
     /**
      * 公告：从仓库拉 announcement.json，多镜像源依次尝试。
