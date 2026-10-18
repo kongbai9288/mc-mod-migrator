@@ -56,17 +56,6 @@ class ChunkMapActivity : AppCompatActivity() {
         private const val EXTRA_FILE = "mca_file"
         private const val EXTRA_URI = "mca_uri"
 
-        /**
-         * 一次导出最多能同时挂在堆上的瓦片数。
-         *
-         * ⚠️ 每张瓦片是 512×512 的 ARGB_8888，单张就是 1MB。
-         * 不设上限的话，用户全选 100 个区域就是 100MB 位图同时在堆上，
-         * 而 exportPng() 里的等比缩小发生在**拼图阶段**——
-         * 还没走到那一步，光把瓦片读出来就已经 OOM 了。
-         * 64 张 ≈ 64MB，配合 largeHeap 留有余量。
-         */
-        private const val MAX_EXPORT_TILES = 64
-
         /** 从世界进入：给世界目录，维度可选（不传就让用户挑） */
         fun open(ctx: Context, worldDir: File, dimKey: String? = null) {
             ctx.startActivity(
@@ -1288,54 +1277,58 @@ class ChunkMapActivity : AppCompatActivity() {
             setMessage("替换中…"); setCancelable(false); show()
         }.also { liveDialogs.add(it) }
         submitPool {
-            // ⚠️ 之前是 openInputStream().readBytes()，把整个 .mca 读进堆。
-            // 区域文件上限 32MB（压缩后一般几 MB，极端可到几十 MB），
-            // 整份进内存再解析，堆小的设备直接 OOM —— 而且这里还只是"源"，
-            // 下面循环里每个目标区域还要各读一份。
-            // Region(File) 走 RandomAccessFile 按需读、不整份入堆，
-            // 所以先落到 cacheDir 的临时文件再用它打开，用完删掉。
-            val tmp = File(cacheDir, "mca_replace_src.mca")
+            // 源文件先落到临时文件再解析。
+            // 区域文件上限 32MB，整份 readBytes() 进堆在老机型上必然触发 OOM；
+            // Region(File) 走 RandomAccessFile 按需读，只把 8KB 头部留在内存。
+            val tmp = File(cacheDir, "replace_src_${System.currentTimeMillis()}.mca")
             val src = try {
-                contentResolver.openInputStream(srcUri)?.use { input ->
-                    tmp.outputStream().use { input.copyTo(it) }
-                } ?: throw java.io.IOException("打不开源文件")
-                McaEdit.Region(tmp)
-            } catch (oom: OutOfMemoryError) {
-                Err.ignore(oom, "源 .mca 太大，内存不够")
-                runOnUiThread { prog.dismiss(); toast("源 .mca 太大，读不进来") }
-                return@submitPool
+                contentResolver.openInputStream(srcUri)?.use { ins ->
+                    java.io.FileOutputStream(tmp).use { out -> ins.copyTo(out, 64 * 1024) }
+                }
+                if (tmp.length() <= 0L) null else McaEdit.Region(tmp)
             } catch (t: Throwable) {
-                Err.ignore(t, "源 .mca 解析失败")
-                runOnUiThread { prog.dismiss(); toast("源 .mca 不是有效的区域文件") }
+                Err.ignore(t, "读源文件失败"); null
+            }
+            if (src == null) {
+                runCatching { tmp.delete() }
+                runOnUiThread { prog.dismiss(); toast("源 .mca 读不出来或不是有效的区域文件") }
                 return@submitPool
             }
             var done = 0
             var n = 0
-            runCatching {
+            try {
                 for (ref in targets) {
                     try {
                         val dst = McaEdit.Region(ref.file)
-                        val slots = dst.present().toIntArray()
-                        val k = McaOps.replaceSlots(dst, src, slots)
-                        if (k == 0) continue
-                        val out = dst.build()
-                        // 先备份，再写；写失败要如实说，不能假报成功
-                        runCatching { ref.file.copyTo(File(ref.file.parentFile, ref.file.name + ".bak"), true) }
-                        val ok = File(ref.file.parentFile, ref.file.name).let {
-                            runCatching { it.writeBytes(out) }.isSuccess
-                        }
-                        if (ok) {
-                            done++; n += k
-                            McaTiles.invalidate(this, ref)
-                            val u = McaWorld.Mirror.of(ref.file)
-                            if (u != null) writeBack(ref.file, u)
+                        try {
+                            val slots = dst.present().toIntArray()
+                            val k = McaOps.replaceSlots(dst, src, slots)
+                            if (k == 0) continue
+                            val out = dst.build()
+                            // 先备份，再写；写失败要如实说，不能假报成功
+                            runCatching { ref.file.copyTo(File(ref.file.parentFile, ref.file.name + ".bak"), true) }
+                            val ok = File(ref.file.parentFile, ref.file.name).let {
+                                runCatching { it.writeBytes(out) }.isSuccess
+                            }
+                            if (ok) {
+                                done++; n += k
+                                McaTiles.invalidate(this, ref)
+                                val u = McaWorld.Mirror.of(ref.file)
+                                if (u != null) writeBack(ref.file, u)
+                            }
+                        } finally {
+                            // 不关的话每个区域都留着一个 RandomAccessFile 句柄，
+                            // 区域一多把 fd 用光，后面全是 "Too many open files"
+                            dst.close()
                         }
                     } catch (t: Throwable) {
                         Err.ignore(t, "替换区域失败")
                     }
                 }
+            } finally {
+                src.close()
+                runCatching { tmp.delete() }
             }
-            runCatching { tmp.delete() }
             runOnUiThread {
                 prog.dismiss()
                 MaterialAlertDialogBuilder(this)
@@ -1359,6 +1352,15 @@ class ChunkMapActivity : AppCompatActivity() {
      * 没选区域就导出当前视野内的；区域多了会按比例缩小，
      * 不然直接 OOM 或者存出一个打不开的文件。
      */
+    /**
+     * 一次导出最多拼多少张瓦片。
+     *
+     * 一张 512×512 的 ARGB 图是 1MB，瓦片在拼图前全部按原尺寸留在堆里；
+     * 64 张就是 64MB，再加上拼出来的大图（上限 8192，即 268MB 的极端情况）
+     * 是普通机型能扛住的上沿。再多就得让用户分批，而不是让应用崩掉。
+     */
+    private val MAX_EXPORT_TILES = 64
+
     private fun askExportPng() {
         val dim = curDimOrNull() ?: return toast("先选一个维度")
         val vis = map.visibleRefs()
@@ -1369,24 +1371,14 @@ class ChunkMapActivity : AppCompatActivity() {
             setMessage("导出 ${refs.size} 个区域…"); setCancelable(false); show()
         }.also { liveDialogs.add(it) }
         submitPool {
-            if (refs.size > MAX_EXPORT_TILES) {
-                runOnUiThread {
-                    prog.dismiss()
-                    toast("一次最多导出 $MAX_EXPORT_TILES 个区域（这次选了 ${refs.size} 个），请分批来")
-                }
-                return@submitPool
-            }
-            val tiles = ArrayList<Pair<McaWorld.Ref, Bitmap>>(refs.size)
+            val tiles = ArrayList<Pair<McaWorld.Ref, Bitmap>>()
+            var skipped = 0
             for (r in refs) {
-                // OutOfMemoryError 是 Error 不是 Exception，
-                // 外面那层 catch (t: Throwable) 其实接得住，
-                // 但在这里单独接一次才能把"是内存不够"这件事说清楚
-                val b = try {
-                    McaTiles.get(this@ChunkMapActivity, r)
-                } catch (oom: OutOfMemoryError) {
-                    Err.ignore(oom, "导出：瓦片太多，内存不够")
-                    null
-                } ?: continue
+                // 上限必须加在「读进来」之前。
+                // 缩小发生在 exportPng 的拼图阶段，而瓦片在这之前就全部入列了 ——
+                // 等到拼图时才发现太大，堆已经满了。
+                if (tiles.size >= MAX_EXPORT_TILES) { skipped++; continue }
+                val b = McaTiles.get(this@ChunkMapActivity, r) ?: continue
                 tiles.add(r to b)
             }
             val path = if (tiles.size == 1) {
@@ -1398,7 +1390,12 @@ class ChunkMapActivity : AppCompatActivity() {
                 prog.dismiss()
                 MaterialAlertDialogBuilder(this)
                     .setTitle(if (path != null) "已导出" else "导出失败")
-                    .setMessage(path ?: "写文件时出错了，看看存储空间是不是满了。")
+                    .setMessage(
+                        if (path == null) "写文件时出错了，看看存储空间是不是满了。"
+                        else if (skipped > 0)
+                            "$path\n\n有 $skipped 个区域没进来（一次最多 $MAX_EXPORT_TILES 个），请分批导出。"
+                        else path
+                    )
                     .setPositiveButton("知道了", null)
                     .show().also { liveDialogs.add(it) }
             }
