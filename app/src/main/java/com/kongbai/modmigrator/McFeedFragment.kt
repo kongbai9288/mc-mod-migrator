@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -129,7 +130,7 @@ private fun FeedScreen(
                     McFilledButton("打开 ${z.site}") { WebActivity.open(ctx, z.url, z.label) }
                 }
             } else {
-                items(list, key = { it.url.ifBlank { it.title } }) { e ->
+                itemsIndexed(list, key = { i, _ -> i }) { _, e ->
                     McModCard(
                         iconUrl = "",
                         title = e.title,
