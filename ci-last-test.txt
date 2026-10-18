@@ -1,5 +1,5 @@
 # 真实存档验证（ai.zip / 26.2 世界）
-run: 39086257069
+run: 39089932347
 
 ## 测试类清单
 app/build/test-results/testDebugUnitTest/TEST-com.kongbai.modmigrator.LauncherDirsTest.xml
@@ -75,5 +75,5 @@ Execution failed for task ':app:testDebugUnitTest'.
 * Try:
 > Run with --scan to get full insights.
 
-BUILD FAILED in 27s
+BUILD FAILED in 26s
 23 actionable tasks: 7 executed, 16 up-to-date
