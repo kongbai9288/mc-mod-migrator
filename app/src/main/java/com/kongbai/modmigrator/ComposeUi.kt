@@ -60,6 +60,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.ui.text.input.ImeAction
 
 /**
@@ -554,7 +555,7 @@ fun McMultiPick(
         title = { Text(title) },
         text = {
             LazyColumn {
-                items(items.size) { i ->
+                itemsIndexed(items, key = { _, s -> s }) { i, s ->
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -563,7 +564,7 @@ fun McMultiPick(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(checked = checked[i], onCheckedChange = { onToggle(i, it) })
-                        Text(items[i], Modifier.padding(start = 4.dp), fontSize = 14.sp)
+                        Text(s, Modifier.padding(start = 4.dp), fontSize = 14.sp)
                     }
                 }
             }
