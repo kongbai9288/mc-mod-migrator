@@ -245,7 +245,13 @@ fun McPickOne(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            Column {
+            //
+            // ⚠️ 这里原来是没有 verticalScroll 的 Column：选项一多（工具箱里
+            // 「打开哪个文件（共 40 个）」就是 40 项）整个列表撑出屏幕，
+            // 下面的选项既看不见也滚不到 —— 反馈里的「下拉菜单拉不下去」。
+            // 选项数量不固定，加滚动是最低要求。
+            //
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 options.forEachIndexed { i, o ->
                     Row(
                         Modifier
