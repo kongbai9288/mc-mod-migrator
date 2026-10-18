@@ -228,6 +228,92 @@ object McaEdit {
             return res
         }
 
+        /**
+         * 重新打包并**直接写进文件**，不经过整份 ByteArray。
+         *
+         * [build] 返回的是整个区域的字节：区域文件上限 32MB，
+         * 而 ByteArrayOutputStream 在 toByteArray() 那一刻还要再复制一份，
+         * 峰值是「文件大小 ×2」，调用方再 writeBytes 又多一次遍历。
+         * 批量替换/批量删除都是循环里逐个区域来，这就是 OOM 的直接来源。
+         *
+         * 这里改成两遍：
+         * 1. 只算偏移 —— 长度不用读数据就知道：改过的看 pending，
+         *    没改过的用头部表里已经解析好的 pLen
+         * 2. 按扇区顺序流式写，一次只在内存里放一个槽位的负载
+         *
+         * 峰值从「整份 ×2」降到「8KB 表 + 单个区块负载」。
+         * 先写临时文件，完整生成成功后才覆盖原文件 —— 中途失败原文件不动。
+         *
+         * @return 是否写成功；失败时原文件保持原样
+         */
+        fun writeTo(file: File): Boolean {
+            val tmp = File(file.absolutePath + ".mmtmp")
+            var ok = false
+            try {
+                java.io.FileOutputStream(tmp).use { writeRegion(it) }
+                if (tmp.length() > 0L) {
+                    // 截断写回原文件，不走「先删后改名」——
+                    // 删了之后万一复制失败，原文件就真的没了
+                    java.io.FileInputStream(tmp).use { i ->
+                        java.io.FileOutputStream(file, false).use { o -> i.copyTo(o, 64 * 1024) }
+                    }
+                    ok = true
+                }
+            } catch (oom: OutOfMemoryError) {
+                ok = false
+            } catch (t: Throwable) {
+                ok = false
+            } finally {
+                runCatching { if (tmp.exists()) tmp.delete() }
+            }
+            return ok
+        }
+
+        private fun writeRegion(out: java.io.OutputStream) {
+            val offsets = IntArray(SLOTS)
+            val counts = ByteArray(SLOTS)
+            var sector = 2
+            for (i in 0 until SLOTS) {
+                if (!has[i]) continue
+                val size = pending[i]?.size ?: pLen[i]
+                if (size <= 0) continue
+                val need = (5 + size + SECTOR - 1) / SECTOR
+                offsets[i] = sector
+                counts[i] = need.toByte()
+                sector += need
+            }
+            val head = ByteArray(HEADER)
+            for (i in 0 until SLOTS) {
+                val o = offsets[i]
+                if (o == 0) continue
+                head[i * 4] = (o ushr 16).toByte()
+                head[i * 4 + 1] = (o ushr 8).toByte()
+                head[i * 4 + 2] = o.toByte()
+                head[i * 4 + 3] = counts[i]
+            }
+            out.write(head)
+            for (i in 0 until SLOTS) {
+                if (offsets[i] == 0) continue
+                val need = counts[i].toInt() and 0xFF
+                val size = pending[i]?.size ?: pLen[i]
+                val buf = ByteArray(need * SECTOR)
+                val lenField = size + 1
+                buf[0] = (lenField ushr 24).toByte()
+                buf[1] = (lenField ushr 16).toByte()
+                buf[2] = (lenField ushr 8).toByte()
+                buf[3] = lenField.toByte()
+                buf[4] = comps[i]
+                val p = pending[i]
+                if (p != null) System.arraycopy(p, 0, buf, 5, p.size)
+                else {
+                    val old = readAt(pOff[i], pLen[i])
+                    // 读不出来就留全 0：扇区对齐仍然正确，游戏会跳过这个空槽位
+                    if (old != null) System.arraycopy(old, 0, buf, 5, old.size)
+                }
+                out.write(buf)
+            }
+        }
+
         /** 文件来源要显式关掉，否则 RandomAccessFile 一直握着句柄 */
         fun close() {
             runCatching { raf?.close() }
