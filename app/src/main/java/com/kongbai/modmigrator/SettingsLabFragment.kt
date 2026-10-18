@@ -260,7 +260,15 @@ private fun LabScreen(ctx: android.content.Context) {
         }
         McPickRow("查看崩溃日志", "") {
             withCrashLog { log ->
-                dlg = Dlg("崩溃日志（${log.length} 字符）", log.takeLast(3000))
+                //
+                // ⚠️ 这里原来是 takeLast(3000)：日志是「最新在前、旧的在后」，
+                // 取末尾拿到的其实是最旧那次崩溃；而且从中间一刀切开，
+                // 崩块开头那几行（设备/型号/系统版本）正好被切掉 ——
+                // 反馈里说的「崩溃日志看不到型号」就是它。
+                // 改取开头，看到的是最新一次崩溃的完整头部。
+                // 超长部分仍走下面的「分享 / 保存」拿全文。
+                //
+                dlg = Dlg("崩溃日志（最新，共 ${log.length} 字符）", log.take(3000))
             }
         }
         McPickRow("分享崩溃日志", "走系统分享") {
