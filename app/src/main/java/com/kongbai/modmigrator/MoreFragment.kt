@@ -70,11 +70,23 @@ class MoreFragment : Fragment() {
     }
 
     private fun openPage(p: NavConfig.Item) {
+        //
+        // ⚠️ 之前这里固定 replace(R.id.fragment_container)：
+        //   - 在主界面里，replace 会把底下的一级 tab 一起 remove，
+        //     返回后全部重建，迁移页填的东西、扫出来的结果全丢；
+        //   - 在设置容器（SettingsHostActivity）里打开「更多」时，
+        //     那个容器 id 是 R.id.container，这里要找的 id 根本不存在，
+        //     replace 直接抛异常、被 catch 吞掉 —— 表现就是点了没反应。
+        //
+        // 现在按所在的容器分派：各自用自己那套打开方式。
+        //
+        (activity as? MainActivity)?.let { it.openPage(p.key); return }
+        (activity as? SettingsHostActivity)?.let { it.show(p.key, true); return }
         try {
             parentFragmentManager.beginTransaction()
-                .replace(R.id.fragment_container, p.make())
-                .addToBackStack(null)
-                .commit()
+                .add(R.id.fragment_container, p.make(), "page:" + p.key)
+                .addToBackStack("page:" + p.key)
+                .commitAllowingStateLoss()
         } catch (t: Throwable) { Err.ignore(t, ".commit()") }
     }
 
@@ -83,12 +95,14 @@ class MoreFragment : Fragment() {
         val ctx = context ?: return false
         val ok = NavConfig.moveToBottom(ctx, key)
         Tips.short(ctx, if (ok) "已移到底部导航栏" else "底部最多 4 个，先移一个出来")
-        if (ok) {
-            (activity as? MainActivity)?.rebuildNav()
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.fragment_container, MoreFragment())
-                .commit()
-        }
+        //
+        // 移走之后列表由 Composable 里的 gen++ 自己重算，不需要重建整个页面。
+        // 之前这里 replace 出一个新的 MoreFragment：
+        //   - 在主界面会把所有一级 tab 一起 remove 掉，回来全要重建；
+        //   - 在设置容器里 R.id.fragment_container 不存在，replace 直接抛异常，
+        //     而这个分支外面没有 try —— 长按一次就崩。
+        //
+        if (ok) (activity as? MainActivity)?.rebuildNav()
         return ok
     }
 }
