@@ -146,98 +146,100 @@ private fun ModManagerScreen(ctx: android.content.Context, register: (() -> Unit
     }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        McNote("当前目录：${WorkDir.describe(ctx)}")
-        McSearchField(query, { query = it }, "搜模组文件名")
+        McScope {
+            McNote("当前目录：${WorkDir.describe(ctx)}")
+            McSearchField(query, { query = it }, "搜模组文件名")
 
-        if (loading) {
-            Text(stateText, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
-            repeat(3) { McSkeleton(3) }
-            return@Column
-        }
-        if (files.isEmpty()) {
-            McEmpty(
-                "没有找到模组",
-                "到「设置 → 存储」授权你的 mods 目录，或先把模组下载进来。"
+            if (loading) {
+                Text(stateText, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
+                repeat(3) { McSkeleton(3) }
+                return@McScope
+            }
+            if (files.isEmpty()) {
+                McEmpty(
+                    "没有找到模组",
+                    "到「设置 → 存储」授权你的 mods 目录，或先把模组下载进来。"
+                )
+                return@McScope
+            }
+
+            Text(
+                buildString {
+                    append(stateText)
+                    if (picked.isNotEmpty()) append(" · 已选 ${picked.size} 个")
+                },
+                fontSize = 12.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
             )
-            return@Column
-        }
 
-        Text(
-            buildString {
-                append(stateText)
-                if (picked.isNotEmpty()) append(" · 已选 ${picked.size} 个")
-            },
-            fontSize = 12.sp,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        // 批量操作栏：装几十个模组时一个个点非常折磨
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(
-                checked = picked.isNotEmpty() && picked.size == files.size,
-                onCheckedChange = { on ->
-                    picked = if (on) files.map { it.name ?: "" }.toSet() else emptySet()
-                }
-            )
-            Text("全选", fontSize = 13.sp)
-        }
-        Row(Modifier.fillMaxWidth()) {
-            McBatchBtn("删除", picked.isNotEmpty()) {
-                val list = pickedFiles()
-                if (list.isEmpty()) return@McBatchBtn
-                val dlg = ProgressDialog.show(ctx, "删除 ${list.size} 个模组")
-                Bg.io.execute {
-                    val res = BatchModOps.delete(ctx, list) { i, n, _ ->
-                        Bg.ui.post { dlg.update(i.toLong(), n.toLong()) }
+            // 批量操作栏：装几十个模组时一个个点非常折磨
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(
+                    checked = picked.isNotEmpty() && picked.size == files.size,
+                    onCheckedChange = { on ->
+                        picked = if (on) files.map { it.name ?: "" }.toSet() else emptySet()
                     }
-                    Bg.ui.post {
-                        dlg.dismiss()
-                        afterBatch(BatchModOps.summary(res, "删除"))
+                )
+                Text("全选", fontSize = 13.sp)
+            }
+            Row(Modifier.fillMaxWidth()) {
+                McBatchBtn("删除", picked.isNotEmpty()) {
+                    val list = pickedFiles()
+                    if (list.isEmpty()) return@McBatchBtn
+                    val dlg = ProgressDialog.show(ctx, "删除 ${list.size} 个模组")
+                    Bg.io.execute {
+                        val res = BatchModOps.delete(ctx, list) { i, n, _ ->
+                            Bg.ui.post { dlg.update(i.toLong(), n.toLong()) }
+                        }
+                        Bg.ui.post {
+                            dlg.dismiss()
+                            afterBatch(BatchModOps.summary(res, "删除"))
+                        }
                     }
                 }
-            }
-            McBatchBtn("禁用", picked.isNotEmpty()) {
-                Bg.io.execute {
-                    val res = BatchModOps.toggle(pickedFiles(), true)
-                    Bg.ui.post { afterBatch(BatchModOps.summary(res, "禁用")) }
-                }
-            }
-            McBatchBtn("启用", picked.isNotEmpty()) {
-                Bg.io.execute {
-                    val res = BatchModOps.toggle(pickedFiles(), false)
-                    Bg.ui.post { afterBatch(BatchModOps.summary(res, "启用")) }
-                }
-            }
-            McBatchBtn("升级", picked.isNotEmpty()) {
-                val list = pickedFiles()
-                if (list.isEmpty()) return@McBatchBtn
-                val mc = Prefs.get(ctx).getString(K.MC_VERSION, "") ?: ""
-                val loader = Prefs.get(ctx).getString(K.LOADER, "") ?: "auto"
-                if (mc.isBlank()) {
-                    Tips.short(ctx, "先在设置里填目标 MC 版本")
-                    return@McBatchBtn
-                }
-                doBatchUpgrade(ctx, mc, loader, list) { afterBatch(it) }
-            }
-        }
-
-        if (shown.isEmpty()) {
-            McEmpty("没有匹配的模组", "换个名字再试试")
-            return@Column
-        }
-
-        LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)) {
-            items(shown, key = { it.uri.toString() }) { f ->
-                McCheckRow(
-                    checked = picked.contains(f.name ?: ""),
-                    onChecked = { on ->
-                        val n = f.name ?: ""
-                        picked = if (on) picked + n else picked - n
+                McBatchBtn("禁用", picked.isNotEmpty()) {
+                    Bg.io.execute {
+                        val res = BatchModOps.toggle(pickedFiles(), true)
+                        Bg.ui.post { afterBatch(BatchModOps.summary(res, "禁用")) }
                     }
-                ) {
-                    ModCard(ctx, f) {
-                        if (ModToggle.isDisabled(f)) toggleOne(ctx, f, false) { load() }
-                        else detail = f
+                }
+                McBatchBtn("启用", picked.isNotEmpty()) {
+                    Bg.io.execute {
+                        val res = BatchModOps.toggle(pickedFiles(), false)
+                        Bg.ui.post { afterBatch(BatchModOps.summary(res, "启用")) }
+                    }
+                }
+                McBatchBtn("升级", picked.isNotEmpty()) {
+                    val list = pickedFiles()
+                    if (list.isEmpty()) return@McBatchBtn
+                    val mc = Prefs.get(ctx).getString(K.MC_VERSION, "") ?: ""
+                    val loader = Prefs.get(ctx).getString(K.LOADER, "") ?: "auto"
+                    if (mc.isBlank()) {
+                        Tips.short(ctx, "先在设置里填目标 MC 版本")
+                        return@McBatchBtn
+                    }
+                    doBatchUpgrade(ctx, mc, loader, list) { afterBatch(it) }
+                }
+            }
+
+            if (shown.isEmpty()) {
+                McEmpty("没有匹配的模组", "换个名字再试试")
+                return@McScope
+            }
+
+            LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)) {
+                items(shown, key = { it.uri.toString() }) { f ->
+                    McCheckRow(
+                        checked = picked.contains(f.name ?: ""),
+                        onChecked = { on ->
+                            val n = f.name ?: ""
+                            picked = if (on) picked + n else picked - n
+                        }
+                    ) {
+                        ModCard(ctx, f) {
+                            if (ModToggle.isDisabled(f)) toggleOne(ctx, f, false) { load() }
+                            else detail = f
+                        }
                     }
                 }
             }
