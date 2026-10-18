@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -213,7 +214,7 @@ private fun ModpackScreen(
         if (busy) item { McSkeleton(2) }
         if (results.isNotEmpty()) {
             item { McSectionTitle("检查结果") }
-            items(results, key = { it.file }) { r ->
+            itemsIndexed(results, key = { i, _ -> i }) { _, r ->
                 UpdateRowCard(r) { downloadOne(ctx, r, ::toast) { doneText = it } }
             }
         }
