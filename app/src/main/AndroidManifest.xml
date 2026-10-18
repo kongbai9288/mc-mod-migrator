@@ -8,7 +8,21 @@
          startActivity(ACTION_VIEW) 会被系统直接拒绝（静默失败或抛
          SecurityException）—— 这正是"点去更新没反应/崩一下"的根因。 -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
+    <!-- 「使用情况访问」：用来判断游戏是不是还在跑（MigGuard 的第二条依据）。
+         这是个签名级权限，光在代码里调 UsageStatsManager 没用 ——
+         不在清单里声明，本应用根本不会出现在系统的「使用情况访问」列表里，
+         用户想给也给不了，而代码只会一直返回"未授权"。
+         注意它只能由用户在系统设置里手动开，运行时不会弹框。 -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+    <!-- 别删这个权限：LauncherAccess.unknownCandidates() 要枚举全部已装包，
+         才能把"清单里没有的启动器"列进引导页的下拉框。删了它，
+         Android 11+ 上 getInstalledPackages 只会返回 queries 里那几个
+         （而那几个本来就是已知的），未知启动器检测会静默失效。
+         真要上架 Play 需要 justification 时，正确做法是砍掉那个自动检测，
+         而不是只删权限。 -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -31,7 +45,17 @@
         <package android:name="com.movtery.zalithlauncher.v2" />
         <package android:name="net.kdt.pojavlaunch.debug" />
         <package android:name="com.tungsten.fcl" />
+        <package android:name="com.tungsten.fcl.debug" />
+        <package android:name="com.tungsten.fcl.modpack" />
+        <package android:name="com.tungsten.fcl.server" />
+        <package android:name="com.foldcraft.launcher" />
         <package android:name="com.tungsten.hmclpe" />
+        <package android:name="com.mio.launcher" />
+        <package android:name="com.tungsten.mio" />
+        <package android:name="com.mojolauncher.android" />
+        <package android:name="com.movtery.zalithlauncher.debug" />
+        <package android:name="org.angelauramc.amethyst" />
+        <package android:name="org.angelauramc.amethyst.debug" />
         <package android:name="com.aof.mcinabox" />
         <package android:name="com.mojang.minecraftpe" />
     </queries>
