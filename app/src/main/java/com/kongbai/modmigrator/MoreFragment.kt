@@ -120,6 +120,17 @@ private fun MoreScreen(
     LazyColumn(Modifier.fillMaxSize().padding(14.dp)) {
         item { McNote(stringResource(R.string.more_hint)) }
 
+        //
+        // ⚠️ 这里原来写的是「if 空 -> item 空状态 -> return@LazyColumn」。
+        // LazyColumn 是 **inline** Composable，在它的 lambda 里用具名 return
+        // 提前退出，Compose 编译器会生成两个 end 调用、start/end 不配对
+        // （Google issue #2230），组合阶段直接抛
+        //   java.lang.ArrayIndexOutOfBoundsException: length=0; index=-5
+        //     at androidx.compose.runtime.SlotTableKt.key
+        // 表现就是「更多」页一进来就崩、返回栈回来再崩一次、然后白屏。
+        //
+        // 改成 if/else，不用具名 return 也能达到同样的效果。
+        //
         if (pages.isEmpty()) {
             item {
                 Box(Modifier.fillMaxWidth().padding(top = 32.dp), Alignment.Center) {
@@ -129,33 +140,32 @@ private fun MoreScreen(
                     }
                 }
             }
-            return@LazyColumn
-        }
-
-        for (g in GROUPS) {
-            val list = pages.filter { groupOf(it.key) == g }
-            if (list.isEmpty()) continue
-            item { McSectionTitle(g) }
-            item {
-                TileGrid(
-                    list,
-                    onOpen = onOpen,
-                    onLong = { p -> if (onMove(p.key)) gen++ }
-                )
+        } else {
+            for (g in GROUPS) {
+                val list = pages.filter { groupOf(it.key) == g }
+                if (list.isEmpty()) continue
+                item { McSectionTitle(g) }
+                item {
+                    TileGrid(
+                        list,
+                        onOpen = onOpen,
+                        onLong = { p -> if (onMove(p.key)) gen++ }
+                    )
+                }
             }
-        }
 
-        // 兜底：分组覆盖了全部已知 key，但万一以后加了新项忘了归类，
-        // 不能让它凭空消失 —— 归到「其他」里照常显示。
-        val others = pages.filter { p -> GROUPS.none { it == groupOf(p.key) } }
-        if (others.isNotEmpty()) {
-            item { McSectionTitle("其他") }
-            item {
-                TileGrid(
-                    others,
-                    onOpen = onOpen,
-                    onLong = { p -> if (onMove(p.key)) gen++ }
-                )
+            // 兜底：分组覆盖了全部已知 key，但万一以后加了新项忘了归类，
+            // 不能让它凭空消失 —— 归到「其他」里照常显示。
+            val others = pages.filter { p -> GROUPS.none { it == groupOf(p.key) } }
+            if (others.isNotEmpty()) {
+                item { McSectionTitle("其他") }
+                item {
+                    TileGrid(
+                        others,
+                        onOpen = onOpen,
+                        onLong = { p -> if (onMove(p.key)) gen++ }
+                    )
+                }
             }
         }
     }
