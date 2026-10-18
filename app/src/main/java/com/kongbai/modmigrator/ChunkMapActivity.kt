@@ -1304,12 +1304,11 @@ class ChunkMapActivity : AppCompatActivity() {
                             val slots = dst.present().toIntArray()
                             val k = McaOps.replaceSlots(dst, src, slots)
                             if (k == 0) continue
-                            val out = dst.build()
-                            // 先备份，再写；写失败要如实说，不能假报成功
+                            // 先备份，再写；写失败要如实说，不能假报成功。
+                            // 直接流式写进文件：不再 build() 出整份 ByteArray
+                            // （区域文件上限 32MB，ByteArrayOutputStream 收尾时还要再复制一份）
                             runCatching { ref.file.copyTo(File(ref.file.parentFile, ref.file.name + ".bak"), true) }
-                            val ok = File(ref.file.parentFile, ref.file.name).let {
-                                runCatching { it.writeBytes(out) }.isSuccess
-                            }
+                            val ok = dst.writeTo(ref.file)
                             if (ok) {
                                 done++; n += k
                                 McaTiles.invalidate(this, ref)
@@ -1622,12 +1621,24 @@ class ChunkMapActivity : AppCompatActivity() {
                     val bak = File("${f.absolutePath}.bak")
                     if (!bak.exists()) runCatching { f.copyTo(bak) }
                     val reg = McaEdit.Region(f)
-                    if (slots.isEmpty()) {
-                        for (s in reg.present()) if (reg.remove(s)) removed++
-                    } else {
-                        for (s in slots) if (reg.remove(s)) removed++
+                    val wrote = try {
+                        if (slots.isEmpty()) {
+                            for (s in reg.present()) if (reg.remove(s)) removed++
+                        } else {
+                            for (s in slots) if (reg.remove(s)) removed++
+                        }
+                        reg.writeTo(f)
+                    } finally {
+                        // 不关的话每个区域都留着一个 RandomAccessFile 句柄
+                        reg.close()
                     }
-                    f.writeBytes(reg.build())
+                    if (!wrote) {
+                        failed++
+                        runOnUiThread {
+                            tv?.text = "${done + failed} / ${targets.size}"
+                        }
+                        continue
+                    }
                     // SAF 来的：改的是本地副本（镜像或单文件缓存），
                     // 必须写回原处，否则一切白做
                     val back = McaWorld.Mirror.of(f) ?: srcUri
@@ -1715,20 +1726,28 @@ class ChunkMapActivity : AppCompatActivity() {
                 val ref = byRef[rk] ?: continue
                 try {
                     val src = McaEdit.Region(ref.file)
-                    val want = if (slots.isEmpty()) src.present().toList() else slots.toList()
-                    // 空头（8192 字节全 0）就是一个"没有任何区块"的区域
-                    val out = McaEdit.Region(ByteArray(8192))
-                    var put = 0
-                    for (s in want) {
-                        val tag = src.chunk(s) ?: continue
-                        out.put(s, tag)
-                        put++
+                    try {
+                        val want = if (slots.isEmpty()) src.present().toList() else slots.toList()
+                        // 空头（8192 字节全 0）就是一个"没有任何区块"的区域
+                        val out = McaEdit.Region(ByteArray(8192))
+                        try {
+                            var put = 0
+                            for (s in want) {
+                                val tag = src.chunk(s) ?: continue
+                                out.put(s, tag)
+                                put++
+                            }
+                            if (put == 0) { done++; continue }
+                            val f = File(outDir, "${ref.name}")
+                            if (!out.writeTo(f)) { failed++; continue }
+                            made.add(f)
+                            done++
+                        } finally {
+                            out.close()
+                        }
+                    } finally {
+                        src.close()
                     }
-                    if (put == 0) { done++; continue }
-                    val f = File(outDir, "${ref.name}")
-                    f.writeBytes(out.build())
-                    made.add(f)
-                    done++
                 } catch (t: Throwable) {
                     Err.fail(t, "导出区块")
                     failed++
