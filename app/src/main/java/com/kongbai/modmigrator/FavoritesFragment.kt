@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -74,7 +75,7 @@ private fun FavoritesScreen(ctx: android.content.Context, register: (() -> Unit)
         } else {
             Text("共 ${list.size} 个", Modifier.padding(bottom = 8.dp), fontSize = 12.sp)
             LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
-                items(list, key = { it.id + it.source }) { m ->
+                itemsIndexed(list, key = { i, _ -> i }) { _, m ->
                     McModCard(
                         iconUrl = m.iconUrl,
                         title = m.name,
