@@ -591,3 +591,23 @@ fun McMultiPick(
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
     )
 }
+
+/**
+ * 非 inline 的 Composable 作用域。
+ *
+ * ⚠️ 真实崩溃（Android 12 / Compose 1.6.x，华为 FIN-AL60 复现）：
+ * Column / Row / Box 都是 **inline** 的 Composable。在它们的 lambda 里
+ * 用 return@Column 做提前返回（空状态就不画下面的内容），Compose 编译器
+ * 会生成两个 end 调用，start/end 不配对 —— 对应 Google issue #2230。
+ * 结果就是组合阶段直接
+ *   java.lang.ArrayIndexOutOfBoundsException: length=0; index=-5
+ *     at androidx.compose.runtime.SlotTableKt.key
+ *   界面白屏，返回栈里每层回来都要崩一次。
+ *
+ * 包一层**非 inline** 的作用域之后，return@McScope 走的是普通函数返回，
+ * 编译器不会往内联点塞多余的 end，slot table 就不会错乱。
+ */
+@Composable
+fun McScope(content: @Composable () -> Unit) {
+    content()
+}
