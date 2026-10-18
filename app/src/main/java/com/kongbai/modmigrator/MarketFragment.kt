@@ -819,7 +819,7 @@ private fun MarketCard(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(RoundedCornerShape(4.dp))
+                    .clip(RoundedCornerShape(0.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             )
             Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
