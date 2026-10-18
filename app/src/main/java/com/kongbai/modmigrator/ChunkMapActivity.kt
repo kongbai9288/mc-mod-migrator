@@ -56,6 +56,17 @@ class ChunkMapActivity : AppCompatActivity() {
         private const val EXTRA_FILE = "mca_file"
         private const val EXTRA_URI = "mca_uri"
 
+        /**
+         * 一次导出最多能同时挂在堆上的瓦片数。
+         *
+         * ⚠️ 每张瓦片是 512×512 的 ARGB_8888，单张就是 1MB。
+         * 不设上限的话，用户全选 100 个区域就是 100MB 位图同时在堆上，
+         * 而 exportPng() 里的等比缩小发生在**拼图阶段**——
+         * 还没走到那一步，光把瓦片读出来就已经 OOM 了。
+         * 64 张 ≈ 64MB，配合 largeHeap 留有余量。
+         */
+        private const val MAX_EXPORT_TILES = 64
+
         /** 从世界进入：给世界目录，维度可选（不传就让用户挑） */
         fun open(ctx: Context, worldDir: File, dimKey: String? = null) {
             ctx.startActivity(
@@ -187,26 +198,8 @@ class ChunkMapActivity : AppCompatActivity() {
      * 现在：alive 标记 + 提交前自愈（已关闭就重建），并且所有回调先过 alive。
      */
     private var pool = Executors.newFixedThreadPool(RENDER_THREADS)
-    /**
-     * 本页所有弹窗。Activity 销毁时必须逐个 dismiss，否则窗口会拽住整页不放。
-     *
-     * ⚠️ 之前只在 show() 之后 add，从来不 remove —— 关掉的弹窗一直留在表里。
-     * 这一页是区块地图，本身常驻几百 MB 的瓦片位图，堆本来就紧；
-     * 用户在这里来回操作十几分钟就能攒下上百个 Dialog 实例，
-     * 每一个都连带自己的 Window、DecorView 和整个 View 树（含 Bitmap 背景），
-     * 而且全都被这个 Activity 拽着。表现是"用久了越来越卡，然后闪退"。
-     *
-     * 现在由 [tracked] 统一登记，弹窗 dismiss 时自动出表。
-     */
+    /** 本页所有弹窗。Activity 销毁时必须逐个 dismiss，否则窗口会拽住整页不放。 */
     private val liveDialogs = java.util.Collections.synchronizedList(mutableListOf<android.app.Dialog>())
-
-    /** 登记一个弹窗，并在它关闭时自动出表。替换原来散落各处的 `.also { add(it) }` */
-    private fun <T : android.app.Dialog> T.tracked(): T {
-        liveDialogs.add(this)
-        // 本页没有别处设过 OnDismissListener，直接设不会覆盖谁
-        setOnDismissListener { liveDialogs.remove(this) }
-        return this
-    }
     @Volatile private var alive = true
 
     private fun submitPool(task: Runnable) {
@@ -480,7 +473,7 @@ class ChunkMapActivity : AppCompatActivity() {
         MaterialAlertDialogBuilder(this)
             .setTitle("切换维度")
             .setItems(names) { _, i -> useDim(dims[i]) }
-            .show().tracked()
+            .show().also { liveDialogs.add(it) }
     }
 
     private fun toggleMode() {
@@ -779,7 +772,7 @@ class ChunkMapActivity : AppCompatActivity() {
             .setTitle("按条件选中（当前视野）")
             .setItems(items) { _, i -> runFilter(i) }
             .setNegativeButton("取消", null)
-            .show().tracked()
+            .show().also { liveDialogs.add(it) }
     }
 
     private fun runFilter(which: Int) {
@@ -800,7 +793,7 @@ class ChunkMapActivity : AppCompatActivity() {
             .setTitle("正在筛选…")
             .setMessage("0 / ${targets.size}")
             .setCancelable(false)
-            .show().tracked()
+            .show().also { liveDialogs.add(it) }
         val tv = prog.findViewById<TextView>(android.R.id.message)
 
         submitPool {
@@ -892,7 +885,7 @@ class ChunkMapActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("取消", null)
-            .show().tracked()
+            .show().also { liveDialogs.add(it) }
     }
 
     /** 自定义档位。只有这里才需要填数字，并且写清楚填的是什么 */
@@ -930,7 +923,7 @@ class ChunkMapActivity : AppCompatActivity() {
                 }
                 applyYRange(a, b)
             }
-            .show().tracked()
+            .show().also { liveDialogs.add(it) }
     }
 
     private fun applyYRange(lo: Int?, hi: Int?) {
@@ -1108,7 +1101,7 @@ class ChunkMapActivity : AppCompatActivity() {
             b.setPositiveButton("清空缓存") { _, _ -> clearTileCache() }
                 .setNegativeButton("关闭", null)
         }
-        b.show().tracked()
+        b.show().also { liveDialogs.add(it) }
     }
 
     private fun clearTileCache() {
@@ -1176,7 +1169,7 @@ class ChunkMapActivity : AppCompatActivity() {
                                 "缓存目录已经不会再往相册写了，这批是旧版留下的。"
                         )
                         .setPositiveButton("知道了", null)
-                        .show().tracked()
+                        .show().also { liveDialogs.add(it) }
                 }
             }
         }
@@ -1198,7 +1191,7 @@ class ChunkMapActivity : AppCompatActivity() {
             setMessage("扫描 ${refs.size} 个区域文件…")
             setCancelable(false)
             show()
-        }.tracked()
+        }.also { liveDialogs.add(it) }
         submitPool {
             val hits = ArrayList<McaStructures.Hit>()
             for (r in refs) {
@@ -1223,7 +1216,7 @@ class ChunkMapActivity : AppCompatActivity() {
                                 "更早的只能按方块特征推断，认不出的会漏。"
                         )
                         .setPositiveButton("知道了", null)
-                        .show().tracked()
+                        .show().also { liveDialogs.add(it) }
                     return@runOnUiThread
                 }
                 val names = grouped.map { (id, list) ->
@@ -1247,10 +1240,10 @@ class ChunkMapActivity : AppCompatActivity() {
                                 toast("已跳转并选中")
                             }
                             .setNegativeButton("取消", null)
-                            .show().tracked()
+                            .show().also { liveDialogs.add(it) }
                     }
                     .setNegativeButton("取消", null)
-                    .show().tracked()
+                    .show().also { liveDialogs.add(it) }
             }
         }
     }
@@ -1269,7 +1262,7 @@ class ChunkMapActivity : AppCompatActivity() {
                 .setTitle("先选区域")
                 .setMessage("替换是按区域文件整块覆盖，先在地图上选中要替换的区域。")
                 .setPositiveButton("知道了", null)
-                .show().tracked()
+                .show().also { liveDialogs.add(it) }
             return
         }
         MaterialAlertDialogBuilder(this)
@@ -1284,7 +1277,7 @@ class ChunkMapActivity : AppCompatActivity() {
                 runCatching { pickSrc.launch(arrayOf("*/*")) }
                     .onFailure { toast("打不开文件选择器") }
             }
-            .show().tracked()
+            .show().also { liveDialogs.add(it) }
     }
 
     private fun runReplace(srcUri: Uri) {
@@ -1293,22 +1286,24 @@ class ChunkMapActivity : AppCompatActivity() {
         if (targets.isEmpty()) return toast("选中的区域不在这个维度里")
         val prog = android.app.ProgressDialog(this).apply {
             setMessage("替换中…"); setCancelable(false); show()
-        }.tracked()
+        }.also { liveDialogs.add(it) }
         submitPool {
-            val srcBytes = try {
-                contentResolver.openInputStream(srcUri)?.use { readCappedBytes(it, REGION_MAX) }
-            } catch (t: Throwable) {
-                Err.ignore(t, "读源文件失败"); null
-            }
-            if (srcBytes == null) {
-                runOnUiThread {
-                    prog.dismiss()
-                    toast("源 .mca 太大或读不出来（上限 ${REGION_MAX / 1024 / 1024}MB）")
-                }
-                return@submitPool
-            }
+            // ⚠️ 之前是 openInputStream().readBytes()，把整个 .mca 读进堆。
+            // 区域文件上限 32MB（压缩后一般几 MB，极端可到几十 MB），
+            // 整份进内存再解析，堆小的设备直接 OOM —— 而且这里还只是"源"，
+            // 下面循环里每个目标区域还要各读一份。
+            // Region(File) 走 RandomAccessFile 按需读、不整份入堆，
+            // 所以先落到 cacheDir 的临时文件再用它打开，用完删掉。
+            val tmp = File(cacheDir, "mca_replace_src.mca")
             val src = try {
-                McaEdit.Region(srcBytes)
+                contentResolver.openInputStream(srcUri)?.use { input ->
+                    tmp.outputStream().use { input.copyTo(it) }
+                } ?: throw java.io.IOException("打不开源文件")
+                McaEdit.Region(tmp)
+            } catch (oom: OutOfMemoryError) {
+                Err.ignore(oom, "源 .mca 太大，内存不够")
+                runOnUiThread { prog.dismiss(); toast("源 .mca 太大，读不进来") }
+                return@submitPool
             } catch (t: Throwable) {
                 Err.ignore(t, "源 .mca 解析失败")
                 runOnUiThread { prog.dismiss(); toast("源 .mca 不是有效的区域文件") }
@@ -1316,28 +1311,31 @@ class ChunkMapActivity : AppCompatActivity() {
             }
             var done = 0
             var n = 0
-            for (ref in targets) {
-                try {
-                    val dst = McaEdit.Region(ref.file)
-                    val slots = dst.present().toIntArray()
-                    val k = McaOps.replaceSlots(dst, src, slots)
-                    if (k == 0) continue
-                    val out = dst.build()
-                    // 先备份，再写；写失败要如实说，不能假报成功
-                    runCatching { ref.file.copyTo(File(ref.file.parentFile, ref.file.name + ".bak"), true) }
-                    val ok = File(ref.file.parentFile, ref.file.name).let {
-                        runCatching { it.writeBytes(out) }.isSuccess
+            runCatching {
+                for (ref in targets) {
+                    try {
+                        val dst = McaEdit.Region(ref.file)
+                        val slots = dst.present().toIntArray()
+                        val k = McaOps.replaceSlots(dst, src, slots)
+                        if (k == 0) continue
+                        val out = dst.build()
+                        // 先备份，再写；写失败要如实说，不能假报成功
+                        runCatching { ref.file.copyTo(File(ref.file.parentFile, ref.file.name + ".bak"), true) }
+                        val ok = File(ref.file.parentFile, ref.file.name).let {
+                            runCatching { it.writeBytes(out) }.isSuccess
+                        }
+                        if (ok) {
+                            done++; n += k
+                            McaTiles.invalidate(this, ref)
+                            val u = McaWorld.Mirror.of(ref.file)
+                            if (u != null) writeBack(ref.file, u)
+                        }
+                    } catch (t: Throwable) {
+                        Err.ignore(t, "替换区域失败")
                     }
-                    if (ok) {
-                        done++; n += k
-                        McaTiles.invalidate(this, ref)
-                        val u = McaWorld.Mirror.of(ref.file)
-                        if (u != null) writeBack(ref.file, u)
-                    }
-                } catch (t: Throwable) {
-                    Err.ignore(t, "替换区域失败")
                 }
             }
+            runCatching { tmp.delete() }
             runOnUiThread {
                 prog.dismiss()
                 MaterialAlertDialogBuilder(this)
@@ -1347,7 +1345,7 @@ class ChunkMapActivity : AppCompatActivity() {
                         else "一个都没覆盖成 —— 可能源文件和目标区域没有对应槽位。"
                     )
                     .setPositiveButton("知道了", null)
-                    .show().tracked()
+                    .show().also { liveDialogs.add(it) }
                 map.invalidate(); kickLoad()
             }
         }
@@ -1369,11 +1367,26 @@ class ChunkMapActivity : AppCompatActivity() {
         if (refs.isEmpty()) return toast("没有可导出的区域")
         val prog = android.app.ProgressDialog(this).apply {
             setMessage("导出 ${refs.size} 个区域…"); setCancelable(false); show()
-        }.tracked()
+        }.also { liveDialogs.add(it) }
         submitPool {
-            val tiles = ArrayList<Pair<McaWorld.Ref, Bitmap>>()
+            if (refs.size > MAX_EXPORT_TILES) {
+                runOnUiThread {
+                    prog.dismiss()
+                    toast("一次最多导出 $MAX_EXPORT_TILES 个区域（这次选了 ${refs.size} 个），请分批来")
+                }
+                return@submitPool
+            }
+            val tiles = ArrayList<Pair<McaWorld.Ref, Bitmap>>(refs.size)
             for (r in refs) {
-                val b = McaTiles.get(this@ChunkMapActivity, r) ?: continue
+                // OutOfMemoryError 是 Error 不是 Exception，
+                // 外面那层 catch (t: Throwable) 其实接得住，
+                // 但在这里单独接一次才能把"是内存不够"这件事说清楚
+                val b = try {
+                    McaTiles.get(this@ChunkMapActivity, r)
+                } catch (oom: OutOfMemoryError) {
+                    Err.ignore(oom, "导出：瓦片太多，内存不够")
+                    null
+                } ?: continue
                 tiles.add(r to b)
             }
             val path = if (tiles.size == 1) {
@@ -1387,7 +1400,7 @@ class ChunkMapActivity : AppCompatActivity() {
                     .setTitle(if (path != null) "已导出" else "导出失败")
                     .setMessage(path ?: "写文件时出错了，看看存储空间是不是满了。")
                     .setPositiveButton("知道了", null)
-                    .show().tracked()
+                    .show().also { liveDialogs.add(it) }
             }
         }
     }
@@ -1414,7 +1427,7 @@ class ChunkMapActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("取消", null)
-            .show().tracked()
+            .show().also { liveDialogs.add(it) }
     }
 
     private fun afterGoto() {
@@ -1452,7 +1465,7 @@ class ChunkMapActivity : AppCompatActivity() {
                 map.zoomToChunk()
                 afterGoto()
             }
-            .show().tracked()
+            .show().also { liveDialogs.add(it) }
     }
 
     /** 出生点坐标。level.dat 里的 Data.SpawnX / SpawnZ */
@@ -1552,7 +1565,7 @@ class ChunkMapActivity : AppCompatActivity() {
                 updateStatus()
                 toast("已标记 $n 个区块待删除 —— 点「保存」才生效")
             }
-            .show().tracked()
+            .show().also { liveDialogs.add(it) }
     }
 
     private fun clearStaged() {
@@ -1576,7 +1589,7 @@ class ChunkMapActivity : AppCompatActivity() {
             )
             .setNegativeButton("取消", null)
             .setPositiveButton("保存") { _, _ -> doSave() }
-            .show().tracked()
+            .show().also { liveDialogs.add(it) }
     }
 
     private fun doSave() {
@@ -1598,7 +1611,7 @@ class ChunkMapActivity : AppCompatActivity() {
             .setTitle("正在写入…")
             .setMessage("0 / ${targets.size}")
             .setCancelable(false)
-            .show().tracked()
+            .show().also { liveDialogs.add(it) }
         val tv = prog.findViewById<TextView>(android.R.id.message)
 
         submitPool {
@@ -1670,7 +1683,7 @@ class ChunkMapActivity : AppCompatActivity() {
             .setMessage("导出成独立的 .mca 文件，原存档不动。")
             .setNegativeButton("取消", null)
             .setPositiveButton("导出") { _, _ -> doExport() }
-            .show().tracked()
+            .show().also { liveDialogs.add(it) }
     }
 
     private fun doExport() {
@@ -1694,7 +1707,7 @@ class ChunkMapActivity : AppCompatActivity() {
             .setTitle("正在导出…")
             .setMessage("0 / ${targets.size}")
             .setCancelable(false)
-            .show().tracked()
+            .show().also { liveDialogs.add(it) }
         val tv = prog.findViewById<TextView>(android.R.id.message)
 
         submitPool {
@@ -1732,17 +1745,6 @@ class ChunkMapActivity : AppCompatActivity() {
             }
         }
     }
-
-    /**
-     * 区域文件（.mca）读取上限。
-     *
-     * 一个 region 有 32×32 个槽位，每槽压缩后上限 1MB，理论最大 1GB；
-     * 现实里见过的极端样本在几十 MB 量级。给 64MB 既能装下正常文件，
-     * 又能挡住异常文件。
-     */
-    // 这里用 val 而不是 const val：本文件是 class 不是 object，
-    // Kotlin 不允许 const val 直接放在类体里（只能放 top-level / object / companion）
-    private val REGION_MAX = 64 * 1024 * 1024
 
     private fun toast(m: String) =
         Tips.long(this, m)
