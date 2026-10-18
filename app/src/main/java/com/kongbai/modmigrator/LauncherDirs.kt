@@ -227,14 +227,25 @@ object LauncherDirs {
             pkgs = listOf("com.mio.launcher", "com.tungsten.mio"),
             pubNew = listOf("MioLauncher/.minecraft"),
             mcFrom = "1.7.10", mcTo = "",
-            note = "模组放在 versions/<版本>/mods"
+            // 澪（澪Ultimate）**不开源**，Minecraft Wiki 的启动器条目也标了
+            // 「是否开源：否」，所以拿不到上游源码佐证。
+            // 包名 com.mio.launcher 来自应用市场信息，未经源码核实；
+            // 目录 MioLauncher/.minecraft 是社区整理。两者都只能当候选去试。
+            note = "模组放在 versions/<版本>/mods；启动器不开源，包名与目录未获源码佐证"
         ),
         Entry(
-            name = "Boat", key = "other",
+            //
+            // ⚠️ AOF-Dev/Boat **不是启动器**，是给启动器用的运行库
+            // （提供 JRE、GLFW、X server 等运行环境）。
+            // 上游 README 原话："Boat is NOT a Minecraft launcher"。
+            // 真正在用 Boat 的是 MCinaBox 和澪，所以这里没有包名可言，
+            // 下面这些目录只是「用户自定义后可能落在哪」的候选。
+            //
+            name = "Boat（运行库，非启动器）", key = "other",
             pubNew = listOf("boat/gamedir"),
             pubOld = listOf("games/boat/.minecraft"),
             mcFrom = "1.7.10", mcTo = "",
-            note = " Boat 系底座，目录名各分支不同"
+            note = "Boat 本身不是启动器；用它的启动器是 MCinaBox 与澪，目录由各分支自定"
         ),
         Entry(
             name = "MojoLauncher / MJLauncher", key = "other",
@@ -246,12 +257,27 @@ object LauncherDirs {
         Entry(
             name = "MCinaBox", key = "mcinabox",
             pkgs = listOf("com.aof.mcinabox"),
+            //
+            // ⚠️ 之前这里写的是 pubNew = "MCinaBox/.minecraft"，是照社区说法
+            // 猜的，真机上根本不存在这个目录。
+            // 上游 README 里明写的是（一手证据）：
+            //   运行时放到 /sdcard/Android/com.aof.mcinabox/files/MCinaBox/runtime
+            //   且游戏目录可以在启动器的「Game Directory」里**自定义**
+            // 也就是说它默认落在**私有目录** files/MCinaBox 下，不是 /sdcard 根。
+            // 私有路径只能显示、或交给同步器读，不能拿去发起目录授权。
+            //
+            privNew = listOf(
+                "Android/data/com.aof.mcinabox/files/MCinaBox/.minecraft",
+                "Android/data/com.aof.mcinabox/files/MCinaBox/gamedir"
+            ),
+            // 用户如果把游戏目录自定义到了公开位置，这两条还有可能命中，
+            // 留作候选（探测一律「存在才算」，猜错不会误导）
             pubNew = listOf("MCinaBox/.minecraft"),
             // 大小写两种写法在社区资料里都出现过，安卓外存多数不区分大小写，
             // 但部分 ROM 区分；两条都留，按「存在才算」探测
             pubOld = listOf("mcinaBox/.minecraft"),
             mcFrom = "1.7.10", mcTo = "1.17",
-            note = ""
+            note = "游戏目录可在启动器内自定义；默认在私有目录，需要同步器读取"
         ),
 
         // ── 下面几条来自旧版扫描器里写死的绝对路径清单 ──
