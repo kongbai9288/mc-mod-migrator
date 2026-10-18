@@ -521,17 +521,26 @@ class LoaderForgeActivity : AppCompatActivity() {
      * 而且失败信息只说"太大"，很容易误以为是别的问题。
      */
     private fun pushJarParts(tok: String, owner: String, f: File) {
-        val bytes = f.readBytes()
-        val part = 600 * 1024
-        val n = (bytes.size + part - 1) / part
-        line("jar ${bytes.size / 1024} KB，分 $n 段上传")
-        for (i in 0 until n) {
-            val chunk = bytes.copyOfRange(
-                (i * part).coerceAtMost(bytes.size),
-                ((i + 1) * part).coerceAtMost(bytes.size)
-            )
-            val b64 = android.util.Base64.encodeToString(chunk, android.util.Base64.DEFAULT)
-            putFile(tok, owner, "jar/part_$i.b64", b64, "jar part $i")
+        // 逐段读、逐段编码、逐段上传。
+        // 整份 readBytes() 会让堆里同时躺着「整个 jar + 每段副本 + base64 字符串」，
+        // base64 还要再膨胀 1.33 倍 —— jar 几十 MB 时必崩。
+        val part = 600 * 1024   // 取 3 的倍数，base64 才不会在段尾补 '='
+        val total = f.length()
+        val n = ((total + part - 1) / part).toInt().coerceAtLeast(0)
+        line("jar ${total / 1024} KB，分 $n 段上传")
+        val buf = ByteArray(part)
+        java.io.BufferedInputStream(java.io.FileInputStream(f)).use { ins ->
+            for (i in 0 until n) {
+                var off = 0
+                while (off < part) {
+                    val r = ins.read(buf, off, part - off)
+                    if (r < 0) break
+                    off += r
+                }
+                if (off <= 0) break
+                val b64 = android.util.Base64.encodeToString(buf, 0, off, android.util.Base64.DEFAULT)
+                putFile(tok, owner, "jar/part_$i.b64", b64, "jar part $i")
+            }
         }
         putFile(tok, owner, "jar/manifest.json",
             """{"parts":$n,"name":"${f.name}","mc":"$mcVersion"}""",
