@@ -74,10 +74,20 @@ class ToolsFragment : Fragment() {
 
     private fun openPage(f: Fragment) {
         try {
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.fragment_container, f)
-                .addToBackStack(null)
-                .commit()
+            //
+            // 同主界面：用 add 叠加，不用 replace。
+            // replace 会把底下的一级 tab 一起 remove，返回后全部重建。
+            // add 之后必须手动把底下的页面 hide 掉，
+            // 否则新页面叠在旧页面上面，两层内容同时可见。
+            //
+            val fm = parentFragmentManager
+            val tx = fm.beginTransaction()
+                .add(R.id.fragment_container, f, "page:tool")
+                .addToBackStack("tool")
+            for (x in fm.fragments) {
+                if (x != null && x !== f && !x.isHidden) tx.hide(x)
+            }
+            tx.commitAllowingStateLoss()
         } catch (t: Throwable) {
             // 容器 id 变了（页面结构调整）时不能静默失败，给个明确提示
             Err.fail(t, "打开子页面")
