@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>模组管理页 UI 原型 1:1</title>
+<style>
+:root{
+  --p:#0B57D0; --on-p:#fff;
+  --sc:#D3E3FD; --on-sc:#0A2E6F;
+  --surface:#FEFBFF; --card:#FFFFFF;
+  --variant:#F0F2F5; --outline:#C4C7C5; --divider:#E7E9EB;
+  --t1:#1A1C1E; --t2:#5F6368; --t3:#9AA0A6;
+  --ok:#0F7B3D; --okbg:#DFF5E5;
+  --warn:#8A5A00; --warnbg:#FDEEC8;
+  --err:#B3261E; --errbg:#FBE4E2;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#12151A;display:flex;justify-content:center;align-items:flex-start;
+  min-height:100vh;font-family:Roboto,"Noto Sans SC","PingFang SC",system-ui,sans-serif;
+  padding:20px;gap:18px}
+
+.phone{position:relative;width:360px;height:800px;background:var(--surface);
+  border-radius:28px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.55);flex:none}
+
+.bar{position:absolute;top:0;left:0;right:0;height:26px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 14px;font-size:11px;color:var(--t1);z-index:40}
+.bar .r{display:flex;align-items:center;gap:5px}
+.bat{width:18px;height:9px;border:1px solid var(--t1);border-radius:2px;position:relative;padding:1px}
+.bat::after{content:"";position:absolute;right:-2px;top:2px;width:1.5px;height:4px;background:var(--t1)}
+.bat i{display:block;height:100%;width:31%;background:var(--t1)}
+
+.view{position:absolute;top:26px;bottom:56px;left:0;right:0;overflow-y:auto;background:var(--surface)}
+.view::-webkit-scrollbar{width:0}
+.pg{display:none}
+.pg.on{display:block}
+
+.top{height:48px;display:flex;align-items:center;padding:0 6px;gap:2px;background:var(--surface);
+  position:sticky;top:0;z-index:20}
+.top h1{font-size:20px;font-weight:500;color:var(--t1);flex:1;padding-left:10px}
+.icb{width:44px;height:44px;border:0;background:none;cursor:pointer;color:var(--t2);
+  display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:19px;font-family:inherit}
+.icb:active{background:var(--variant)}
+
+.nav{position:absolute;bottom:0;left:0;right:0;height:56px;background:var(--card);
+  border-top:1px solid var(--divider);display:flex;z-index:30}
+.nav button{flex:1;border:0;background:none;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:3px;color:var(--t2);cursor:pointer;font-family:inherit}
+.nav button.sel{color:var(--p)}
+.nav button span{font-size:10px}
+
+/* 目录条 */
+.dir{margin:4px 12px 10px;background:var(--card);border-radius:16px;
+  box-shadow:0 1px 2px rgba(0,0,0,.06);overflow:hidden}
+.dirl{display:flex;align-items:center;gap:12px;padding:13px 14px;min-height:64px}
+.dirl .ic{width:40px;height:40px;flex:none;display:flex;align-items:center;justify-content:center;
+  background:var(--variant);color:var(--p);border-radius:8px}
+.dirl .ic svg{width:22px;height:22px;fill:currentColor}
+.dirl .tx{flex:1;min-width:0}
+.dirl .lb{font-size:11px;color:var(--t3);letter-spacing:.4px;margin-bottom:3px}
+.dirl .pp{font-size:12px;color:var(--t1);line-height:17px;word-break:break-all;
+  font-family:ui-monospace,Menlo,Consolas,monospace}
+.dirl .sb{font-size:11px;color:var(--t2);margin-top:4px;line-height:15px}
+.dirb{border-top:1px solid var(--divider);display:flex}
+.dirb button{flex:1;height:44px;border:0;background:none;color:var(--p);font-size:13px;
+  cursor:pointer;font-family:inherit;font-weight:500}
+.dirb button:active{background:var(--variant)}
+.dirb button+button{border-left:1px solid var(--divider)}
+.dirb button.g{color:var(--t2);font-weight:400}
+
+.card{background:var(--card);margin:0 12px 10px;border-radius:16px;
+  box-shadow:0 1px 2px rgba(0,0,0,.06);overflow:hidden}
+.cbd{padding:12px 14px 14px}
+
+.fld{height:46px;border:1px solid var(--outline);border-radius:23px;display:flex;
+  align-items:center;padding:0 14px;gap:8px;background:var(--card)}
+.fld input{border:0;outline:0;font-size:14px;color:var(--t1);flex:1;background:none;font-family:inherit}
+.fld input::placeholder{color:var(--t3)}
+
+.chips{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.chips::-webkit-scrollbar{height:0}
+.chip{flex:none;height:34px;padding:0 14px;border-radius:17px;border:1px solid var(--outline);
+  background:none;color:var(--t1);font-size:13px;cursor:pointer;font-family:inherit}
+.chip.sel{background:var(--sc);border-color:transparent;color:var(--on-sc);font-weight:500}
+
+.stat{font-size:12px;color:var(--t2);padding:2px 14px 8px;line-height:16px}
+
+/* 全选 + 批量：整块常驻，滚多远都够得着 */
+.selbar{position:sticky;top:48px;z-index:15;background:var(--surface);padding-top:2px}
+.bar2{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);
+  margin:0 12px 8px;border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.06);cursor:pointer;min-height:48px}
+.bar2:active{background:#F4F6F9}
+.bar2 .bx{width:20px;height:20px;border:2px solid var(--t2);border-radius:4px;flex:none;
+  display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff}
+.bar2.on .bx{background:var(--p);border-color:var(--p)}
+.bar2 .tx{font-size:13px;color:var(--t1);flex:1}
+.bar2 .ct{font-size:12px;color:var(--t2)}
+
+.ops{display:flex;gap:6px;margin:0 12px 6px}
+.op{flex:1;height:48px;border:1px solid var(--outline);border-radius:12px;background:var(--card);
+  color:var(--t1);font-size:12.5px;cursor:pointer;font-family:inherit;display:flex;
+  align-items:center;justify-content:center;gap:4px}
+.op:active{background:var(--variant)}
+.op:disabled{color:var(--t3);border-color:var(--divider);background:#FAFAFA;cursor:default}
+.op.dg{color:var(--err);border-color:#F0C9C6}
+.op.dg:disabled{color:#C9A5A2;border-color:var(--divider)}
+.why{font-size:11px;color:var(--t2);text-align:center;margin:0 12px 10px;min-height:15px;line-height:15px}
+.why.bad{color:var(--warn)}
+
+/* 模组行 */
+.mod{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);
+  border-bottom:1px solid var(--divider);min-height:64px}
+.mod.off .mn{color:var(--t3);text-decoration:line-through;text-decoration-color:var(--t3)}
+.mod .bx{width:20px;height:20px;border:2px solid var(--t2);border-radius:4px;flex:none;
+  display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;cursor:pointer}
+.mod .bx.on{background:var(--p);border-color:var(--p)}
+.mico{width:40px;height:40px;flex:none;border-radius:0;display:flex;align-items:center;
+  justify-content:center;font-size:15px;font-weight:600;color:#fff}
+.mico.fab{background:#DB8E3C}.mico.forg{background:#2A4E8C}.mico.neo{background:#C1553B}
+.mico.q{background:#8B5CF6}.mico.unk{background:#B0B5BB}
+.mod .tx{flex:1;min-width:0;cursor:pointer}
+.mod .mn{font-size:13.5px;color:var(--t1);line-height:18px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.mod .ms{font-size:11px;color:var(--t2);line-height:15px;margin-top:2px}
+.mod .ms b{color:var(--warn);font-weight:500}
+.mod .tg{font-size:11px;color:var(--t3);margin-left:4px}
+.mod .ar{color:var(--t3);font-size:15px;flex:none;margin-left:2px}
+.tbtn{flex:none;height:36px;padding:0 10px;border:1px solid var(--outline);border-radius:9px;
+  background:none;color:var(--t1);font-size:12px;cursor:pointer;font-family:inherit;position:relative}
+/* 视觉 36px，触控区撑到 48×48 */
+.tbtn::after{content:"";position:absolute;left:-4px;right:-4px;top:-6px;bottom:-6px}
+.tbtn:active{background:var(--variant)}
+.tbtn.on{color:var(--ok);border-color:#B7DCC3}
+
+.empty{text-align:center;padding:42px 24px;color:var(--t2)}
+.empty .e1{font-size:15px;color:var(--t1);margin-bottom:6px}
+.empty .e2{font-size:12.5px;line-height:18px}
+
+.sk{padding:10px 14px;display:flex;gap:10px;align-items:center;background:var(--card);
+  border-bottom:1px solid var(--divider)}
+.sk i{display:block;height:12px;background:var(--variant);border-radius:6px;
+  animation:bl 1.1s ease-in-out infinite}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* 详情 */
+.dtop{background:var(--card);padding:14px;display:flex;gap:14px;align-items:flex-start}
+.dtop .mico{width:64px;height:64px;font-size:22px}
+.dtop .tx{flex:1;min-width:0}
+.dtop .nm{font-size:16px;font-weight:600;color:var(--t1);line-height:22px}
+.dtop .vr{font-size:12px;color:var(--t2);margin-top:4px}
+.dtop .bd{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.badge{font-size:11px;padding:3px 8px;border-radius:8px;background:var(--variant);color:var(--t2)}
+.badge.f{background:var(--sc);color:var(--on-sc)}
+.badge.w{background:var(--warnbg);color:var(--warn)}
+
+.kv{background:var(--card);margin:0 12px 10px;border-radius:16px;overflow:hidden;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.kvr{display:flex;gap:12px;padding:11px 14px;border-bottom:1px solid var(--divider);font-size:13px}
+.kvr:last-child{border-bottom:0}
+.kvr .k{width:78px;flex:none;color:var(--t2);font-size:12px}
+.kvr .v{flex:1;color:var(--t1);word-break:break-word;line-height:18px}
+.kvhd{font-size:13px;font-weight:600;color:var(--t1);padding:13px 14px 4px}
+
+.warnb{margin:0 12px 10px;background:var(--warnbg);border-radius:14px;padding:12px 14px}
+.warnb .h{font-size:13px;font-weight:600;color:var(--warn);margin-bottom:5px}
+.warnb .b{font-size:12px;color:#6B4700;line-height:17px}
+
+.desc{margin:0 12px 10px;background:var(--card);border-radius:16px;padding:12px 14px;
+  font-size:12.5px;color:var(--t2);line-height:18px;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+
+.acts{margin:0 12px 14px;display:flex;flex-direction:column;gap:8px}
+.act{height:48px;border-radius:12px;border:1px solid var(--outline);background:var(--card);
+  color:var(--t1);font-size:14px;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;gap:7px}
+.act:active{background:var(--variant)}
+.act.pri{background:var(--p);border-color:transparent;color:var(--on-p)}
+.act.dg{color:var(--err);border-color:#F0C9C6}
+
+/* 弹窗 */
+.mask{position:absolute;inset:0;background:rgba(0,0,0,.42);z-index:50;display:none;
+  align-items:center;justify-content:center;padding:22px}
+.mask.on{display:flex}
+.dlg{width:100%;background:var(--card);border-radius:24px;overflow:hidden;max-height:640px;
+  display:flex;flex-direction:column}
+.dlg .dh{padding:20px 22px 8px;font-size:17px;font-weight:600;color:var(--t1)}
+.dlg .db{padding:4px 22px 14px;font-size:13px;color:var(--t2);line-height:19px;
+  overflow-y:auto;max-height:320px}
+.dlg .db::-webkit-scrollbar{width:0}
+.dlg .df{display:flex;justify-content:flex-end;gap:8px;padding:8px 16px 14px}
+.dlg .df button{height:40px;padding:0 16px;border:0;background:none;color:var(--p);
+  font-size:14px;cursor:pointer;font-family:inherit;font-weight:500;border-radius:20px}
+.dlg .df button:active{background:var(--variant)}
+.dlg .df button.dg{color:var(--err)}
+
+/* 底部提示条 */
+.snack{position:absolute;left:12px;right:12px;bottom:66px;background:#2F3033;color:#F2F2F2;
+  border-radius:10px;padding:12px 14px;font-size:13px;display:none;z-index:45;
+  align-items:center;gap:10px;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.snack.on{display:flex}
+.snack .t{flex:1;line-height:18px}
+.snack button{border:0;background:none;color:#A8C7FA;font-size:13px;font-weight:600;
+  cursor:pointer;font-family:inherit;padding:4px 4px}
+
+.toast{position:absolute;left:50%;transform:translateX(-50%);bottom:80px;background:#2F3033;
+  color:#F2F2F2;border-radius:20px;padding:10px 18px;font-size:13px;z-index:60;display:none}
+.toast.on{display:block}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="bar"><span>2:04</span><span class="r"><span>中国移动</span><span class="bat"><i></i></span></span></div>
+
+  <div class="view">
+    <!-- ============ 列表页 ============ -->
+    <div class="pg on" id="pgList">
+      <div class="top">
+        <button class="icb" id="btnBack" title="返回">‹</button>
+        <h1>模组管理</h1>
+        <button class="icb" id="btnRefresh" title="重新扫描">⟳</button>
+      </div>
+
+      <div class="dir">
+        <div class="dirl">
+          <div class="ic"><svg viewBox="0 0 24 24"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg></div>
+          <div class="tx">
+            <div class="lb">当前扫描的目录</div>
+            <div class="pp" id="dirPath">…/HMCLPE/.minecraft/mods</div>
+            <div class="sb">来源：游戏 mods 目录</div>
+          </div>
+        </div>
+        <div class="dirb">
+          <button class="g" id="btnChgDir">改目录（在设置里）</button>
+          <button id="btnRescan">重新扫描</button>
+        </div>
+      </div>
+
+      <div class="card"><div class="cbd">
+        <div class="fld"><input id="q" placeholder="搜模组文件名"></div>
+      </div></div>
+
+      <div class="chips" style="margin:0 14px 8px">
+        <button class="chip sel" data-f="all">全部</button>
+        <button class="chip" data-f="on">已启用</button>
+        <button class="chip" data-f="off">已禁用</button>
+      </div>
+
+      <div class="stat" id="stat">扫描中…</div>
+
+      <div id="listWrap"></div>
+    </div>
+
+    <!-- ============ 详情页 ============ -->
+    <div class="pg" id="pgDetail">
+      <div class="top">
+        <button class="icb" id="btnDtlBack">‹</button>
+        <h1 id="dtlTitle">模组详情</h1>
+        <div style="width:44px"></div>
+      </div>
+      <div id="dtlBody"></div>
+    </div>
+  </div>
+
+  <!-- 删除确认 -->
+  <div class="mask" id="mDel">
+    <div class="dlg">
+      <div class="dh">删除模组</div>
+      <div class="db" id="delBody"></div>
+      <div class="df"><button id="delNo">取消</button><button class="dg" id="delYes">删除</button></div>
+    </div>
+  </div>
+
+  <!-- 批量执行中 -->
+  <div class="mask" id="mBusy">
+    <div class="dlg">
+      <div class="dh" id="busyTitle">处理中</div>
+      <div class="db" id="busyBody">正在处理…</div>
+      <div class="df"><button id="busyClose" style="display:none">关闭</button></div>
+    </div>
+  </div>
+
+  <div class="snack" id="snack"><span class="t" id="snackT"></span><button id="snackBtn">撤销</button></div>
+  <div class="toast" id="toast"></div>
+
+  <div class="nav">
+    <button data-nav="迁移">⌥<span>迁移</span></button>
+    <button data-nav="市场">⌕<span>市场</span></button>
+    <button class="sel" data-nav="更多">☰<span>更多</span></button>
+  </div>
+</div>
+
+<script>
+var KB=1024;
+var MODS=[
+ {n:'sodium.jar',      kb:852,  ld:'Fabric',   id:'sodium',        v:'0.5.8',   mc:'1.20.1', au:['jellysquid3'],            lic:'LGPL-3.0',      off:false, d:'现代渲染引擎，大幅提升帧率，是 Fabric 生态里最常用的优化模组。'},
+ {n:'lithium.jar',     kb:460,  ld:'Fabric',   id:'lithium',       v:'0.12.1',  mc:'1.20.1', au:['2No2Name'],               lic:'LGPL-3.0',      off:false, d:'优化游戏逻辑运算，减少服务端与客户端的 tick 开销。'},
+ {n:'iris.jar',        kb:1240, ld:'Fabric',   id:'iris',          v:'1.6.9',   mc:'1.20.1', au:['IrisShaders'],            lic:'LGPL-3.0',      off:false, d:'光影加载器，兼容大部分 OptiFine 格式的光影包。'},
+ {n:'cloth-config.jar',kb:210,  ld:'Fabric',   id:'cloth-config',  v:'11.1.106',mc:'1.20.1', au:['shedaniel'],              lic:'LGPL-3.0',      off:false, d:'配置界面依赖库，很多模组的设置页靠它渲染。'},
+ {n:'jei.jar',         kb:2450, ld:'Forge',    id:'jei',           v:'15.2.0',  mc:'1.20.1', au:['mezz'],                   lic:'MIT',           off:false, d:'物品与配方查看器，按物品查合成表、看用途。'},
+ {n:'jade.jar',        kb:890,  ld:'Forge',    id:'jade',          v:'11.4.1',  mc:'1.20.1', au:['Snownee'],                lic:'MIT',           off:false, d:'准星指向方块时显示名称与内容信息。'},
+ {n:'xaero-minimap.jar',kb:620, ld:'Forge',    id:'xaerominimap',  v:'23.9.4',  mc:'1.20.1', au:['xaero96'],                lic:'ARR',           off:false, d:'小地图，支持路径点与实体显示。'},
+ {n:'optifine.jar',    kb:3260, ld:'',         id:'',              v:'',        mc:'',       au:[],                          lic:'',              off:false, d:'',opt:true},
+ {n:'journeymap.jar',  kb:5120, ld:'Forge',    id:'journeymap',    v:'5.9.9',   mc:'1.20.1', au:['TeamJourneyMap'],         lic:'ARR',           off:true,  d:'全屏地图与自动测绘，支持网页端查看。'},
+ {n:'replaymod.jar',   kb:1840, ld:'Fabric',   id:'replaymod',     v:'1.20.1-2.6.13',mc:'1.20.1',au:['ReplayMod'],          lic:'LGPL-3.0',      off:true,  d:'录制回放，可做 cinematic 运镜。'},
+ {n:'xray.jar',        kb:340,  ld:'Forge',    id:'xray',          v:'2.5.1',   mc:'1.20.1', au:['Johni0702'],              lic:'MIT',           off:true,  d:'透视矿石，按需开关，容易被服务器判定为作弊。'},
+ {n:'better-fps.zip',  kb:88,   ld:'',         id:'',              v:'',        mc:'',       au:[],                          lic:'',              off:false, d:'',unk:true}
+];
+
+var S={mods:MODS.slice(),pick:{},q:'',filter:'all',loading:true,cur:null,lastDeleted:null,mcVersion:'1.20.1',trashDays:30};
+
+function $(i){return document.getElementById(i)}
+function el(t,c,h){var e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e}
+function icoCls(m){if(m.ld==='Fabric')return 'fab';if(m.ld==='Forge')return 'forg';if(m.ld==='NeoForge')return 'neo';return 'unk'}
+function icoCh(m){if(m.ld==='Fabric')return 'F';if(m.ld==='Forge')return 'F';if(m.ld==='NeoForge')return 'N';if(m.ld==='Quilt')return 'Q';return '?'}
+function human(kb){return kb>=1024?(kb/1024).toFixed(1)+' MB':kb+' KB'}
+function shown(){
+  var q=S.q.trim().toLowerCase();
+  return S.mods.filter(function(m){
+    if(S.filter==='on'&&m.off)return false;
+    if(S.filter==='off'&&!m.off)return false;
+    if(q&&m.n.toLowerCase().indexOf(q)<0)return false;
+    return true;
+  });
+}
+function pickedList(){return S.mods.filter(function(m){return S.pick[m.n]})}
+function pickedCount(){return Object.keys(S.pick).filter(function(k){return S.pick[k]}).length}
+
+function toast(t){$('toast').textContent=t;$('toast').classList.add('on');
+  clearTimeout(toast._t);toast._t=setTimeout(function(){$('toast').classList.remove('on')},1800)}
+
+function renderStat(){
+  var n=S.mods.length,dn=S.mods.filter(function(m){return m.off}).length,tot=0;
+  S.mods.forEach(function(m){tot+=m.kb});
+  var t;
+  if(S.loading){t='扫描中…'}
+  else if(n===0){t='这个目录里没有模组'}
+  else{t='共 '+n+' 个模组'+(dn>0?'（'+dn+' 个已禁用）':'')+' · 占用 '+human(tot)}
+  var pc=pickedCount();
+  if(!S.loading&&pc>0)t+=' · 已选 '+pc+' 个';
+  $('stat').textContent=t;
+}
+
+function renderList(){
+  var w=$('listWrap');w.innerHTML='';
+  if(S.loading){
+    for(var i=0;i<5;i++){
+      var s=el('div','sk');
+      s.appendChild(el('i','',''));
+      var c=el('div','','');c.style.flex='1';
+      c.appendChild(el('i','',''));c.firstChild.style.width='60%';c.firstChild.style.marginBottom='6px';
+      var c2=el('i','','');c2.style.width='38%';c.appendChild(c2);
+      s.appendChild(c);w.appendChild(s);
+    }
+    return;
+  }
+  var list=shown();
+  if(list.length===0){
+    var e=el('div','empty');
+    if(S.mods.length===0){
+      e.appendChild(el('div','e1','没有找到模组'));
+      e.appendChild(el('div','e2','到「设置 → 存储」授权你的 mods 目录，或先把模组下载进来。'));
+    }else{
+      e.appendChild(el('div','e1','没有匹配的模组'));
+      e.appendChild(el('div','e2','换个名字，或把筛选切回「全部」。'));
+    }
+    w.appendChild(e);return;
+  }
+  var sb=el('div','selbar');
+  // 全选行
+  var all=el('div','bar2'+(pickedCount()>0&&pickedCount()===list.length?' on':''));
+  all.appendChild(el('div','bx',pickedCount()>0&&pickedCount()===list.length?'✓':''));
+  all.appendChild(el('div','tx',pickedCount()>0&&pickedCount()===list.length?'取消全选':'全选（'+list.length+'）'));
+  all.onclick=function(){
+    var on=!(pickedCount()===list.length);
+    list.forEach(function(m){S.pick[m.n]=on});
+    render();
+  };
+  w.appendChild(all);
+
+  // 批量操作
+  var ops=el('div','ops');
+  var pc=pickedCount();
+  [['删除','del','dg'],['禁用','off',''],['启用','on',''],['升级','up','']].forEach(function(a){
+    var b=el('button','op'+(a[2]?' '+a[2]:''),a[0]);
+    b.disabled=pc===0;
+    b.onclick=function(){batch(a[1])};
+    ops.appendChild(b);
+  });
+  sb.appendChild(ops);
+
+  var why=el('div','why'+(pc===0?' bad':''),pc===0?'先勾选模组，才能批量操作':'');
+  sb.appendChild(why);
+  w.appendChild(sb);
+
+  list.forEach(function(m){
+    var r=el('div','mod'+(m.off?' off':''));
+    var bx=el('div','bx'+(S.pick[m.n]?' on':''),S.pick[m.n]?'✓':'');
+    bx.onclick=function(e){e.stopPropagation();S.pick[m.n]=!S.pick[m.n];render()};
+    r.appendChild(bx);
+    var ic=el('div','mico '+icoCls(m),icoCh(m));r.appendChild(ic);
+    var tx=el('div','tx');
+    tx.appendChild(el('div','mn',m.n.replace(/\.(jar|zip)$/,'')));
+    var sub=m.kb+' KB';
+    if(m.ld)sub+=' · '+m.ld;
+    if(m.unk)sub+=' · <b>没识别到元数据</b>';
+    if(m.opt)sub+=' · <b>识别出是 OptiFine</b>';
+    if(m.off)sub+=' · 已禁用';
+    tx.appendChild(el('div','ms',sub));
+    tx.onclick=function(){openDetail(m)};
+    r.appendChild(tx);
+    var tb=el('button','tbtn'+(m.off?' on':''),m.off?'启用':'禁用');
+    tb.onclick=function(){toggle(m)};
+    r.appendChild(tb);
+    var ar=el('div','ar','›');ar.style.cursor='pointer';
+    ar.onclick=function(){openDetail(m)};
+    r.appendChild(ar);
+    w.appendChild(r);
+  });
+}
+
+function render(){renderStat();renderList()}
+
+/* --- 单条启用/禁用 --- */
+function toggle(m){
+  m.off=!m.off;
+  toast(m.off?'已禁用 '+m.n:'已启用 '+m.n);
+  render();
+}
+
+/* --- 批量 --- */
+function batch(kind){
+  var list=pickedList();
+  if(list.length===0){toast('先勾选模组');return}
+  var names={'del':'删除','off':'禁用','on':'启用','up':'升级'};
+  if(kind==='up'&&!S.mcVersion){
+    toast('先到设置里填目标 MC 版本');return;
+  }
+  $('busyTitle').textContent=names[kind]+' '+list.length+' 个模组';
+  $('busyBody').textContent=names[kind]+'中…';
+  $('busyClose').style.display='none';
+  $('mBusy').classList.add('on');
+  setTimeout(function(){
+    var msg;
+    if(kind==='del'){
+      S.lastDeleted=list.slice();
+      S.mods=S.mods.filter(function(m){return list.indexOf(m)<0});
+      msg='已放进回收站 '+list.length+' 个';
+    }else if(kind==='off'||kind==='on'){
+      var c=0;
+      list.forEach(function(m){var was=m.off;m.off=(kind==='off');if(was!==m.off)c++});
+      msg=(kind==='off'?'已禁用 ':'已启用 ')+c+' 个';
+    }else{
+      msg='找到 2 个可用更新，已下载覆盖';
+    }
+    S.pick={};
+    $('busyBody').textContent=msg;
+    $('busyClose').style.display='';
+    render();
+  },600);
+}
+
+/* --- 详情 --- */
+function openDetail(m){
+  S.cur=m;
+  $('pgList').classList.remove('on');
+  $('pgDetail').classList.add('on');
+  $('dtlTitle').textContent='模组详情';
+  var b=$('dtlBody');b.innerHTML='';
+
+  var top=el('div','dtop');
+  top.appendChild(el('div','mico '+icoCls(m),icoCh(m)));
+  var tx=el('div','tx');
+  tx.appendChild(el('div','nm',m.n.replace(/\.(jar|zip)$/,'')));
+  var vr=m.v?('版本 '+m.v):'版本未知';
+  if(m.off)vr+=' · 已禁用';
+  tx.appendChild(el('div','vr',vr));
+  var bd=el('div','bd');
+  if(m.ld)bd.appendChild(el('span','badge f',m.ld));
+  if(m.mc)bd.appendChild(el('span','badge','MC '+m.mc));
+  if(m.off)bd.appendChild(el('span','badge w','已禁用'));
+  if(m.unk)bd.appendChild(el('span','badge w','未识别'));
+  if(m.opt)bd.appendChild(el('span','badge w','OptiFine'));
+  tx.appendChild(bd);
+  top.appendChild(tx);
+  b.appendChild(top);
+
+  if(m.unk||m.opt){
+    var wb=el('div','warnb');
+    if(m.unk){
+      wb.appendChild(el('div','h','没识别到加载器元数据'));
+      wb.appendChild(el('div','b','包里没有 fabric.mod.json / mods.toml / mcmod.info。<br>可能不是模组（比如资源包或光影），或者是损坏的 jar。'));
+    }else{
+      wb.appendChild(el('div','h','识别出这是 OptiFine'));
+      wb.appendChild(el('div','b','OptiFine 不是标准模组，元数据里查不到，靠特征类识别。<br>它和 Iris/Forge 混装时容易冲突。'));
+    }
+    b.appendChild(wb);
+  }
+
+  var kv=el('div','kv');
+  function row(k,v){var r=el('div','kvr');r.appendChild(el('div','k',k));r.appendChild(el('div','v',v));kv.appendChild(r)}
+  row('文件',m.n);
+  row('大小',human(m.kb));
+  if(m.ld)row('加载器',m.ld);
+  if(m.id)row('Mod ID',m.id);
+  if(m.v)row('版本',m.v);
+  if(m.mc)row('MC 版本',m.mc);
+  if(m.au&&m.au.length)row('作者',m.au.join('、'));
+  if(m.lic)row('许可',m.lic);
+  b.appendChild(kv);
+
+  if(m.d){
+    var dc=el('div','desc');dc.innerHTML='<div class="kvhd" style="padding:0 0 6px">简介</div>'+m.d;
+    b.appendChild(dc);
+  }
+
+  var acts=el('div','acts');
+  var t1=el('button','act pri',m.off?'启用这个模组':'禁用这个模组');
+  t1.onclick=function(){toggle(m);openDetail(m)};
+  acts.appendChild(t1);
+  var t2=el('button','act','编辑内容');
+  t2.onclick=function(){toast('打开编辑器：'+m.n)};
+  acts.appendChild(t2);
+  var t3=el('button','act','在市场里查更新');
+  t3.onclick=function(){
+    if(!S.mcVersion){toast('先到设置里填目标 MC 版本');return}
+    toast('正在查 '+m.n.replace(/\.(jar|zip)$/,'')+' 的更新…');
+  };
+  acts.appendChild(t3);
+  var t4=el('button','act dg','删除');
+  t4.onclick=function(){askDelete(m)};
+  acts.appendChild(t4);
+  b.appendChild(acts);
+}
+
+function askDelete(m){
+  $('delBody').innerHTML='「'+m.n+'」会先放进回收站（保留 '+S.trashDays+' 天），期间可以还原。';
+  $('mDel').classList.add('on');
+  $('delYes').onclick=function(){
+    $('mDel').classList.remove('on');
+    S.mods=S.mods.filter(function(x){return x!==m});
+    S.lastDeleted=[m];
+    if(S.cur===m){$('pgDetail').classList.remove('on');$('pgList').classList.add('on');S.cur=null}
+    render();
+    snack('已删除「'+m.n+'」');
+  };
+}
+$('delNo').onclick=function(){$('mDel').classList.remove('on')};
+
+function snack(t){
+  $('snackT').textContent=t;$('snack').classList.add('on');
+  clearTimeout(snack._t);snack._t=setTimeout(function(){$('snack').classList.remove('on')},5000);
+}
+$('snackBtn').onclick=function(){
+  $('snack').classList.remove('on');
+  if(S.lastDeleted){S.mods=S.mods.concat(S.lastDeleted);S.lastDeleted=null;render();toast('已还原')}
+};
+
+$('btnBack').onclick=function(){toast('返回上一页')};
+$('btnRefresh').onclick=function(){S.loading=true;render();setTimeout(function(){S.loading=false;render()},700)};
+$('btnRescan').onclick=function(){S.loading=true;render();setTimeout(function(){S.loading=false;render()},700)};
+$('btnChgDir').onclick=function(){toast('目录在「设置 → 存储」里改')};
+$('q').oninput=function(){S.q=this.value;render()};
+Array.prototype.forEach.call(document.querySelectorAll('.chip'),function(c){
+  c.onclick=function(){
+    Array.prototype.forEach.call(document.querySelectorAll('.chip'),function(x){x.classList.remove('sel')});
+    c.classList.add('sel');S.filter=c.getAttribute('data-f');render();
+  };
+});
+$('btnDtlBack').onclick=function(){$('pgDetail').classList.remove('on');$('pgList').classList.add('on');S.cur=null};
+$('busyClose').onclick=function(){$('mBusy').classList.remove('on')};
+Array.prototype.forEach.call(document.querySelectorAll('.nav button'),function(b){
+  b.onclick=function(){toast('切换到「'+b.getAttribute('data-nav')+'」')};
+});
+
+render();
+setTimeout(function(){S.loading=false;render()},900);
+</script>
+</body>
+</html>
