@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>服务器页 UI 原型 1:1 — 分步 + 状态可见</title>
+<style>
+:root{
+  --p:#0B57D0; --on-p:#fff;
+  --sc:#D3E3FD; --on-sc:#0A2E6F;
+  --surface:#FEFBFF; --card:#FFFFFF;
+  --variant:#F0F2F5; --outline:#C4C7C5; --divider:#E7E9EB;
+  --t1:#1A1C1E; --t2:#5F6368; --t3:#9AA0A6;
+  --warn:#8A4B00; --warn-bg:#FCE8CD; --warn-line:#F0B86B;
+  --err:#B3261E; --err-bg:#F9DEDC;
+  --ok:#006C51; --ok-bg:#D7F5EA;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#12151A;display:flex;justify-content:center;align-items:center;
+  min-height:100vh;font-family:Roboto,"Noto Sans SC","PingFang SC",system-ui,sans-serif;padding:20px;gap:24px;flex-wrap:wrap}
+
+.phone{position:relative;width:360px;height:800px;background:var(--surface);
+  border-radius:28px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.55);flex:none}
+
+.bar{position:absolute;top:0;left:0;right:0;height:26px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 14px;font-size:11px;color:var(--t1);z-index:40}
+.bar .r{display:flex;align-items:center;gap:5px}
+.bat{width:18px;height:9px;border:1px solid var(--t1);border-radius:2px;position:relative;padding:1px}
+.bat::after{content:"";position:absolute;right:-2px;top:2px;width:1.5px;height:4px;background:var(--t1)}
+.bat i{display:block;height:100%;width:31%;background:var(--t1)}
+
+.view{position:absolute;top:26px;bottom:0;left:0;right:0;overflow-y:auto;background:var(--surface)}
+.view::-webkit-scrollbar{width:0}
+.view{display:none}
+.view.on{display:block}
+.hasbar .view{bottom:56px}
+
+.appbar{position:sticky;top:0;z-index:20;height:56px;background:var(--surface);
+  display:flex;align-items:center;gap:4px;padding:0 6px;border-bottom:1px solid var(--divider)}
+.appbar .back{border:0;background:none;cursor:pointer;width:40px;height:40px;
+  display:flex;align-items:center;justify-content:center;color:var(--t1);border-radius:50%}
+.appbar h1{font-size:19px;font-weight:500;color:var(--t1);flex:1}
+.appbar .act{border:0;background:none;color:var(--p);font-size:13px;font-weight:600;
+  cursor:pointer;font-family:inherit;padding:0 12px;height:40px}
+
+.note{margin:10px 12px;background:var(--variant);border-radius:12px;padding:11px 13px;
+  font-size:12px;color:var(--t2);line-height:17px}
+.note b{color:var(--t1);font-weight:600}
+.warnbox{margin:10px 12px;background:var(--warn-bg);border:1px solid var(--warn-line);
+  border-radius:12px;padding:11px 13px;font-size:12px;color:var(--warn);line-height:17px}
+
+.sec{padding:14px 16px 6px;font-size:12px;font-weight:600;color:var(--p);letter-spacing:.3px}
+.grp{background:var(--card);margin:0 12px 12px;border-radius:16px;overflow:hidden;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.row{display:flex;align-items:center;gap:12px;padding:0 12px 0 14px;min-height:64px;cursor:pointer}
+.row:active{background:#F4F6F9}
+.row+.row{border-top:1px solid var(--divider)}
+.ico{width:36px;height:36px;border-radius:10px;background:var(--variant);flex:none;
+  display:flex;align-items:center;justify-content:center;color:var(--p)}
+.ico svg{width:20px;height:20px;fill:currentColor}
+.row .tx{flex:1;min-width:0;padding:10px 0}
+.row .t{font-size:14px;color:var(--t1);line-height:19px}
+.row .s{font-size:12px;color:var(--t2);margin-top:2px;line-height:16px}
+.row .go{flex:none;color:var(--p);font-size:13px;font-weight:600}
+
+.empty{padding:34px 20px;text-align:center;color:var(--t2);font-size:13px;display:none;line-height:19px}
+.empty.on{display:block}
+.empty b{display:block;color:var(--t1);font-size:15px;margin-bottom:6px}
+
+/* 字段 */
+.fld{padding:0 12px 10px}
+.fld label{display:block;font-size:12px;color:var(--t2);margin:0 0 5px 2px}
+.fld label em{font-style:normal;color:var(--err)}
+.inp{height:48px;border:1px solid var(--outline);border-radius:12px;display:flex;
+  align-items:center;padding:0 13px;background:var(--card)}
+.inp input{border:0;outline:0;font-size:14px;color:var(--t1);flex:1;background:none;font-family:inherit;width:100%}
+.inp input::placeholder{color:var(--t3)}
+
+/* chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px;padding:2px 12px 10px}
+.chip{border:1px solid var(--outline);background:var(--card);border-radius:10px;
+  padding:0 14px;height:36px;display:flex;align-items:center;font-size:13px;
+  color:var(--t1);cursor:pointer;font-family:inherit}
+.chip.on{background:var(--sc);border-color:var(--sc);color:var(--on-sc);font-weight:600}
+
+/* 开关行 */
+.sw{display:flex;align-items:center;gap:12px;padding:12px 14px;min-height:56px;cursor:pointer}
+.sw+.sw{border-top:1px solid var(--divider)}
+.sw .tx{flex:1;min-width:0}
+.sw .t{font-size:14px;color:var(--t1);line-height:19px}
+.sw .s{font-size:12px;color:var(--t2);margin-top:2px;line-height:16px}
+.tg{width:42px;height:24px;border-radius:12px;background:var(--outline);position:relative;flex:none;
+  transition:background .15s}
+.tg::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;
+  background:#fff;transition:transform .15s}
+.tg.on{background:var(--p)}
+.tg.on::after{transform:translateX(18px)}
+
+/* 按钮 */
+.acts{position:absolute;bottom:0;left:0;right:0;background:var(--surface);
+  border-top:1px solid var(--divider);padding:10px 12px 12px;display:flex;gap:10px;z-index:30}
+.btn{flex:1;height:48px;border-radius:24px;border:1px solid var(--outline);background:var(--card);
+  color:var(--p);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn.pri{background:var(--p);border-color:var(--p);color:var(--on-p)}
+.btn:disabled{background:var(--variant);border-color:var(--divider);color:var(--t3);cursor:default}
+.blk{display:block;width:calc(100% - 24px);margin:4px 12px 0}
+.why{margin:6px 12px 0;font-size:11px;color:var(--warn);line-height:16px;display:none}
+.why.on{display:block}
+
+/* 文件卡 */
+.fcard{background:var(--card);margin:0 12px 10px;border-radius:14px;padding:12px 14px;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.fcard .hd{display:flex;align-items:center;gap:8px}
+.fcard .nm{font-size:14px;font-weight:600;color:var(--t1);flex:1;line-height:19px}
+.badge{font-size:11px;padding:2px 8px;border-radius:6px;flex:none;font-weight:600}
+.badge.up{background:var(--sc);color:var(--on-sc)}
+.badge.ok{background:var(--ok-bg);color:var(--ok)}
+.badge.no{background:var(--warn-bg);color:var(--warn)}
+.fcard .mt{font-size:11px;color:var(--t2);margin-top:4px;line-height:16px}
+.fcard .st{font-size:12px;color:var(--p);margin-top:5px;line-height:17px}
+.fcard .st.g{color:var(--t2)}
+.fcard .st.w{color:var(--warn)}
+.fcard .op{display:flex;gap:8px;margin-top:9px}
+.sm{height:40px;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;border:1px solid var(--outline);
+  background:var(--card);color:var(--p);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;
+  position:relative}
+.sm::before{content:"";position:absolute;left:0;right:0;top:-4px;bottom:-4px}
+.sm.pri{background:var(--p);border-color:var(--p);color:var(--on-p)}
+.sm:disabled{background:var(--variant);border-color:var(--divider);color:var(--t3);cursor:default}
+.sm:disabled::before{display:none}
+
+.btnrow{display:flex;gap:10px;padding:0 12px 12px}
+.btnrow .btn{margin:0}
+
+/* 底部栏 */
+.nav{position:absolute;bottom:0;left:0;right:0;height:56px;background:var(--surface);
+  border-top:1px solid var(--divider);display:flex;z-index:35}
+.nav button{flex:1;border:0;background:none;font-family:inherit;font-size:11px;
+  color:var(--t3);cursor:pointer;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:2px}
+.nav button.on{color:var(--p)}
+.nav svg{width:22px;height:22px;fill:currentColor}
+
+/* 弹窗（只保留确认类） */
+.mask{position:absolute;inset:0;background:rgba(0,0,0,.42);z-index:50;display:none;
+  align-items:center;justify-content:center;padding:24px}
+.mask.on{display:flex}
+.dlg{background:var(--card);border-radius:20px;width:100%;padding:20px 18px 12px}
+.dlg h3{font-size:17px;color:var(--t1);margin-bottom:8px}
+.dlg p{font-size:13px;color:var(--t2);line-height:19px;margin-bottom:14px}
+.dlg .db{display:flex;justify-content:flex-end;gap:6px}
+.dlg .db button{border:0;background:none;color:var(--p);font-size:14px;font-weight:600;
+  padding:10px 12px;cursor:pointer;font-family:inherit}
+.dlg .db button.dg{color:var(--err)}
+
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;line-height:17px;
+  color:var(--t1);background:var(--variant);border-radius:12px;padding:12px;margin:0 12px 12px;
+  white-space:pre-wrap;word-break:break-all}
+
+.hint{font-size:11px;color:var(--t3);text-align:center;padding:14px 20px 26px;line-height:16px}
+</style>
+</head>
+<body>
+
+<div class="phone" id="ph">
+  <div class="bar"><span>2:04</span><span class="r"><span>中国移动</span><span class="bat"><i></i></span></span></div>
+
+  <!-- ═══ 主页面 ═══ -->
+  <div class="view on hasbar" id="v-main">
+    <div class="appbar">
+      <h1>服务器</h1>
+      <button class="act" onclick="go('v-log')">日志</button>
+      <button class="act" onclick="confirmClear()">⋮</button>
+    </div>
+
+    <!-- 连接状态 -->
+    <div class="grp" style="margin-top:12px">
+      <div class="row" onclick="go('v-conn')">
+        <div class="ico" id="ci"><svg viewBox="0 0 24 24"><path d="M4 6h16v10H4z" opacity=".3"/><path d="M2 18h20v2H2z"/></svg></div>
+        <div class="tx"><div class="t" id="c-t">未连接</div><div class="s" id="c-s">面板 API · 还没填连接信息</div></div>
+        <div class="go" id="c-go">去连接</div>
+      </div>
+      <div class="row" onclick="go('v-match')">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 5h18v2H3zM3 11h18v2H3zM3 17h12v2H3z"/></svg></div>
+        <div class="tx"><div class="t">匹配条件</div><div class="s" id="m-s">1.20.1 · Fabric · 服务端 · 3 个来源</div></div>
+        <div class="go">修改</div>
+      </div>
+    </div>
+
+    <!-- 扫描 -->
+    <div id="scanBox">
+      <div class="grp">
+        <div class="row" onclick="pickDir()">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M10 4H4v6h2V6h4zM4 14v6h6v-2H6v-4zM20 14h-2v4h-4v2h6zM14 4v2h4v4h2V4z"/></svg></div>
+          <div class="tx"><div class="t">扫描目录</div><div class="s" id="d-s">/mods</div></div>
+          <span class="sm" id="b-browse">浏览</span>
+        </div>
+      </div>
+      <button class="btn pri blk" id="b-scan" onclick="scan()">扫描文件</button>
+      <div class="why" id="w-scan">先连上服务器</div>
+    </div>
+
+    <!-- 文件列表 -->
+    <div class="sec" id="f-t" style="display:none">服务器文件 <span id="f-n">0</span> 个</div>
+    <div id="f-list"></div>
+    <div class="empty on" id="f-empty"><b>还没有文件</b>连上服务器后点「扫描文件」，里面的 jar 会列在这里，再点「检测更新」逐个查版本。</div>
+    <div style="height:72px"></div>
+    <div class="hint">原型：跨页跳转与真实连接不可点</div>
+  </div>
+
+  <!-- ═══ 连接页 ═══ -->
+  <div class="view hasbar" id="v-conn">
+    <div class="appbar"><button class="back" onclick="back()">‹</button><h1>连接服务器</h1></div>
+    <div class="chips" id="k-chips"></div>
+    <div class="note" id="k-note"></div>
+    <div id="k-fields"></div>
+    <div class="fld">
+      <label>服务器内目录</label>
+      <div class="inp"><input id="f-dir" value="/mods" placeholder="/mods 或 /plugins"></div>
+    </div>
+    <button class="btn pri blk" id="b-conn" onclick="doConn()">连接</button>
+    <div class="why" id="w-conn"></div>
+    <button class="btn blk" style="margin-top:10px" onclick="probeDirs()">找模组目录</button>
+    <div class="note" style="margin-top:14px">连接信息只存在本机，不会上传。</div>
+  </div>
+
+  <!-- ═══ 匹配条件页 ═══ -->
+  <div class="view hasbar" id="v-match">
+    <div class="appbar"><button class="back" onclick="back()">‹</button><h1>匹配条件</h1></div>
+    <div class="fld" style="padding-top:12px">
+      <label>服务器 MC 版本</label>
+      <div class="inp"><input id="f-ver" value="1.20.1" placeholder="如 1.20.1"></div>
+    </div>
+    <div class="sec">加载器</div>
+    <div class="chips" id="l-chips"></div>
+    <div class="sec">端</div>
+    <div class="chips" id="s-chips"></div>
+    <div class="note" id="s-note"></div>
+    <div class="sec">更新来源</div>
+    <div class="grp">
+      <div class="sw" onclick="tog('src1')"><div class="tx"><div class="t">Modrinth</div></div><div class="tg on" id="src1"></div></div>
+      <div class="sw" onclick="tog('src2')"><div class="tx"><div class="t">CurseForge</div><div class="s">插件是独立分类，和模组不在一个池子里</div></div><div class="tg on" id="src2"></div></div>
+      <div class="sw" onclick="tog('src3')"><div class="tx"><div class="t">后端搜索</div></div><div class="tg on" id="src3"></div></div>
+    </div>
+    <button class="btn pri blk" onclick="back()">完成</button>
+  </div>
+
+  <!-- ═══ 日志页 ═══ -->
+  <div class="view hasbar" id="v-log">
+    <div class="appbar"><button class="back" onclick="back()">‹</button><h1>日志</h1>
+      <button class="act" onclick="toast('已复制')">复制</button></div>
+    <div class="mono" id="log-tx">（暂无）</div>
+  </div>
+
+  <!-- ═══ 手动搜索页 ═══ -->
+  <div class="view hasbar" id="v-man">
+    <div class="appbar"><button class="back" onclick="back()">‹</button><h1>手动搜索</h1></div>
+    <div class="sec" id="man-t">模组名</div>
+    <div class="fld">
+      <label>关键词</label>
+      <div class="inp"><input id="f-q" placeholder="模组名"></div>
+    </div>
+    <div class="note">自动匹配认不出来时用这个。搜到多个会让你选一个。</div>
+    <button class="btn pri blk" id="b-man" onclick="doMan()">搜索</button>
+    <div class="why" id="w-man">先填关键词</div>
+  </div>
+
+  <!-- ═══ 候选选择页 ═══ -->
+  <div class="view hasbar" id="v-cand">
+    <div class="appbar"><button class="back" onclick="back()">‹</button><h1>选一个</h1></div>
+    <div class="sec" id="cand-t"></div>
+    <div class="grp" id="cand-list"></div>
+  </div>
+
+  <!-- ═══ 存放位置页 ═══ -->
+  <div class="view hasbar" id="v-out">
+    <div class="appbar"><button class="back" onclick="back()">‹</button><h1>更新存放位置</h1></div>
+    <div class="note">下载只落到本机目录，不会上传回服务器。</div>
+    <div class="grp">
+      <div class="row" onclick="setOut(0)"><div class="tx"><div class="t">用默认目录</div><div class="s">迁移后目录 / 工作目录</div></div><div class="go" id="o0">当前</div></div>
+      <div class="row" onclick="setOut(1)"><div class="tx"><div class="t">自己选一个目录</div><div class="s" id="o1s">还没选</div></div><div class="go" id="o1"></div></div>
+    </div>
+  </div>
+
+  <!-- 确认弹窗 -->
+  <div class="mask" id="mask">
+    <div class="dlg">
+      <h3 id="dlg-t"></h3><p id="dlg-b"></p>
+      <div class="db"><button onclick="closeDlg()">取消</button><button class="dg" id="dlg-ok"></button></div>
+    </div>
+  </div>
+
+
+<script>
+var S={conn:false,kind:0,loader:1,side:0,src:[1,1,1],out:0,files:[],dir:'/mods'};
+var FILES=[
+ {n:'jei-1.20.1.jar',k:'模组',sz:'412KB',p:'/mods',up:'1.20.4',st:0},
+ {n:'jade-1.20.1.jar',k:'模组',sz:'188KB',p:'/mods',up:'1.20.4',st:0},
+ {n:'sodium-1.20.1.jar',k:'模组',sz:'1.2MB',p:'/mods',up:'',st:1},
+ {n:'collective-1.20.1.jar',k:'模组',sz:'96KB',p:'/mods',up:'1.20.3',st:0},
+ {n:'worldedit-plugin.jar',k:'插件',sz:'3.4MB',p:'/plugins',up:'',st:1},
+ {n:'mystery-mod.jar',k:'模组',sz:'220KB',p:'/mods',up:'',st:2}
+];
+var KINDS=['面板 API','FTP','FTPS','SFTP'];
+var KNOTE=['用面板的 Client API Key 连接，不是登录密码。没有面板 Key 就改选上面的 FTP/SFTP。',
+ '用服务器的 FTP / SSH 账号密码直连，可以浏览并读取 mods、plugins 目录。'];
+var LOADERS=['自动','Fabric','Forge','NeoForge','Quilt'];
+var SIDES=['服务端','客户端'];
+var SNOTE=['按服务端匹配：只取标了服务端可用的文件。','按客户端匹配：只取客户端可用的文件。'];
+var LOG='14:02:11 连接面板 https://panel.example.com\n14:02:12 已连接，找到 2 个服务器\n14:02:12 选中：MC 服务器 A\n14:02:13 读取 /mods\n14:02:14 扫描到 6 个 jar\n14:02:15 检测更新：6 个\n14:02:19 有更新 3 个，最新 2 个，没认出来 1 个\n14:02:19 mystory-mod.jar 需要手动指定';
+
+function $(i){return document.getElementById(i)}
+function show(id){var v=document.querySelectorAll('.view');for(var i=0;i<v.length;i++)v[i].classList.remove('on');$(id).classList.add('on');window.__cur=id}
+function go(id){window.__back=window.__cur||'v-main';show(id);if(id==='v-log')$('log-tx').textContent=LOG}
+function back(){show(window.__back||'v-main')}
+function toast(t){var d=document.createElement('div');d.textContent=t;
+ d.style.cssText='position:absolute;bottom:70px;left:50%;transform:translateX(-50%);background:#1A1C1E;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:99';
+ $('ph').appendChild(d);setTimeout(function(){d.remove()},1400)}
+
+function chips(id,arr,cur,cb){
+  var h='';for(var i=0;i<arr.length;i++)h+='<button class="chip'+(i===cur?' on':'')+'" onclick="'+cb+'('+i+')">'+arr[i]+'</button>';
+  $(id).innerHTML=h}
+function rendKind(){
+  chips('k-chips',KINDS,S.kind,'setKind');
+  $('k-note').textContent=S.kind===0?KNOTE[0]:KNOTE[1];
+  var f=S.kind===0
+   ?'<div class="fld"><label>面板地址 <em>*</em></label><div class="inp"><input id="f-base" placeholder="https://panel.example.com"></div></div>'
+    +'<div class="fld"><label>Client API Key <em>*</em></label><div class="inp"><input id="f-key" placeholder="ptlc_ 开头"></div></div>'
+   :'<div class="fld"><label>主机地址 <em>*</em></label><div class="inp"><input id="f-host" placeholder="服务器域名或 IP"></div></div>'
+    +'<div class="fld"><label>端口</label><div class="inp"><input id="f-port" placeholder="FTP 21 / SFTP 22"></div></div>'
+    +'<div class="fld"><label>用户名 <em>*</em></label><div class="inp"><input id="f-user"></div></div>'
+    +'<div class="fld"><label>密码 <em>*</em></label><div class="inp"><input id="f-pass" type="password"></div></div>';
+  $('k-fields').innerHTML=f;
+  checkConn()}
+function setKind(i){S.kind=i;rendKind()}
+function val(id){var e=$(id);return e?e.value.trim():''}
+function checkConn(){
+  var miss=[];
+  if(S.kind===0){if(!val('f-base'))miss.push('面板地址');if(!val('f-key'))miss.push('API Key')}
+  else{if(!val('f-host'))miss.push('主机地址');if(!val('f-user'))miss.push('用户名');if(!val('f-pass'))miss.push('密码')}
+  $('b-conn').disabled=miss.length>0;
+  $('w-conn').className='why'+(miss.length?' on':'');
+  $('w-conn').textContent=miss.length?'还差：'+miss.join('、'):''}
+document.addEventListener('input',function(e){if(e.target&&e.target.tagName==='INPUT'){checkConn();checkMan()}});
+
+function doConn(){
+  S.conn=true;S.files=FILES.slice();
+  $('c-t').textContent='已连接 · MC 服务器 A';
+  $('c-s').textContent=(S.kind===0?'面板 API':'FTP/SFTP')+' · '+S.dir;
+  $('c-go').textContent='切换';
+  rendFiles();back();toast('已连接')}
+function setDir(d){S.dir=d;$('d-s').textContent=d;if(S.conn)$('c-s').textContent=(S.kind===0?'面板 API':'FTP/SFTP')+' · '+d;back()}
+function pickDir(){
+  window.__back='v-conn';
+  var items=['/mods','/plugins','/mods/1.20.1','/config'];
+  var h='';for(var i=0;i<items.length;i++)h+='<div class="row" onclick="setDir(\''+items[i]+'\')"><div class="tx"><div class="t">'+items[i]+'</div></div></div>';
+  openPick('浏览目录','当前 '+$('f-dir').value,h)}
+function probeDirs(){toast('找到 /mods、/plugins');setDir('/mods')}
+function openPick(t,s,body){
+  var ex=$('v-pick');if(ex)ex.remove();
+  var v=document.createElement('div');v.className='view on hasbar';v.id='v-pick';
+  v.innerHTML='<div class="appbar"><button class="back" onclick="back()">‹</button><h1>'+t+'</h1></div>'
+   +'<div class="note">'+s+'</div><div class="grp">'+body+'</div>';
+  var vs=document.querySelectorAll('.view');for(var i=0;i<vs.length;i++)vs[i].classList.remove('on');
+  $('ph').insertBefore(v,$('mask'));window.__cur='v-pick'}
+function scan(){if(!S.conn){toast('先连上服务器');return}
+  S.files=FILES.slice();rendFiles();toast('扫描到 '+S.files.length+' 个')}
+
+function rendFiles(){
+  var h='';
+  for(var i=0;i<S.files.length;i++){var f=S.files[i];
+    var b=f.st===0?'<span class="badge up">有更新</span>':f.st===1?'<span class="badge ok">最新</span>':'<span class="badge no">没认出来</span>';
+    var st=f.st===0?'有更新 → '+f.up:f.st===1?'已经是最新':'自动匹配没认出来，手动指定一下';
+    var stc=f.st===0?'':f.st===1?' g':' w';
+    var btn=f.st===0?'<button class="sm pri" onclick="dl('+i+')">下载</button>'
+      :'<button class="sm" disabled>无更新</button>';
+    h+='<div class="fcard"><div class="hd"><div class="nm">'+f.n+'</div>'+b+'</div>'
+      +'<div class="mt">'+f.k+' · '+f.sz+' · '+f.p+'</div>'
+      +'<div class="st'+stc+'">'+st+'</div>'
+      +'<div class="op">'+btn+'<button class="sm" onclick="man('+i+')">手动搜索</button></div></div>'}
+  $('f-list').innerHTML=h;
+  var n=S.files.length;
+  $('f-t').style.display=n?'block':'none';
+  $('f-n').textContent=n;
+  $('f-empty').className='empty'+(n?'':' on');
+  rendActs()}
+function rendActs(){
+  var old=$('acts');if(old)old.remove();
+  if(!S.files.length)return;
+  var up=0;for(var i=0;i<S.files.length;i++)if(S.files[i].st===0)up++;
+  var d=document.createElement('div');d.className='acts';d.id='acts';
+  d.innerHTML='<button class="btn" onclick="checkUpd()">检测更新</button>'
+    +'<button class="btn pri" '+(up?'':'disabled')+' onclick="dlAll()">下载全部（'+up+'）</button>';
+  $('ph').appendChild(d)}
+function dl(i){S.files[i].st=1;rendFiles();toast('已下载 '+S.files[i].n)}
+function dlAll(){var n=0;for(var i=0;i<S.files.length;i++)if(S.files[i].st===0){S.files[i].st=1;n++}
+  rendFiles();toast('已下载 '+n+' 个')}
+function checkUpd(){toast('检测完成');rendFiles()}
+function man(i){$('man-t').textContent=S.files[i].n;$('f-q').value='';go('v-man');checkMan()}
+function checkMan(){$('b-man').disabled=!$('f-q').value.trim();
+  $('w-man').className='why'+($('f-q').value.trim()?'':' on')}
+function doMan(){
+  var q=$('f-q').value.trim();if(!q)return;
+  $('cand-t').textContent=q+' — 搜到 3 个';
+  var arr=[['JEI','Modrinth'],['JEI (CurseForge)','CurseForge'],['JustEnoughItems','后端']];
+  var h='';for(var i=0;i<arr.length;i++)h+='<div class="row" onclick="pickCand('+i+')"><div class="tx"><div class="t">'+arr[i][0]+'</div><div class="s">'+arr[i][1]+'</div></div></div>';
+  $('cand-list').innerHTML=h;show('v-cand')}
+function pickCand(i){S.files[0].st=0;S.files[0].up='1.20.4';rendFiles();show('v-main');toast('已指定')}
+
+function rendMatch(){
+  chips('l-chips',LOADERS,S.loader,'setLoader');
+  chips('s-chips',SIDES,S.side,'setSide');
+  $('s-note').textContent=SNOTE[S.side];
+  $('m-s').textContent=val('f-ver')+' · '+LOADERS[S.loader]+' · '+SIDES[S.side]+' · '+S.src.reduce(function(a,b){return a+b},0)+' 个来源'}
+function setLoader(i){S.loader=i;rendMatch()}
+function setSide(i){S.side=i;rendMatch()}
+function tog(id){var e=$(id);e.classList.toggle('on');
+  var k=id==='src1'?0:id==='src2'?1:2;S.src[k]=e.classList.contains('on')?1:0;rendMatch()}
+function setOut(i){S.out=i;$('o0').textContent=i===0?'当前':'';
+  $('o1').textContent=i===1?'当前':'';
+  $('o1s').textContent=i===1?'/storage/emulated/0/Download/mods':'还没选';back()}
+
+function confirmClear(){
+  if(!S.files.length){toast('列表是空的');return}
+  openDlg('清空列表','已扫描的 '+S.files.length+' 个文件会从列表移除，不影响服务器上的文件。','清空',function(){
+    S.files=[];rendFiles();closeDlg()})}
+function openDlg(t,b,ok,fn){$('dlg-t').textContent=t;$('dlg-b').textContent=b;
+  $('dlg-ok').textContent=ok;$('dlg-ok').onclick=fn;$('mask').classList.add('on')}
+function closeDlg(){$('mask').classList.remove('on')}
+
+rendKind();rendMatch();rendFiles();
+</script>
+</body>
+</html>
