@@ -134,16 +134,22 @@ object SkinApi {
         } catch (t: Throwable) {
             throw RuntimeException("皮肤数据解不开：" + (t.message ?: ""))
         }
-        val tex = Json.obj(decoded)?.let { Json.obj(it, "textures") }
+        //
+        // Json.obj() 只吃 String（它的签名是 obj(text: String)），没有「从已有
+        // 元素里取子对象」的重载 —— 第一版写成 Json.obj(tex, "SKIN") 直接编译不过。
+        // 嵌套对象这里直接用 Gson 的 getAsJsonObject，成员不存在时它返回 null。
+        //
+        val root = Json.obj(decoded) ?: throw RuntimeException("皮肤数据解不开")
+        val tex = root.getAsJsonObject("textures")
             ?: throw RuntimeException("皮肤数据里没有 textures")
 
-        val skinObj = Json.obj(tex, "SKIN")
-        val capeObj = Json.obj(tex, "CAPE")
+        val skinObj = tex.getAsJsonObject("SKIN")
+        val capeObj = tex.getAsJsonObject("CAPE")
 
         // SKIN 缺失 = 默认皮肤，不是失败
         val skinUrl = skinObj?.let { Json.s(it, "url").ifBlank { null } }?.let { https(it) }
         val capeUrl = capeObj?.let { Json.s(it, "url").ifBlank { null } }?.let { https(it) }
-        val slim = skinObj?.let { Json.s(Json.obj(it, "metadata"), "model") } == "slim"
+        val slim = skinObj?.getAsJsonObject("metadata")?.let { Json.s(it, "model") } == "slim"
 
         val s = Skin(uuid, name, skinUrl, capeUrl, slim)
         synchronized(cache) { cache[uuid] = s }
