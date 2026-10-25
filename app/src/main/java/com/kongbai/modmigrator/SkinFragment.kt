@@ -27,10 +27,13 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,10 +77,30 @@ private fun SkinScreen(ctx: android.content.Context) {
     var skin by remember { mutableStateOf<SkinApi.Skin?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
 
+    // 每秒走一次，用来刷新限速倒计时。只读 Prefs 里一串时间戳，开销可以忽略。
+    var tick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1000)
+            tick++
+        }
+    }
+
+    val gate = remember(tick, busy) { MojangRate.check(cost = MojangRate.PER_QUERY) }
+    val left = remember(tick, busy) { MojangRate.remainingQueries() }
+
     fun go() {
+        // 并发锁：连点不会堆出好几个网络请求
+        if (busy) return
         val q = input.trim()
         if (q.isEmpty()) {
             err = "请输入玩家名或 UUID"
+            return
+        }
+        // 先自己判一次，不行就别进后台了，直接把等待时间显示出来
+        val v = MojangRate.check(cost = MojangRate.PER_QUERY)
+        if (!v.ok) {
+            err = v.reason + "，请 ${v.waitSec} 秒后再试"
             return
         }
         busy = true
@@ -87,6 +110,7 @@ private fun SkinScreen(ctx: android.content.Context) {
             val r = runCatching { SkinApi.query(q) }
             Bg.post {
                 busy = false
+                tick++   // 查完剩余次数变了，立刻刷新
                 r.onSuccess { skin = it }
                     .onFailure { err = it.message ?: "查询失败" }
             }
@@ -107,7 +131,24 @@ private fun SkinScreen(ctx: android.content.Context) {
 
         Spacer(Modifier.height(10.dp))
 
-        McFilledButton(if (busy) "查询中…" else "查询", enabled = !busy) { go() }
+        McFilledButton(
+            when {
+                busy -> "查询中…"
+                !gate.ok -> "请等待 ${gate.waitSec} 秒"
+                else -> "查询"
+            },
+            enabled = !busy && gate.ok
+        ) { go() }
+
+        Spacer(Modifier.height(6.dp))
+
+        Text(
+            if (!gate.ok) gate.reason + "，还需 ${gate.waitSec} 秒"
+            else "今天还能查约 $left 次（Mojang 按 IP 计次，超了会封 IP，所以这里限得比较严）",
+            fontSize = 12.sp,
+            color = if (!gate.ok) MaterialTheme.colorScheme.error
+            else MaterialTheme.colorScheme.onSurfaceVariant
+        )
 
         Spacer(Modifier.height(16.dp))
 
