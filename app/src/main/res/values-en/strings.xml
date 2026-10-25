@@ -216,6 +216,7 @@
     <string name="translate_hint">Uses Google ML Kit\'s offline model. After one download (about 30MB) translation no longer needs the network. It still works without the download, but goes through the online API.</string>
     <string name="tab_mods">Mod manager</string>
     <string name="tab_trash">Recycle bin</string>
+    <string name="tab_skin">Player skin</string>
     <string name="trash_empty">Recycle bin is empty</string>
     <string name="trash_restore">Restore</string>
     <string name="trash_delete">Delete permanently</string>
