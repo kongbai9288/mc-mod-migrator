@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>迁移页 UI 原型 1:1</title>
+<style>
+:root{
+  --p:#0B57D0; --on-p:#fff;
+  --sc:#D3E3FD; --on-sc:#0A2E6F;
+  --surface:#FEFBFF; --card:#FFFFFF;
+  --variant:#F0F2F5; --outline:#C4C7C5; --divider:#E7E9EB;
+  --t1:#1A1C1E; --t2:#5F6368;
+  --ok:#0F7B3D; --okbg:#DFF5E5;
+  --warn:#8A5A00; --warnbg:#FDEEC8;
+  --err:#B3261E; --errbg:#FBE4E2;
+  --info:#0A2E6F; --infobg:#D3E3FD;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#12151A;display:flex;justify-content:center;align-items:flex-start;
+  min-height:100vh;font-family:Roboto,"Noto Sans SC","PingFang SC",system-ui,sans-serif;padding:20px;gap:18px}
+
+.phone{position:relative;width:360px;height:800px;background:var(--surface);
+  border-radius:28px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.55);flex:none}
+
+.bar{position:absolute;top:0;left:0;right:0;height:26px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 14px;font-size:11px;color:var(--t1);z-index:40}
+.bar .r{display:flex;align-items:center;gap:5px}
+.bat{width:18px;height:9px;border:1px solid var(--t1);border-radius:2px;position:relative;padding:1px}
+.bat::after{content:"";position:absolute;right:-2px;top:2px;width:1.5px;height:4px;background:var(--t1)}
+.bat i{display:block;height:100%;width:31%;background:var(--t1)}
+
+.view{position:absolute;top:26px;bottom:56px;left:0;right:0;overflow-y:auto;background:var(--surface)}
+.view::-webkit-scrollbar{width:0}
+.pg{display:none}
+.pg.on{display:block}
+
+.top{height:48px;display:flex;align-items:center;padding:0 6px;gap:2px;background:var(--surface);
+  position:sticky;top:0;z-index:20}
+.top h1{font-size:20px;font-weight:500;color:var(--t1);flex:1;padding-left:10px}
+.icb{width:44px;height:44px;border:0;background:none;cursor:pointer;color:var(--t2);
+  display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:20px;font-family:inherit}
+.icb:active{background:var(--variant)}
+
+.nav{position:absolute;bottom:0;left:0;right:0;height:56px;background:var(--card);
+  border-top:1px solid var(--divider);display:flex;z-index:30}
+.nav button{flex:1;border:0;background:none;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:3px;color:var(--t2);cursor:pointer;font-family:inherit}
+.nav button.sel{color:var(--p)}
+.nav button span{font-size:10px;letter-spacing:.2px}
+
+/* 模式 */
+.modes{display:flex;gap:8px;padding:2px 14px 10px}
+.modes .chip{flex:1;justify-content:center}
+
+.chips{display:flex;gap:8px;padding:2px 14px 10px;overflow-x:auto;scrollbar-width:none}
+.chips::-webkit-scrollbar{height:0}
+.chip{flex:none;height:32px;padding:0 14px;border-radius:8px;border:1px solid var(--outline);
+  background:none;color:var(--t1);font-size:13px;cursor:pointer;display:flex;
+  align-items:center;font-family:inherit}
+.chip.sel{background:var(--sc);border-color:transparent;color:var(--on-sc);font-weight:500}
+
+/* 卡片 */
+.card{background:var(--card);margin:0 12px 10px;border-radius:14px;padding:14px;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.card.warn{border-left:3px solid var(--warn)}
+.cardhd{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.cardhd .ti{font-size:14px;font-weight:600;color:var(--t1);flex:1}
+.cardhd .tag{font-size:11px;color:var(--t2);background:var(--variant);
+  padding:2px 7px;border-radius:6px}
+
+.path{font-size:13px;color:var(--t1);line-height:19px;word-break:break-all;
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+.path.none{color:var(--t2);font-family:inherit;font-size:13px}
+.note{font-size:12px;color:var(--t2);line-height:17px;margin-top:7px}
+.note.bad{color:var(--warn)}
+
+.acts{display:flex;gap:8px;margin-top:11px}
+.bt{flex:1;height:44px;border-radius:22px;border:1px solid var(--outline);background:none;
+  color:var(--p);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;gap:5px}
+.bt:active{background:var(--variant)}
+.bt.fill{background:var(--p);color:var(--on-p);border-color:transparent}
+.bt.fill:active{background:#08429F}
+.bt.fill:disabled{background:#C8CCF0;color:#F0F2FA}
+.bt.sm{height:38px;font-size:13px;border-radius:19px}
+
+/* 字段 */
+.fld{height:48px;border:1px solid var(--outline);border-radius:24px;display:flex;
+  align-items:center;padding:0 14px;gap:8px;background:var(--card);margin-top:2px}
+.fld input{border:0;outline:0;font-size:14px;color:var(--t1);flex:1;background:none;font-family:inherit}
+.lbl{font-size:12px;color:var(--t2);display:block;margin-bottom:6px}
+
+/* 折叠 */
+.exp{border:1px solid var(--divider);border-radius:12px;margin:0 12px 10px;background:var(--card);overflow:hidden}
+.exphd{display:flex;align-items:center;gap:8px;padding:13px 14px;cursor:pointer;min-height:48px}
+.exphd .ti{font-size:14px;color:var(--t1);flex:1;font-weight:500}
+.exphd .ar{color:var(--t2);font-size:16px;transition:transform .15s}
+.exp.open .ar{transform:rotate(90deg)}
+.expbd{display:none;padding:0 14px 12px;border-top:1px solid var(--divider)}
+.exp.open .expbd{display:block}
+
+/* 勾选 */
+.ck{display:flex;align-items:flex-start;gap:10px;padding:11px 0;border-bottom:1px solid var(--divider);cursor:pointer}
+.ck:last-child{border-bottom:0}
+.ck .bx{width:22px;height:22px;border:2px solid var(--t2);border-radius:4px;flex:none;margin-top:1px;
+  display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff}
+.ck.on .bx{background:var(--p);border-color:var(--p)}
+.ck .tx{flex:1;min-width:0}
+.ck .nm{font-size:14px;color:var(--t1);line-height:19px}
+.ck .hp{font-size:11px;color:var(--t2);line-height:15px;margin-top:2px}
+
+/* 工具行 */
+.tool{display:flex;align-items:center;gap:12px;padding:13px 14px;background:var(--card);
+  border-bottom:1px solid var(--divider);cursor:pointer;min-height:60px}
+.tool:active{background:var(--variant)}
+.tool:last-child{border-bottom:0}
+.tool .ic{width:34px;height:34px;border-radius:0;background:var(--variant);flex:none;
+  display:flex;align-items:center;justify-content:center;font-size:17px}
+.tool .nm{font-size:14px;color:var(--t1);flex:1}
+.tool .hp{font-size:11px;color:var(--t2);margin-top:1px}
+.tool .ar{color:var(--outline);font-size:18px}
+
+/* 模组条目 */
+.mod{background:var(--card);margin:0 12px 10px;border-radius:14px;padding:12px;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.row1{display:flex;gap:10px;align-items:flex-start}
+.cover{width:48px;height:48px;flex:none;border-radius:0;display:flex;align-items:center;
+  justify-content:center;color:#fff;font-weight:700;font-size:14px}
+.c1{background:linear-gradient(135deg,#F2994A,#E26A2C)}
+.c2{background:linear-gradient(135deg,#56CCF2,#2D9CDB)}
+.c3{background:linear-gradient(135deg,#8E9BBF,#5A6B9E)}
+.c4{background:linear-gradient(135deg,#6FCF97,#27AE60)}
+.c5{background:linear-gradient(135deg,#BB6BD9,#8E44AD)}
+.c6{background:linear-gradient(135deg,#EB5757,#C0392B)}
+.mid{flex:1;min-width:0}
+.name{font-size:14px;font-weight:600;color:var(--t1);line-height:19px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{font-size:12px;color:var(--t2);margin-top:3px}
+.badge{display:inline-block;font-size:11px;padding:3px 8px;border-radius:6px;margin-top:6px;font-weight:500}
+.b-ok{background:var(--okbg);color:var(--ok)}
+.b-alt{background:var(--infobg);color:var(--info)}
+.b-no{background:var(--variant);color:var(--t2)}
+.b-nf{background:var(--warnbg);color:var(--warn)}
+.b-er{background:var(--errbg);color:var(--err)}
+.mods-acts{display:flex;gap:8px;margin-top:10px}
+.mods-acts .bt{flex:1}
+
+/* 进度 */
+.prog{margin:0 12px 10px;background:var(--card);border-radius:14px;padding:13px;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.prog .lb{font-size:13px;color:var(--t1);display:flex;justify-content:space-between;margin-bottom:8px}
+.trk{height:6px;background:var(--variant);border-radius:3px;overflow:hidden}
+.trk i{display:block;height:100%;background:var(--p);width:0;transition:width .3s}
+
+/* 弹窗 */
+.mask{position:absolute;inset:0;background:rgba(0,0,0,.42);z-index:50;display:none;
+  align-items:center;justify-content:center;padding:22px}
+.mask.on{display:flex}
+.dlg{background:var(--card);border-radius:20px;width:100%;max-height:660px;
+  display:flex;flex-direction:column;overflow:hidden}
+.dlghd{padding:18px 20px 6px;font-size:17px;font-weight:600;color:var(--t1)}
+.dlgbd{padding:6px 20px 14px;overflow-y:auto;font-size:13px;color:var(--t2);line-height:19px}
+.dlgbd::-webkit-scrollbar{width:0}
+.dlgft{padding:8px 14px 14px;display:flex;gap:8px;justify-content:flex-end}
+.tbtn{height:40px;padding:0 14px;border:0;background:none;color:var(--p);font-size:14px;
+  font-weight:500;cursor:pointer;border-radius:20px;font-family:inherit}
+.tbtn:active{background:var(--variant)}
+
+/* 全屏页 */
+.full{position:absolute;top:26px;bottom:0;left:0;right:0;background:var(--surface);
+  z-index:35;display:none;overflow-y:auto}
+.full.on{display:block}
+.full::-webkit-scrollbar{width:0}
+.fbtm{height:76px}
+
+/* 目录库项 */
+.lib{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--card);
+  border-bottom:1px solid var(--divider);min-height:62px}
+.lib.cur{background:var(--sc)}
+.lib .rd{width:22px;height:22px;border:2px solid var(--t2);border-radius:50%;flex:none;
+  display:flex;align-items:center;justify-content:center}
+.lib.cur .rd{border-color:var(--on-sc)}
+.lib.cur .rd::after{content:"";width:11px;height:11px;border-radius:50%;background:var(--on-sc)}
+.lib .tx{flex:1;min-width:0;cursor:pointer}
+.lib .nm{font-size:14px;color:var(--t1);line-height:19px}
+.lib .pp{font-size:11px;color:var(--t2);margin-top:2px;word-break:break-all}
+.lib .del{width:44px;height:44px;border:0;background:none;color:var(--err);cursor:pointer;
+  font-size:17px;flex:none;border-radius:50%}
+
+.empty{padding:40px 20px;text-align:center;color:var(--t2);font-size:13px;line-height:20px}
+.hint{padding:0 14px 12px;font-size:12px;color:var(--t2);line-height:17px}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="bar"><span>2:02</span><div class="r"><span>中国移动</span><span>4G</span><div class="bat"><i></i></div></div></div>
+
+  <!-- ===== 迁移主页 ===== -->
+  <div class="view">
+    <div class="pg on" id="pg-home">
+      <div class="top">
+        <h1>迁移</h1>
+        <button class="icb" onclick="dlg('help')">?</button>
+      </div>
+
+      <div class="modes">
+        <button class="chip sel" onclick="pickMode(this)">客户端迁移</button>
+        <button class="chip" onclick="pickMode(this)">服务器端迁移</button>
+      </div>
+
+      <div class="card" id="c-src">
+        <div class="cardhd"><span class="ti">迁移前</span>
+          <span class="tag" id="src-tag">未设置</span></div>
+        <div class="path none" id="src-path">还没选择目录</div>
+        <div class="note" id="src-note">从旧实例或旧版本目录读模组</div>
+        <div class="acts">
+          <button class="bt" onclick="fakePick('src')">选择目录</button>
+          <button class="bt" onclick="openFull('pg-launch')">扫描启动器</button>
+          <button class="bt" onclick="openLib('src')">目录库 3</button>
+        </div>
+      </div>
+
+      <div class="card" id="c-dst">
+        <div class="cardhd"><span class="ti">迁移后</span>
+          <span class="tag" id="dst-tag">未设置</span></div>
+        <div class="path none" id="dst-path">还没选择目录</div>
+        <div class="note" id="dst-note">新实例或新版本的目录</div>
+        <div class="acts">
+          <button class="bt" onclick="fakePick('dst')">选择目录</button>
+          <button class="bt" onclick="openLib('dst')">目录库 2</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="cardhd"><span class="ti">迁到哪个版本</span></div>
+        <label class="lbl">游戏版本</label>
+        <div class="fld"><input id="mcv" value="1.20.1" placeholder="如 1.20.1"></div>
+        <label class="lbl" style="margin-top:12px">加载器</label>
+        <div class="chips" style="padding:2px 0 0">
+          <button class="chip sel" onclick="pickChip(this)">自动</button>
+          <button class="chip" onclick="pickChip(this)">Fabric</button>
+          <button class="chip" onclick="pickChip(this)">Forge</button>
+          <button class="chip" onclick="pickChip(this)">NeoForge</button>
+          <button class="chip" onclick="pickChip(this)">Quilt</button>
+        </div>
+        <div class="acts">
+          <button class="bt sm" onclick="detectLoader()">从迁移前识别</button>
+        </div>
+      </div>
+
+      <div class="exp" id="e-parts">
+        <div class="exphd" onclick="tog('e-parts')">
+          <span class="ti">要迁移的内容</span>
+          <span class="tag" style="font-size:11px;color:var(--t2);background:var(--variant);padding:2px 7px;border-radius:6px" id="parts-n">已选 4 项</span>
+          <span class="ar">›</span>
+        </div>
+        <div class="expbd" id="parts-body"></div>
+      </div>
+
+      <div class="acts" style="margin:0 12px 4px">
+        <button class="bt" id="b-scan" onclick="doScan()">扫描模组</button>
+        <button class="bt fill" id="b-go" onclick="doMigrate()" disabled>开始迁移</button>
+      </div>
+      <div style="margin:0 14px 12px;font-size:11px;color:var(--t2);line-height:16px" id="go-why"></div>
+
+      <div id="list"></div>
+
+      <div class="exp" id="e-log" style="margin-bottom:16px">
+        <div class="exphd" onclick="tog('e-log')">
+          <span class="ti">运行日志</span>
+          <span class="tag" style="font-size:11px;color:var(--t2);background:var(--variant);padding:2px 7px;border-radius:6px" id="log-n">0 行</span>
+          <span class="ar">›</span>
+        </div>
+        <div class="expbd"><div id="logtxt" style="font-size:11px;line-height:17px;color:var(--t2);
+          font-family:ui-monospace,Menlo,Consolas,monospace;max-height:220px;overflow-y:auto"></div></div>
+      </div>
+
+      <div style="margin:0 12px 16px">
+        <div style="font-size:13px;color:var(--t2);padding:0 2px 8px">其他操作</div>
+        <div style="border-radius:14px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.06)">
+          <div class="tool" onclick="openFull('pg-doc')">
+            <div class="ic">✓</div>
+            <div style="flex:1"><div class="nm">迁移体检</div><div class="hp">检查迁移后缺什么</div></div>
+            <span class="ar">›</span>
+          </div>
+          <div class="tool" onclick="openFull('pg-diff')">
+            <div class="ic">⇄</div>
+            <div style="flex:1"><div class="nm">对比两个目录</div><div class="hp">列出差了哪些模组</div></div>
+            <span class="ar">›</span>
+          </div>
+          <div class="tool" onclick="openFull('pg-cross')">
+            <div class="ic">⇆</div>
+            <div style="flex:1"><div class="nm">跨加载器平替</div><div class="hp">Forge ↔ Fabric 换名字</div></div>
+            <span class="ar">›</span>
+          </div>
+          <div class="tool" onclick="openFull('pg-code')">
+            <div class="ic">#</div>
+            <div style="flex:1"><div class="nm">兑换码迁移</div><div class="hp">把配置编码成一段文字</div></div>
+            <span class="ar">›</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav">
+    <button class="sel" onclick="toast('当前页')"><span style="font-size:18px">⇅</span><span>迁移</span></button>
+    <button onclick="toast('市场页原型见 market_ui.html')"><span style="font-size:18px">▦</span><span>市场</span></button>
+    <button onclick="toast('更多页')"><span style="font-size:18px">⋯</span><span>更多</span></button>
+  </div>
+
+  <!-- ===== 目录库（全屏） ===== -->
+  <div class="full" id="pg-lib">
+    <div class="top"><button class="icb" onclick="closeFull()">‹</button><h1>目录库</h1></div>
+    <div class="hint" id="lib-hint"></div>
+    <div id="lib-body"></div>
+    <div style="padding:12px"><button class="bt" style="width:100%" onclick="addLib()">添加目录</button></div>
+    <div class="fbtm"></div>
+  </div>
+
+  <!-- ===== 启动器扫描（全屏） ===== -->
+  <div class="full" id="pg-launch">
+    <div class="top"><button class="icb" onclick="closeFull()">‹</button><h1>扫描启动器</h1></div>
+    <div class="hint">在这台机器上找到 2 个启动器目录。点一下就设为迁移前。</div>
+    <div id="launch-body"></div>
+    <div class="fbtm"></div>
+  </div>
+
+  <!-- ===== 跨加载器平替（全屏） ===== -->
+  <div class="full" id="pg-cross">
+    <div class="top"><button class="icb" onclick="closeFull()">‹</button><h1>跨加载器平替</h1></div>
+    <div class="hint">当前加载器 Forge。下面这些在 Forge 上没有，列了能用的替代品。</div>
+    <div style="padding:0 12px">
+      <div class="mod"><div class="row1"><div class="cover c4">Jm</div>
+        <div class="mid"><div class="name">JourneyMap</div>
+        <div class="meta">Forge 上无 1.20.1 构建</div>
+        <span class="badge b-alt">建议改用 Xaero's Minimap</span></div></div>
+        <div class="mods-acts"><button class="bt sm" onclick="toast('已替换')">用平替</button>
+        <button class="bt sm" onclick="toast('打开 Modrinth')">原文</button></div></div>
+      <div class="mod"><div class="row1"><div class="cover c5">C</div>
+        <div class="mid"><div class="name">Collective</div>
+        <div class="meta">Forge 上不需要此组件</div>
+        <span class="badge b-no">跳过</span></div></div>
+        <div class="mods-acts"><button class="bt sm" onclick="toast('已跳过')">跳过</button>
+        <button class="bt sm" onclick="toast('打开 Modrinth')">原文</button></div></div>
+    </div>
+    <div class="fbtm"></div>
+  </div>
+
+  <!-- ===== 兑换码迁移（全屏） ===== -->
+  <div class="full" id="pg-code">
+    <div class="top"><button class="icb" onclick="closeFull()">‹</button><h1>兑换码迁移</h1></div>
+    <div class="hint">把勾选的配置编码成一段文字，在另一台机器上输入即可还原。</div>
+    <div style="padding:0 12px">
+      <div class="card"><div class="cardhd"><span class="ti">生成</span></div>
+        <div class="path" id="code-txt" style="font-size:11px;background:var(--variant);padding:10px;
+          border-radius:8px;max-height:120px;overflow-y:auto">点击下面按钮生成</div>
+        <div class="acts"><button class="bt" onclick="genCode()">生成兑换码</button>
+        <button class="bt" onclick="toast('已复制')">复制</button></div></div>
+      <div class="card"><div class="cardhd"><span class="ti">使用</span></div>
+        <div class="fld"><input id="code-in" placeholder="粘贴兑换码"></div>
+        <div class="acts"><button class="bt" onclick="toast('已还原 4 项配置')">还原</button></div></div>
+    </div>
+    <div class="fbtm"></div>
+  </div>
+
+  <!-- ===== 体检（全屏） ===== -->
+  <div class="full" id="pg-doc">
+    <div class="top"><button class="icb" onclick="closeFull()">‹</button><h1>迁移体检</h1></div>
+    <div style="padding:14px">
+      <div class="card"><div class="cardhd"><span class="ti">迁移前</span><span class="tag">42 个模组</span></div>
+        <div class="path">FCL/.minecraft/versions/1.18.2</div></div>
+      <div class="card"><div class="cardhd"><span class="ti">迁移后</span><span class="tag">38 个模组</span></div>
+        <div class="path">HMCLPE/.minecraft/versions/1.20.1</div></div>
+      <div style="font-size:13px;color:var(--t2);padding:6px 2px 8px">检查结果</div>
+      <div style="background:var(--card);border-radius:14px;padding:14px;font-size:13px;line-height:21px;color:var(--t1)">
+        <div style="color:var(--err);font-weight:600;margin-bottom:6px">缺 4 个模组</div>
+        <div>· JEI（迁移前 1.18.2 有，目标版本无可用文件）</div>
+        <div>· Xaero's Minimap（Modrinth 未收录，需手动标记链接）</div>
+        <div>· JourneyMap（目标加载器 Forge 下无构建，建议改用 Xaero's）</div>
+        <div>· Collective（Fabric 下不需要此组件）</div>
+        <div style="margin-top:12px;color:var(--warn);font-weight:600">2 项警告</div>
+        <div>· 迁移后的 config/ 已存在，会先备份再覆盖</div>
+        <div>· saves/ 体积 1.2 GB，默认不勾选</div>
+      </div>
+    </div>
+    <div class="fbtm"></div>
+  </div>
+
+  <!-- ===== 对比（全屏） ===== -->
+  <div class="full" id="pg-diff">
+    <div class="top"><button class="icb" onclick="closeFull()">‹</button><h1>对比两个目录</h1></div>
+    <div style="padding:14px">
+      <div style="font-size:13px;color:var(--t2);padding:0 2px 8px">仅在迁移前（4）</div>
+      <div style="background:var(--card);border-radius:14px;overflow:hidden">
+        <div style="padding:11px 14px;border-bottom:1px solid var(--divider);font-size:13px">jei-1.18.2-9.7.1.jar</div>
+        <div style="padding:11px 14px;border-bottom:1px solid var(--divider);font-size:13px">xaerominimap-23.4.0.jar</div>
+        <div style="padding:11px 14px;border-bottom:1px solid var(--divider);font-size:13px">journeymap-5.9.0.jar</div>
+        <div style="padding:11px 14px;font-size:13px">collective-6.55.jar</div>
+      </div>
+      <div style="font-size:13px;color:var(--t2);padding:14px 2px 8px">仅在迁移后（2）</div>
+      <div style="background:var(--card);border-radius:14px;overflow:hidden">
+        <div style="padding:11px 14px;border-bottom:1px solid var(--divider);font-size:13px">emi-1.1.0.jar</div>
+        <div style="padding:11px 14px;font-size:13px">modernfix-5.11.jar</div>
+      </div>
+      <div style="font-size:13px;color:var(--t2);padding:14px 2px 8px">两边都有但版本不同（1）</div>
+      <div style="background:var(--card);border-radius:14px;overflow:hidden">
+        <div style="padding:11px 14px;font-size:13px">architectury — 4.11.88 → 9.2.14</div>
+      </div>
+    </div>
+    <div class="fbtm"></div>
+  </div>
+
+  <!-- 弹窗 -->
+  <div class="mask" id="mask" onclick="if(event.target===this)closeDlg()">
+    <div class="dlg">
+      <div class="dlghd" id="d-ti"></div>
+      <div class="dlgbd" id="d-bd"></div>
+      <div class="dlgft" id="d-ft"></div>
+    </div>
+  </div>
+
+  <!-- toast -->
+  <div id="toast" style="position:absolute;bottom:74px;left:50%;transform:translateX(-50%);
+    background:#1A1C1E;color:#fff;font-size:13px;padding:10px 16px;border-radius:20px;
+    z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;max-width:300px;text-align:center"></div>
+</div>
+
+<script>
+var SRC=null, DST=null, SCANNED=false;
+var LOGS=[];
+var PARTS=[
+ {id:'mods',n:'模组 mods/',s:false,h:'迁移时由下载阶段处理，这里勾了也不复制'},
+ {id:'config',n:'模组配置 config/',s:true,h:''},
+ {id:'defaultconfigs',n:'默认配置 defaultconfigs/',s:true,h:'Forge 系的初始配置模板'},
+ {id:'scripts',n:'脚本 scripts/',s:true,h:'CraftTweaker 用的目录'},
+ {id:'kubejs',n:'KubeJS 脚本 kubejs/',s:true,h:''},
+ {id:'resourcepacks',n:'资源包 resourcepacks/',s:false,h:''},
+ {id:'shaderpacks',n:'光影包 shaderpacks/',s:false,h:''},
+ {id:'datapacks',n:'数据包 datapacks/',s:false,h:'实例级的数据包'},
+ {id:'texturepacks',n:'旧版材质包 texturepacks/',s:false,h:'1.5 及更早的目录名'},
+ {id:'saves',n:'存档 / 地图 saves/',s:false,h:'体积通常很大，而且是个人进度'},
+ {id:'options',n:'游戏设置 options.txt',s:true,h:'画质、按键、音量'},
+ {id:'servers',n:'服务器列表 servers.dat',s:true,h:''}
+];
+var MODS=[
+ {n:'JEI',f:'jei-1.18.2-9.7.1.jar',st:'可迁移',cls:'b-ok',tv:'→ 15.2.0.27',c:'c1',i:'J'},
+ {n:'Jade',f:'jade-1.18.2-5.3.0.jar',st:'可迁移',cls:'b-ok',tv:'→ 11.9.3',c:'c2',i:'Ja'},
+ {n:"Xaero's Minimap",f:'xaerominimap-23.4.0.jar',st:'Modrinth 未收录',cls:'b-nf',tv:'去市场手动标记链接',c:'c3',i:'X'},
+ {n:'JourneyMap',f:'journeymap-5.9.0.jar',st:'建议改用',cls:'b-alt',tv:"Xaero's Minimap",c:'c4',i:'Jm'},
+ {n:'Collective',f:'collective-6.55.jar',st:'该加载器下不需要此组件',cls:'b-no',tv:'跳过',c:'c5',i:'C'},
+ {n:'Sophisticated Backpacks',f:'sophisticatedbackpacks.jar',st:'网络问题未能识别',cls:'b-er',tv:'可重试',c:'c6',i:'S'}
+];
+
+function toast(t){var e=document.getElementById('toast');e.textContent=t;e.style.opacity='1';
+  clearTimeout(e._t);e._t=setTimeout(function(){e.style.opacity='0'},1800);}
+function tog(id){document.getElementById(id).classList.toggle('open');}
+function pickMode(b){var ps=b.parentNode.children;for(var i=0;i<ps.length;i++)ps[i].classList.remove('sel');
+  b.classList.add('sel');log(b.textContent.trim()==='服务器端迁移'?'已切到服务器端迁移：源目录按服务端实例读':'已切到客户端迁移');}
+function pickChip(b){var ps=b.parentNode.children;for(var i=0;i<ps.length;i++)ps[i].classList.remove('sel');
+  b.classList.add('sel');}
+
+function log(s){LOGS.push(s);document.getElementById('log-n').textContent=LOGS.length+' 行';
+  document.getElementById('logtxt').textContent=LOGS.join('\n');}
+
+function renderParts(){
+  var h='';
+  for(var i=0;i<PARTS.length;i++){var p=PARTS[i];
+    h+='<div class="ck'+(p.s?' on':'')+'" onclick="togPart('+i+')">'+
+       '<div class="bx">'+(p.s?'✓':'')+'</div><div class="tx"><div class="nm">'+p.n+'</div>'+
+       (p.h?'<div class="hp">'+p.h+'</div>':'')+'</div></div>';}
+  document.getElementById('parts-body').innerHTML=h;
+  var n=PARTS.filter(function(p){return p.s}).length;
+  document.getElementById('parts-n').textContent='已选 '+n+' 项';
+}
+function togPart(i){PARTS[i].s=!PARTS[i].s;renderParts();}
+
+function fakePick(which){
+  var p = which==='src' ? 'FCL/.minecraft/versions/1.18.2' : 'HMCLPE/.minecraft/versions/1.20.1';
+  if(which==='src'){
+    SRC=p;
+    document.getElementById('src-path').className='path';
+    document.getElementById('src-path').textContent=p;
+    document.getElementById('src-tag').textContent='可用 · 42 个模组';
+    document.getElementById('src-note').className='note';
+    document.getElementById('src-note').textContent='这一层有 mods/，可直接作为迁移前';
+    document.getElementById('c-src').className='card';
+    log('迁移前：'+p);
+  }else{
+    DST=p;
+    document.getElementById('dst-path').className='path';
+    document.getElementById('dst-path').textContent=p;
+    document.getElementById('dst-tag').textContent='空实例';
+    document.getElementById('dst-note').textContent='目标为空，迁移时不会覆盖已有文件';
+    log('迁移后：'+p);
+  }
+  checkReady();
+}
+function checkReady(){
+  var ok = !!(SRC&&DST&&SCANNED);
+  document.getElementById('b-go').disabled = !ok;
+  var w='';
+  if(!SRC) w='先选「迁移前」目录';
+  else if(!DST) w='再选「迁移后」目录';
+  else if(!SCANNED) w='点「扫描模组」看看哪些能迁，之后才能开始';
+  document.getElementById('go-why').textContent=w;
+}
+function markMoved(b){
+  var m=b.closest('.mod');
+  var bd=m.querySelector('.badge');
+  bd.className='badge b-ok';bd.textContent='已迁移';
+  m.querySelector('.meta+.badge+ .meta').textContent='已写入迁移后';
+  b.textContent='已迁移';b.disabled=true;
+  log('已迁移：'+m.querySelector('.name').textContent);
+}
+function doScan(){
+  if(!SRC){toast('先选迁移前目录');return;}
+  if(!document.getElementById('mcv').value.trim()){toast('先填目标 MC 版本');return;}
+  SCANNED=false;checkReady();
+  var b=document.getElementById('b-scan');
+  b.disabled=true;b.textContent='扫描中…';
+  log('开始扫描…目标 MC '+document.getElementById('mcv').value+' / Forge');
+  var box=document.getElementById('list');
+  box.innerHTML='<div class="prog"><div class="lb"><span id="pl">计算文件指纹（0/42）</span>'+
+    '<span id="pc">0%</span></div><div class="trk"><i id="pi"></i></div></div>';
+  var n=0;
+  MIG={n:0,paused:false,dead:false};
+  var t=setInterval(function(){
+    n+=6; if(n>42)n=42;
+    document.getElementById('pl').textContent='计算文件指纹（'+n+'/42）';
+    document.getElementById('pc').textContent=Math.round(n/42*100)+'%';
+    document.getElementById('pi').style.width=(n/42*100)+'%';
+    if(n>=42){clearInterval(t);
+      document.getElementById('pl').textContent='正在识别 42 个模组…';
+      setTimeout(function(){
+        box.innerHTML='<div style="padding:2px 14px 8px;font-size:13px;color:var(--t2)">扫描结果（42）· 可迁移 30 / 建议改用 1 / 未收录 1 / 失败 1</div>'+modsHtml();
+        b.disabled=false;b.textContent='重新扫描';
+        SCANNED=true;checkReady();
+        log('扫描完成：可迁移 30 / 42');
+        box.insertAdjacentHTML('afterbegin',
+          '<div style="margin:0 12px 10px;background:var(--warnbg);border-radius:12px;padding:11px 13px;'+
+          'display:flex;align-items:center;gap:8px;cursor:pointer" onclick="dlg(\'fail\')">'+
+          '<div style="flex:1;font-size:12px;color:var(--warn);line-height:17px">2 个没识别成功'+
+          '<div style="color:var(--t2)">1 个网络问题可重试 · 1 个未收录</div></div>'+
+          '<span style="font-size:14px;color:var(--warn)">›</span></div>');
+      },900);}
+  },120);
+}
+function modsHtml(){
+  var h='';
+  for(var i=0;i<MODS.length;i++){var m=MODS[i];
+    h+='<div class="mod"><div class="row1"><div class="cover '+m.c+'">'+m.i+'</div>'+
+      '<div class="mid"><div class="name">'+m.n+'</div><div class="meta">'+m.f+'</div>'+
+      '<span class="badge '+m.cls+'">'+m.st+'</span>'+
+      '<div class="meta" style="margin-top:4px">'+m.tv+'</div></div></div>'+
+      '<div class="mods-acts">'+
+      (m.cls==='b-ok'?'<button class="bt sm" onclick="markMoved(this)">下载到迁移后</button>':'')+
+      (m.cls==='b-alt'?'<button class="bt sm" onclick="toast(\'改用平替\')">用平替</button>':'')+
+      (m.cls==='b-nf'?'<button class="bt sm" onclick="toast(\'打开市场搜索\')">去标记链接</button>':'')+
+      (m.cls==='b-er'?'<button class="bt sm" onclick="toast(\'重试该模组\')">重试</button>':'')+
+      '<button class="bt sm" onclick="toast(\'打开 Modrinth\')">原文</button>'+
+      '</div></div>';}
+  return h;
+}
+var MIG={n:0,paused:false,dead:false};
+function togglePause(){
+  MIG.paused=!MIG.paused;
+  document.getElementById('bp').textContent=MIG.paused?'继续':'暂停';
+  log(MIG.paused?'已暂停':'已继续');
+}
+function cancelMig(){
+  MIG.dead=true;
+  var e=document.getElementById('rprog');if(e)e.remove();
+  document.getElementById('b-go').disabled=false;
+  log('已取消，已下载的文件保留');
+  toast('已取消');
+}
+function doMigrate(){
+  if(document.getElementById('b-go').disabled)return;
+  var box=document.getElementById('list');
+  box.insertAdjacentHTML('afterbegin',
+    '<div class="prog" id="rprog"><div class="lb"><span id="pl">正在下载 1/30</span><span id="pc">0%</span></div>'+
+    '<div class="trk"><i id="pi"></i></div>'+
+    '<div class="acts" style="margin-top:12px"><button class="bt sm" id="bp" onclick="togglePause()">暂停</button>'+
+    '<button class="bt sm" onclick="cancelMig()">取消</button></div></div>');
+  document.getElementById('b-go').disabled=true;
+  var n=0;
+  MIG={n:0,paused:false,dead:false};
+  var t=setInterval(function(){
+    if(MIG.paused||MIG.dead)return;
+    n++; MIG.n=n; if(n>30)n=30;
+    document.getElementById('pl').textContent='正在下载 '+n+'/30';
+    document.getElementById('pc').textContent=Math.round(n/30*100)+'%';
+    document.getElementById('pi').style.width=(n/30*100)+'%';
+    if(n>=30){clearInterval(t);
+      document.getElementById('pl').textContent='迁移完成：成功 29，跳过 1';
+      log('迁移完成：成功 29，跳过 1（Collective 该加载器不需要）');
+      toast('迁移完成');
+      document.getElementById('b-go').disabled=false;}
+    if(MIG.dead){clearInterval(t);}
+  },90);
+}
+
+function openFull(id){document.getElementById(id).classList.add('on');}
+function closeFull(){var f=document.querySelectorAll('.full');for(var i=0;i<f.length;i++)f[i].classList.remove('on');}
+
+var LIBS={
+ src:[{n:'1.18.2 原版',p:'FCL/.minecraft/versions/1.18.2',cur:true},
+      {n:'1.16.5 老存档',p:'FCL/.minecraft/versions/1.16.5',cur:false},
+      {n:'整合包实例',p:'FCL/instances/SkyFactory',cur:false}],
+ dst:[{n:'1.20.1 新实例',p:'HMCLPE/.minecraft/versions/1.20.1',cur:true},
+      {n:'测试实例',p:'HMCLPE/.minecraft/versions/1.20.1-test',cur:false}]
+};
+var LIBW='src';
+function openLib(which){
+  LIBW=which;
+  document.getElementById('lib-hint').textContent = which==='src'
+    ? '迁移前目录。点一下就切成当前用的那个。' : '迁移后目录。';
+  renderLib();
+  openFull('pg-lib');
+}
+function renderLib(){
+  var items=LIBS[LIBW],h='';
+  if(items.length===0){h='<div class="empty">还没有目录。<br>用下面按钮加一个。</div>';}
+  for(var i=0;i<items.length;i++){var it=items[i];
+    h+='<div class="lib'+(it.cur?' cur':'')+'"><div class="rd"></div>'+
+      '<div class="tx" onclick="useLib('+i+')"><div class="nm">'+it.n+'</div>'+
+      '<div class="pp">'+it.p+'</div></div>'+
+      '<button class="del" onclick="delLib('+i+')">✕</button></div>';}
+  document.getElementById('lib-body').innerHTML=h;
+  syncLibBtn();
+}
+function useLib(i){
+  var it=LIBS[LIBW][i];
+  for(var k=0;k<LIBS[LIBW].length;k++)LIBS[LIBW][k].cur=false;
+  it.cur=true;
+  if(LIBW==='src'){
+    SRC=it.p;
+    document.getElementById('src-path').className='path';
+    document.getElementById('src-path').textContent=it.p;
+    document.getElementById('src-tag').textContent='已选 · '+it.n;
+    document.getElementById('src-note').textContent='来自目录库：'+it.n;
+  }else{
+    DST=it.p;
+    document.getElementById('dst-path').className='path';
+    document.getElementById('dst-path').textContent=it.p;
+    document.getElementById('dst-tag').textContent='已选 · '+it.n;
+    document.getElementById('dst-note').textContent='来自目录库：'+it.n;
+  }
+  renderLib();log((LIBW==='src'?'迁移前：':'迁移后：')+it.p);
+  closeFull();checkReady();
+}
+function delLib(i){
+  LIBS[LIBW].splice(i,1);renderLib();
+  toast('已移除');
+}
+function addLib(){
+  LIBS[LIBW].push({n:'新目录',p:'/storage/emulated/0/MioLauncher/.minecraft/versions/new',cur:false});
+  renderLib();
+}
+function syncLibBtn(){
+  var b=document.querySelectorAll('#c-src .bt')[2];
+  if(b)b.textContent='目录库 '+LIBS.src.length;
+  var b2=document.querySelectorAll('#c-dst .bt')[1];
+  if(b2)b2.textContent='目录库 '+LIBS.dst.length;
+}
+function detectLoader(){
+  if(!SRC){toast('先选迁移前目录');return;}
+  var cs=document.querySelectorAll('#pg-home .chips')[0].children;
+  for(var i=0;i<cs.length;i++)cs[i].classList.remove('sel');
+  cs[2].classList.add('sel');
+  log('按 mods 里的 jar 判定加载器：Forge');
+  toast('已识别为 Forge');
+}
+var LAUNCHERS=[
+ {n:'FCL',p:'FCL/.minecraft/versions/1.18.2',d:'42 个模组 · 1.18.2'},
+ {n:'HMCL-PE',p:'HMCLPE/.minecraft/versions/1.16.5',d:'31 个模组 · 1.16.5'}
+];
+function renderLaunch(){
+  var h='';
+  for(var i=0;i<LAUNCHERS.length;i++){var l=LAUNCHERS[i];
+    h+='<div class="lib"><div class="rd"></div><div class="tx" onclick="useLaunch('+i+')">'+
+      '<div class="nm">'+l.n+'</div><div class="pp">'+l.p+'</div>'+
+      '<div class="pp">'+l.d+'</div></div></div>';}
+  document.getElementById('launch-body').innerHTML=h;
+}
+function useLaunch(i){
+  var l=LAUNCHERS[i];
+  SRC=l.p;
+  document.getElementById('src-path').className='path';
+  document.getElementById('src-path').textContent=l.p;
+  document.getElementById('src-tag').textContent='可用 · '+l.d.split(' ·')[0];
+  document.getElementById('src-note').textContent='这一层有 mods/，可直接作为迁移前';
+  log('迁移前：'+l.p+'（来自 '+l.n+'）');
+  closeFull();checkReady();
+}
+function genCode(){
+  var sel=PARTS.filter(function(p){return p.s}).map(function(p){return p.id});
+  document.getElementById('code-txt').textContent='MM1|'+btoa(unescape(encodeURIComponent(sel.join(','))))+'|'+document.getElementById('mcv').value;
+}
+function dlg(k){
+  var ti=document.getElementById('d-ti'),bd=document.getElementById('d-bd'),ft=document.getElementById('d-ft');
+  ft.innerHTML='<button class="tbtn" onclick="closeDlg()">关闭</button>';
+  if(k==='help'){ti.textContent='这个页面在干什么';
+    bd.innerHTML='<p style="margin-bottom:10px">把「迁移前」目录里的模组，按你指定的版本和加载器，重新下到「迁移后」目录。</p>'+
+      '<p style="margin-bottom:10px"><b>1.</b> 选迁移前：旧版本或旧实例的目录，需要有 mods/。<br>'+
+      '<b>2.</b> 选迁移后：新版本或新实例的目录。<br>'+
+      '<b>3.</b> 填目标版本和加载器。<br>'+
+      '<b>4.</b> 点「扫描模组」，看哪些能迁。<br>'+
+      '<b>5.</b> 点「开始迁移」。</p>'+
+      '<p>模组是重新下载的，不是直接复制——所以跨版本、换加载器都能迁。</p>';}
+  else if(k==='fail'){ti.textContent='有 2 个模组没识别成功';
+    bd.innerHTML='<p style="margin-bottom:8px"><b>网络问题（可重试）：</b></p>'+
+      '<p style="padding-left:10px;margin-bottom:10px">· sophisticatedbackpacks.jar</p>'+
+      '<p style="margin-bottom:8px"><b>Modrinth 未收录（重试没用）：</b></p>'+
+      '<p style="padding-left:10px;margin-bottom:10px">· xaerominimap-23.4.0.jar</p>'+
+      '<p>未收录的要去市场手动标记链接，之后就能跟着迁了。</p>';
+    ft.innerHTML='<button class="tbtn" onclick="closeDlg();toast(\'重试 1 项\')">重试失败项</button>'+
+      '<button class="tbtn" onclick="closeDlg()">关闭</button>';}
+  document.getElementById('mask').classList.add('on');
+}
+function closeDlg(){document.getElementById('mask').classList.remove('on');}
+
+renderParts();
+renderLaunch();
+syncLibBtn();
+checkReady();
+// 把目录库入口挂到卡片标题的 tag 上
+</script>
+</body>
+</html>
