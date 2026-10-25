@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>整合包页 UI 原型 1:1 — 导入的与按目录查的分开</title>
+<style>
+:root{
+  --p:#0B57D0; --on-p:#fff;
+  --sc:#D3E3FD; --on-sc:#0A2E6F;
+  --surface:#FEFBFF; --card:#FFFFFF;
+  --variant:#F0F2F5; --outline:#C4C7C5; --divider:#E7E9EB;
+  --t1:#1A1C1E; --t2:#5F6368; --t3:#9AA0A6;
+  --warn:#8A4B00; --warn-bg:#FCE8CD; --warn-line:#F0B86B;
+  --err:#B3261E; --err-bg:#F9DEDC;
+  --ok:#006C51; --ok-bg:#D7F5EA;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#12151A;display:flex;justify-content:center;align-items:center;
+  min-height:100vh;font-family:Roboto,"Noto Sans SC","PingFang SC",system-ui,sans-serif;padding:20px}
+
+.phone{position:relative;width:360px;height:800px;background:var(--surface);
+  border-radius:28px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.55)}
+
+.bar{position:absolute;top:0;left:0;right:0;height:26px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 14px;font-size:11px;color:var(--t1);z-index:40}
+.bar .r{display:flex;align-items:center;gap:5px}
+.bat{width:18px;height:9px;border:1px solid var(--t1);border-radius:2px;position:relative;padding:1px}
+.bat::after{content:"";position:absolute;right:-2px;top:2px;width:1.5px;height:4px;background:var(--t1)}
+.bat i{display:block;height:100%;width:31%;background:var(--t1)}
+
+.view{position:absolute;top:26px;bottom:0;left:0;right:0;overflow-y:auto;background:var(--surface);display:none}
+.view::-webkit-scrollbar{width:0}
+.view.on{display:block}
+.hasbar .view{bottom:0}
+.haspad{padding-bottom:76px}
+
+.appbar{position:sticky;top:0;z-index:20;height:56px;background:var(--surface);
+  display:flex;align-items:center;gap:4px;padding:0 6px;border-bottom:1px solid var(--divider)}
+.appbar .back{border:0;background:none;cursor:pointer;width:40px;height:40px;
+  display:flex;align-items:center;justify-content:center;color:var(--t1);border-radius:50%;font-size:24px;line-height:1}
+.appbar h1{font-size:19px;font-weight:500;color:var(--t1);flex:1}
+.appbar .act{border:0;background:none;color:var(--p);font-size:13px;font-weight:600;
+  cursor:pointer;font-family:inherit;padding:0 12px;height:40px}
+
+.note{margin:10px 12px;background:var(--variant);border-radius:12px;padding:11px 13px;
+  font-size:12px;color:var(--t2);line-height:17px}
+.note b{color:var(--t1);font-weight:600}
+.warnbox{margin:10px 12px;background:var(--warn-bg);border:1px solid var(--warn-line);
+  border-radius:12px;padding:11px 13px;font-size:12px;color:var(--warn);line-height:17px}
+
+.sec{padding:14px 16px 6px;font-size:12px;font-weight:600;color:var(--p);letter-spacing:.3px}
+.grp{background:var(--card);margin:0 12px 12px;border-radius:16px;overflow:hidden;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.row{display:flex;align-items:center;gap:12px;padding:0 12px 0 14px;min-height:64px;cursor:pointer}
+.row:active{background:#F4F6F9}
+.row+.row{border-top:1px solid var(--divider)}
+.ico{width:40px;height:40px;border-radius:0;background:var(--variant);flex:none;
+  display:flex;align-items:center;justify-content:center;color:var(--p)}
+.ico svg{width:22px;height:22px;fill:currentColor}
+.row .tx{flex:1;min-width:0;padding:10px 0}
+.row .t{font-size:14px;color:var(--t1);line-height:19px}
+.row .s{font-size:12px;color:var(--t2);margin-top:2px;line-height:16px}
+.row .go{flex:none;color:var(--p);font-size:13px;font-weight:600}
+.row.dis{opacity:.45}
+
+.empty{padding:34px 20px;text-align:center;color:var(--t2);font-size:13px;display:none;line-height:19px}
+.empty.on{display:block}
+.empty b{display:block;color:var(--t1);font-size:15px;margin-bottom:6px}
+
+.fld{padding:0 12px 10px}
+.inp{height:48px;border:1px solid var(--outline);border-radius:12px;display:flex;
+  align-items:center;padding:0 13px;background:var(--card)}
+.inp input{border:0;outline:0;font-size:14px;color:var(--t1);flex:1;background:none;font-family:inherit;width:100%}
+.inp input::placeholder{color:var(--t3)}
+
+.btn{flex:1;height:48px;border-radius:24px;border:1px solid var(--outline);background:var(--card);
+  color:var(--p);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn.pri{background:var(--p);border-color:var(--p);color:var(--on-p)}
+.btn:disabled{background:var(--variant);border-color:var(--divider);color:var(--t3);cursor:default}
+.blk{display:block;width:calc(100% - 24px);margin:4px 12px 0}
+.why{margin:6px 12px 0;font-size:11px;color:var(--warn);line-height:16px;display:none}
+.why.on{display:block}
+.btnrow{display:flex;gap:10px;padding:0 12px 12px}
+.btnrow .btn{margin:0}
+
+/* 结果行 */
+.fcard{background:var(--card);margin:0 12px 10px;border-radius:14px;padding:12px 14px;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.fcard .hd{display:flex;align-items:center;gap:8px}
+.fcard .nm{font-size:14px;font-weight:600;color:var(--t1);flex:1;line-height:19px;word-break:break-all}
+.badge{font-size:11px;padding:2px 8px;border-radius:6px;flex:none;font-weight:600}
+.badge.up{background:var(--sc);color:var(--on-sc)}
+.badge.ok{background:var(--ok-bg);color:var(--ok)}
+.badge.no{background:var(--warn-bg);color:var(--warn)}
+.badge.gy{background:var(--variant);color:var(--t2)}
+.fcard .mt{font-size:11px;color:var(--t2);margin-top:4px;line-height:16px;word-break:break-all}
+.fcard .st{font-size:12px;color:var(--p);margin-top:5px;line-height:17px}
+.fcard .st.g{color:var(--t2)}
+.fcard .st.w{color:var(--warn)}
+.fcard .op{display:flex;gap:8px;margin-top:9px}
+
+.sm{height:40px;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;border:1px solid var(--outline);
+  background:var(--card);color:var(--p);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;position:relative}
+.sm::before{content:"";position:absolute;left:0;right:0;top:-4px;bottom:-4px}
+.sm.pri{background:var(--p);border-color:var(--p);color:var(--on-p)}
+.sm:disabled{background:var(--variant);border-color:var(--divider);color:var(--t3);cursor:default}
+.sm:disabled::before{display:none}
+
+/* 复选行 */
+.ck{width:22px;height:22px;border-radius:4px;border:2px solid var(--outline);flex:none;
+  display:flex;align-items:center;justify-content:center;background:var(--card)}
+.ck.on{background:var(--p);border-color:var(--p)}
+.ck.on::after{content:"";width:10px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;
+  transform:rotate(-45deg) translate(1px,-2px)}
+
+/* 折叠 */
+.fold{background:var(--card);margin:0 12px 12px;border-radius:16px;overflow:hidden;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.fold>summary{list-style:none;cursor:pointer;padding:14px;display:flex;align-items:center;gap:12px;
+  min-height:60px;color:var(--t1);font-size:14px;font-weight:600}
+.fold>summary::-webkit-details-marker{display:none}
+.fold>summary::after{content:"▾";margin-left:auto;color:var(--p);font-size:14px;transition:transform .15s}
+.fold[open]>summary::after{transform:rotate(180deg)}
+.fold .body{padding:0 0 12px}
+
+/* 进度 */
+.prog{margin:0 12px 12px;background:var(--card);border-radius:14px;padding:14px;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.prog .pl{font-size:13px;color:var(--t1);line-height:19px}
+.prog .pb{height:6px;border-radius:3px;background:var(--variant);margin-top:9px;overflow:hidden}
+.prog .pb i{display:block;height:100%;width:0;background:var(--p);transition:width .3s}
+
+/* 底部条 */
+.acts{position:absolute;bottom:0;left:0;right:0;background:var(--surface);
+  border-top:1px solid var(--divider);padding:10px 12px 12px;display:flex;gap:10px;z-index:30}
+
+.mask{position:absolute;inset:0;background:rgba(0,0,0,.42);z-index:50;display:none;
+  align-items:center;justify-content:center;padding:24px}
+.mask.on{display:flex}
+.dlg{background:var(--card);border-radius:20px;width:100%;padding:20px 18px 12px}
+.dlg h3{font-size:17px;color:var(--t1);margin-bottom:8px}
+.dlg p{font-size:13px;color:var(--t2);line-height:19px;margin-bottom:14px}
+.dlg .db{display:flex;justify-content:flex-end;gap:6px}
+.dlg .db button{border:0;background:none;color:var(--p);font-size:14px;font-weight:600;
+  padding:10px 12px;cursor:pointer;font-family:inherit}
+.dlg .db button.dg{color:var(--err)}
+
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;line-height:17px;
+  color:var(--t1);background:var(--variant);border-radius:12px;padding:12px;margin:0 12px 12px;
+  white-space:pre-wrap;word-break:break-all}
+.hint{font-size:11px;color:var(--t3);text-align:center;padding:14px 20px 26px;line-height:16px}
+</style>
+</head>
+<body>
+
+<div class="phone" id="ph">
+  <div class="bar"><span>2:05</span><span class="r"><span>中国移动</span><span class="bat"><i></i></span></span></div>
+
+  <!-- ═══ 主页 ═══ -->
+  <div class="view on" id="v-main">
+    <div class="appbar">
+      <h1>整合包</h1>
+      <button class="act" onclick="go('v-log')">日志</button>
+    </div>
+
+    <!-- A：导入的整合包 -->
+    <div class="grp" style="margin-top:12px">
+      <div class="row" onclick="go('v-list')">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z" opacity=".25"/><path d="M4 8h16v3H4zM11 11h3v9h-3z"/></svg></div>
+        <div class="tx"><div class="t">已导入的整合包</div><div class="s" id="p-s">3 个已登记</div></div>
+        <div class="go">查看</div>
+      </div>
+      <div class="row" onclick="toast('打开文件选择器')">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3v10m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+        <div class="tx"><div class="t">导入整合包</div><div class="s">.mrpack / .zip</div></div>
+        <div class="go">选择文件</div>
+      </div>
+    </div>
+    <div class="note">只有从这里导入的包才会被登记，也只有登记过的才会被更新检查碰到。</div>
+
+    <!-- B：按目录查模组更新 -->
+    <details class="fold" id="foldB">
+      <summary>按目录查模组更新</summary>
+      <div class="body">
+        <div class="note" style="margin-top:0">这一段不属于整合包更新，也不会登记。它按「迁移前」目录里的 jar 逐个算指纹去比对。</div>
+        <div class="grp">
+          <div class="row" onclick="toast('去迁移页改「迁移前」目录')">
+            <div class="tx"><div class="t">源目录</div><div class="s">迁移前 · /sdcard/FCL/.minecraft</div></div>
+            <div class="go">改</div>
+          </div>
+        </div>
+        <div class="btnrow">
+          <button class="btn" id="b-ck" onclick="checkDir()">检查更新</button>
+          <button class="btn" id="b-dl" onclick="dlAll()" disabled>下载全部</button>
+        </div>
+        <div class="why" id="w-dl">先点「检查更新」</div>
+        <div id="d-box"></div>
+        <div class="empty on" id="d-empty"><b>还没检查</b>点上面的「检查更新」，会算出每个 jar 的指纹去比对最新版本。</div>
+      </div>
+    </details>
+
+    <div class="hint">原型：真实导入与下载不可点</div>
+  </div>
+
+  <!-- ═══ 已导入列表 ═══ -->
+  <div class="view" id="v-list">
+    <div class="appbar"><button class="back" onclick="back()">‹</button><h1>已导入的整合包</h1></div>
+    <div class="fld" style="padding-top:12px">
+      <div class="inp"><input id="q" placeholder="搜名字" oninput="rendList()"></div>
+    </div>
+    <div class="grp" id="p-list"></div>
+    <div class="empty" id="p-empty"><b>没有匹配的整合包</b>换个词试试。</div>
+    <div class="hint">点一个包进去可以检查更新、装到多个实例、移除登记。</div>
+  </div>
+
+  <!-- ═══ 包详情 ═══ -->
+  <div class="view" id="v-detail">
+    <div class="appbar"><button class="back" onclick="back()">‹</button><h1 id="d-title">整合包</h1></div>
+    <div class="grp" style="margin-top:12px">
+      <div class="row" style="cursor:default">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z" opacity=".25"/><path d="M4 8h16v3H4zM11 11h3v9h-3z"/></svg></div>
+        <div class="tx"><div class="t" id="d-name">—</div><div class="s" id="d-meta">—</div></div>
+      </div>
+    </div>
+    <div class="grp">
+      <div class="row" onclick="checkPack()">
+        <div class="tx"><div class="t">检查更新</div><div class="s">比对里面每个文件的最新版</div></div>
+        <div class="go">›</div>
+      </div>
+      <div class="row" onclick="go('v-target')">
+        <div class="tx"><div class="t">安装到多个实例 / 启动器</div><div class="s">一个包可以同时装进多个启动器</div></div>
+        <div class="go">›</div>
+      </div>
+      <div class="row" onclick="askRemove()">
+        <div class="tx"><div class="t" style="color:var(--err)">移除登记</div><div class="s">之后不再检查它的更新</div></div>
+        <div class="go" style="color:var(--err)">›</div>
+      </div>
+    </div>
+    <div class="note">安装和更新都是下载到目标目录，<b>不会自动替换原文件</b>，方便你先试再换。</div>
+  </div>
+
+  <!-- ═══ 目标选择 ═══ -->
+  <div class="view haspad" id="v-target">
+    <div class="appbar"><button class="back" onclick="back()">‹</button><h1>装到哪里</h1></div>
+    <div class="note">候选是已授权的游戏目录和它们下面扫出来的实例。装了 FCL 又装了 Zalith 时，两边都会出现。</div>
+    <div class="grp">
+      <div class="row" onclick="togAll()">
+        <div class="ck" id="ck-all"></div>
+        <div class="tx"><div class="t">全选</div><div class="s" id="t-s">已选 0 个</div></div>
+      </div>
+    </div>
+    <div class="grp" id="t-list"></div>
+    <div class="acts">
+      <button class="btn pri" id="b-inst" onclick="doInstall()" disabled>安装（0）</button>
+    </div>
+    <div class="why on" id="w-inst" style="margin:0 12px">先勾选至少一个目标</div>
+  </div>
+
+  <!-- ═══ 更新结果 ═══ -->
+  <div class="view haspad" id="v-upd">
+    <div class="appbar"><button class="back" onclick="back()">‹</button><h1 id="u-title">可更新</h1></div>
+    <div class="grp" style="margin-top:12px" id="u-list"></div>
+    <div class="acts">
+      <button class="btn pri" onclick="toast('开始更新到 2 个目标')">更新到全部实例</button>
+    </div>
+  </div>
+
+  <!-- ═══ 日志 ═══ -->
+  <div class="view" id="v-log">
+    <div class="appbar"><button class="back" onclick="back()">‹</button><h1>日志</h1>
+      <button class="act" onclick="toast('已复制')">复制</button></div>
+    <div class="mono" id="log-tx"></div>
+  </div>
+
+  <div class="mask" id="mask">
+    <div class="dlg">
+      <h3 id="dlg-t"></h3><p id="dlg-b"></p>
+      <div class="db"><button onclick="closeDlg()">取消</button><button class="dg" id="dlg-ok"></button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+var LOG='14:02:31 打开整合包页\n14:02:33 已登记 3 个整合包\n14:02:40 导入 ATM9-1.20.1.mrpack\n14:02:41 读取清单，187 个文件\n14:02:41 已保留读取权限，重开应用仍能装\n14:02:55 检查「Better MC」更新\n14:02:58 算出 96 个指纹\n14:03:04 批量反查 96 个\n14:03:09 有 12 个可更新';
+var PACKS=[
+ {n:'All the Mods 9',k:'模组包',f:187},
+ {n:'SkyFactory 4',k:'模组包',f:142},
+ {n:'Better MC',k:'模组包',f:96}
+];
+var TARGETS=[
+ {t:'游戏目录 · FCL',s:'/sdcard/FCL/.minecraft'},
+ {t:'实例 · ATM9（来自 FCL）',s:'/sdcard/FCL/instances/ATM9/.minecraft'},
+ {t:'实例 · 1.20.1（来自 FCL）',s:'/sdcard/FCL/instances/1.20.1/.minecraft'},
+ {t:'游戏目录 · Zalith2',s:'私有目录 · 已授权'},
+ {t:'实例 · SkyFactory（来自 Zalith2）',s:'私有目录 · 已授权'}
+];
+var DIRROWS=[
+ {n:'jei-1.20.1.jar',cur:'15.2.0.27',lat:'15.2.0.28',st:'up'},
+ {n:'jade-1.20.1.jar',cur:'11.6.3',lat:'11.7.0',st:'up'},
+ {n:'sodium-1.20.1.jar',cur:'mc1.20.1-0.5.3',lat:'',st:'ok'},
+ {n:'collective-1.20.1.jar',cur:'6.65',lat:'',st:'no',msg:'当前版本下无可用更新'},
+ {n:'mystery-mod.jar',cur:'',lat:'',st:'gy',msg:'Modrinth 上没找到'},
+ {n:'broken.jar',cur:'',lat:'',st:'gy',msg:'哈希计算失败'}
+];
+var UPD=[
+ {a:'jei-1.20.1-15.2.0.27.jar',b:'jei-1.20.1-15.2.0.28.jar'},
+ {a:'jade-1.20.1-11.6.3.jar',b:'jade-1.20.1-11.7.0.jar'},
+ {a:'collective-1.20.1-6.65.jar',b:'collective-1.20.1-6.66.jar'}
+];
+
+var S={cur:-1,ck:[],dir:0};
+function $(i){return document.getElementById(i)}
+function show(id){var v=document.querySelectorAll('.view');for(var i=0;i<v.length;i++)v[i].classList.remove('on');$(id).classList.add('on');window.__cur=id}
+function go(id){window.__back=window.__cur||'v-main';show(id);
+ if(id==='v-log')$('log-tx').textContent=LOG;
+ if(id==='v-target')rendTarget();
+ if(id==='v-upd')rendUpd();}
+function back(){show(window.__back||'v-main')}
+function toast(t){var d=document.createElement('div');d.textContent=t;
+ d.style.cssText='position:absolute;bottom:70px;left:50%;transform:translateX(-50%);background:#1A1C1E;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:99';
+ $('ph').appendChild(d);setTimeout(function(){d.remove()},1400)}
+
+function rendMain(){$('p-s').textContent=PACKS.length+' 个已登记'}
+
+function rendList(){
+  var q=($('q').value||'').trim().toLowerCase();
+  var box=$('p-list');box.innerHTML='';
+  var hit=0;
+  for(var i=0;i<PACKS.length;i++){
+    var p=PACKS[i];
+    if(q&&p.n.toLowerCase().indexOf(q)<0)continue;
+    hit++;
+    var r=document.createElement('div');r.className='row';r.setAttribute('onclick','openPackAt('+i+')');
+    r.innerHTML='<div class="ico"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z" opacity=".25"/><path d="M4 8h16v3H4zM11 11h3v9h-3z"/></svg></div>'
+      +'<div class="tx"><div class="t">'+p.n+'</div><div class="s">'+p.k+' · '+p.f+' 个文件</div></div><div class="go">›</div>';
+    box.appendChild(r);
+  }
+  $('p-empty').className='empty'+(hit?'':' on');
+}
+function openPackAt(i){S.cur=i;var p=PACKS[i];
+  $('d-title').textContent=p.n;$('d-name').textContent=p.n;
+  $('d-meta').textContent=p.k+' · '+p.f+' 个文件';
+  go('v-detail');}
+
+function checkPack(){
+  $('u-title').textContent='可更新 '+UPD.length+' 个';
+  go('v-upd');
+}
+function rendUpd(){
+  var box=$('u-list');box.innerHTML='';
+  for(var i=0;i<UPD.length;i++){
+    var u=UPD[i];
+    var d=document.createElement('div');d.className='fcard';
+    d.innerHTML='<div class="hd"><div class="nm">'+u.a+'</div><span class="badge up">新版</span></div>'
+      +'<div class="mt">→ '+u.b+'</div>';
+    box.appendChild(d);
+  }
+}
+
+function rendTarget(){
+  var box=$('t-list');box.innerHTML='';
+  for(var i=0;i<TARGETS.length;i++){
+    var t=TARGETS[i];
+    var r=document.createElement('div');r.className='row';r.setAttribute('onclick','togOne('+i+')');
+    r.innerHTML='<div class="ck'+(S.ck[i]?' on':'')+'" id="ck'+i+'"></div>'
+      +'<div class="tx"><div class="t">'+t.t+'</div><div class="s">'+t.s+'</div></div>';
+    box.appendChild(r);
+  }
+  var n=count();
+  $('t-s').textContent='已选 '+n+' 个';
+  $('ck-all').className='ck'+(n===TARGETS.length?' on':'');
+  var b=$('b-inst');b.disabled=n===0;b.textContent='安装（'+n+'）';
+  $('w-inst').style.display=n===0?'':'none';
+}
+function count(){var n=0;for(var i=0;i<S.ck.length;i++)if(S.ck[i])n++;return n}
+function togOne(i){S.ck[i]=!S.ck[i];rendTarget()}
+function togAll(){
+  var all=count()===TARGETS.length;
+  for(var i=0;i<TARGETS.length;i++)S.ck[i]=!all;
+  rendTarget();
+}
+function doInstall(){var n=count();if(!n)return;toast('开始安装到 '+n+' 个目标');}
+
+function askRemove(){
+  var p=PACKS[S.cur]||{n:'—'};
+  openDlg('移除登记','「'+p.n+'」不再被更新检查碰到。已经装进实例的文件不受影响。','移除',function(){
+    PACKS.splice(S.cur,1);S.cur=-1;rendMain();rendList();back();toast('已移除登记');
+  });
+}
+var DlgOk=null;
+function openDlg(t,b,ok,fn){
+  $('dlg-t').textContent=t;$('dlg-b').textContent=b;
+  $('dlg-ok').textContent=ok;DlgOk=fn;$('mask').className='mask on';
+}
+function closeDlg(){$('mask').className='mask';DlgOk=null}
+$('dlg-ok').onclick=function(){var f=DlgOk;closeDlg();if(f)f()};
+
+function checkDir(){
+  var box=$('d-box');
+  box.innerHTML='<div class="prog"><div class="pl" id="pl">正在计算 6 个文件的指纹…</div>'
+    +'<div class="pb"><i id="pb"></i></div></div>';
+  $('d-empty').className='empty';
+  $('b-ck').disabled=true;
+  var steps=['正在计算 6 个文件的指纹…','批量反查 6 个指纹…','比对最新版本…','共 6 个模组，其中 2 个可更新'];
+  var k=0;
+  var t=setInterval(function(){
+    k++;
+    if(k<steps.length){$('pl').textContent=steps[k];$('pb').style.width=(k/3*100)+'%';}
+    else{$('pb').style.width='100%';clearInterval(t);$('b-ck').disabled=false;rendDir();}
+  },400);
+}
+function rendDir(){
+  $('d-box').innerHTML='';
+  $('d-empty').className='empty';
+  var box=$('d-box');
+  for(var i=0;i<DIRROWS.length;i++){
+    var r=DIRROWS[i];
+    var d=document.createElement('div');d.className='fcard';
+    var bd=r.st==='up'?'<span class="badge up">可更新</span>':r.st==='ok'?'<span class="badge ok">已是最新</span>':r.st==='no'?'<span class="badge no">无可用</span>':'<span class="badge gy">没认出</span>';
+    var mt=r.st==='up'?(r.cur+' → '+r.lat):(r.msg||r.cur||'—');
+    d.innerHTML='<div class="hd"><div class="nm">'+r.n+'</div>'+bd+'</div><div class="mt">'+mt+'</div>';
+    if(r.st==='up'){
+      var o=document.createElement('div');o.className='op';
+      o.innerHTML='<button class="sm pri" onclick="toast(\'开始下载新版\')">下载新版</button>';
+      d.appendChild(o);
+    }
+    box.appendChild(d);
+  }
+  $('b-dl').disabled=false;$('w-dl').className='why';
+}
+function dlAll(){toast('开始下载 2 个更新');}
+
+rendMain();rendList();
+</script>
+</body>
+</html>
