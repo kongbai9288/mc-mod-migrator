@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>资讯页 UI 原型 1:1 — 分区独立 + 状态可辨</title>
+<style>
+:root{
+  --p:#0B57D0; --on-p:#fff;
+  --sc:#D3E3FD; --on-sc:#0A2E6F;
+  --surface:#FEFBFF; --card:#FFFFFF;
+  --variant:#F0F2F5; --outline:#C4C7C5; --divider:#E7E9EB;
+  --t1:#1A1C1E; --t2:#5F6368; --t3:#9AA0A6;
+  --warn:#8A4B00; --warn-bg:#FCE8CD; --warn-line:#F0B86B;
+  --err:#B3261E; --err-bg:#F9DEDC;
+  --ok:#006C51; --ok-bg:#D7F5EA;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#12151A;display:flex;justify-content:center;align-items:center;
+  min-height:100vh;font-family:Roboto,"Noto Sans SC","PingFang SC",system-ui,sans-serif;padding:20px}
+
+.phone{position:relative;width:360px;height:800px;background:var(--surface);
+  border-radius:28px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.55)}
+
+.bar{position:absolute;top:0;left:0;right:0;height:26px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 14px;font-size:11px;color:var(--t1);z-index:40}
+.bar .r{display:flex;align-items:center;gap:5px}
+.bat{width:18px;height:9px;border:1px solid var(--t1);border-radius:2px;position:relative;padding:1px}
+.bat::after{content:"";position:absolute;right:-2px;top:2px;width:1.5px;height:4px;background:var(--t1)}
+.bat i{display:block;height:100%;width:31%;background:var(--t1)}
+
+.view{position:absolute;top:26px;bottom:0;left:0;right:0;overflow-y:auto;background:var(--surface)}
+.view::-webkit-scrollbar{width:0}
+.view{display:none}
+.view.on{display:block}
+
+.appbar{position:sticky;top:0;z-index:20;height:56px;background:var(--surface);
+  display:flex;align-items:center;gap:4px;padding:0 6px;border-bottom:1px solid var(--divider)}
+.appbar .back{border:0;background:none;cursor:pointer;width:40px;height:40px;
+  display:flex;align-items:center;justify-content:center;color:var(--t1);border-radius:50%;font-size:22px}
+.appbar h1{font-size:19px;font-weight:500;color:var(--t1);flex:1}
+.appbar .act{border:0;background:none;color:var(--p);font-size:13px;font-weight:600;
+  cursor:pointer;font-family:inherit;padding:0 12px;height:40px}
+.appbar .act:disabled{color:var(--t3);cursor:default}
+
+.note{margin:10px 12px;background:var(--variant);border-radius:12px;padding:11px 13px;
+  font-size:12px;color:var(--t2);line-height:17px}
+.note b{color:var(--t1);font-weight:600}
+.warnbox{margin:10px 12px;background:var(--warn-bg);border:1px solid var(--warn-line);
+  border-radius:12px;padding:11px 13px;font-size:12px;color:var(--warn);line-height:17px}
+.warnbox .fix{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px 4px}
+.chip{border:1px solid var(--outline);background:var(--card);border-radius:10px;
+  padding:0 14px;height:40px;display:flex;align-items:center;font-size:13px;
+  color:var(--t1);cursor:pointer;font-family:inherit}
+.chip.on{background:var(--sc);border-color:var(--sc);color:var(--on-sc);font-weight:600}
+
+.sec{padding:16px 16px 6px;font-size:12px;font-weight:600;color:var(--p);letter-spacing:.3px;
+  display:flex;align-items:center;gap:8px}
+.sec .src{flex:1;font-weight:400;color:var(--t3);font-size:11px;text-align:right}
+
+.grp{background:var(--card);margin:0 12px 12px;border-radius:16px;overflow:hidden;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.row{display:flex;align-items:center;gap:12px;padding:0 12px 0 14px;min-height:64px;cursor:pointer}
+.row:active{background:#F4F6F9}
+.row+.row{border-top:1px solid var(--divider)}
+.row .tx{flex:1;min-width:0;padding:10px 0}
+.row .t{font-size:14px;color:var(--t1);line-height:19px}
+.row .s{font-size:12px;color:var(--t2);margin-top:2px;line-height:16px}
+
+/* 资讯卡 */
+.icard{background:var(--card);margin:0 12px 10px;border-radius:14px;padding:12px;
+  display:flex;gap:11px;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.icard .thumb{width:44px;height:44px;border-radius:0;background:var(--variant);flex:none;
+  display:flex;align-items:center;justify-content:center;color:var(--p);font-size:11px;font-weight:600}
+.icard .bd{flex:1;min-width:0}
+.icard .nm{font-size:14px;color:var(--t1);line-height:19px;font-weight:500}
+.icard .mt{font-size:11px;color:var(--t2);margin-top:3px;line-height:16px}
+.icard .op{display:flex;gap:8px;margin-top:8px}
+
+.sm{height:40px;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:10px;border:1px solid var(--outline);background:var(--card);color:var(--p);
+  font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;position:relative}
+.sm::before{content:"";position:absolute;left:0;right:0;top:-4px;bottom:-4px}
+.sm.pri{background:var(--p);border-color:var(--p);color:var(--on-p)}
+.sm:disabled{background:var(--variant);border-color:var(--divider);color:var(--t3);cursor:default}
+.sm:disabled::before{display:none}
+
+/* 骨架 */
+.sk{background:var(--variant);border-radius:6px;height:14px;margin:6px 0}
+.sk.s1{width:70%}.sk.s2{width:45%}
+.skbox{background:var(--card);margin:0 12px 10px;border-radius:14px;padding:12px}
+
+.emptybox{margin:0 12px 14px;background:var(--card);border-radius:14px;padding:16px 14px;
+  text-align:center;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.emptybox b{display:block;font-size:14px;color:var(--t1);margin-bottom:5px}
+.emptybox p{font-size:12px;color:var(--t2);line-height:17px}
+
+.hint{font-size:11px;color:var(--t3);text-align:center;padding:14px 20px 26px;line-height:16px}
+
+.mask{position:absolute;inset:0;background:rgba(0,0,0,.42);z-index:50;display:none;
+  align-items:center;justify-content:center;padding:24px}
+.mask.on{display:flex}
+.dlg{background:var(--card);border-radius:20px;width:100%;padding:20px 18px 12px}
+.dlg h3{font-size:17px;color:var(--t1);margin-bottom:8px}
+.dlg p{font-size:13px;color:var(--t2);line-height:19px;margin-bottom:14px}
+.dlg .db{display:flex;justify-content:flex-end;gap:6px}
+.dlg .db button{border:0;background:none;color:var(--p);font-size:14px;font-weight:600;
+  padding:10px 12px;cursor:pointer;font-family:inherit}
+</style>
+</head>
+<body>
+
+<div class="phone" id="ph">
+  <div class="bar"><span>2:10</span><span class="r"><span>中国移动</span><span class="bat"><i></i></span></span></div>
+
+  <!-- ═══ 主页面 ═══ -->
+  <div class="view on" id="v-main">
+    <div class="appbar">
+      <button class="back" onclick="toast('返回上一层')">‹</button>
+      <h1>MC 资讯</h1>
+      <button class="act" id="b-ref" onclick="refresh()">刷新</button>
+      <button class="act" onclick="menu()">⋮</button>
+    </div>
+
+    <div class="note" id="n-top">上次更新 3 分钟前 · 10 分钟内用缓存，下拉或点「刷新」才重新取</div>
+    <div id="net-warn"></div>
+
+    <div class="chips" id="z-chips"></div>
+
+    <div id="zones"></div>
+
+    <div class="note" style="margin-top:18px">上面这些内容分别来自各站点，版权归原作者所有，本应用只做索引和跳转。</div>
+    <div class="hint">原型：外链与真实抓取不可点</div>
+  </div>
+
+  <!-- ═══ 联网说明页 ═══ -->
+  <div class="view" id="v-net">
+    <div class="appbar"><button class="back" onclick="back()">‹</button><h1>资讯联网</h1></div>
+    <div class="note">资讯这块可以单独关联网。关掉后不再请求任何站点，列表为空。</div>
+    <div class="grp">
+      <div class="row" onclick="setNet(true)"><div class="tx"><div class="t">允许资讯联网</div><div class="s">打开后下次刷新会重新取</div></div><div class="sm" id="n1">当前</div></div>
+      <div class="row" onclick="setNet(false)"><div class="tx"><div class="t">关闭资讯联网</div><div class="s">已缓存的内容仍然显示</div></div><div class="sm" id="n0"></div></div>
+    </div>
+  </div>
+
+  <!-- 菜单弹窗 -->
+  <div class="mask" id="mask">
+    <div class="dlg">
+      <h3 id="dlg-t"></h3><p id="dlg-b"></p>
+      <div class="db"><button onclick="closeDlg()">取消</button><button id="dlg-ok"></button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+var ZONES=[
+ {k:'official',label:'官方最新版本',site:'Minecraft 版本清单',
+  items:[['1.21.4 正式版','1.21.4 · 2024-12-03'],['1.21.3 正式版','1.21.3 · 2024-10-22'],
+         ['1.21.2 正式版','1.21.2 · 2024-09-24'],['1.21.1 正式版','1.21.1 · 2024-08-08']]},
+ {k:'mods',label:'最新模组',site:'Modrinth',
+  items:[['Sodium 额外版本','1.21.1 · Fabric · 2 小时前'],['Xaero 小地图','1.21.1 · Forge · 5 小时前'],
+         ['简单的语音聊天','1.20.6 · Fabric · 9 小时前'],['更好的战斗','1.21 · NeoForge · 昨天']]},
+ {k:'modpack',label:'最新整合包',site:'Modrinth',
+  items:[['更好的 Minecraft','1.21.1 · 昨天'],['轻量生存包','1.20.4 · 2 天前'],
+         ['科技向整合','1.21 · 3 天前']]},
+ {k:'shader',label:'最新光影',site:'Modrinth',
+  items:[['Complementary 更新','1.21.1 · 6 小时前'],['BSL 调整版','1.20.6 · 昨天']]}
+];
+var TABS=['全部','官方最新版本','最新模组','最新整合包','最新光影'];
+
+var S={tab:0,net:true,busy:false,
+  st:{official:'ok',mods:'ok',modpack:'ok',shader:'err'},   // ok / err / off / load
+  mins:3};
+
+function $(i){return document.getElementById(i)}
+function show(id){var v=document.querySelectorAll('.view');for(var i=0;i<v.length;i++)v[i].classList.remove('on');$(id).classList.add('on');window.__cur=id}
+function go(id){window.__back=window.__cur||'v-main';show(id)}
+function back(){show(window.__back||'v-main')}
+function toast(t){var d=document.createElement('div');d.textContent=t;
+ d.style.cssText='position:absolute;bottom:70px;left:50%;transform:translateX(-50%);background:#1A1C1E;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:99';
+ $('ph').appendChild(d);setTimeout(function(){d.remove()},1400)}
+
+function rendTabs(){
+  var h='';for(var i=0;i<TABS.length;i++)h+='<button class="chip'+(i===S.tab?' on':'')+'" onclick="setTab('+i+')">'+TABS[i]+'</button>';
+  $('z-chips').innerHTML=h}
+
+function shown(z){
+  if(S.tab===0)return true;
+  return TABS[S.tab]===z.label}
+
+function rendZones(){
+  var h='';
+  for(var i=0;i<ZONES.length;i++){
+    var z=ZONES[i];if(!shown(z))continue;
+    var st=S.net?S.st[z.k]:'off';
+    h+='<div class="sec">'+z.label+'<span class="src">来自 '+z.site+'</span></div>';
+    if(st==='load'){
+      h+='<div class="skbox"><div class="sk s1"></div><div class="sk s2"></div></div>'
+        +'<div class="note">正在从 '+z.site+' 获取…</div>';
+    }else if(st==='err'){
+      h+='<div class="emptybox"><b>这一块没取到</b>'
+        +'<p>可能是网络不通，也可能是站点改版导致解析失效。其他分区不受影响。</p></div>'
+        +'<div class="grp" style="margin-top:-4px">'
+        +'<div class="row" onclick="retry(\''+z.k+'\')"><div class="tx"><div class="t">重试这一块</div><div class="s">只重新取「'+z.label+'」，其他不动</div></div><div class="sm pri">重试</div></div>'
+        +'<div class="row" onclick="openSite(\''+z.k+'\')"><div class="tx"><div class="t">直接打开 '+z.site+'</div><div class="s">在浏览器里看原站</div></div><div class="sm">打开</div></div></div>';
+    }else if(st==='off'){
+      h+='<div class="emptybox"><b>资讯联网已由你关闭</b>'
+        +'<p>不是网络故障。到「资讯联网」重新打开，再刷新一次就有内容。</p></div>'
+        +'<div class="grp" style="margin-top:-4px">'
+        +'<div class="row" onclick="go(\'v-net\')"><div class="tx"><div class="t">去打开资讯联网</div></div><div class="sm pri">去设置</div></div></div>';
+    }else{
+      for(var j=0;j<z.items.length;j++){
+        var it=z.items[j];
+        h+='<div class="icard"><div class="thumb">'+z.label.charAt(0)+'</div><div class="bd">'
+          +'<div class="nm">'+it[0]+'</div><div class="mt">'+it[1]+'</div>'
+          +'<div class="op"><button class="sm" onclick="view(\''+z.k+'\','+j+')">查看</button>'
+          +'<button class="sm" onclick="more(\''+z.k+'\','+j+')">⋮</button></div></div></div>';
+      }
+    }
+  }
+  $('zones').innerHTML=h}
+
+function rendTop(){
+  $('n-top').textContent='上次更新 '+S.mins+' 分钟前 · 10 分钟内用缓存，下拉或点「刷新」才重新取';
+  $('net-warn').innerHTML=S.net?''
+   :'<div class="warnbox">资讯联网当前是关闭的，所有分区都不会请求网络。'
+   +'<div class="fix"><button class="sm" onclick="go(\'v-net\')">去打开</button></div></div>';
+  $('b-ref').disabled=S.busy;
+  $('b-ref').textContent=S.busy?'刷新中':'刷新';
+  $('n1').textContent=S.net?'当前':'';
+  $('n0').textContent=S.net?'':'当前';
+  rendTabs();rendZones()}
+
+function setTab(i){S.tab=i;rendTop()}
+function setNet(v){S.net=v;rendTop();back();toast(v?'已打开资讯联网':'已关闭资讯联网')}
+function refresh(){
+  if(S.busy)return;S.busy=true;
+  for(var i=0;i<ZONES.length;i++)S.st[ZONES[i].k]='load';
+  rendTop();
+  setTimeout(function(){
+    S.busy=false;S.mins=0;
+    S.st={official:'ok',mods:'ok',modpack:'ok',shader:'err'};
+    rendTop()},1200)}
+function retry(k){
+  S.st[k]='load';rendTop();
+  setTimeout(function(){S.st[k]='ok';rendTop();toast('已重新取到')},900)}
+function openSite(k){toast('打开 '+ZONES.filter(function(z){return z.k===k})[0].site)}
+function view(k,j){toast('打开详情页')}
+function more(k,j){
+  var z=ZONES.filter(function(x){return x.k===k})[0];
+  openDlg(z.items[j][0],'选一个操作。','复制链接',function(){closeDlg();toast('已复制链接')})}
+
+function menu(){
+  openDlg('MC 资讯','这里可以整体重取，或者关掉资讯联网。','清空缓存重取',function(){
+    closeDlg();S.mins=0;refresh()})}
+function openDlg(t,b,ok,fn){$('dlg-t').textContent=t;$('dlg-b').textContent=b;
+  $('dlg-ok').textContent=ok;$('dlg-ok').onclick=fn;$('mask').classList.add('on')}
+function closeDlg(){$('mask').classList.remove('on')}
+
+rendTop();
+</script>
+</body>
+</html>
