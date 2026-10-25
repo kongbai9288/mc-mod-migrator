@@ -42,7 +42,8 @@ object NavConfig {
         Item("weekly", R.string.tab_weekly, R.drawable.ti_history) { WeeklyReportFragment() },
         Item("sites", R.string.tab_sites, R.drawable.ti_external_link) { SitesFragment() },
         Item("mods", R.string.tab_mods, R.drawable.ti_packages) { ModManagerFragment() },
-        Item("trash", R.string.tab_trash, R.drawable.ti_trash) { TrashFragment() }
+        Item("trash", R.string.tab_trash, R.drawable.ti_trash) { TrashFragment() },
+        Item("skin", R.string.tab_skin, R.drawable.ti_helmet) { SkinFragment() }
     )
 
     fun defaultKeys(): List<String> = listOf("migration", "market")
