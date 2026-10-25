@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>工具箱页 UI 原型 1:1 — 分组列表版</title>
+<style>
+:root{
+  --p:#0B57D0; --on-p:#fff;
+  --sc:#D3E3FD; --on-sc:#0A2E6F;
+  --surface:#FEFBFF; --card:#FFFFFF;
+  --variant:#F0F2F5; --outline:#C4C7C5; --divider:#E7E9EB;
+  --t1:#1A1C1E; --t2:#5F6368; --t3:#9AA0A6;
+  --warn:#8A4B00; --warn-bg:#FCE8CD; --warn-line:#F0B86B;
+  --err:#B3261E; --err-bg:#F9DEDC;
+  --ok:#006C51; --ok-bg:#D7F5EA;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#12151A;display:flex;justify-content:center;align-items:center;
+  min-height:100vh;font-family:Roboto,"Noto Sans SC","PingFang SC",system-ui,sans-serif;padding:20px;gap:24px;flex-wrap:wrap}
+
+.phone{position:relative;width:360px;height:800px;background:var(--surface);
+  border-radius:28px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.55);flex:none}
+
+.bar{position:absolute;top:0;left:0;right:0;height:26px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 14px;font-size:11px;color:var(--t1);z-index:40}
+.bar .r{display:flex;align-items:center;gap:5px}
+.bat{width:18px;height:9px;border:1px solid var(--t1);border-radius:2px;position:relative;padding:1px}
+.bat::after{content:"";position:absolute;right:-2px;top:2px;width:1.5px;height:4px;background:var(--t1)}
+.bat i{display:block;height:100%;width:31%;background:var(--t1)}
+
+.view{position:absolute;top:26px;bottom:56px;left:0;right:0;overflow-y:auto;background:var(--surface)}
+.view::-webkit-scrollbar{width:0}
+.view{display:none}
+.view.on{display:block}
+
+.appbar{position:sticky;top:0;z-index:20;height:56px;background:var(--surface);
+  display:flex;align-items:center;gap:4px;padding:0 6px;border-bottom:1px solid var(--divider)}
+.appbar .back{border:0;background:none;cursor:pointer;width:40px;height:40px;
+  display:flex;align-items:center;justify-content:center;color:var(--t1);border-radius:50%}
+.appbar h1{font-size:19px;font-weight:500;color:var(--t1)}
+
+.srch{padding:10px 14px 6px}
+.field{height:44px;border:1px solid var(--outline);border-radius:22px;display:flex;
+  align-items:center;padding:0 14px;gap:8px;background:var(--card)}
+.field input{border:0;outline:0;font-size:14px;color:var(--t1);flex:1;background:none;font-family:inherit}
+.field input::placeholder{color:var(--t3)}
+.field .x{display:none;border:0;background:none;color:var(--t2);cursor:pointer;font-size:16px;padding:0 2px}
+.field.has .x{display:block}
+.empty{padding:34px 20px;text-align:center;color:var(--t2);font-size:13px;display:none}
+.empty.on{display:block}
+
+.sec{padding:14px 16px 6px;font-size:12px;font-weight:600;color:var(--p);letter-spacing:.3px}
+.grp{background:var(--card);margin:0 12px 12px;border-radius:16px;overflow:hidden;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.row{display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;min-height:60px}
+.row:active{background:#F4F6F9}
+.row+.row{border-top:1px solid var(--divider)}
+.ico{width:36px;height:36px;border-radius:10px;background:var(--variant);flex:none;
+  display:flex;align-items:center;justify-content:center;color:var(--p)}
+.ico svg{width:20px;height:20px;fill:currentColor}
+.row .tx{flex:1;min-width:0}
+.row .t{font-size:14px;color:var(--t1);line-height:19px}
+.row .s{font-size:12px;color:var(--t2);margin-top:2px;line-height:16px}
+.row .arw{color:var(--t3);flex:none}
+.row .arw svg{width:18px;height:18px;fill:currentColor}
+
+.note{margin:0 12px 12px;background:var(--variant);border-radius:12px;padding:11px 13px;
+  font-size:12px;color:var(--t2);line-height:17px}
+
+/* 结果页（长文本，独立页面，不塞弹窗） */
+.res{padding:14px}
+.res .hd{background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.res .hd .ttl{font-size:15px;font-weight:600;color:var(--t1)}
+.res .hd .meta{font-size:12px;color:var(--t2);margin-top:4px;line-height:17px}
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:6px;font-weight:600;vertical-align:2px}
+.badge.ok{background:var(--ok-bg);color:var(--ok)}
+.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.badge.err{background:var(--err-bg);color:var(--err)}
+.mono{background:var(--card);border-radius:16px;padding:14px;font-family:ui-monospace,Menlo,Consolas,monospace;
+  font-size:12px;line-height:18px;color:#202124;white-space:pre-wrap;word-break:break-word;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.res .acts{display:flex;gap:10px;margin-top:12px}
+.btn-out{flex:1;height:44px;border:1px solid var(--outline);border-radius:12px;background:none;
+  color:var(--p);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit}
+.btn-fill{flex:1;height:44px;border:0;border-radius:12px;background:var(--p);color:var(--on-p);
+  font-size:14px;font-weight:500;cursor:pointer;font-family:inherit}
+
+/* 模组开关页 */
+.selbar{position:sticky;top:56px;z-index:15;background:var(--surface);
+  padding:8px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--divider)}
+.selbar .cnt{font-size:13px;color:var(--t2);flex:1}
+.chk{width:22px;height:22px;border:2px solid var(--t3);border-radius:4px;flex:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center}
+.chk.on{background:var(--p);border-color:var(--p)}
+.chk svg{width:14px;height:14px;fill:#fff;display:none}
+.chk.on svg{display:block}
+.chk.part{background:var(--p);border-color:var(--p)}
+.chk.part svg{display:block}
+.mrow{display:flex;align-items:center;gap:12px;padding:0 14px;min-height:56px;cursor:pointer}
+.mrow+.mrow{border-top:1px solid var(--divider)}
+.mrow .nm{flex:1;min-width:0;font-size:14px;color:var(--t1);line-height:19px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrow .sub{font-size:11px;color:var(--t2)}
+.mrow.off .nm{color:var(--t3);text-decoration:line-through}
+.foot{position:sticky;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--divider);
+  padding:10px 14px;display:flex;gap:10px;z-index:25}
+
+/* 导出向导 */
+.wiz{padding:14px}
+.card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.card .ct{font-size:13px;font-weight:600;color:var(--t1);margin-bottom:4px}
+.card .cs{font-size:12px;color:var(--t2);line-height:17px;margin-bottom:10px}
+.opt{display:flex;align-items:flex-start;gap:10px;padding:10px 0;cursor:pointer}
+.opt+.opt{border-top:1px solid var(--divider)}
+.opt .rd{width:20px;height:20px;border:2px solid var(--t3);border-radius:50%;flex:none;margin-top:2px;
+  display:flex;align-items:center;justify-content:center}
+.opt.on .rd{border-color:var(--p)}
+.opt.on .rd::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--p)}
+.opt .ot{flex:1;min-width:0}
+.opt .on1{font-size:14px;color:var(--t1);line-height:19px}
+.opt .os1{font-size:12px;color:var(--t2);margin-top:2px;line-height:16px}
+.opt.dis{opacity:.45;pointer-events:none}
+.sw2{display:flex;align-items:center;gap:12px;padding:12px 0}
+.sw2+.sw2{border-top:1px solid var(--divider)}
+.sw2 .tx{flex:1}
+.sw2 .t{font-size:14px;color:var(--t1)}
+.sw2 .s{font-size:12px;color:var(--t2);margin-top:2px;line-height:16px}
+.tg{width:44px;height:26px;border-radius:13px;background:var(--outline);position:relative;
+  cursor:pointer;flex:none;transition:background .15s}
+.tg::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;
+  background:#fff;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.tg.on{background:var(--p)}
+.tg.on::after{transform:translateX(18px)}
+
+.alert{background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:12px;
+  padding:12px 14px;margin-bottom:12px;font-size:12px;color:#5A3A00;line-height:17px}
+
+.toast{position:absolute;left:50%;transform:translateX(-50%);bottom:76px;background:#202124;color:#fff;
+  font-size:13px;padding:10px 16px;border-radius:20px;z-index:60;opacity:0;pointer-events:none;
+  transition:opacity .2s;max-width:300px;text-align:center}
+.toast.on{opacity:1}
+
+.nav{position:absolute;bottom:0;left:0;right:0;height:56px;background:var(--card);
+  border-top:1px solid var(--divider);display:flex;z-index:30}
+.nav button{flex:1;border:0;background:none;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:3px;color:var(--t2);cursor:pointer;font-family:inherit}
+.nav button.sel{color:var(--p)}
+.nav button span{font-size:10px}
+.nav button svg{width:22px;height:22px;fill:currentColor}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="bar">
+    <span>2:14</span>
+    <div class="r"><span>中国移动</span><span>4G</span><span class="bat"><i></i></span></div>
+  </div>
+
+  <!-- ===== 工具箱主页 ===== -->
+  <div class="view on" id="v-main">
+    <div class="appbar"><h1>工具箱</h1></div>
+
+    <div class="srch">
+      <div class="field" id="fld">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="#5F6368"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"/></svg>
+        <input id="q" placeholder="搜索工具（如 依赖、崩溃）" oninput="filter()">
+        <button class="x" onclick="clearQ()">✕</button>
+      </div>
+    </div>
+    <div class="empty" id="empty">没有匹配的工具</div>
+
+    <div id="body">
+
+      <div class="sec" data-g="迁移 · 检查">迁移 · 检查</div>
+      <div class="grp" data-g="迁移 · 检查">
+        <div class="row" onclick="openResult('doctor')" data-k="模组体检 体检 检查 冲突 缺失 版本">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20m-2 14.5-4-4 1.4-1.4 2.6 2.6 5.6-5.6L17 9.5z"/></svg></div>
+          <div class="tx"><div class="t">模组体检</div><div class="s">找缺少依赖、版本冲突、装错的</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="openResult('dep')" data-k="依赖体检 依赖 缺失 冲突 关系图">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M20.5 11h-3.6c-.6-1.3-1.7-2.4-3.1-2.9V5h2V3h-4v2h2v3.1c-2 .3-3.6 1.7-4.3 3.6l-1.9-.9L6 11.7 7.8 13c0 1.4.6 2.7 1.6 3.7l-2 2L8.8 20l2-2c1 .8 2.2 1.3 3.5 1.4V21h2v-2h-2v-1.6c1.9-.4 3.5-1.7 4.3-3.4h3.9z"/></svg></div>
+          <div class="tx"><div class="t">依赖体检</div><div class="s">按依赖关系算谁缺了、谁会炸</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="openResult('diff')" data-k="配置对比 对比 diff 差异 前后">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4h2V5h4zm6 0h4a2 2 0 0 1 2 2v4h-2V5h-4zM9 21H5a2 2 0 0 1-2-2v-4H5v4h4zm12-6h-2v4h-4v2h4a2 2 0 0 0 2-2z"/></svg></div>
+          <div class="tx"><div class="t">配置对比</div><div class="s">迁移前后两个实例差在哪</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="openResult('crash')" data-k="崩溃日志 日志 crash 报错 闪退">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 2 1 21h22zm1 14h-2v2h2zm0-7h-2v5h2z"/></svg></div>
+          <div class="tx"><div class="t">崩溃日志</div><div class="s">最近 3 条 · 复制、清空</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+      </div>
+
+      <div class="sec" data-g="迁移 · 模组处理">迁移 · 模组处理</div>
+      <div class="grp" data-g="迁移 · 模组处理">
+        <div class="row" onclick="go('v-toggle')" data-k="模组开关 开关 启用 禁用 disabled">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0 0 10h10a5 5 0 0 0 0-10m0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6"/></svg></div>
+          <div class="tx"><div class="t">模组开关</div><div class="s">18 个 · 改后缀名，不删文件</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="openResult('code')" data-k="代码级迁移 代码 1.20 1.21 包名 重写">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M11 21h-1l1-7H7.5c-.6 0-.6-.3-.5-1l2.4-12h1l-1 7h4c.6 0 .6.3.5 1L11.5 21z"/></svg></div>
+          <div class="tx"><div class="t">代码级迁移</div><div class="s">跨大版本的包名与调用改写</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+      </div>
+
+      <div class="sec" data-g="世界与数据">世界与数据</div>
+      <div class="grp" data-g="世界与数据">
+        <div class="row" onclick="sub('世界存档')" data-k="世界存档 存档 备份 导入 地图">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8z"/></svg></div>
+          <div class="tx"><div class="t">世界存档</div><div class="s">3 个存档 · 备份、改名、导入</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="sub('区块编辑器')" data-k="区块编辑器 区块 mca 地图 替换 删除">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 3h8v8H3zm10 0h8v8h-8zM3 13h8v8H3zm10 0h8v8h-8z"/></svg></div>
+          <div class="tx"><div class="t">区块编辑器</div><div class="s">按区域文件替换、删除、导出</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="sub('NBT 编辑器')" data-k="NBT 编辑器 nbt level.dat 标签 修改">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"/></svg></div>
+          <div class="tx"><div class="t">NBT 编辑器</div><div class="s">直接改 level.dat 里的字段</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="sub('数据包')" data-k="数据包 datapack 生成器 进度 配方">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M9.4 16.6 4.8 12l4.6-4.6L8 6l-6 6 6 6zm5.2 0 4.6-4.6-4.6-4.6L16 6l6 6-6 6z"/></svg></div>
+          <div class="tx"><div class="t">数据包</div><div class="s">按官方结构生成，不用手搓</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+      </div>
+
+      <div class="sec" data-g="实例与整合包">实例与整合包</div>
+      <div class="grp" data-g="实例与整合包">
+        <div class="row" onclick="sub('补齐实例')" data-k="补齐实例 实例 目录结构 prism multimc">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M13.5 2c-3.4 0-6.2 2.7-6.2 6 0 1.3.4 2.5 1.1 3.5L2 17.9V22h4.1l6.4-6.4c1 .7 2.2 1.1 3.5 1.1 3.3 0 6-2.7 6-6s-2.7-6.5-6.5-6.7z"/></svg></div>
+          <div class="tx"><div class="t">补齐实例</div><div class="s">补目录与配置，让启动器认得出</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="sub('加载器支持器')" data-k="加载器支持器 fabric forge quilt neoforge 安装">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 6h18V4H4a2 2 0 0 0-2 2v11H0v3h14v-3H4zm19 2h-6a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1m-1 9h-4v-7h4z"/></svg></div>
+          <div class="tx"><div class="t">加载器支持器</div><div class="s">给目标实例装 Fabric / Forge 等</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="go('v-export')" data-k="导出整合包 整合包 mrpack 分享 打包">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96M14 13v4h-4v-4H7l5-5 5 5z"/></svg></div>
+          <div class="tx"><div class="t">导出整合包</div><div class="s">一页选完，不用连着弹窗</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+      </div>
+
+      <div class="sec" data-g="存储与传输">存储与传输</div>
+      <div class="grp" data-g="存储与传输">
+        <div class="row" onclick="openResult('usage')" data-k="存储用量 用量 空间 占用 大小">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20m0 2v8h8a8 8 0 0 1-8 8z"/></svg></div>
+          <div class="tx"><div class="t">存储用量</div><div class="s">按分类看占了多少</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="toast('已清理 24 个缓存文件')" data-k="清理缓存 缓存 cache 垃圾">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6zM19 4h-3.5l-1-1h-5l-1 1H5v2h14z"/></svg></div>
+          <div class="tx"><div class="t">清理缓存</div><div class="s">只删缓存，不动模组和存档</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="sub('云盘')" data-k="云盘 云端 备份 上传">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3 2 9h3v9h6v-6h2v6h6V9h3zm0 3.5 4 3v.5h-8V10z" /></svg></div>
+          <div class="tx"><div class="t">云盘</div><div class="s">把整合包和存档放到云端</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="toast('正在打包 18 个模组…')" data-k="打包发送 发送 分享 传输 别设备">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M18 16.1a3 3 0 0 0-2 .8l-7.1-4.1a3 3 0 0 0 0-1.6L16 7.1a3 3 0 1 0-1-2.1L7.9 9a3 3 0 1 0 0 6l7.1 4.1a3 3 0 1 0 3-2.9"/></svg></div>
+          <div class="tx"><div class="t">打包发送</div><div class="s">打成 zip 走系统分享发走</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+      </div>
+
+      <div style="height:14px"></div>
+    </div>
+  </div>
+
+  <!-- ===== 结果页（长文本独立页面） ===== -->
+  <div class="view" id="v-result">
+    <div class="appbar">
+      <button class="back" onclick="go('v-main')">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg>
+      </button>
+      <h1 id="r-title">模组体检</h1>
+    </div>
+    <div class="res">
+      <div class="hd">
+        <div class="ttl" id="r-ttl">体检完成</div>
+        <div class="meta" id="r-meta"></div>
+      </div>
+      <div class="mono" id="r-body"></div>
+      <div class="acts">
+        <button class="btn-out" onclick="toast('已复制到剪贴板')">复制</button>
+        <button class="btn-out" onclick="toast('已调起系统分享')">分享</button>
+      </div>
+      <div style="height:14px"></div>
+    </div>
+  </div>
+
+  <!-- ===== 模组开关页 ===== -->
+  <div class="view" id="v-toggle">
+    <div class="appbar">
+      <button class="back" onclick="go('v-main')">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg>
+      </button>
+      <h1>模组开关</h1>
+    </div>
+    <div class="selbar">
+      <div class="chk" id="ckAll" onclick="toggleAll()">
+        <svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>
+      </div>
+      <div class="cnt" id="t-cnt">已启用 14 / 18</div>
+      <button class="btn-out" style="flex:none;height:34px;padding:0 12px;font-size:12px" onclick="toast('说明：改名成 .jar.disabled，文件不删')">怎么生效</button>
+    </div>
+    <div class="grp" style="margin:12px" id="t-list"></div>
+    <div style="height:14px"></div>
+    <div class="foot">
+      <button class="btn-out" onclick="toast('已全选')" style="flex:0 0 96px">全选</button>
+      <button class="btn-fill" onclick="go('v-main')">完成</button>
+    </div>
+  </div>
+
+  <!-- ===== 导出整合包向导 ===== -->
+  <div class="view" id="v-export">
+    <div class="appbar">
+      <button class="back" onclick="go('v-main')">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg>
+      </button>
+      <h1>导出整合包</h1>
+    </div>
+    <div class="wiz">
+      <div class="card">
+        <div class="ct">从哪导出</div>
+        <div class="opt on" onclick="pick(0,this,'fmt')">
+          <div class="rd"></div>
+          <div class="ot"><div class="on1">当前「迁移前」目录</div><div class="os1">.minecraft · 18 个模组</div></div>
+        </div>
+        <div class="opt" onclick="pick(1,this,'fmt')">
+          <div class="rd"></div>
+          <div class="ot"><div class="on1">换一个目录</div><div class="os1">从文件选择器里挑</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="ct">导出成哪种</div>
+        <div class="cs">不同启动器认的格式不一样，选错了装不上</div>
+        <div class="opt on" onclick="pick(0,this,'fmt2')">
+          <div class="rd"></div>
+          <div class="ot"><div class="on1">.mrpack</div><div class="os1">Modrinth / 大部分启动器</div></div>
+        </div>
+        <div class="opt" onclick="pick(1,this,'fmt2')">
+          <div class="rd"></div>
+          <div class="ot"><div class="on1">CurseForge 包</div><div class="os1">CurseForge 启动器专用</div></div>
+        </div>
+        <div class="opt" onclick="pick(2,this,'fmt2')">
+          <div class="rd"></div>
+          <div class="ot"><div class="on1">MultiMC / Prism</div><div class="os1">这俩不认 .mrpack</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="ct">要带上什么</div>
+        <div class="cs">已选 3 项 · 个人数据（截图、登录信息）默认不带</div>
+        <div class="opt on" onclick="togOpt(this)">
+          <div class="rd"></div>
+          <div class="ot"><div class="on1">模组</div><div class="os1">18 个</div></div>
+        </div>
+        <div class="opt on" onclick="togOpt(this)">
+          <div class="rd"></div>
+          <div class="ot"><div class="on1">配置</div><div class="os1">各模组的 .cfg / .json</div></div>
+        </div>
+        <div class="opt on" onclick="togOpt(this)">
+          <div class="rd"></div>
+          <div class="ot"><div class="on1">资源包 / 光影</div><div class="os1">4 个</div></div>
+        </div>
+        <div class="opt" onclick="togOpt(this)">
+          <div class="rd"></div>
+          <div class="ot"><div class="on1">世界存档</div><div class="os1">3 个 · 约 240 MB</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="ct">模组怎么带走</div>
+        <div class="sw2" onclick="togSw(this)">
+          <div class="tx"><div class="t">全部随包带走</div><div class="s" id="emb-s">关闭 · 只写清单，由启动器下载</div></div>
+          <div class="tg" id="emb-tg"></div>
+        </div>
+        <div class="alert" id="emb-note">关着：包很小（几十 KB），但装的人得联网按清单下载，且模组下架了就装不了。</div>
+      </div>
+
+      <button class="btn-fill" style="width:100%" onclick="doExport()">导出</button>
+      <div style="height:14px"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="nav" id="nav">
+    <button onclick="toast('跨原型跳不了')">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm-3 13-3-3h6z"/></svg>
+      <span>迁移</span>
+    </button>
+    <button onclick="toast('跨原型跳不了')">
+      <svg viewBox="0 0 24 24"><path d="M7 18a5 5 0 1 1 0-10 5 5 0 0 1 0 10m10 0a5 5 0 1 1 0-10 5 5 0 0 1 0 10"/></svg>
+      <span>市场</span>
+    </button>
+    <button class="sel" onclick="toast('当前就在工具箱')">
+      <svg viewBox="0 0 24 24"><path d="M20.5 11h-3.6c-.6-1.3-1.7-2.4-3.1-2.9V5h2V3h-4v2h2v3.1c-2 .3-3.6 1.7-4.3 3.6l-1.9-.9L6 11.7 7.8 13c0 1.4.6 2.7 1.6 3.7l-2 2L8.8 20l2-2c1 .8 2.2 1.3 3.5 1.4V21h2v-2h-2v-1.6c1.9-.4 3.5-1.7 4.3-3.4h3.9z"/></svg>
+      <span>更多</span>
+    </button>
+  </div>
+</div>
+
+<script>
+var TOAST=null;
+function toast(s){
+  var t=document.getElementById('toast');
+  t.textContent=s; t.classList.add('on');
+  clearTimeout(TOAST);
+  TOAST=setTimeout(function(){t.classList.remove('on')},1600);
+}
+
+var CUR='v-main';
+function go(id){
+  CUR=id;
+  var vs=document.querySelectorAll('.view');
+  for(var i=0;i<vs.length;i++) vs[i].classList.toggle('on', vs[i].id===id);
+  document.getElementById('nav').style.display = (id==='v-main')?'flex':'none';
+  var v=document.getElementById(id); if(v) v.scrollTop=0;
+}
+function sub(name){ toast('打开「'+name+'」（独立页面，原型未画）'); }
+
+/* ---------- 搜索过滤 ---------- */
+function filter(){
+  var q=document.getElementById('q').value.trim().toLowerCase();
+  document.getElementById('fld').classList.toggle('has', q.length>0);
+  var rows=document.querySelectorAll('#body .row');
+  var secs=document.querySelectorAll('#body .sec');
+  var any=false;
+  for(var i=0;i<rows.length;i++){
+    var k=(rows[i].getAttribute('data-k')||'')+' '+rows[i].textContent;
+    var hit = q==='' || k.toLowerCase().indexOf(q)>=0;
+    rows[i].style.display = hit?'flex':'none';
+    if(hit) any=true;
+  }
+  for(var j=0;j<secs.length;j++){
+    var g=secs[j].getAttribute('data-g');
+    var vis=false;
+    var grp=document.querySelector('#body .grp[data-g="'+g+'"]');
+    if(grp){
+      var rs=grp.querySelectorAll('.row');
+      for(var m=0;m<rs.length;m++) if(rs[m].style.display!=='none'){vis=true;break}
+    }
+    secs[j].style.display = vis?'block':'none';
+    if(grp) grp.style.display = vis?'block':'none';
+  }
+  document.getElementById('empty').classList.toggle('on', !any);
+}
+function clearQ(){
+  document.getElementById('q').value='';
+  filter();
+}
+
+/* ---------- 结果页内容 ---------- */
+var RES={
+  doctor:{ttl:'体检完成',badge:'ok',badgeText:'没有阻断问题',
+    meta:'18 个模组 · 目标 1.20.1 / Fabric · 用时 3.4 秒',
+    body:'[通过] 17 个模组版本与 1.20.1 匹配\n'+
+         '[提醒] 1 个模组装错加载器\n\n'+
+         '── 装错加载器 ──\n'+
+         '  jei-1.20.1-forge.jar\n'+
+         '  这是 Forge 版，当前实例是 Fabric\n'+
+         '  处理：去市场搜 JEI，选 Fabric 版重装\n\n'+
+         '── 未发现的依赖问题 ──\n'+
+         '  无\n'},
+  dep:{ttl:'依赖体检',badge:'err',badgeText:'缺 2 个依赖',
+    meta:'18 个模组参与分析 · 已排除 5 个被禁用的',
+    body:'[缺失] 2\n[冲突] 0\n[循环] 0\n\n'+
+         '── 缺失依赖 ──\n'+
+         '  jade ← 需要 fabric-api\n'+
+         '  xaero-minimap ← 需要 fabric-api\n\n'+
+         '  装一个 fabric-api 就能同时解决这两条。\n\n'+
+         '── 说明 ──\n'+
+         '  被禁用的模组（.jar.disabled）不算进去：\n'+
+         '  它不会被加载器装载，既不提供依赖也不参与冲突。\n'},
+  diff:{ttl:'配置对比',badge:'warn',badgeText:'12 处不同',
+    meta:'迁移前 .minecraft  vs  迁移后 .minecraft',
+    body:'模组：18 → 16（同名 14，新增 2，缺少 4）\n'+
+         '配置：19 个文件不同\n'+
+         '存档：3 → 1\n\n'+
+         '── 只在迁移前有的模组 ──\n'+
+         '  optifine.jar、betterfps.jar\n'+
+         '  dynamic-fps.jar、sodium-extra.jar\n\n'+
+         '── 配置差异 ──\n'+
+         '  options.txt：视距 12 → 8\n'+
+         '  ... 其余 18 个略\n'},
+  crash:{ttl:'崩溃日志',badge:'err',badgeText:'最近 3 条',
+    meta:'共 3 个文件 · 最新 2026-10-18 14:02',
+    body:'#1  2026-10-18 14:02:08  v2.11.0 (90)\n'+
+         '    设备 HUAWEI FIN-AL60  Android 12 (API 31)\n'+
+         '    java.lang.ArrayIndexOutOfBoundsException\n'+
+         '    length=0; index=-5\n'+
+         '      at androidx.compose.runtime.SlotTableKt.key\n'+
+         '      at ...ComposerImpl.endRoot\n'+
+         '      at ...Fragment.restoreViewState\n\n'+
+         '#2  2026-10-18 14:01:46  v2.11.0 (90)\n'+
+         '    同上，同一处\n\n'+
+         '#3  2026-10-18 02:11:09  v2.11.0 (90)\n'+
+         '    java.lang.IllegalStateException: 已有一个迁移在跑\n'},
+  code:{ttl:'代码级迁移',badge:'warn',badgeText:'命中 8 处',
+    meta:'1.20.1 → 1.21 · 扫描 .minecraft 下 1284 个文件',
+    body:'可自动改写：8 处\n需人工确认：3 处\n\n'+
+         '── 可自动改写 ──\n'+
+         '  net.minecraft.util.math.Box\n'+
+         '   → net.minecraft.util.math.BoundingBox\n'+
+         '  出现 5 次（3 个文件）\n\n'+
+         '  Registry.BLOCK → Registries.BLOCK\n'+
+         '  出现 3 次（2 个文件）\n\n'+
+         '── 需人工确认 ──\n'+
+         '  3 处在注释和字符串里，改了会破坏语义\n\n'+
+         '改之前会先备份整个目录。\n'},
+  usage:{ttl:'存储用量',badge:'',badgeText:'',
+    meta:'工作目录：内部存储/ModMigrator',
+    body:'packs：6 个文件，182.4 MB\n'+
+         'mods：18 个文件，96.1 MB\n'+
+         'configs：19 个文件，412 KB\n'+
+         'cache：24 个文件，8.7 MB\n'+
+         'translate：0 个文件，0 B\n'+
+         'logs：3 个文件，118 KB\n'+
+         'data：11 个文件，2.3 MB\n\n'+
+         '合计：289.6 MB\n'}
+};
+function openResult(k){
+  var r=RES[k]; if(!r) return;
+  document.getElementById('r-title').textContent = ({doctor:'模组体检',dep:'依赖体检',diff:'配置对比',crash:'崩溃日志',code:'代码级迁移',usage:'存储用量'})[k];
+  document.getElementById('r-ttl').textContent = r.ttl;
+  document.getElementById('r-meta').innerHTML =
+    (r.badge?'<span class="badge '+r.badge+'">'+r.badgeText+'</span> ':'')+r.meta;
+  document.getElementById('r-body').textContent = r.body;
+  go('v-result');
+}
+
+/* ---------- 模组开关 ---------- */
+var MODS=[
+  ['JEI','1.20.1 · fabric'],['Jade','1.20.1 · fabric'],['Collective','1.20.1 · fabric'],
+  ['Sodium','1.20.1 · fabric'],['Lithium','1.20.1 · fabric'],['Iris','1.20.1 · fabric'],
+  ['Xaero小地图','1.20.1 · fabric'],['Fabric API','1.20.1 · fabric'],['Mod Menu','1.20.1 · fabric'],
+  ['REI','1.20.1 · fabric'],['AppleSkin','1.20.1 · fabric'],['Controlling','1.20.1 · fabric'],
+  ['MoreChatHistory','1.20.1 · fabric'],['AdvancementInfo','1.20.1 · fabric'],['BetterF3','1.20.1 · fabric'],
+  ['OptiFine','1.20.1 · forge'],['DynamicFPS','1.20.1 · fabric'],['EMI','1.20.1 · fabric']
+];
+var ST=[];
+(function(){ for(var i=0;i<MODS.length;i++) ST.push(i%5!==0); })();
+
+function renderToggle(){
+  var box=document.getElementById('t-list');
+  var html='';
+  for(var i=0;i<MODS.length;i++){
+    html+='<div class="mrow'+(ST[i]?'':' off')+'" onclick="tog('+i+')">'
+      +'<div class="chk'+(ST[i]?' on':'')+'"><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg></div>'
+      +'<div class="nm">'+MODS[i][0]+'<div class="sub">'+MODS[i][1]+'</div></div>'
+      +'</div>';
+  }
+  box.innerHTML=html;
+  var n=0; for(var j=0;j<ST.length;j++) if(ST[j]) n++;
+  document.getElementById('t-cnt').textContent='已启用 '+n+' / '+ST.length;
+  var all=true, none=true;
+  for(var k=0;k<ST.length;k++){ if(ST[k]) none=false; else all=false; }
+  var a=document.getElementById('ckAll');
+  a.classList.toggle('on', all);
+  a.classList.toggle('part', !all && !none);
+}
+function tog(i){
+  ST[i]=!ST[i];
+  renderToggle();
+  toast(ST[i]?'已启用 '+MODS[i][0]:'已禁用 '+MODS[i][0]);
+}
+function toggleAll(){
+  var all=true; for(var i=0;i<ST.length;i++) if(!ST[i]) all=false;
+  for(var j=0;j<ST.length;j++) ST[j]=!all;
+  renderToggle();
+}
+
+/* ---------- 导出向导 ---------- */
+function pick(i,el,g){
+  var box=el.parentNode;
+  var os=box.querySelectorAll('.opt');
+  for(var k=0;k<os.length;k++) os[k].classList.remove('on');
+  el.classList.add('on');
+}
+function togOpt(el){ el.classList.toggle('on'); }
+function togSw(el){
+  var tg=el.querySelector('.tg');
+  var on=!tg.classList.contains('on');
+  tg.classList.toggle('on', on);
+  document.getElementById('emb-s').textContent = on
+    ? '开启 · 文件全部进包，装的人不用联网'
+    : '关闭 · 只写清单，由启动器下载';
+  document.getElementById('emb-note').textContent = on
+    ? '开着：包装完就能装，断网也能装。代价是包会变大（模组 96 MB 全在里面）。'
+    : '关着：包很小（几十 KB），但装的人得联网按清单下载，且模组下架了就装不了。';
+}
+function doExport(){
+  toast('正在打包…');
+  setTimeout(function(){ openResult('doctor'); }, 500);
+}
+
+renderToggle();
+</script>
+</body>
+</html>
