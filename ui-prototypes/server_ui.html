@@ -182,7 +182,7 @@ body{background:#12151A;display:flex;justify-content:center;align-items:center;
       </div>
       <div class="row" onclick="go('v-match')">
         <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 5h18v2H3zM3 11h18v2H3zM3 17h12v2H3z"/></svg></div>
-        <div class="tx"><div class="t">匹配条件</div><div class="s" id="m-s">1.20.1 · Fabric · 服务端 · 3 个来源</div></div>
+        <div class="tx"><div class="t">匹配条件</div><div class="s" id="m-s">1.20.1 · Paper · 服务端 · 3 个来源</div></div>
         <div class="go">修改</div>
       </div>
     </div>
@@ -204,6 +204,7 @@ body{background:#12151A;display:flex;justify-content:center;align-items:center;
     <div class="sec" id="f-t" style="display:none">服务器文件 <span id="f-n">0</span> 个</div>
     <div id="f-list"></div>
     <div class="empty on" id="f-empty"><b>还没有文件</b>连上服务器后点「扫描文件」，里面的 jar 会列在这里，再点「检测更新」逐个查版本。</div>
+    <div class="empty" id="f-nofit"><b>这个类型下没有文件</b>扫到了 jar，但都不属于当前服务端类型。到「匹配条件」里把服务端类型改成插件服或混合服。</div>
     <div style="height:72px"></div>
     <div class="hint">原型：跨页跳转与真实连接不可点</div>
   </div>
@@ -231,9 +232,11 @@ body{background:#12151A;display:flex;justify-content:center;align-items:center;
       <label>服务器 MC 版本</label>
       <div class="inp"><input id="f-ver" value="1.20.1" placeholder="如 1.20.1"></div>
     </div>
-    <div class="sec">加载器（只用来筛模组）</div>
+    <div class="sec">服务端类型</div>
+    <div class="chips" id="t-chips"></div>
+    <div class="sec">服务端平台</div>
     <div class="chips" id="l-chips"></div>
-    <div class="note">服务器不会因此装上加载器。这里选它，只是为了按加载器挑要检测的模组。</div>
+    <div class="note" id="l-note"></div>
     <div class="sec">端</div>
     <div class="chips" id="s-chips"></div>
     <div class="note" id="s-note"></div>
@@ -293,22 +296,35 @@ body{background:#12151A;display:flex;justify-content:center;align-items:center;
 
 
 <script>
-var S={conn:false,kind:0,loader:1,side:0,src:[1,1,1],out:0,files:[],dir:'/mods'};
+var S={conn:false,kind:0,type:1,plat:0,side:0,src:[1,1,1],out:0,files:[],dir:'/mods'};
 var FILES=[
  {n:'jei-1.20.1.jar',k:'模组',sz:'412KB',p:'/mods',up:'1.20.4',st:0},
  {n:'jade-1.20.1.jar',k:'模组',sz:'188KB',p:'/mods',up:'1.20.4',st:0},
  {n:'sodium-1.20.1.jar',k:'模组',sz:'1.2MB',p:'/mods',up:'',st:1},
  {n:'collective-1.20.1.jar',k:'模组',sz:'96KB',p:'/mods',up:'1.20.3',st:0},
+ {n:'mystery-mod.jar',k:'模组',sz:'220KB',p:'/mods',up:'',st:2},
  {n:'worldedit-plugin.jar',k:'插件',sz:'3.4MB',p:'/plugins',up:'',st:1},
- {n:'mystery-mod.jar',k:'模组',sz:'220KB',p:'/mods',up:'',st:2}
+ {n:'LuckPerms-5.4.102.jar',k:'插件',sz:'1.1MB',p:'/plugins',up:'5.4.140',st:0},
+ {n:'ViaVersion-4.9.2.jar',k:'插件',sz:'980KB',p:'/plugins',up:'',st:2}
 ];
 var KINDS=['面板 API','FTP','FTPS','SFTP'];
 var KNOTE=['用面板的 Client API Key 连接，不是登录密码。没有面板 Key 就改选上面的 FTP/SFTP。',
  '用服务器的 FTP / SSH 账号密码直连，可以浏览并读取 mods、plugins 目录。'];
-var LOADERS=['自动','Fabric','Forge','NeoForge','Quilt'];
+var TYPES=['插件服','模组服','混合服'];
+var PLATS=[
+ ['自动','Paper','Spigot','Purpur','Folia','Pufferfish','Sponge'],
+ ['自动','Fabric','Forge','NeoForge','Quilt'],
+ ['自动','Mohist','Magma','Arclight','CatServer']
+];
+var TNOTE=[
+ '插件放在 plugins/。插件服本身不装 Fabric / Forge / NeoForge / Quilt，这里选平台只用来筛插件版本。Velocity / BungeeCord 是代理，不是服务端，不在列表里。',
+ '模组放在 mods/。服务端要装对应的加载器，进服的客户端也得装同一个，否则进不去。这里选的平台用来筛模组版本。',
+ 'plugins/ 和 mods/ 都有，两个目录都要扫。混合核心是第三方拼的，兼容性参差不齐，筛出来的结果自己确认一遍。'
+];
+var TDIR=['/plugins','/mods','/plugins + /mods'];
 var SIDES=['服务端','客户端'];
 var SNOTE=['按服务端匹配：只取标了服务端可用的文件。','按客户端匹配：只取客户端可用的文件。'];
-var LOG='14:02:11 连接面板 https://panel.example.com\n14:02:12 已连接，找到 2 个服务器\n14:02:12 选中：MC 服务器 A\n14:02:13 读取 /mods\n14:02:14 扫描到 6 个 jar\n14:02:15 检测更新：6 个\n14:02:19 有更新 3 个，最新 2 个，没认出来 1 个\n14:02:19 mystory-mod.jar 需要手动指定';
+var LOG='14:02:11 连接面板 https://panel.example.com\n14:02:12 已连接，找到 2 个服务器\n14:02:12 选中：MC 服务器 A\n14:02:13 读取 /mods、/plugins\n14:02:14 扫描到 8 个 jar\n14:02:15 检测更新：按服务端类型筛\n14:02:19 有更新 4 个，最新 2 个，没认出来 2 个\n14:02:19 mystory-mod.jar 需要手动指定';
 
 function $(i){return document.getElementById(i)}
 function show(id){var v=document.querySelectorAll('.view');for(var i=0;i<v.length;i++)v[i].classList.remove('on');$(id).classList.add('on');window.__cur=id}
@@ -367,9 +383,10 @@ function openPick(t,s,body){
 function scan(){if(!S.conn){toast('先连上服务器');return}
   S.files=FILES.slice();rendFiles();toast('扫描到 '+S.files.length+' 个')}
 
+function match(f){return S.type===2?true:S.type===0?f.k==='插件':f.k==='模组'}
 function rendFiles(){
-  var h='';
-  for(var i=0;i<S.files.length;i++){var f=S.files[i];
+  var h='',n=0;
+  for(var i=0;i<S.files.length;i++){var f=S.files[i];if(!match(f))continue;n++
     var b=f.st===0?'<span class="badge up">有更新</span>':f.st===1?'<span class="badge ok">最新</span>':'<span class="badge no">没认出来</span>';
     var st=f.st===0?'有更新 → '+f.up:f.st===1?'已经是最新':'自动匹配没认出来，手动指定一下';
     var stc=f.st===0?'':f.st===1?' g':' w';
@@ -380,15 +397,16 @@ function rendFiles(){
       +'<div class="st'+stc+'">'+st+'</div>'
       +'<div class="op">'+btn+'<button class="sm" onclick="man('+i+')">手动搜索</button></div></div>'}
   $('f-list').innerHTML=h;
-  var n=S.files.length;
   $('f-t').style.display=n?'block':'none';
   $('f-n').textContent=n;
-  $('f-empty').className='empty'+(n?'':' on');
+  $('f-empty').className='empty'+(S.files.length?'':' on');
+  $('f-nofit').style.display=(S.files.length&&!n)?'block':'none';
   rendActs()}
 function rendActs(){
   var old=$('acts');if(old)old.remove();
-  if(!S.files.length)return;
-  var up=0;for(var i=0;i<S.files.length;i++)if(S.files[i].st===0)up++;
+  var up=0,n=0;
+  for(var i=0;i<S.files.length;i++)if(match(S.files[i])){n++;if(S.files[i].st===0)up++}
+  if(!n)return;
   var d=document.createElement('div');d.className='acts';d.id='acts';
   d.innerHTML='<button class="btn" onclick="checkUpd()">检测更新</button>'
     +'<button class="btn pri" '+(up?'':'disabled')+' onclick="dlAll()">下载全部（'+up+'）</button>';
@@ -409,11 +427,16 @@ function doMan(){
 function pickCand(i){S.files[0].st=0;S.files[0].up='1.20.4';rendFiles();show('v-main');toast('已指定')}
 
 function rendMatch(){
-  chips('l-chips',LOADERS,S.loader,'setLoader');
+  chips('t-chips',TYPES,S.type,'setType');
+  chips('l-chips',PLATS[S.type],S.plat,'setPlat');
   chips('s-chips',SIDES,S.side,'setSide');
+  $('l-note').textContent=TNOTE[S.type];
   $('s-note').textContent=SNOTE[S.side];
-  $('m-s').textContent=val('f-ver')+' · '+LOADERS[S.loader]+' · '+SIDES[S.side]+' · '+S.src.reduce(function(a,b){return a+b},0)+' 个来源'}
-function setLoader(i){S.loader=i;rendMatch()}
+  $('m-s').textContent=val('f-ver')+' · '+TYPES[S.type]+' · '+PLATS[S.type][S.plat]+' · '+SIDES[S.side]+' · '+S.src.reduce(function(a,b){return a+b},0)+' 个来源'}
+function setType(i){S.type=i;S.plat=0;
+  if(!S.conn){S.dir=TDIR[i];$('d-s').textContent=S.dir;$('f-dir').value=(i===2?'/plugins':S.dir)}
+  rendMatch();rendFiles()}
+function setPlat(i){S.plat=i;rendMatch()}
 function setSide(i){S.side=i;rendMatch()}
 function tog(id){var e=$(id);e.classList.toggle('on');
   var k=id==='src1'?0:id==='src2'?1:2;S.src[k]=e.classList.contains('on')?1:0;rendMatch()}
