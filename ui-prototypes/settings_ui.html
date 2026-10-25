@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>设置主页 UI 原型 1:1 — 分组列表版</title>
+<style>
+:root{
+  --p:#0B57D0; --on-p:#fff;
+  --sc:#D3E3FD; --on-sc:#0A2E6F;
+  --surface:#FEFBFF; --card:#FFFFFF;
+  --variant:#F0F2F5; --outline:#C4C7C5; --divider:#E7E9EB;
+  --t1:#1A1C1E; --t2:#5F6368; --t3:#9AA0A6;
+  --warn:#8A4B00; --warn-bg:#FCE8CD; --warn-line:#F0B86B;
+  --err:#B3261E; --err-bg:#F9DEDC;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#12151A;display:flex;justify-content:center;align-items:center;
+  min-height:100vh;font-family:Roboto,"Noto Sans SC","PingFang SC",system-ui,sans-serif;padding:20px;gap:24px;flex-wrap:wrap}
+
+.phone{position:relative;width:360px;height:800px;background:var(--surface);
+  border-radius:28px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.55);flex:none}
+
+.bar{position:absolute;top:0;left:0;right:0;height:26px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 14px;font-size:11px;color:var(--t1);z-index:40}
+.bar .r{display:flex;align-items:center;gap:5px}
+.bat{width:18px;height:9px;border:1px solid var(--t1);border-radius:2px;position:relative;padding:1px}
+.bat::after{content:"";position:absolute;right:-2px;top:2px;width:1.5px;height:4px;background:var(--t1)}
+.bat i{display:block;height:100%;width:31%;background:var(--t1)}
+
+.view{position:absolute;top:26px;bottom:56px;left:0;right:0;overflow-y:auto;background:var(--surface)}
+.view::-webkit-scrollbar{width:0}
+.view{display:none}
+.view.on{display:block}
+
+/* 顶部应用栏 */
+.appbar{position:sticky;top:0;z-index:20;height:56px;background:var(--surface);
+  display:flex;align-items:center;gap:4px;padding:0 6px;border-bottom:1px solid var(--divider)}
+.appbar .back{border:0;background:none;cursor:pointer;width:40px;height:40px;
+  display:flex;align-items:center;justify-content:center;color:var(--t1);border-radius:50%}
+.appbar h1{font-size:19px;font-weight:500;color:var(--t1)}
+
+/* 搜索框（设置内检索） */
+.srch{padding:10px 14px 6px}
+.field{height:44px;border:1px solid var(--outline);border-radius:22px;display:flex;
+  align-items:center;padding:0 14px;gap:8px;background:var(--card)}
+.field input{border:0;outline:0;font-size:14px;color:var(--t1);flex:1;background:none;font-family:inherit}
+.field input::placeholder{color:var(--t3)}
+.field .x{display:none;border:0;background:none;color:var(--t2);cursor:pointer;font-size:16px;padding:0 2px}
+.field.has .x{display:block}
+.empty{padding:34px 20px;text-align:center;color:var(--t2);font-size:13px;display:none}
+.empty.on{display:block}
+
+/* 账号卡 */
+.acct{background:var(--card);margin:8px 12px 12px;border-radius:16px;padding:14px;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.acct .top{display:flex;align-items:center;gap:12px}
+.ava{width:44px;height:44px;border-radius:50%;flex:none;display:flex;align-items:center;
+  justify-content:center;color:#fff;font-weight:700;font-size:16px;background:#5A6B9E;overflow:hidden}
+.ava.no{background:var(--variant);color:var(--t2)}
+.ava img{width:100%;height:100%;object-fit:cover}
+.acct .who{flex:1;min-width:0}
+.acct .nm{font-size:15px;font-weight:600;color:var(--t1);line-height:20px}
+.acct .st{font-size:12px;color:var(--t2);margin-top:2px;line-height:16px}
+.acct .st.bad{color:var(--err)}
+.btn-fill{height:36px;padding:0 16px;border:0;border-radius:18px;background:var(--p);
+  color:var(--on-p);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;flex:none}
+.btn-out{height:36px;padding:0 14px;border:1px solid var(--outline);border-radius:18px;
+  background:none;color:var(--p);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;flex:none}
+.acct .acts{display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--divider)}
+.acct .acts button{flex:1}
+
+/* 迁移模式 */
+.mode{background:var(--card);margin:0 12px 12px;border-radius:16px;padding:14px;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.mode .ttl{font-size:14px;font-weight:600;color:var(--t1)}
+.mode .sub{font-size:12px;color:var(--t2);margin-top:3px;line-height:16px}
+.seg{display:flex;gap:8px;margin-top:10px}
+.seg button{flex:1;height:38px;border:1px solid var(--outline);background:none;border-radius:10px;
+  font-size:13px;color:var(--t1);cursor:pointer;font-family:inherit}
+.seg button.sel{background:var(--sc);border-color:transparent;color:var(--on-sc);font-weight:600}
+
+/* 分组标题 */
+.sec{padding:14px 16px 6px;font-size:12px;font-weight:600;color:var(--p);letter-spacing:.3px}
+.sec.plain{color:var(--t2);font-weight:500}
+
+/* 列表行 */
+.grp{background:var(--card);margin:0 12px 12px;border-radius:16px;overflow:hidden;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.row{display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;min-height:60px}
+.row:active{background:#F4F6F9}
+.row+.row{border-top:1px solid var(--divider)}
+.ico{width:36px;height:36px;border-radius:10px;background:var(--variant);flex:none;
+  display:flex;align-items:center;justify-content:center;color:var(--p)}
+.ico svg{width:20px;height:20px;fill:currentColor}
+.row .tx{flex:1;min-width:0}
+.row .t{font-size:14px;color:var(--t1);line-height:19px}
+.row .s{font-size:12px;color:var(--t2);margin-top:2px;line-height:16px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .s.warn{color:var(--warn)}
+.row .s.err{color:var(--err)}
+.row .arw{color:var(--t3);flex:none}
+.row .arw svg{width:18px;height:18px;fill:currentColor}
+
+/* 子页 */
+.sub{padding:14px}
+.sub .note{font-size:12px;color:var(--t2);line-height:18px;margin-bottom:12px}
+.card{background:var(--card);border-radius:16px;padding:4px 0;box-shadow:0 1px 2px rgba(0,0,0,.06);margin-bottom:12px}
+.sw{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.sw+.sw{border-top:1px solid var(--divider)}
+.sw .tx{flex:1;min-width:0}
+.sw .t{font-size:14px;color:var(--t1);line-height:19px}
+.sw .s{font-size:12px;color:var(--t2);margin-top:2px;line-height:16px}
+.tg{width:44px;height:26px;border-radius:13px;background:var(--outline);position:relative;
+  cursor:pointer;flex:none;transition:background .15s}
+.tg::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;
+  background:#fff;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.tg.on{background:var(--p)}
+.tg.on::after{transform:translateX(18px)}
+.tg.dis{opacity:.4;pointer-events:none}
+
+.alert{background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:12px;
+  padding:12px 14px;margin-bottom:12px}
+.alert .h{font-size:13px;font-weight:600;color:var(--warn);display:flex;align-items:center;gap:6px}
+.alert .b{font-size:12px;color:#5A3A00;margin-top:5px;line-height:17px}
+.btn-wide{width:100%;height:44px;border:0;border-radius:12px;background:var(--p);color:var(--on-p);
+  font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;margin-top:4px}
+
+/* 底部导航 */
+.nav{position:absolute;bottom:0;left:0;right:0;height:56px;background:var(--card);
+  border-top:1px solid var(--divider);display:flex;z-index:30}
+.nav button{flex:1;border:0;background:none;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:3px;color:var(--t2);cursor:pointer;font-family:inherit}
+.nav button.sel{color:var(--p)}
+.nav button span{font-size:10px}
+
+/* 标注 */
+.tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:4px;
+  background:var(--sc);color:var(--on-sc);margin-left:6px;font-weight:600;vertical-align:1px}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="bar">
+    <span>2:09</span>
+    <div class="r"><span>中国移动</span><span>4G</span><span class="bat"><i></i></span></div>
+  </div>
+
+  <!-- ===== 设置主页 ===== -->
+  <div class="view on" id="v-main">
+    <div class="appbar"><h1>设置</h1></div>
+
+    <div class="srch">
+      <div class="field" id="fld">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="#5F6368"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"/></svg>
+        <input id="q" placeholder="搜索设置项" oninput="filter()">
+        <button class="x" onclick="clearQ()">✕</button>
+      </div>
+    </div>
+    <div class="empty" id="empty">没有匹配的设置项</div>
+
+    <div id="body">
+      <!-- 账号 -->
+      <div class="acct">
+        <div class="top">
+          <div class="ava" id="ava">K</div>
+          <div class="who">
+            <div class="nm" id="nm">kongbai9288</div>
+            <div class="st" id="st">已登录 · 后端已连接</div>
+          </div>
+          <button class="btn-fill" id="acctBtn" onclick="toggleLogin()">退出登录</button>
+        </div>
+        <div class="acts">
+          <button class="btn-out" onclick="go('log')">查看登录日志</button>
+          <button class="btn-out" onclick="go('backend')">连接诊断</button>
+        </div>
+      </div>
+
+      <!-- 迁移模式 -->
+      <div class="mode">
+        <div class="ttl">迁移模式</div>
+        <div class="sub">决定迁移任务按哪种方式执行，切换后立即生效</div>
+        <div class="seg">
+          <button class="sel" onclick="pickMode(0,this)">客户端迁移</button>
+          <button onclick="pickMode(1,this)">服务器端迁移</button>
+        </div>
+      </div>
+
+      <!-- 分组 1 -->
+      <div class="sec" data-g="账号与连接">账号与连接</div>
+      <div class="grp" data-g="账号与连接">
+        <div class="row" onclick="go('backend')" data-k="后端与账号 后端 登录 token 同步">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96"/></svg></div>
+          <div class="tx"><div class="t">后端与账号</div><div class="s">GitHub 登录、同步、备份</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="go('log')" data-k="运行日志 日志 导出 崩溃">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm2 16H8v-2h8zm0-4H8v-2h8zm-3-5V3.5L18.5 9z"/></svg></div>
+          <div class="tx"><div class="t">运行日志</div><div class="s">查看、筛选与导出</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+      </div>
+
+      <!-- 分组 2 -->
+      <div class="sec" data-g="迁移">迁移</div>
+      <div class="grp" data-g="迁移">
+        <div class="row" onclick="go('migrate')" data-k="迁移选项 默认 启动器 目标">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99zM21 9l-3.99-4v3H10v2h7.01v3z"/></svg></div>
+          <div class="tx"><div class="t">迁移选项</div><div class="s">默认目标启动器与下载并发</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="go('storage')" data-k="存储目录 工作目录 游戏目录 授权">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8z"/></svg></div>
+          <div class="tx"><div class="t">存储目录</div><div class="s err" id="s-storage">工作目录未设置</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+      </div>
+
+      <!-- 分组 3 -->
+      <div class="sec" data-g="网络与内容">网络与内容</div>
+      <div class="grp" data-g="网络与内容">
+        <div class="row" onclick="go('net')" data-k="网络 离线 联网 断网 搜索 翻译 资讯 公告 更新">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg></div>
+          <div class="tx"><div class="t">网络与离线</div><div class="s" id="s-net">全部功能允许联网</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="go('search')" data-k="搜索与翻译 来源 modrinth curseforge 后端">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"/></svg></div>
+          <div class="tx"><div class="t">搜索与翻译</div><div class="s">Modrinth + CurseForge</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="go('feed')" data-k="MC资讯 资讯 源 新闻">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 14H4V6h16z"/></svg></div>
+          <div class="tx"><div class="t">MC 资讯</div><div class="s">4 个来源</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+      </div>
+
+      <!-- 分组 4 -->
+      <div class="sec" data-g="界面">界面</div>
+      <div class="grp" data-g="界面">
+        <div class="row" onclick="go('theme')" data-k="主题 配色 深色 动态取色">          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1-.24-.27-.36-.62-.36-1 0-.83.67-1.5 1.5-1.5H16a6 6 0 0 0 6-6c0-3.31-2.69-6-6-6zM6.5 13c-.83 0-1.5-.67-1.5-1.5S5.67 10 6.5 10 8 10.67 8 11.5 7.33 13 6.5 13zm3-4C8.67 9 8 8.33 8 7.5S8.67 6 9.5 6 11 6.67 11 7.5 10.33 9 9.5 9zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 6 14.5 6s1.5.67 1.5 1.5S15.33 9 14.5 9zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 10 17.5 10s1.5.67 1.5 1.5S18.33 13 17.5 13z"/></svg></div>
+          <div class="tx"><div class="t">主题<span class="tag">已恢复</span></div><div class="s">跟随系统</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="go('lang')" data-k="语言 中文 english 简体">          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7l1.62-4.33L19.12 17z"/></svg></div>
+          <div class="tx"><div class="t">语言<span class="tag">已恢复</span></div><div class="s">跟随系统</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="go('anim')" data-k="动效 动画 速率 减少动态">          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-2 14.5v-9l6 4.5z"/></svg></div>
+          <div class="tx"><div class="t">动效<span class="tag">已恢复</span></div><div class="s">标准速度</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="go('nav')" data-k="底部导航栏 导航 tab 排序">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3zm0-5h18v-2H3zm0-7v2h18V6z"/></svg></div>
+          <div class="tx"><div class="t">底部导航栏</div><div class="s">4 项已显示</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="go('translate')" data-k="翻译 离线模型 下载 试翻">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11z"/></svg></div>
+          <div class="tx"><div class="t">翻译</div><div class="s">离线模型未下载</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+      </div>
+
+      <!-- 分组 5 -->
+      <div class="sec" data-g="其他">其他</div>
+      <div class="grp" data-g="其他">
+        <div class="row" onclick="go('lab')" data-k="实验室 高级 实验 崩溃 流量">          <div class="ico"><svg viewBox="0 0 24 24"><path d="M9 2v2H7a3 3 0 0 0-3 3v2H2v2h2v2a3 3 0 0 0 3 3h2v6h2v-6h2a3 3 0 0 0 3-3v-2h2v-2h-2V7a3 3 0 0 0-3-3h-2V2z"/></svg></div>
+          <div class="tx"><div class="t">实验室 / 高级<span class="tag">已恢复</span></div><div class="s">实验功能与诊断工具</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="go('plugin')" data-k="插件 安装 运行 js">          <div class="ico"><svg viewBox="0 0 24 24"><path d="M20 7h-3V4a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v3H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM9 4h6v3H9zm5 10h-2v2h-2v-2H8v-2h2v-2h2v2h2z"/></svg></div>
+          <div class="tx"><div class="t">插件<span class="tag">已恢复</span></div><div class="s">已安装 3 个</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="go('patch')" data-k="补丁 内置数据 内置">          <div class="ico"><svg viewBox="0 0 24 24"><path d="M21 10.12V7a2 2 0 0 0-2-2h-6.29l1.29-3.24L13.59 1 .6 14 2 15.41l2.5-2.5L9 17l-2 2v3h3l2-2 4.09 4.09 1.41-1.41-2.5-2.5z"/></svg></div>
+          <div class="tx"><div class="t">补丁<span class="tag">已恢复</span></div><div class="s">内置数据版本 6</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="go('devs')" data-k="开发者名单 致谢 贡献">          <div class="ico"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></div>
+          <div class="tx"><div class="t">开发者名单<span class="tag">已恢复</span></div><div class="s">12 位贡献者</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+        <div class="row" onclick="go('about')" data-k="关于 隐私 版本 开源许可">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg></div>
+          <div class="tx"><div class="t">关于与隐私</div><div class="s">v2.11.1 · 开源许可</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div>
+        </div>
+      </div>
+
+      <div style="height:14px"></div>
+    </div>
+  </div>
+
+  <!-- ===== 子页：网络与离线 ===== -->
+  <div class="view" id="v-net">
+    <div class="appbar">
+      <button class="back" onclick="back()"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></button>
+      <h1>网络与离线</h1>
+    </div>
+    <div class="sub">
+      <div class="note">关掉哪一项，这一项就不再联网。全部关闭等于整应用离线。</div>
+      <div class="card">
+        <div class="sw">
+          <div class="tx"><div class="t">离线模式（总开关）</div><div class="s">打开后下面每一项都不再联网</div></div>
+          <div class="tg" id="tg-off" onclick="tg('off')"></div>
+        </div>
+      </div>
+      <div class="sec plain">分功能</div>
+      <div class="card" id="parts">
+        <div class="sw"><div class="tx"><div class="t">搜索</div><div class="s">模组搜索与详情</div></div><div class="tg on" onclick="tg('p1')"></div></div>
+        <div class="sw"><div class="tx"><div class="t">翻译</div><div class="s">在线翻译与模型下载</div></div><div class="tg on" onclick="tg('p2')"></div></div>
+        <div class="sw"><div class="tx"><div class="t">资讯</div><div class="s">MC 资讯抓取</div></div><div class="tg on" onclick="tg('p3')"></div></div>
+        <div class="sw"><div class="tx"><div class="t">应用更新检查</div><div class="s">检查是否有新版本</div></div><div class="tg on" onclick="tg('p4')"></div></div>
+        <div class="sw"><div class="tx"><div class="t">公告</div><div class="s">应用内通知</div></div><div class="tg on" onclick="tg('p5')"></div></div>
+      </div>
+      <div class="alert" id="net-warn" style="display:none">
+        <div class="h">离线模式已开启</div>
+        <div class="b">下面各项已停用。要单独控制，请先关掉总开关。</div>
+      </div>
+      <button class="btn-wide" onclick="resetNet()">全部恢复联网</button>
+    </div>
+  </div>
+
+  <!-- ===== 子页：存储目录 ===== -->
+  <div class="view" id="v-storage">
+    <div class="appbar">
+      <button class="back" onclick="back()"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></button>
+      <h1>存储目录</h1>
+    </div>
+    <div class="sub">
+      <div class="alert" id="st-warn">
+        <div class="h">⚠ 工作目录未设置</div>
+        <div class="b">没有工作目录时，缓存、配置和临时文件都无法保存，迁移任务会失败。</div>
+      </div>
+      <div class="card">
+        <div class="sw"><div class="tx"><div class="t">工作目录</div><div class="s" id="st-wd">未设置</div></div></div>
+        <div class="sw"><div class="tx"><div class="t">游戏目录</div><div class="s" id="st-gd">未设置</div></div></div>
+      </div>
+      <button class="btn-wide" onclick="setDir('工作目录')">选择工作目录</button>
+      <div style="height:8px"></div>
+      <button class="btn-wide" onclick="setDir('游戏目录')">选择游戏目录</button>
+      <div class="note" style="margin-top:14px">认不出你用的启动器？可以在下面手动指定它的 .minecraft 路径。</div>
+      <div class="card">
+        <div class="sw" style="cursor:pointer" onclick="go('dirs')"><div class="tx"><div class="t">手动指定启动器目录</div><div class="s">用于未收录的启动器</div></div>
+          <div class="arw"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 通用子页 ===== -->
+  <div class="view" id="v-page">
+    <div class="appbar">
+      <button class="back" onclick="back()"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg></button>
+      <h1 id="pg-title">页面</h1>
+    </div>
+    <div class="sub">
+      <div class="note" id="pg-note">这是独立的设置页面，有专门的按钮，不再塞在弹窗里。</div>
+      <div class="card"><div class="sw"><div class="tx"><div class="t" id="pg-1">具体开关 / 选项</div><div class="s">在真实实现里这里放该页自己的控件</div></div></div></div>
+      <button class="btn-wide" id="pg-btn" onclick="back()">完成</button>
+    </div>
+  </div>
+
+  <div class="nav">
+    <button><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99zM21 9l-3.99-4v3H10v2h7.01v3z"/></svg><span>迁移</span></button>
+    <button><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"/></svg><span>市场</span></button>
+    <button class="sel"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 15.5A3.5 3.5 0 1 1 15.5 12 3.5 3.5 0 0 1 12 15.5m7.43-2.53c.04-.32.07-.64.07-.97s-.03-.66-.07-1l2.11-1.63a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.6-.22l-2.49 1a7.3 7.3 0 0 0-1.67-.97l-.37-2.65A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.5.42l-.37 2.65c-.6.25-1.15.57-1.67.97l-2.49-1a.5.5 0 0 0-.6.22l-2 3.46a.5.5 0 0 0 .12.64L4.6 11c-.04.34-.07.66-.07 1s.03.65.07.97l-2.11 1.63a.5.5 0 0 0-.12.64l2 3.46a.5.5 0 0 0 .6.22l2.49-1c.52.4 1.07.72 1.67.97l.37 2.65A.5.5 0 0 0 10 22h4a.5.5 0 0 0 .5-.42l.37-2.65c.6-.25 1.15-.57 1.67-.97l2.49 1a.5.5 0 0 0 .6-.22l2-3.46a.5.5 0 0 0-.12-.64z"/></svg><span>设置</span></button>
+  </div>
+</div>
+
+<script>
+var loggedIn=true, off=false, parts=[true,true,true,true,true];
+var PAGE={dirs:"手动指定启动器目录",backend:"后端与账号",search:"搜索与翻译",migrate:"迁移选项",nav:"底部导航栏",
+ theme:"主题",lang:"语言",anim:"动效",translate:"翻译",plugin:"插件",devs:"开发者名单",
+ log:"运行日志",patch:"补丁",about:"关于与隐私",lab:"实验室 / 高级",feed:"MC 资讯"};
+
+function show(id){
+  document.querySelectorAll('.view').forEach(function(v){v.classList.remove('on')});
+  document.getElementById(id).classList.add('on');
+  document.querySelector('.nav').style.display = (id==='v-main')?'flex':'none';
+}
+function go(k){
+  if(k==='net'){show('v-net');return}
+  if(k==='storage'){show('v-storage');return}
+  show('v-page');
+  document.getElementById('pg-title').textContent=PAGE[k]||'页面';
+  document.getElementById('pg-1').textContent=(PAGE[k]||'该页')+' 的选项';
+}
+function back(){show('v-main')}
+
+function toggleLogin(){
+  loggedIn=!loggedIn;
+  var a=document.getElementById('ava'),n=document.getElementById('nm'),
+      s=document.getElementById('st'),b=document.getElementById('acctBtn');
+  if(loggedIn){a.textContent='K';a.className='ava';n.textContent='kongbai9288';
+    s.textContent='已登录 · 后端已连接';s.className='st';b.textContent='退出登录'}
+  else{a.textContent='!';a.className='ava no';n.textContent='未登录';
+    s.textContent='登录后可同步与备份 · 点右上角可诊断';s.className='st bad';b.textContent='登录'}
+}
+function pickMode(i,el){
+  el.parentNode.querySelectorAll('button').forEach(function(b){b.classList.remove('sel')});
+  el.classList.add('sel');
+}
+function tg(id){
+  if(id==='off'){
+    off=!off;
+    document.getElementById('tg-off').classList.toggle('on',off);
+    document.getElementById('net-warn').style.display=off?'block':'none';
+    document.querySelectorAll('#parts .tg').forEach(function(t){t.classList.toggle('dis',off)});
+    syncNet();
+    return;
+  }
+  var i=parseInt(id.slice(1))-1;
+  parts[i]=!parts[i];
+  document.querySelectorAll('#parts .tg')[i].classList.toggle('on',parts[i]);
+  syncNet();
+}
+function syncNet(){
+  var s=document.getElementById('s-net');
+  if(off){s.textContent='离线模式：全部已断网';s.className='s warn';return}
+  var n=parts.filter(function(x){return !x}).length;
+  if(n===0){s.textContent='全部功能允许联网';s.className='s'}
+  else{s.textContent='已断网 '+n+' 项';s.className='s warn'}
+}
+function resetNet(){
+  off=false;parts=[true,true,true,true,true];
+  document.getElementById('tg-off').classList.remove('on');
+  document.getElementById('net-warn').style.display='none';
+  document.querySelectorAll('#parts .tg').forEach(function(t){t.classList.add('on');t.classList.remove('dis')});
+  syncNet();
+}
+function setDir(name){
+  var el=(name==='工作目录')?document.getElementById('st-wd'):document.getElementById('st-gd');
+  el.textContent='/storage/emulated/0/FCL/.minecraft/';
+  el.className='s';
+  var wd=document.getElementById('st-wd').textContent, gd=document.getElementById('st-gd').textContent;
+  var w=document.getElementById('st-warn');
+  w.style.display = (wd.indexOf('未设置')<0) ? 'none':'block';
+  var m=document.getElementById('s-storage');
+  if(wd.indexOf('未设置')<0){m.textContent='已设置 · '+wd;m.className='s'}
+  else{m.textContent='工作目录未设置';m.className='s err'}
+}
+function filter(){
+  var q=document.getElementById('q').value.trim().toLowerCase();
+  document.getElementById('fld').classList.toggle('has',q.length>0);
+  var hits=0;
+  document.querySelectorAll('.row').forEach(function(r){
+    var hit = !q || (r.dataset.k||'').toLowerCase().indexOf(q)>=0 ||
+              r.querySelector('.t').textContent.toLowerCase().indexOf(q)>=0;
+    r.style.display=hit?'flex':'none';
+    if(hit)hits++;
+  });
+  document.querySelectorAll('.sec[data-g]').forEach(function(s){
+    var g=s.dataset.g, any=false;
+    document.querySelectorAll('.row[data-k]').forEach(function(r){
+      if(r.closest('.grp').dataset.g===g && r.style.display!=='none')any=true;
+    });
+    s.style.display=any?'block':'none';
+    s.closest('#body').querySelectorAll('.grp').forEach(function(gp){
+      if(gp.dataset.g===g){
+        var vis=false; gp.querySelectorAll('.row').forEach(function(r){if(r.style.display!=='none')vis=true});
+        gp.style.display=vis?'block':'none';
+      }
+    });
+  });
+  document.querySelector('.acct').style.display = q? 'none':'block';
+  document.querySelector('.mode').style.display = q? 'none':'block';
+  document.getElementById('empty').classList.toggle('on',hits===0);
+}
+function clearQ(){
+  document.getElementById('q').value='';
+  document.getElementById('fld').classList.remove('has');
+  filter();
+}
+</script>
+</body>
+</html>
