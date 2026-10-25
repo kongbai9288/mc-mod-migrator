@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=360">
+<title>同步页原型</title>
+<style>
+:root{
+  --p:#0B57D0; --on-p:#fff;
+  --sc:#D3E3FD; --on-sc:#0A2E6F;
+  --surface:#FEFBFF; --card:#FFFFFF;
+  --variant:#F0F2F5; --outline:#C4C7C5; --divider:#E7E9EB;
+  --t1:#1A1C1E; --t2:#5F6368; --t3:#9AA0A6;
+  --warn:#8A4B00; --warn-bg:#FCE8CD; --warn-line:#F0B86B;
+  --err:#B3261E; --err-bg:#F9DEDC;
+  --ok:#006C51; --ok-bg:#D7F5EA;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#12151A;display:flex;justify-content:center;align-items:center;
+  min-height:100vh;font-family:Roboto,"Noto Sans SC","PingFang SC",system-ui,sans-serif;padding:20px;gap:24px;flex-wrap:wrap}
+
+.phone{position:relative;width:360px;height:800px;background:var(--surface);
+  border-radius:28px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.55);flex:none}
+
+.bar{position:absolute;top:0;left:0;right:0;height:26px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 14px;font-size:11px;color:var(--t1);z-index:40}
+.bar .r{display:flex;align-items:center;gap:5px}
+.bat{width:18px;height:9px;border:1px solid var(--t1);border-radius:2px;position:relative;padding:1px}
+.bat::after{content:"";position:absolute;right:-2px;top:2px;width:1.5px;height:4px;background:var(--t1)}
+.bat i{display:block;height:100%;width:31%;background:var(--t1)}
+
+.view{position:absolute;top:26px;bottom:0;left:0;right:0;overflow-y:auto;background:var(--surface)}
+.view::-webkit-scrollbar{width:0}
+.view{display:none}
+.view.on{display:block}
+.hasbar .view{bottom:56px}
+
+.appbar{position:sticky;top:0;z-index:20;height:56px;background:var(--surface);
+  display:flex;align-items:center;gap:4px;padding:0 6px;border-bottom:1px solid var(--divider)}
+.appbar .back{border:0;background:none;cursor:pointer;width:40px;height:40px;
+  display:flex;align-items:center;justify-content:center;color:var(--t1);border-radius:50%}
+.appbar h1{font-size:19px;font-weight:500;color:var(--t1);flex:1}
+.appbar .act{border:0;background:none;color:var(--p);font-size:13px;font-weight:600;
+  cursor:pointer;font-family:inherit;padding:0 12px;height:40px}
+
+.note{margin:10px 12px;background:var(--variant);border-radius:12px;padding:11px 13px;
+  font-size:12px;color:var(--t2);line-height:17px}
+.note b{color:var(--t1);font-weight:600}
+.warnbox{margin:10px 12px;background:var(--warn-bg);border:1px solid var(--warn-line);
+  border-radius:12px;padding:11px 13px;font-size:12px;color:var(--warn);line-height:17px}
+
+.sec{padding:14px 16px 6px;font-size:12px;font-weight:600;color:var(--p);letter-spacing:.3px}
+.grp{background:var(--card);margin:0 12px 12px;border-radius:16px;overflow:hidden;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.row{display:flex;align-items:center;gap:12px;padding:0 12px 0 14px;min-height:64px;cursor:pointer}
+.row:active{background:#F4F6F9}
+.row+.row{border-top:1px solid var(--divider)}
+.ico{width:36px;height:36px;border-radius:10px;background:var(--variant);flex:none;
+  display:flex;align-items:center;justify-content:center;color:var(--p)}
+.ico svg{width:20px;height:20px;fill:currentColor}
+.row .tx{flex:1;min-width:0;padding:10px 0}
+.row .t{font-size:14px;color:var(--t1);line-height:19px}
+.row .s{font-size:12px;color:var(--t2);margin-top:2px;line-height:16px}
+.row .go{flex:none;color:var(--p);font-size:13px;font-weight:600}
+
+.empty{padding:34px 20px;text-align:center;color:var(--t2);font-size:13px;display:none;line-height:19px}
+.empty.on{display:block}
+.empty b{display:block;color:var(--t1);font-size:15px;margin-bottom:6px}
+
+/* 字段 */
+.fld{padding:0 12px 10px}
+.fld label{display:block;font-size:12px;color:var(--t2);margin:0 0 5px 2px}
+.fld label em{font-style:normal;color:var(--err)}
+.inp{height:48px;border:1px solid var(--outline);border-radius:12px;display:flex;
+  align-items:center;padding:0 13px;background:var(--card)}
+.inp input{border:0;outline:0;font-size:14px;color:var(--t1);flex:1;background:none;font-family:inherit;width:100%}
+.inp input::placeholder{color:var(--t3)}
+
+/* chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px;padding:2px 12px 10px}
+.chip{border:1px solid var(--outline);background:var(--card);border-radius:10px;
+  padding:0 14px;height:36px;display:flex;align-items:center;font-size:13px;
+  color:var(--t1);cursor:pointer;font-family:inherit}
+.chip.on{background:var(--sc);border-color:var(--sc);color:var(--on-sc);font-weight:600}
+
+/* 开关行 */
+.sw{display:flex;align-items:center;gap:12px;padding:12px 14px;min-height:56px;cursor:pointer}
+.sw+.sw{border-top:1px solid var(--divider)}
+.sw .tx{flex:1;min-width:0}
+.sw .t{font-size:14px;color:var(--t1);line-height:19px}
+.sw .s{font-size:12px;color:var(--t2);margin-top:2px;line-height:16px}
+.tg{width:42px;height:24px;border-radius:12px;background:var(--outline);position:relative;flex:none;
+  transition:background .15s}
+.tg::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;
+  background:#fff;transition:transform .15s}
+.tg.on{background:var(--p)}
+.tg.on::after{transform:translateX(18px)}
+
+/* 按钮 */
+.acts{position:absolute;bottom:0;left:0;right:0;background:var(--surface);
+  border-top:1px solid var(--divider);padding:10px 12px 12px;display:flex;gap:10px;z-index:30}
+.btn{flex:1;height:48px;border-radius:24px;border:1px solid var(--outline);background:var(--card);
+  color:var(--p);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn.pri{background:var(--p);border-color:var(--p);color:var(--on-p)}
+.btn:disabled{background:var(--variant);border-color:var(--divider);color:var(--t3);cursor:default}
+.blk{display:block;width:calc(100% - 24px);margin:4px 12px 0}
+.why{margin:6px 12px 0;font-size:11px;color:var(--warn);line-height:16px;display:none}
+.why.on{display:block}
+
+/* 文件卡 */
+.fcard{background:var(--card);margin:0 12px 10px;border-radius:14px;padding:12px 14px;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.fcard .hd{display:flex;align-items:center;gap:8px}
+.fcard .nm{font-size:14px;font-weight:600;color:var(--t1);flex:1;line-height:19px}
+.badge{font-size:11px;padding:2px 8px;border-radius:6px;flex:none;font-weight:600}
+.badge.up{background:var(--sc);color:var(--on-sc)}
+.badge.ok{background:var(--ok-bg);color:var(--ok)}
+.badge.no{background:var(--warn-bg);color:var(--warn)}
+.fcard .mt{font-size:11px;color:var(--t2);margin-top:4px;line-height:16px}
+.fcard .st{font-size:12px;color:var(--p);margin-top:5px;line-height:17px}
+.fcard .st.g{color:var(--t2)}
+.fcard .st.w{color:var(--warn)}
+.fcard .op{display:flex;gap:8px;margin-top:9px}
+.sm{height:40px;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;border:1px solid var(--outline);
+  background:var(--card);color:var(--p);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;
+  position:relative}
+.sm::before{content:"";position:absolute;left:0;right:0;top:-4px;bottom:-4px}
+.sm.pri{background:var(--p);border-color:var(--p);color:var(--on-p)}
+.sm:disabled{background:var(--variant);border-color:var(--divider);color:var(--t3);cursor:default}
+.sm:disabled::before{display:none}
+
+.btnrow{display:flex;gap:10px;padding:0 12px 12px}
+.btnrow .btn{margin:0}
+
+/* 底部栏 */
+.nav{position:absolute;bottom:0;left:0;right:0;height:56px;background:var(--surface);
+  border-top:1px solid var(--divider);display:flex;z-index:35}
+.nav button{flex:1;border:0;background:none;font-family:inherit;font-size:11px;
+  color:var(--t3);cursor:pointer;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:2px}
+.nav button.on{color:var(--p)}
+.nav svg{width:22px;height:22px;fill:currentColor}
+
+/* 弹窗（只保留确认类） */
+.mask{position:absolute;inset:0;background:rgba(0,0,0,.42);z-index:50;display:none;
+  align-items:center;justify-content:center;padding:24px}
+.mask.on{display:flex}
+.dlg{background:var(--card);border-radius:20px;width:100%;padding:20px 18px 12px}
+.dlg h3{font-size:17px;color:var(--t1);margin-bottom:8px}
+.dlg p{font-size:13px;color:var(--t2);line-height:19px;margin-bottom:14px}
+.dlg .db{display:flex;justify-content:flex-end;gap:6px}
+.dlg .db button{border:0;background:none;color:var(--p);font-size:14px;font-weight:600;
+  padding:10px 12px;cursor:pointer;font-family:inherit}
+.dlg .db button.dg{color:var(--err)}
+
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;line-height:17px;
+  color:var(--t1);background:var(--variant);border-radius:12px;padding:12px;margin:0 12px 12px;
+  white-space:pre-wrap;word-break:break-all}
+
+.hint{font-size:11px;color:var(--t3);text-align:center;padding:14px 20px 26px;line-height:16px}
+</style>
+</head>
+<body>
+
+<div class="phone" id="ph">
+  <div class="bar"><span>2:10</span><span class="r"><span>中国移动</span><span class="bat"><i></i></span></span></div>
+
+  <!-- ═══ 主页面 ═══ -->
+  <div class="view on" id="v-main">
+    <div class="appbar"><button class="back" onclick="back()">‹</button><h1>同步</h1>
+      <button class="act" onclick="go('v-log')">日志</button></div>
+
+    <div class="sec">账号</div>
+    <div class="grp">
+      <div class="row">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-5 0-9 2.5-9 5.5V21h18v-1.5c0-3-4-5.5-9-5.5z"/></svg></div>
+        <div class="tx"><div class="t" id="a-t">未登录</div><div class="s" id="a-s"></div></div>
+        <div class="go" id="a-go" onclick="doLogin()">去登录</div>
+      </div>
+      <div class="row">
+        <div class="tx"><div class="t">本机 / 仓库</div><div class="s" id="d-s"></div></div>
+      </div>
+    </div>
+    <div class="warnbox" id="w-repo">还没填同步仓库：上传和读取设备列表都没有地方存。去「设置 → 同步」里填仓库名。</div>
+
+    <div class="sec">自动</div>
+    <div class="grp">
+      <div class="sw" onclick="toggleAuto()">
+        <div class="tx"><div class="t">自动同步</div><div class="s">按固定间隔把本机清单推到仓库</div></div>
+        <div class="tg" id="tg-auto"></div>
+      </div>
+    </div>
+    <div class="note">没登录时这个开关打不开：开了也推不上去，只会静默失败。</div>
+
+    <div class="sec">操作</div>
+    <div class="btnrow">
+      <button class="btn pri" id="b-up" onclick="doUp()">上传</button>
+      <button class="btn" id="b-read" onclick="doRead()">读取设备</button>
+    </div>
+    <div class="why" id="w-act"></div>
+    <div class="note" id="n-busy" style="display:none">正在处理，按钮先禁用…</div>
+
+    <div class="sec" id="dev-sec" style="display:none">远程设备</div>
+    <div class="grp" id="dev-list"></div>
+    <div class="empty on" id="dev-empty">还没读取设备列表，先点「读取设备」。</div>
+
+    <div class="hint">同步走 GitHub 仓库：本机清单推上去，别的设备再拉回来。</div>
+  </div>
+
+  <!-- ═══ 日志页 ═══ -->
+  <div class="view" id="v-log">
+    <div class="appbar"><button class="back" onclick="back()">‹</button><h1>日志</h1></div>
+    <div class="mono" id="log-tx"></div>
+    <button class="btn blk" onclick="toast('已复制')">复制</button>
+  </div>
+
+  <div class="mask" id="mask"><div class="dlg">
+    <h3 id="dlg-t"></h3><p id="dlg-b"></p>
+    <div class="db"><button onclick="closeDlg()">取消</button><button class="dg" id="dlg-ok"></button></div>
+  </div></div>
+</div>
+
+<script>
+var S={logged:false,auto:false,repo:'',devs:[],busy:false,log:''};
+var DEVICES=[
+ {l:'HUAWEI FIN-AL60',t:'2 小时前',n:42},
+ {l:'Pixel 8',t:'昨天',n:38},
+ {l:'书房 PC',t:'3 天前',n:56}
+];
+
+function $(i){return document.getElementById(i)}
+function show(id){var v=document.querySelectorAll('.view');for(var i=0;i<v.length;i++)v[i].classList.remove('on');$(id).classList.add('on');window.__cur=id}
+function go(id){window.__back=window.__cur||'v-main';show(id)}
+function back(){show(window.__back||'v-main')}
+function toast(t){var d=document.createElement('div');d.textContent=t;
+ d.style.cssText='position:absolute;bottom:70px;left:50%;transform:translateX(-50%);background:#1A1C1E;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:99';
+ $('ph').appendChild(d);setTimeout(function(){d.remove()},1200)}
+function log(s){S.log=S.log?S.log+'\n'+s:s;rend()}
+
+function rend(){
+  $('a-t').textContent=S.logged?'已登录：kongbai9288':'未登录';
+  $('a-s').textContent=S.logged?'可以上传本机清单，也能读取远程设备':'同步需要 GitHub 账号，否则上传和读取设备列表都会失败';
+  $('a-go').textContent=S.logged?'已登录':'去登录';
+  $('a-go').onclick=S.logged?function(){toast('已登录')}:doLogin;
+  $('d-s').textContent='ID 8f3a2b · HUAWEI FIN-AL60 · '+(S.repo||'还没填仓库');
+  $('w-repo').style.display=(S.logged&&S.repo)?'none':'block';
+  $('tg-auto').className='tg'+(S.auto?' on':'');
+  $('b-up').disabled=!S.logged||S.busy;
+  $('b-read').disabled=!S.logged||S.busy;
+  $('w-act').className='why'+(S.logged?'':' on');
+  $('w-act').textContent=S.logged?'':'先登录 GitHub';
+  $('n-busy').style.display=S.busy?'block':'none';
+  var n=S.devs.length;
+  $('dev-sec').style.display=n?'block':'none';
+  $('dev-empty').className='empty'+(n?'':' on');
+  var h='';
+  for(var i=0;i<n;i++){var d=S.devs[i];
+    h+='<div class="row"><div class="ico"><svg viewBox="0 0 24 24"><path d="M7 2h10v20H7z"/></svg></div>'
+      +'<div class="tx"><div class="t">'+d.l+'</div><div class="s">上次同步 '+d.t+' · '+d.n+' 个模组</div></div>'
+      +'<button class="sm" onclick="askRestore('+i+')">恢复</button></div>'}
+  $('dev-list').innerHTML=h;
+  $('log-tx').textContent=S.log||'（还没有日志）'
+}
+
+function doLogin(){S.logged=true;S.repo='kongbai9288/mods-sync';log('已登录：kongbai9288');rend();toast('已登录')}
+function toggleAuto(){
+  if(!S.logged){toast('先登录GitHub');return}
+  S.auto=!S.auto;log(S.auto?'已开启自动同步':'已关闭自动同步');rend();toast(S.auto?'已开启':'已关闭')}
+function doUp(){
+  if(!S.logged)return;
+  S.busy=true;rend();
+  log('开始上传…');log('清单：42 个模组 · 6 个配置');log('上传完成：commit a1b2c3d');
+  S.busy=false;rend();toast('上传完成')}
+function doRead(){
+  if(!S.logged)return;
+  S.busy=true;rend();
+  log('读取仓库…');S.devs=DEVICES.slice();log('远程设备 3 个');
+  S.busy=false;rend();toast('远程设备 3 个')}
+function askRestore(i){
+  openDlg('从 '+S.devs[i].l+' 恢复','这台设备的清单会覆盖本机当前配置，不能撤销。','恢复',function(){
+    log('开始从 '+S.devs[i].l+' 恢复…');log('恢复完成');toast('恢复完成');closeDlg()})}
+function openDlg(t,b,ok,fn){$('dlg-t').textContent=t;$('dlg-b').textContent=b;
+  $('dlg-ok').textContent=ok;$('dlg-ok').onclick=fn;$('mask').classList.add('on')}
+function closeDlg(){$('mask').classList.remove('on')}
+
+rend();
+</script>
+</body>
+</html>
