@@ -222,6 +222,7 @@
     <string name="translate_hint">用 Google ML Kit 的离线模型，下载一次（约 30MB）后翻译不再联网。不下载也能用，但会走在线接口。</string>
     <string name="tab_mods">模组管理</string>
     <string name="tab_trash">回收站</string>
+    <string name="tab_skin">玩家皮肤</string>
     <string name="trash_empty">回收站是空的</string>
     <string name="trash_restore">还原</string>
     <string name="trash_delete">彻底删除</string>
