@@ -28,8 +28,11 @@ import android.util.Base64
  *      注意：**没有 SKIN 字段不代表失败**，只说明这个账号在用默认皮肤。
  *      早期把这个当成错误会误报"查询失败"。
  *
- * 限速：session server 大约 400 次 / 10 秒（按 IP）。所以这里带了一个小缓存，
- * 同一个 UUID 短时间内重复查询直接走缓存，不重复打网络。
+ * 限速：见 [MojangRate]。这里**不自己实现限流**，统一走那一层，
+ * 这样"设置里重置配额""被 429 后冷却"只在一处生效。
+ *
+ * 附带一个内存缓存：同一个 UUID 短时间内重复查询直接走缓存，不打网络、
+ * **也不消耗配额**。缓存带有效期，否则玩家换了皮肤会一直看到旧的。
  */
 object SkinApi {
 
@@ -40,7 +43,9 @@ object SkinApi {
         val skinUrl: String?,
         val capeUrl: String?,
         /** true = Alex 模型（细手臂）；false = Steve 模型（宽手臂） */
-        val slim: Boolean
+        val slim: Boolean,
+        /** 查到它的时刻，用于缓存有效期判断 */
+        val at: Long = System.currentTimeMillis()
     ) {
         val hasSkin: Boolean get() = !skinUrl.isNullOrBlank()
         val modelText: String get() = if (slim) "Alex（细手臂）" else "Steve（宽手臂）"
@@ -53,11 +58,44 @@ object SkinApi {
 
     /** 缓存上限：按 UUID 记，超了丢最久没用的 */
     private const val MAX_CACHE = 64
+
+    /** 缓存有效期。过期会重新查一次（并消耗配额） */
+    private const val CACHE_TTL = 30 * 60_000L
+
     private val cache = object : LinkedHashMap<String, Skin>(
         MAX_CACHE, 0.75f, true
     ) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Skin>?): Boolean =
             size > MAX_CACHE
+    }
+
+    /**
+     * 发一个请求。
+     *
+     * 这里刻意**不**再过一遍 [MojangRate.check]：入口 [query] 已经一次性
+     * 预留过整次查询的额度。若在这里逐请求判间隔，一次查询内部的两个请求
+     * 会被 [MojangRate] 的最小间隔互相拦死，表现就是"永远查不出来"。
+     *
+     * 所以这里只负责两件事：
+     *   1. 真发出去了才记一笔配额（缓存命中根本不会走到这，也就零消耗）
+     *   2. 收到 429 → 进冷却，并且**不重试**
+     */
+    private fun fetch(url: String): String {
+        val body = try {
+            Http.get(url, timeout = Http.SHORT)
+        } catch (t: Throwable) {
+            if ((t.message ?: "").contains("HTTP 429")) {
+                MojangRate.onTooMany()
+                throw RuntimeException(
+                    "Mojang 已限流（429），已自动冷却 " +
+                        (MojangRate.coolingMs() / 1000).coerceAtLeast(1) + " 秒"
+                )
+            }
+            throw t
+        }
+        MojangRate.record()
+        MojangRate.onSuccess()
+        return body
     }
 
     /**
@@ -79,7 +117,7 @@ object SkinApi {
         val n = name.trim()
         if (n.isEmpty()) throw RuntimeException("请先输入玩家名")
         val body = try {
-            Http.get(NAME_URL + Http.enc(n), timeout = Http.SHORT)
+            fetch(NAME_URL + Http.enc(n))
         } catch (t: Throwable) {
             val m = t.message ?: ""
             if (m.contains("HTTP 404")) throw RuntimeException("没有叫「$n」的正版玩家")
@@ -98,10 +136,18 @@ object SkinApi {
         val uuid = undash(uuidRaw)
         if (!looksLikeUuid(uuid)) throw RuntimeException("UUID 格式不对：$uuidRaw")
 
-        cache[uuid]?.let { return it }
+        //
+        // 缓存命中直接返回，不打网络、不消耗配额。
+        // 但要看有效期 —— 玩家换了皮肤的话，永远返回旧图等于"查不了新皮肤"。
+        //
+        val hit = synchronized(cache) { cache[uuid] }
+        if (hit != null) {
+            if (System.currentTimeMillis() - hit.at < CACHE_TTL) return hit
+            synchronized(cache) { cache.remove(uuid) }
+        }
 
         val body = try {
-            Http.get(PROFILE_URL + uuid, timeout = Http.SHORT)
+            fetch(PROFILE_URL + uuid)
         } catch (t: Throwable) {
             val m = t.message ?: ""
             when {
@@ -158,11 +204,21 @@ object SkinApi {
 
     /**
      * 输入可能是名字也可能是 UUID，都接受。
+     *
+     * **唯一的对外入口**：限速检查只在这里做一次，别绕过它直接调
+     * [uuidByName] / [skinByUuid]，否则就没有限流了。
      */
     fun query(input: String): Skin {
         val s = input.trim()
         if (s.isEmpty()) throw RuntimeException("请输入玩家名或 UUID")
-        return if (looksLikeUuid(s)) skinByUuid(s) else skinByUuid(uuidByName(s))
+
+        // 直接给 UUID 的话只发 1 个请求；给名字要发 2 个（先换 UUID 再取皮肤）。
+        // 按多的那个预留，宁可保守一点。
+        val byUuid = looksLikeUuid(s)
+        val v = MojangRate.check(cost = if (byUuid) 1 else MojangRate.PER_QUERY)
+        if (!v.ok) throw RuntimeException(v.reason + "，请 ${v.waitSec} 秒后再试")
+
+        return if (byUuid) skinByUuid(s) else skinByUuid(uuidByName(s))
     }
 
     /**
