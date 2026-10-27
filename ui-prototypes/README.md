@@ -45,9 +45,22 @@
 | 同步页 | `sync_ui.html` | **8.8** | 🔶 待验收 |
 | 资讯页（四个分区独立） | `feed_ui.html` | **8.8** | 🔶 待验收 |
 | 插件页（安装前看权限 / 详情 / 运行输出页） | `plugins_ui.html` | **8.8** | 🔶 待验收 |
-| 周报页 | — | — | ⬜ 待做 |
+| 周报页（三分区 tab 独立 + 全文/日志页） | `weekly_ui.html` | **8.8** | 🔶 待验收 |
 | 世界存档 / 回收站 / 收藏 / 致谢 | — | — | ⬜ 待做 |
 | 设置的 16 个子页 | — | — | ⬜ 待做 |
+
+---
+
+## 周报页落地时要改的 Kotlin
+
+`WeeklyReportFragment.kt`：
+
+- `onDestroyView` 里 `handler.removeCallbacksAndMessages(null)` —— `Bg.ui` 是全局共享 Handler，清它会把别的页面刚排队的任务一起清掉。删掉，改成按 generation 丢弃过期回调（已有）
+- `renderRemote` 里 `body.take(300)` 截断且无出口，用户看不到完整更新说明 → 另开全文页 + 「查看原文」
+- 「本机动态」是纯文本拼 `StringBuilder`，四个数字挤在一个卡片里 → 改成四个指标 + 最近错误列表
+- 两个联网分区失败时只有降级文案，没有重试入口 → 各分区独立「重试」
+- 三个分区一路长滚动 → tab 分区
+- 顶部只有下拉刷新（早期连 SwipeRefreshLayout 都没有）→ 顶栏加「刷新」按钮
 
 ---
 
