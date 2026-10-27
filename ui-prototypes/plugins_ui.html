@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>插件 · UI 原型 1:1</title>
+<style>
+:root{
+  --p:#6750a4; --pc:#fff;
+  --bg:#f6f4fa; --surf:#fff; --sv:#e9e2f7;
+  --on:#1d1b20; --onv:#625b71; --out:#cac4d0;
+  --err:#b3261e; --errc:#f9dedc;
+  --ok:#1b6d3a; --okc:#d8f0df;
+  --warn:#7a5600; --warnc:#ffeccc;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#2a2a2e;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif}
+#ph{width:360px;height:800px;margin:0 auto;background:var(--bg);position:relative;overflow:hidden}
+.scr{position:absolute;inset:0;background:var(--bg);display:none;flex-direction:column}
+.scr.on{display:flex}
+.bar{height:56px;background:var(--p);color:var(--pc);display:flex;align-items:center;padding:0 4px;flex:0 0 auto}
+.bar .bk{width:48px;height:48px;border:0;background:transparent;color:#fff;font-size:22px;cursor:pointer}
+.bar .tt{font-size:18px;font-weight:600;flex:1;padding-left:4px}
+.bar .ac{width:48px;height:48px;border:0;background:transparent;color:#fff;font-size:17px;cursor:pointer}
+.body{flex:1;overflow-y:auto;padding:12px 12px 88px}
+.nav{position:absolute;bottom:0;left:0;right:0;height:72px;background:var(--surf);border-top:1px solid var(--out);display:flex;flex:0 0 auto}
+.nav button{flex:1;border:0;background:none;font-size:11px;color:var(--onv);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+.nav button.cur{color:var(--p);font-weight:600}
+.nav .ic{font-size:19px}
+
+.sr{background:var(--surf);border-radius:24px;border:1px solid var(--out);height:48px;display:flex;align-items:center;padding:0 14px;gap:8px;margin-bottom:10px}
+.sr input{flex:1;border:0;outline:0;font-size:14px;background:transparent}
+.row2{display:flex;gap:8px;margin-bottom:10px}
+.btn{flex:1;height:48px;border-radius:24px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid var(--out);background:var(--surf);color:var(--p)}
+.btn.pri{background:var(--p);color:#fff;border:0}
+.btn:disabled{opacity:.42;cursor:not-allowed}
+.wide{width:100%;height:48px;border-radius:24px;font-size:15px;font-weight:600;cursor:pointer;border:1px solid var(--out);background:var(--surf);color:var(--p)}
+.wide.pri{background:var(--p);color:#fff;border:0}
+.wide:disabled{opacity:.42;cursor:not-allowed}
+.hint{font-size:11px;color:var(--onv);text-align:center;margin-top:6px;min-height:14px}
+
+.card{background:var(--surf);border:1px solid var(--out);border-radius:12px;padding:12px;margin-bottom:8px}
+.card.off{background:var(--sv)}
+.card .nm{font-size:15px;font-weight:600;color:var(--on)}
+.card .sm{font-size:11px;color:var(--onv);margin-top:3px}
+.tags{display:flex;gap:4px;margin-top:7px;flex-wrap:wrap}
+.tag{font-size:10px;padding:2px 7px;border-radius:6px;background:var(--sv);color:var(--onv)}
+.tag.net{background:var(--warnc);color:var(--warn)}
+.tag.dg{background:var(--errc);color:var(--err)}
+.card .op{display:flex;gap:8px;margin-top:9px;align-items:center}
+.mini{height:48px;min-width:64px;padding:0 14px;border-radius:24px;font-size:13px;border:1px solid var(--out);background:var(--surf);color:var(--p);cursor:pointer;position:relative}
+.mini.pri{background:var(--p);color:#fff;border:0}
+.mini:disabled{opacity:.42;cursor:not-allowed}
+.mini::after{content:"";position:absolute;left:0;right:0;top:-9px;bottom:-9px}
+.sp{flex:1}
+
+.sw{width:46px;height:28px;border-radius:14px;border:1px solid var(--out);background:var(--surf);position:relative;cursor:pointer;flex:0 0 auto}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:11px;background:var(--out);transition:.15s}
+.sw.on{background:var(--p);border-color:var(--p)}
+.sw.on::after{left:20px;background:#fff}
+
+.kv{background:var(--surf);border:1px solid var(--out);border-radius:12px;overflow:hidden;margin-bottom:10px}
+.kv .r{display:flex;padding:11px 12px;font-size:13px;border-bottom:1px solid var(--out)}
+.kv .r:last-child{border-bottom:0}
+.kv .k{width:88px;color:var(--onv);flex:0 0 auto}
+.kv .v{flex:1;color:var(--on);word-break:break-all}
+
+.warn{background:var(--warnc);color:var(--warn);border-radius:12px;padding:12px;font-size:12px;line-height:1.6;margin-bottom:10px}
+.warn b{display:block;margin-bottom:4px;font-size:13px}
+.err{background:var(--errc);color:var(--err);border-radius:12px;padding:12px;font-size:12px;line-height:1.6;margin-bottom:10px}
+.ok{background:var(--okc);color:var(--ok);border-radius:12px;padding:12px;font-size:12px;line-height:1.6;margin-bottom:10px}
+
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;line-height:1.65;background:#1b1b1f;color:#d8d8dc;border-radius:12px;padding:12px;white-space:pre-wrap;word-break:break-all;max-height:420px;overflow-y:auto}
+
+.empty{background:var(--surf);border:1px solid var(--out);border-radius:12px;padding:16px;text-align:center}
+.empty .t{font-size:15px;font-weight:600}
+.empty .d{font-size:12px;color:var(--onv);margin-top:8px;line-height:1.7;text-align:left}
+
+.dlg{position:absolute;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:16px;z-index:9}
+.dlg.on{display:flex}
+.dbox{background:var(--surf);border-radius:20px;padding:20px;width:100%}
+.dbox h3{margin:0 0 8px;font-size:17px}
+.dbox p{margin:0;font-size:13px;color:var(--onv);line-height:1.7}
+.dact{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.dact button{height:44px;padding:0 16px;border:0;background:transparent;color:var(--p);font-size:14px;font-weight:600;cursor:pointer;border-radius:22px}
+.dact button.dg{color:var(--err)}
+.dact button.pri{background:var(--p);color:#fff}
+</style>
+</head>
+<body>
+<div id="ph">
+
+<!-- 列表 -->
+<div class="scr on" id="sList">
+  <div class="bar"><button class="bk" onclick="toast('返回')">‹</button><div class="tt">插件</div><button class="ac" onclick="go('sHelp')">?</button></div>
+  <div class="body">
+    <div class="sr"><span>🔍</span><input id="q" placeholder="搜插件名 / 作者" oninput="render()"></div>
+    <div class="row2">
+      <button class="btn pri" onclick="go('sConfirm')">安装插件包</button>
+      <button class="btn" id="bRef" onclick="refresh()">刷新</button>
+    </div>
+    <div id="lst"></div>
+    <div id="cnt" style="font-size:11px;color:var(--onv);text-align:center;margin-top:8px"></div>
+  </div>
+  <div class="nav">
+    <button onclick="toast('跨页面跳转不在本原型内')"><span class="ic">⇄</span>迁移</button>
+    <button onclick="toast('跨页面跳转不在本原型内')"><span class="ic">▦</span>模组</button>
+    <button class="cur"><span class="ic">🧩</span>插件</button>
+  </div>
+</div>
+
+<!-- 安装确认 -->
+<div class="scr" id="sConfirm">
+  <div class="bar"><button class="bk" onclick="go('sList')">‹</button><div class="tt">确认安装</div><div style="width:48px"></div></div>
+  <div class="body">
+    <div class="ok"><b id="cFile">hello-world.zip</b>已读取：6 个文件，48 KB</div>
+    <div class="kv">
+      <div class="r"><div class="k">名称</div><div class="v">打招呼</div></div>
+      <div class="r"><div class="k">标识</div><div class="v">sample.hello</div></div>
+      <div class="r"><div class="k">版本</div><div class="v">1.0.0</div></div>
+      <div class="r"><div class="k">作者</div><div class="v">示例</div></div>
+      <div class="r"><div class="k">引擎</div><div class="v">js</div></div>
+      <div class="r"><div class="k">入口</div><div class="v">main.js</div></div>
+    </div>
+    <div class="warn">
+      <b>这个插件申请了 2 项权限</b>
+      联网：能自己发网络请求，去哪、发什么都不经过你。<br>
+      读写文件：能在插件目录里读和写文件。<br><br>
+      清单里没写的权限，调用时会直接报错不会放行；但写了的，装上就生效。装之前先看清上面这几条。
+    </div>
+    <div class="err" id="cWarn" style="display:none"></div>
+    <button class="wide pri" onclick="doInstall()">安装</button>
+    <div class="hint">装完默认启用，可以再关掉</div>
+  </div>
+</div>
+
+<!-- 安装结果 -->
+<div class="scr" id="sResult">
+  <div class="bar"><button class="bk" onclick="go('sList')">‹</button><div class="tt">安装结果</div><div style="width:48px"></div></div>
+  <div class="body">
+    <div id="rBox"></div>
+    <button class="wide" onclick="go('sList')">回到插件列表</button>
+  </div>
+</div>
+
+<!-- 详情 -->
+<div class="scr" id="sDetail">
+  <div class="bar"><button class="bk" onclick="go('sList')">‹</button><div class="tt">插件详情</div><button class="ac" id="dMenu" onclick="askUninstall()">🗑</button></div>
+  <div class="body">
+    <div class="card" id="dHead"></div>
+    <div class="kv" id="dKv"></div>
+    <div class="warn" id="dPerm"></div>
+    <div class="row2">
+      <button class="btn pri" id="dRun" onclick="doRun()">运行</button>
+      <button class="btn" id="dToggle" onclick="doToggle()">禁用</button>
+    </div>
+    <div class="hint" id="dHint"></div>
+  </div>
+</div>
+
+<!-- 运行输出 -->
+<div class="scr" id="sRun">
+  <div class="bar"><button class="bk" onclick="go('sDetail')">‹</button><div class="tt">执行结果</div><div style="width:48px"></div></div>
+  <div class="body">
+    <div id="runMeta"></div>
+    <div class="mono" id="runOut"></div>
+    <div class="row2" style="margin-top:10px">
+      <button class="btn" onclick="toast('已复制日志')">复制</button>
+      <button class="btn" onclick="doRun()">再跑一次</button>
+    </div>
+  </div>
+</div>
+
+<!-- 说明 -->
+<div class="scr" id="sHelp">
+  <div class="bar"><button class="bk" onclick="go('sList')">‹</button><div class="tt">插件怎么用</div><div style="width:48px"></div></div>
+  <div class="body">
+    <div class="kv">
+      <div class="r"><div class="k">插件目录</div><div class="v">工作目录 / plugins</div></div>
+      <div class="r"><div class="k">每个插件</div><div class="v">一个子目录，里面有 manifest.json 和脚本（默认 main.js）</div></div>
+      <div class="r"><div class="k">清单字段</div><div class="v">id（必填）、name、version、author、desc、engine、entry、permissions</div></div>
+      <div class="r"><div class="k">引擎</div><div class="v">目前只支持 js</div></div>
+    </div>
+    <div class="warn"><b>三种权限</b>
+      net 联网：能发网络请求<br>
+      files 读写文件：能在插件目录里读和写<br>
+      prefs 改设置：能读写本应用的设置项<br><br>
+      没声明的权限调用时直接报错，不会静默放行。
+    </div>
+    <div class="card"><div class="nm">脚本里能用的</div><div class="sm" style="margin-top:6px;font-family:ui-monospace,monospace">log、toast、http.get、file.read/write/list/delete、prefs.get/set</div></div>
+  </div>
+</div>
+
+</div>
+
+<div class="dlg" id="dg">
+  <div class="dbox">
+    <h3 id="dgT"></h3><p id="dgB"></p>
+    <div class="dact"><button id="dgN">取消</button><button id="dgY" class="pri">确定</button></div>
+  </div>
+</div>
+<div id="ts" style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);background:#1d1b20;color:#fff;padding:9px 16px;border-radius:18px;font-size:13px;opacity:0;transition:.2s;pointer-events:none;z-index:20"></div>
+
+<script>
+var PN={net:'联网',files:'读写文件',prefs:'改设置'};
+var P=[
+ {id:'sample.hello',name:'打招呼',version:'1.0.0',author:'示例',desc:'跑一遍看插件有没有装上，输出几行日志。',engine:'js',entry:'main.js',permissions:['net'],enabled:true},
+ {id:'sample.listdir',name:'列目录',version:'1.0.0',author:'示例',desc:'列出插件目录里的文件，用来确认脚本能读到哪。',engine:'js',entry:'main.js',permissions:['files'],enabled:true},
+ {id:'sample.fetch',name:'取网页',version:'1.1.0',author:'示例',desc:'抓一个网页的前 200 字，验证联网权限有没有生效。',engine:'js',entry:'main.js',permissions:['net','files'],enabled:false},
+ {id:'com.user.modscan',name:'模组体检',version:'0.4.2',author:'kongbai',desc:'扫 mods 目录，列出版本不匹配和缺依赖的模组，输出一份报告。',engine:'js',entry:'scan.js',permissions:['files','prefs'],enabled:true},
+ {id:'com.user.syncer',name:'云同步助手',version:'2.3.0',author:'第三方',desc:'把设置和模组清单同步到自建后端，可配定时。',engine:'js',entry:'sync.js',permissions:['net','files','prefs'],enabled:true}
+];
+var cur=null, scanning=false;
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];})}
+function toast(m){var t=document.getElementById('ts');t.textContent=m;t.style.opacity=1;clearTimeout(t._);t._=setTimeout(function(){t.style.opacity=0},1600)}
+function go(id){var s=document.querySelectorAll('.scr');for(var i=0;i<s.length;i++)s[i].classList.remove('on');document.getElementById(id).classList.add('on')}
+function permTags(p){
+  if(!p.permissions.length)return '<span class="tag">无权限</span>';
+  return p.permissions.map(function(k){
+    var c=(k==='net')?'net':'';
+    return '<span class="tag '+c+'">'+PN[k]+'</span>';
+  }).join('');
+}
+function render(){
+  var q=(document.getElementById('q').value||'').trim().toLowerCase();
+  var box=document.getElementById('lst');
+  var list=P.filter(function(p){return !q||p.name.toLowerCase().indexOf(q)>=0||p.id.toLowerCase().indexOf(q)>=0||p.author.toLowerCase().indexOf(q)>=0});
+  if(scanning){box.innerHTML='<div class="card"><div class="sm">扫描中…</div></div>';document.getElementById('cnt').textContent='';return}
+  if(!P.length){
+    box.innerHTML='<div class="empty"><div class="t">还没有插件</div><div class="d">插件是目录里的文件（manifest.json + 脚本），不是 APK。<br><br>点上面「安装插件包」选一个 zip，或先写入三个能跑的示例照着改。<br><br>插件目录：工作目录 / plugins</div>'+
+      '<div class="row2" style="margin-top:12px"><button class="btn" onclick="toast(\'写入示例占位\')">写入示例</button><button class="btn" onclick="go(\'sHelp\')">看说明</button></div></div>';
+    document.getElementById('cnt').textContent='';return;
+  }
+  if(!list.length){box.innerHTML='<div class="empty"><div class="t">没找到</div><div class="d">换个名字或作者再试。</div></div>';document.getElementById('cnt').textContent='';return}
+  box.innerHTML=list.map(function(p){
+    return '<div class="card'+(p.enabled?'':' off')+'">'+
+      '<div class="nm">'+esc(p.name)+'</div>'+
+      '<div class="sm">'+esc(p.id)+(p.author?' · '+esc(p.author):'')+(p.version?' · v'+esc(p.version):'')+'</div>'+
+      '<div class="tags">'+permTags(p)+'</div>'+
+      '<div class="op">'+
+        '<button class="mini pri"'+(p.enabled?'':' disabled')+' onclick="runIt(\''+p.id+'\')">运行</button>'+
+        '<button class="mini" onclick="openDetail(\''+p.id+'\')">详情</button>'+
+        '<span class="sp"></span>'+
+        '<div class="sw'+(p.enabled?' on':'')+'" onclick="toggle(\''+p.id+'\')"></div>'+
+      '</div>'+
+      (p.enabled?'':'<div class="sm" style="margin-top:6px;color:var(--warn)">已禁用，运行和联网都不会执行</div>')+
+    '</div>';
+  }).join('');
+  document.getElementById('cnt').textContent='共 '+P.length+' 个 · 显示 '+list.length+' 个';
+}
+function byId(id){for(var i=0;i<P.length;i++)if(P[i].id===id)return P[i];return null}
+function toggle(id){var p=byId(id);if(!p)return;p.enabled=!p.enabled;render();toast(p.enabled?'已启用':'已禁用')}
+function runIt(id){var p=byId(id);if(!p)return;if(!p.enabled){toast('这个插件已禁用');return}cur=p;doRun()}
+function openDetail(id){var p=byId(id);if(!p)return;cur=p;
+  document.getElementById('dHead').innerHTML='<div class="nm">'+esc(p.name)+'</div><div class="sm">'+esc(p.id)+'</div><div class="tags">'+permTags(p)+'</div>';
+  document.getElementById('dKv').innerHTML=
+    '<div class="r"><div class="k">版本</div><div class="v">'+esc(p.version||'未写')+'</div></div>'+
+    '<div class="r"><div class="k">作者</div><div class="v">'+esc(p.author||'未写')+'</div></div>'+
+    '<div class="r"><div class="k">引擎</div><div class="v">'+esc(p.engine)+'</div></div>'+
+    '<div class="r"><div class="k">入口</div><div class="v">'+esc(p.entry)+'</div></div>'+
+    '<div class="r"><div class="k">状态</div><div class="v">'+(p.enabled?'已启用':'已禁用')+'</div></div>'+
+    '<div class="r"><div class="k">说明</div><div class="v">'+esc(p.desc||'无')+'</div></div>';
+  var PR={net:'能自己发网络请求，去哪、发什么都不经过你。',files:'能在插件目录里读和写文件。',prefs:'能读写本应用的设置项。'};
+  var w=p.permissions.length?('<b>这个插件申请了 '+p.permissions.length+' 项权限</b>'+p.permissions.map(function(k){return PN[k]+'：'+PR[k]}).join('<br>')+'<br><br>清单里没写的权限，调用时会直接报错不会放行；但写了的，装上就生效。'):'<b>没有申请任何权限</b>脚本只能输出日志，碰不到网络、文件和设置。';
+  document.getElementById('dPerm').innerHTML=w;
+  document.getElementById('dRun').disabled=!p.enabled;
+  document.getElementById('dToggle').textContent=p.enabled?'禁用':'启用';
+  document.getElementById('dHint').textContent=p.enabled?'':'启用之后才能运行';
+  go('sDetail');
+}
+function doToggle(){if(!cur)return;toggle(cur.id);openDetail(cur.id)}
+function doRun(){
+  if(!cur)return;
+  var p=cur;
+  document.getElementById('runMeta').innerHTML='<div class="ok"><b>'+esc(p.name)+'</b>引擎 '+esc(p.engine)+' · 入口 '+esc(p.entry)+'</div>';
+  document.getElementById('runOut').textContent='正在执行…';
+  go('sRun');
+  setTimeout(function(){
+    var out;
+    if(p.id==='sample.hello')out='[log] hello from plugin\n[log] id=sample.hello\n[log] engine=js\n完成，共 3 行日志';
+    else if(p.id==='sample.listdir')out='[file.list] plugins/\n  sample.hello/\n  sample.listdir/\n  sample.fetch/\n共 3 个目录';
+    else if(p.id==='sample.fetch')out='缺少权限 net，请在 manifest.json 的 permissions 里声明';
+    else if(p.id==='com.user.modscan')out='[scan] mods/ 共 42 个\n[warn] jei-1.20.1.jar 版本不匹配（当前 1.21）\n[warn] jade 缺依赖：collective\n[ok] 40 个正常\n报告已输出';
+    else out='[sync] 连接自建后端…\n[sync] 上传 12 项设置\n[sync] 上传 42 条模组清单\n完成';
+    document.getElementById('runOut').textContent=out;
+  },600);
+}
+function doInstall(){
+  var ok=true;
+  var box=document.getElementById('rBox');
+  box.innerHTML= ok
+    ? '<div class="ok"><b>装好了</b>打招呼（sample.hello）已写入插件目录，默认启用。<br><br>权限：联网。装完可以直接在列表里点「运行」。</div>'
+    : '<div class="err"><b>安装失败</b>压缩包里找不到 manifest.json</div>';
+  go('sResult');
+}
+function refresh(){
+  scanning=true;document.getElementById('bRef').disabled=true;document.getElementById('bRef').textContent='扫描中…';render();
+  setTimeout(function(){scanning=false;document.getElementById('bRef').disabled=false;document.getElementById('bRef').textContent='刷新';render();toast('已刷新')},700);
+}
+function askUninstall(){
+  if(!cur)return;
+  showDlg('卸载 '+cur.name,'会删掉整个插件目录，脚本和清单一起没，不可恢复。<br><br>只是暂时不想用的话，关掉上面的开关就够了。',function(){
+    var n=cur.name;P=P.filter(function(x){return x.id!==cur.id});cur=null;go('sList');render();toast('已卸载 '+n);
+  },true);
+}
+var dgy=null;
+function showDlg(t,b,onY,danger){
+  document.getElementById('dgT').textContent=t;document.getElementById('dgB').innerHTML=b;
+  var y=document.getElementById('dgY');y.textContent='卸载';y.className=danger?'dg':'pri';
+  dgy=onY;document.getElementById('dg').classList.add('on');
+}
+document.getElementById('dgN').onclick=function(){document.getElementById('dg').classList.remove('on')};
+document.getElementById('dgY').onclick=function(){document.getElementById('dg').classList.remove('on');if(dgy)dgy()};
+render();
+</script>
+</body>
+</html>
